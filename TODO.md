@@ -1,0 +1,256 @@
+# AgentOps Delivery Plan
+
+Checkboxes are completion claims. Check an item only when its acceptance criteria and listed verification pass. Record measured results in committed reports; do not invent numbers.
+
+## Phase 0 — Repository and governance baseline
+
+- [x] Initialize local Git repository on `main`.
+- [x] Add `AGENTS.md`, `README.md`, project specification, architecture/workflow diagrams, data model, threat model, evaluation plan, ADR directory, and this complete phased TODO.
+- [x] Add secret/runtime-safe `.gitignore`.
+- [x] Connect the uniquely confirmed existing GitHub `AgentOps` repository as `origin`; never create a duplicate.
+- [x] Run planning-document checks and create the initial Conventional Commit.
+- [ ] Push the initial commit immediately after `origin` is uniquely confirmed.
+- [ ] Establish Python 3.12 locally (current environment audit found default Python 3.14 and a broken registered 3.12 launcher) and record a reproducible bootstrap path.
+- [ ] Add repository CI and branch-protection guidance without claiming protection is enabled unless verified through GitHub.
+
+Verification: clean diff review, Markdown/link checks, secret scan, `git status`, remote verification, commit SHA, and push confirmation.
+
+## Phase 1 — Reproducible simulator and observability foundation
+
+- [ ] Scaffold Python 3.12 backend/workspace, locked dependencies, formatting, lint, typing, Pytest, and pre-commit/CI commands.
+- [ ] Scaffold the simple Next.js/React console and its lint/type/test commands.
+- [ ] Define Compose networks, health checks, volumes, profiles, resource bounds, `.env.example`, and secret-safe local defaults.
+- [ ] Implement API Gateway, Order Service, Inventory Service, and Payment Service with deterministic request correlation.
+- [ ] Add simulator PostgreSQL and Redis dependencies with observable client behavior.
+- [ ] Instrument services using OpenTelemetry and route metrics/logs/traces through OTel Collector to Prometheus, Loki, and Tempo.
+- [ ] Record deployment/version change events usable by diagnosis.
+- [ ] Provide one-command start/stop and health/readiness validation.
+- [ ] Implement one-command fault injection and cleanup with run/scenario IDs and repeatable reset.
+- [ ] Implement deployment-induced HTTP 500 scenario.
+- [ ] Implement database connection-pool exhaustion scenario.
+- [ ] Implement Redis timeout scenario.
+- [ ] Implement downstream-service high-latency scenario.
+- [ ] Implement memory-leak scenario with bounded safe resource settings.
+- [ ] Implement bad-configuration scenario.
+- [ ] Define separate Ground Truth manifests for all six scenarios: cause, symptoms, key metrics/logs/traces, deployment change, recommended action, verification, rollback.
+- [ ] Enforce Ground Truth isolation through separate profile/path/network/credentials and canary leakage tests.
+- [ ] Add simulator smoke tests and deterministic scenario setup/cleanup tests.
+
+Exit: Compose starts cleanly, each fault reproduces and resets, telemetry is queryable, and runtime/model paths cannot access Ground Truth.
+
+## Phase 2 — Domain model, persistence, and API/worker foundation
+
+- [ ] Implement pure typed domain identifiers, enums, errors, and UTC time handling.
+- [ ] Implement Incident state machine, enumerated legal/cancel transitions, optimistic versioning, and exhaustive transition tests.
+- [ ] Implement deterministic Alert fingerprinting, deduplication, merging, and triage with race/concurrency tests.
+- [ ] Implement SQLAlchemy models/repositories and initial Alembic migrations for operational aggregates.
+- [ ] Enable PostgreSQL pgvector extension and versioned embedding metadata.
+- [ ] Implement append-only AuditEvent model with correlation/causation IDs and restricted mutation path.
+- [ ] Implement transactional outbox where cross-process event intent is required.
+- [ ] Separate FastAPI API and worker process composition.
+- [ ] Implement PostgreSQL job claim/lease/heartbeat/retry/dead-letter-or-human-handoff behavior using transactional locking.
+- [ ] Add worker concurrency limits, graceful shutdown, stale-lease recovery, and cancellation checks.
+- [ ] Add authentication principal abstraction and RBAC roles Viewer, Operator, Approver, Admin.
+- [ ] Implement versioned `/api/v1` incident, timeline, control, and audit endpoints with pagination, idempotency, and authorization.
+- [ ] Add OpenAPI contract snapshots and API error/idempotency conventions.
+
+Exit: migrations apply/rollback in test, API and workers run separately, state/RBAC/job invariants pass unit and Testcontainers integration tests.
+
+## Phase 3 — Evidence Store, artifacts, collectors, and Context Builder
+
+- [ ] Implement immutable Artifact storage interface, local development backend, hashes, size/type/version, retention metadata, and safe retrieval authorization.
+- [ ] Implement Evidence schema with ID, incident ownership, source, normalized query, time range, content hash, Artifact, lineage, version, quality, trust, and expiry.
+- [ ] Implement evidence normalization, provenance, content verification, quality reasons, and expiration evaluation.
+- [ ] Implement deterministic collectors/adapters for metrics, logs, traces, deployments, and topology; keep them non-agent components.
+- [ ] Implement log error-pattern clustering/deduplication with raw Artifact links.
+- [ ] Implement metric trend summaries with interval/baseline/source metadata.
+- [ ] Implement trace critical-path/error summaries with trace/span references.
+- [ ] Implement deployment change summaries correlated to incident windows.
+- [ ] Implement sensitive-data redaction with transformation lineage and seeded-secret tests.
+- [ ] Implement untrusted telemetry/prompt-injection detection, delimiting, and quarantine.
+- [ ] Implement token-budgeted Context Builder with provenance labels, deterministic truncation, and recorded omissions.
+- [ ] Ensure raw telemetry is not embedded unbounded in LangGraph state or model prompts.
+- [ ] Add Evidence/Artifact API and authorization tests.
+
+Exit: known telemetry fixtures produce stable normalized evidence and safe budgeted contexts with resolvable source artifacts.
+
+## Phase 4 — Versioned Tool Gateway and read-only investigation
+
+- [ ] Define ToolDefinition registry: semantic/schema version, input/output schemas, read/write class, risk, RBAC, timeout, bounded retry, idempotency, audit.
+- [ ] Implement Tool Gateway validation, authorization, dispatch, timeout, retry classification, result limits, and audit events.
+- [ ] Implement `query_metrics` adapter and contracts.
+- [ ] Implement `query_logs` adapter and contracts.
+- [ ] Implement `query_traces` adapter and contracts.
+- [ ] Implement `query_deployments` adapter and contracts.
+- [ ] Implement `get_service_topology` adapter and contracts.
+- [ ] Implement `search_similar_incidents` adapter and historical-reference labeling.
+- [ ] Prevent raw URLs, arbitrary paths/commands, unknown tool versions, and write calls from diagnosis.
+- [ ] Add schema compatibility, timeout, bounded retry, permission, payload-limit, injection, and audit tests.
+
+Exit: all six read tools return versioned, incident-scoped Evidence/Artifact references through the gateway, including negative/security paths.
+
+## Phase 5 — Deterministic Evidence Gate
+
+- [ ] Define versioned gate rules and typed decision/reason schema.
+- [ ] Validate every cited Evidence ID exists and content hash resolves.
+- [ ] Validate incident ownership and prevent cross-incident evidence substitution.
+- [ ] Validate time relevance, freshness, expiry, quality floor, and source availability.
+- [ ] Evaluate independent-source requirements without double-counting derived evidence.
+- [ ] Require explicit treatment of material counter-evidence and missing evidence.
+- [ ] Keep model confidence as non-authoritative metadata.
+- [ ] Persist gate inputs, rules version, decision, and audit trace.
+- [ ] Add fabricated, missing, altered, stale, low-quality, correlated-source, and unresolved-counter-evidence tests.
+
+Exit: only candidates satisfying deterministic rules pass; false citations and confidence-only claims always fail.
+
+## Phase 6 — Diagnosis Agent and durable LangGraph investigation
+
+- [ ] Define versioned Pydantic graph state and migration/compatibility strategy.
+- [ ] Implement Diagnosis Agent structured schemas for bounded plan, candidates, support, counter-evidence, missing evidence, and uncertainty.
+- [ ] Implement tool-catalog constrained planning with maximum steps, parallelism, time, tokens, and cost.
+- [ ] Implement LangGraph nodes/routes for context load, plan, parallel read-only tools, evidence persistence, hypothesis, gate, replan/handoff.
+- [ ] Detect repeated/equivalent queries and enforce finite replan/attempt budgets.
+- [ ] Integrate PostgreSQL LangGraph checkpoints with thread/run correlation.
+- [ ] Implement pause, resume, cancel, and idempotent node replay semantics.
+- [ ] Implement worker-crash continuation and checkpoint observability.
+- [ ] Add deterministic mock-model mode covering valid, malformed, timeout, refusal, fabricated-reference, and injection-resistant outputs.
+- [ ] Add Agent schema tests and all Diagnosis graph path tests.
+- [ ] Add parallel investigation and model/tool timeout/failure tests.
+
+Exit: a worker can crash at each durable boundary and resume without evidence loss, illegal writes, unbounded loops, or duplicate effects.
+
+## Phase 7 — Incident memory and Prompt Registry
+
+- [ ] Define confirmed closed-incident memory projection with source/outcome/trust metadata.
+- [ ] Generate and store pgvector embeddings with embedding model/version and reindex support.
+- [ ] Implement scoped similar-incident retrieval with authorization, freshness, and leakage controls.
+- [ ] Ensure historical incidents are labeled reference-only and cannot satisfy current Evidence Gate facts.
+- [ ] Define Prompt Registry with Prompt ID, semantic version, immutable content fingerprint, model parameters, schema compatibility, trace links, status, and rollback predecessor.
+- [ ] Implement prompt draft/evaluate/promote/rollback lifecycle and RBAC/audit.
+- [ ] Enforce regression-evaluation gate before prompt promotion.
+- [ ] Trace exact prompt/model/settings/token/cost metadata without leaking sensitive content.
+- [ ] Add memory isolation, embedding-version, prompt rollback, and unauthorized-promotion tests.
+
+Exit: retrieval improves context experimentally without label/fact leakage; every model call is reproducible to a registered prompt version.
+
+## Phase 8 — Remediation, policy, approval, and safe execution
+
+- [ ] Define Remediation Agent structured proposal, prerequisites, verification conditions, rollback plan, and risk assumptions.
+- [ ] Prevent remediation until an immutable passing EvidenceGateDecision is present.
+- [ ] Define risk levels and versioned deterministic Policy Engine inputs/outputs/reasons.
+- [ ] Implement policy rules for environment, role, action/target, evidence gate, blast radius, maintenance constraints, and separation of duties.
+- [ ] Implement approval request/approve/reject lifecycle, expiry, proposal-hash binding, and audit.
+- [ ] Invalidate approval after any material proposal change and rerun schema/policy checks.
+- [ ] Implement LangGraph Interrupt and durable resume for approval-required actions.
+- [ ] Define versioned typed `rollback_service` tool requiring Incident ID, Approval ID, and Idempotency Key.
+- [ ] Implement service/version resolution from server-owned allowlists; reject free-form commands/targets.
+- [ ] Implement Action Executor with execution locks, database uniqueness, idempotent result replay, before/after snapshots, timeout, and audit.
+- [ ] Recheck RBAC, policy, state, approval hash/expiry, and idempotency immediately before mutation.
+- [ ] Add concurrent approval, expiry, mutation, replay, duplicate delivery, timeout, unauthorized role, and bypass tests.
+
+Exit: exactly one allowlisted mutation occurs for concurrent/retried identical requests, and no invalid or stale approval can execute.
+
+## Phase 9 — Deterministic verification, rollback, and postmortem
+
+- [ ] Define versioned scenario-aware Health Verification criteria and observation-window contract.
+- [ ] Verify error rate and P95 latency from real metric evidence.
+- [ ] Verify health endpoint, active service version, new alerts, and stable observation window.
+- [ ] Persist verification observations/evidence and deterministic decision reasons.
+- [ ] Route verification success to resolved/closed workflow states.
+- [ ] Route failure to bounded re-diagnosis or idempotent rollback according to policy/state.
+- [ ] Implement Rollback Controller with locks, idempotency, before/after state, audit, and failure-to-human behavior.
+- [ ] Add verification timeout, flapping/stability-window, rollback duplicate, rollback failure, and re-diagnosis budget tests.
+- [ ] Implement constrained postmortem draft from confirmed facts and resolvable references only.
+- [ ] Support versioned human postmortem revisions with authorship/audit.
+- [ ] Add false-fact/reference and unauthorized-edit tests.
+
+Exit: the system never self-declares recovery; observed success closes the incident, while failed verification safely rolls back/re-diagnoses or transfers to a human.
+
+## Phase 10 — Administration console
+
+- [ ] Implement authenticated shell, RBAC-aware navigation, and accessible error/loading states.
+- [ ] Implement incident list with filters, severity/state/service, and pagination.
+- [ ] Implement incident detail and state/workflow timeline.
+- [ ] Show investigation plan, tool progress, budgets, and bounded-replan history.
+- [ ] Implement Evidence/Artifact view with provenance, query/time/hash/version/quality/expiry/trust.
+- [ ] Show ranked root causes, supporting evidence, counter-evidence, missing evidence, and gate result.
+- [ ] Implement approval center with immutable proposal diff, risk/policy reasons, expiry, separation-of-duties feedback, approve/reject.
+- [ ] Show execution before/after metrics, service versions, trace links, verification window, and rollback.
+- [ ] Show agent-platform traces, tokens/cost, checkpoints, and audit completeness.
+- [ ] Add component, API contract, authorization, accessibility, and critical-flow browser tests.
+
+Exit: an operator can understand and safely control a full incident without the UI bypassing backend authority.
+
+## Phase 11 — Dual-layer observability and audit hardening
+
+- [ ] Standardize trace/correlation/causation IDs across alert, incident, graph, tool, model, approval, execution, and verification.
+- [ ] Instrument diagnosed-system service metrics/logs/traces and deployment markers.
+- [ ] Instrument graph nodes/routes, model latency/errors/tokens/cost, tool calls/retries, evidence gate, checkpoints, jobs/leases, approvals, executions, verification, and rollback.
+- [ ] Create dashboards and actionable alerts for both observability layers.
+- [ ] Add structured logging schema, redaction, payload limits, and no-secret telemetry tests.
+- [ ] Enforce append-only audit permissions and integrity/sequence checks; document retention/export.
+- [ ] Add audit completeness assertions for every workflow path.
+
+Exit: one correlation ID reconstructs the incident and agent-control flow without exposing secrets, and required audit events are complete and immutable to application roles.
+
+## Phase 12 — Test matrix, evaluation, load, and resilience
+
+- [ ] Complete unit tests for domain, gate, policy, schemas, redaction, idempotency, and state transitions.
+- [ ] Complete Agent output/schema/property tests including malformed and adversarial outputs.
+- [ ] Complete LangGraph all-path tests including replans, refusal, human handoff, approval, success, re-diagnosis, rollback, cancel.
+- [ ] Complete Testcontainers external integration tests for PostgreSQL/pgvector and applicable observability/tool adapters.
+- [ ] Complete six fault-scenario E2E suites from alert through postmortem.
+- [ ] Test worker crashes at checkpoint/action/verification boundaries and stale-lease recovery.
+- [ ] Test duplicate execution/delivery and concurrent approval races.
+- [ ] Test model/tool timeouts, retry exhaustion, malformed payloads, and dependency outages.
+- [ ] Test prompt injection, secret redaction, evidence forgery, replay, SSRF/target injection, approval and RBAC bypass.
+- [ ] Build versioned evaluation datasets, rules, harness, raw result schema, and reproducible report generator.
+- [ ] Run rules-only baseline.
+- [ ] Run single-Agent baseline.
+- [ ] Run controlled LangGraph baseline.
+- [ ] Run controlled LangGraph plus incident-memory baseline.
+- [ ] Report Top-1/Top-3 root cause, unsupported conclusions, fabricated references, correct refusal, diagnosis time, tool calls, tokens/cost, proposal correctness, dangerous-action blocks, duplicate executions, recovery, rollback, and worker recovery.
+- [ ] Add configured evaluation regression gates for prompt/model/policy promotion based on measured baselines.
+- [ ] Add bounded concurrency/load tests for API, job leasing, evidence queries, and workers; report observed limits without production-scale claims.
+
+Exit: versioned raw results reproduce every published claim and all required safety/resilience suites pass.
+
+## Phase 13 — Developer experience, security, and demo release
+
+- [ ] Provide one-command Compose startup/shutdown with readiness and troubleshooting.
+- [ ] Provide one-command fault injection/cleanup and one-command evaluation.
+- [ ] Provide deterministic mock-model mode requiring no external model credential.
+- [ ] Add dependency/image locking, update policy, vulnerability/secret scans, SBOM/provenance plan, and minimal container users/permissions.
+- [ ] Validate least-privilege DB roles, network paths, filesystem mounts, and service credentials.
+- [ ] Complete README quickstart, configuration reference, architecture/workflow diagrams, data model, threat model, ADRs, API docs, runbooks, and contribution guide.
+- [ ] Publish evaluation report containing methods, environment, raw-result links, limitations, and reproducible commands.
+- [ ] Create demo script showing six faults, evidence, approval, safe action, verification/rollback, audit, crash resume, and mock mode.
+- [ ] Run clean-machine rehearsal and record exact versions/timings/issues.
+- [ ] Derive portfolio/resume statements only from committed reproducible measurements.
+
+Exit: a reviewer can clone, run mock mode, reproduce representative scenarios/evaluation, inspect safety controls, and verify every quantitative statement.
+
+## Enhancements after core acceptance
+
+- [ ] Add optional read-only MCP adapters behind the existing Tool Gateway contracts.
+- [ ] Add another tightly scoped write tool only with a new ADR, threat review, policy, verification, rollback, and adversarial suite.
+- [ ] Evaluate stronger audit integrity (hash chaining/external anchoring) based on threat/deployment needs.
+- [ ] Add alternative artifact stores and enterprise identity providers behind ports.
+- [ ] Add chaos/network-fault variants and larger scenario parameterization.
+- [ ] Evaluate horizontal worker scaling and a message broker only after PostgreSQL queue measurements demonstrate need.
+- [ ] Consider A2A only if independently deployed, separately owned agent services create a real protocol boundary.
+
+## Explicit non-goals for the core version
+
+- [ ] **DO NOT IMPLEMENT:** A2A without a real independent-agent service boundary.
+- [ ] **DO NOT IMPLEMENT:** a general Agent Harness framework.
+- [ ] **DO NOT IMPLEMENT:** a multi-agent postmortem/writing team.
+- [ ] **DO NOT IMPLEMENT:** Metrics, Logs, Traces, Deployment, Evidence, Policy, Executor, Verifier, or Rollback as agents.
+- [ ] **DO NOT IMPLEMENT:** arbitrary shell execution or a shell-capable agent.
+- [ ] **DO NOT IMPLEMENT:** real production Kubernetes control.
+- [ ] **DO NOT IMPLEMENT:** Kafka/NATS before evidence-based need.
+- [ ] **DO NOT IMPLEMENT:** multiple competing agent frameworks.
+- [ ] **DO NOT IMPLEMENT:** general-purpose document Q&A.
+- [ ] **DO NOT IMPLEMENT:** comprehensive MCP conversion of the core control path.
+
+These boxes intentionally remain unchecked; they are guardrails, not backlog work.

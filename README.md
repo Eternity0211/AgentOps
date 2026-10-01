@@ -45,6 +45,8 @@ The simulator will include API Gateway, Order, Inventory, and Payment services, 
 
 - [Project specification](docs/PROJECT_SPEC.md)
 - [Architecture and workflows](docs/ARCHITECTURE.md)
+- [Decision history and rationale](docs/DECISION_HISTORY.md)
+- [Comparison with Programming Tutor](docs/COMPARISON_WITH_PROGRAMMING_TUTOR.md)
 - [Data model](docs/DATA_MODEL.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)

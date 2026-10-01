@@ -119,6 +119,8 @@ LangGraph supplies typed state, conditional routing, parallel read-only investig
 
 API and worker processes are separate. Workers claim jobs through PostgreSQL using transactional claiming, leases, heartbeats, attempt limits, and stale-lease recovery. Concurrency limits and load tests are required; no production-scale claim is allowed without data.
 
+The MVP control plane does not use Kafka, NATS, or Redis for queuing/caching. Redis is present only inside the diagnosed simulator. A control-plane broker or cache requires measured need (for example broadcast, distributed rate limiting, or demonstrated PostgreSQL queue limits) and a superseding ADR.
+
 ## 10. Prompt lifecycle
 
 Prompt Registry entries contain Prompt ID, semantic version, immutable content fingerprint, model/provider parameters, compatible schemas, trace linkage, evaluation result, status, and rollback predecessor. Promotion requires regression gates. Runtime traces identify the exact prompt/model/settings used.

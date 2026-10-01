@@ -6,6 +6,7 @@ Checkboxes are completion claims. Check an item only when its acceptance criteri
 
 - [x] Initialize local Git repository on `main`.
 - [x] Add `AGENTS.md`, `README.md`, project specification, architecture/workflow diagrams, data model, threat model, evaluation plan, ADR directory, and this complete phased TODO.
+- [x] Preserve product decision rationale and the non-duplication boundary with Programming Tutor in maintained comparison/history documents.
 - [x] Add secret/runtime-safe `.gitignore`.
 - [x] Connect the uniquely confirmed existing GitHub `AgentOps` repository as `origin`; never create a duplicate.
 - [x] Run planning-document checks and create the initial Conventional Commit.

@@ -46,6 +46,7 @@ Never force-push, rewrite pushed history, use destructive Git operations, or exp
 - UI: a deliberately simple Next.js/React administration console.
 - Delivery: Docker Compose, Pytest, Testcontainers, mock-model mode, one-command fault injection/cleanup/evaluation.
 - Work queue: PostgreSQL claim/lease with concurrency limits. Do not add Kafka or NATS without a superseding ADR backed by measurements.
+- Redis belongs to the diagnosed simulator in the MVP, not the AgentOps control plane. Add a control-plane cache/broker only after a measured requirement and a superseding ADR.
 - Integrations: core tools use the versioned Tool Gateway. MCP is only a future optional read-only adapter.
 
 Do not introduce A2A, a general agent harness, multi-agent writing, collector agents, arbitrary shell agents, production Kubernetes control, multiple agent frameworks, general document Q&A, or comprehensive MCP conversion into the core version.

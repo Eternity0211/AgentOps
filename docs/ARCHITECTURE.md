@@ -76,6 +76,8 @@ The graph state is a versioned Pydantic model holding identifiers and bounded su
 
 Each externally visible transition writes domain state, outbox/audit event, and next job intent transactionally where possible. PostgreSQL checkpointing supports pauses, interrupts, cancellation, and worker recovery. Jobs use `SELECT ... FOR UPDATE SKIP LOCKED` (or an equivalently documented strategy), owner/lease timestamps, heartbeat, attempts, and stale-lease reclamation. Execution idempotency is independent of workflow retry semantics.
 
+LangGraph, rather than a black-box general ReAct agent, is the workflow authority because the graph must expose safety routing, durable pauses, resumption, and compensation. `langchain-core` model/message/tool-schema or retriever components may be used underneath nodes where helpful, but Evidence, Policy, RBAC, Executor, and Verifier remain application/domain responsibilities.
+
 ## Investigation parallelism and bounded loops
 
 The Diagnosis Agent may propose only tools from the supplied catalog and within maximum step, parallelism, wall-clock, and token budgets. Tool arguments pass schemas before dispatch. Independent read-only calls can fan out; results join at evidence normalization. A deterministic router decides whether missing evidence justifies replanning. Replanning has a hard attempt limit and repeated-equivalent-query detection.
@@ -104,7 +106,7 @@ The initial API surface will be versioned under `/api/v1` and cover authenticati
 
 ## Deployment topology
 
-The reference Compose topology separates `api`, `worker`, `console`, `postgres`, `redis`, observability backends, OTel Collector, and simulator services. The runtime and Ground Truth evaluator use different Compose profiles/networks/credentials so runtime containers cannot read evaluation labels.
+The reference Compose topology separates `api`, `worker`, `console`, control-plane `postgres`, observability backends, OTel Collector, and simulator services. The simulator includes its own PostgreSQL and Redis as diagnosed dependencies. Redis is not a control-plane queue or cache in the MVP. The runtime and Ground Truth evaluator use different Compose profiles/networks/credentials so runtime containers cannot read evaluation labels.
 
 ## Dependency direction
 

@@ -11,6 +11,12 @@ from fastapi.testclient import TestClient
 
 from agentops_incident_commander.simulator import app as simulator_app
 from agentops_incident_commander.simulator import main as simulator_main
+from agentops_incident_commander.simulator.dependencies import (
+    DependencyUnavailable,
+    InventoryInsufficient,
+    ReservationOutcome,
+)
+from agentops_incident_commander.simulator.models import CheckoutRequest
 
 CHECKOUT = {
     "order_id": "order-123",
@@ -46,7 +52,67 @@ class FakeCaller:
             "reservation_id": "res-order-123",
             "authorization_id": "auth-order-123",
             "correlation_id": correlation_id,
+            "created": True,
         }
+
+
+class FakeOrderStore:
+    """In-memory Order persistence boundary for HTTP contract tests."""
+
+    def __init__(self) -> None:
+        self.saved: set[str] = set()
+        self.closed = False
+        self.failure: Exception | None = None
+
+    async def ready(self, correlation_id: str) -> None:
+        if self.failure is not None:
+            raise self.failure
+
+    async def save(self, checkout: CheckoutRequest, correlation_id: str) -> bool:
+        if self.failure is not None:
+            raise self.failure
+        created = checkout.order_id not in self.saved
+        self.saved.add(checkout.order_id)
+        return created
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+class FakeInventoryStore:
+    """In-memory Inventory persistence boundary for HTTP contract tests."""
+
+    def __init__(self) -> None:
+        self.reserved: set[str] = set()
+        self.closed = False
+        self.failure: Exception | None = None
+
+    async def ready(self, correlation_id: str) -> None:
+        if self.failure is not None:
+            raise self.failure
+
+    async def reserve(self, checkout: CheckoutRequest, correlation_id: str) -> ReservationOutcome:
+        if self.failure is not None:
+            raise self.failure
+        created = checkout.order_id not in self.reserved
+        self.reserved.add(checkout.order_id)
+        return ReservationOutcome(f"res-{checkout.order_id}", created)
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+def create_test_app(
+    service: simulator_app.ServiceName,
+    caller: simulator_app.ServiceCaller | None = None,
+) -> Any:
+    """Compose a service without opening production dependency connections."""
+    return simulator_app.create_app(
+        service,
+        caller=caller or FakeCaller(),
+        order_store=FakeOrderStore() if service == "order" else None,
+        inventory_store=FakeInventoryStore() if service == "inventory" else None,
+    )
 
 
 class InvalidCaller:
@@ -83,7 +149,7 @@ class InProcessCaller:
 @pytest.mark.parametrize("service", ["gateway", "order", "inventory", "payment"])
 def test_health_and_readiness_preserve_correlation(service: simulator_app.ServiceName) -> None:
     """Every service reports role and returns the same caller-supplied correlation ID."""
-    client = TestClient(simulator_app.create_app(service, caller=FakeCaller()))
+    client = TestClient(create_test_app(service))
     headers = {simulator_app.CORRELATION_HEADER: "incident-42"}
 
     health = client.get("/healthz", headers=headers)
@@ -124,7 +190,7 @@ def test_invalid_correlation_is_rejected_before_handler() -> None:
 
 def test_inventory_reservation_is_deterministic() -> None:
     """Inventory derives its reservation identifier from the client order ID."""
-    client = TestClient(simulator_app.create_app("inventory", caller=FakeCaller()))
+    client = TestClient(create_test_app("inventory"))
 
     response = client.post(
         "/v1/reservations",
@@ -135,6 +201,42 @@ def test_inventory_reservation_is_deterministic() -> None:
     assert response.json()["reservation_id"] == "res-order-123"
     assert response.json()["items"] == CHECKOUT["items"]
     assert response.json()["correlation_id"] == "corr-1"
+
+
+def test_inventory_duplicate_reservation_is_idempotent() -> None:
+    """A repeated client order ID reports the existing reservation without duplication."""
+    store = FakeInventoryStore()
+    client = TestClient(
+        simulator_app.create_app("inventory", caller=FakeCaller(), inventory_store=store)
+    )
+
+    first = client.post("/v1/reservations", json=CHECKOUT)
+    second = client.post("/v1/reservations", json=CHECKOUT)
+
+    assert first.json()["status"] == "reserved"
+    assert second.json()["status"] == "already_reserved"
+    assert store.reserved == {"order-123"}
+
+
+@pytest.mark.parametrize(
+    ("failure", "status_code", "detail"),
+    [
+        (InventoryInsufficient("low stock"), 409, "insufficient inventory"),
+        (DependencyUnavailable("offline"), 503, "inventory dependency unavailable"),
+    ],
+)
+def test_inventory_maps_store_failures(failure: Exception, status_code: int, detail: str) -> None:
+    """Expected Redis failure classes become stable, non-sensitive HTTP responses."""
+    store = FakeInventoryStore()
+    store.failure = failure
+    client = TestClient(
+        simulator_app.create_app("inventory", caller=FakeCaller(), inventory_store=store)
+    )
+
+    response = client.post("/v1/reservations", json=CHECKOUT)
+
+    assert response.status_code == status_code
+    assert response.json() == {"detail": detail}
 
 
 def test_payment_authorization_is_deterministic() -> None:
@@ -151,7 +253,7 @@ def test_payment_authorization_is_deterministic() -> None:
 def test_order_calls_inventory_then_payment_with_same_correlation() -> None:
     """Order propagates one correlation ID across its deterministic dependency chain."""
     caller = FakeCaller()
-    client = TestClient(simulator_app.create_app("order", caller=caller))
+    client = TestClient(create_test_app("order", caller))
 
     response = client.post(
         "/v1/orders",
@@ -165,9 +267,70 @@ def test_order_calls_inventory_then_payment_with_same_correlation() -> None:
         "reservation_id": "res-order-123",
         "authorization_id": "auth-order-123",
         "correlation_id": "corr-order",
+        "created": True,
     }
     assert [call[0] for call in caller.calls] == ["inventory", "payment"]
     assert {call[3] for call in caller.calls} == {"corr-order"}
+
+
+def test_order_duplicate_save_is_idempotent() -> None:
+    """A duplicate order is confirmed but reports that no second row was created."""
+    store = FakeOrderStore()
+    client = TestClient(simulator_app.create_app("order", caller=FakeCaller(), order_store=store))
+
+    first = client.post("/v1/orders", json=CHECKOUT)
+    second = client.post("/v1/orders", json=CHECKOUT)
+
+    assert first.json()["created"] is True
+    assert second.json()["created"] is False
+    assert store.saved == {"order-123"}
+
+
+def test_order_maps_store_unavailability() -> None:
+    """A PostgreSQL failure cannot be reported as a confirmed order."""
+    store = FakeOrderStore()
+    store.failure = DependencyUnavailable("offline")
+    client = TestClient(simulator_app.create_app("order", caller=FakeCaller(), order_store=store))
+
+    response = client.post("/v1/orders", json=CHECKOUT)
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "order dependency unavailable"}
+
+
+@pytest.mark.parametrize("service", ["order", "inventory"])
+def test_dependency_unavailability_fails_readiness(service: simulator_app.ServiceName) -> None:
+    """Dependency-aware readiness fails closed without exposing adapter details."""
+    store: FakeOrderStore | FakeInventoryStore
+    if service == "order":
+        store = FakeOrderStore()
+        app = simulator_app.create_app("order", caller=FakeCaller(), order_store=store)
+    else:
+        store = FakeInventoryStore()
+        app = simulator_app.create_app("inventory", caller=FakeCaller(), inventory_store=store)
+    store.failure = DependencyUnavailable("secret internal detail")
+
+    response = TestClient(app).get("/readyz")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "required dependency unavailable"}
+
+
+@pytest.mark.parametrize("service", ["order", "inventory"])
+def test_dependency_store_closes_with_application(service: simulator_app.ServiceName) -> None:
+    """Service shutdown releases its selected database client."""
+    store: FakeOrderStore | FakeInventoryStore
+    if service == "order":
+        store = FakeOrderStore()
+        app = simulator_app.create_app("order", caller=FakeCaller(), order_store=store)
+    else:
+        store = FakeInventoryStore()
+        app = simulator_app.create_app("inventory", caller=FakeCaller(), inventory_store=store)
+
+    with TestClient(app) as client:
+        assert client.get("/healthz").status_code == 200
+
+    assert store.closed is True
 
 
 def test_gateway_forwards_checkout_and_correlation() -> None:
@@ -190,7 +353,7 @@ def test_invalid_downstream_contract_becomes_bad_gateway(
     service: simulator_app.ServiceName, path: str
 ) -> None:
     """Missing downstream identifiers never become unhandled KeyErrors or false success."""
-    client = TestClient(simulator_app.create_app(service, caller=InvalidCaller()))
+    client = TestClient(create_test_app(service, InvalidCaller()))
 
     response = client.post(path, json=CHECKOUT)
 
@@ -215,10 +378,14 @@ async def test_real_four_service_request_chain() -> None:
     """One real ASGI request crosses all four roles with one correlation ID."""
     caller = InProcessCaller()
     caller.apps.update(
-        inventory=simulator_app.create_app("inventory", caller=caller),
+        inventory=simulator_app.create_app(
+            "inventory", caller=caller, inventory_store=FakeInventoryStore()
+        ),
         payment=simulator_app.create_app("payment", caller=caller),
     )
-    caller.apps["order"] = simulator_app.create_app("order", caller=caller)
+    caller.apps["order"] = simulator_app.create_app(
+        "order", caller=caller, order_store=FakeOrderStore()
+    )
     gateway = simulator_app.create_app("gateway", caller=caller)
     transport = httpx.ASGITransport(app=gateway)
 
@@ -236,6 +403,7 @@ async def test_real_four_service_request_chain() -> None:
         "reservation_id": "res-order-123",
         "authorization_id": "auth-order-123",
         "correlation_id": "corr-e2e",
+        "created": True,
     }
 
 
@@ -311,7 +479,11 @@ def test_simulator_cli_runs_selected_role(monkeypatch: pytest.MonkeyPatch) -> No
         captured.update(app=app, host=host, port=port)
 
     monkeypatch.setattr("agentops_incident_commander.simulator.main.uvicorn.run", fake_run)
+    monkeypatch.setattr(
+        "agentops_incident_commander.simulator.main.create_app", lambda service: service
+    )
 
     assert simulator_main.main(("inventory", "--host", "127.0.0.1", "--port", "9001")) == 0
     assert captured["host"] == "127.0.0.1"
     assert captured["port"] == 9001
+    assert captured["app"] == "inventory"

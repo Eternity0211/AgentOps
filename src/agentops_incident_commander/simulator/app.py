@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 from collections.abc import Awaitable, Callable
+from contextlib import asynccontextmanager
 from typing import Any, Literal, Protocol
 from uuid import uuid4
 
@@ -13,25 +14,19 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError
 
+from agentops_incident_commander.simulator.dependencies import (
+    DependencyUnavailable,
+    InventoryInsufficient,
+    InventoryStore,
+    OrderStore,
+    PostgresOrderStore,
+    RedisInventoryStore,
+)
+from agentops_incident_commander.simulator.models import CheckoutRequest
+
 ServiceName = Literal["gateway", "order", "inventory", "payment"]
 CORRELATION_HEADER = "X-Correlation-ID"
 CORRELATION_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
-
-
-class LineItem(BaseModel):
-    """One requested stock item."""
-
-    sku: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._-]+$")
-    quantity: int = Field(ge=1, le=100)
-
-
-class CheckoutRequest(BaseModel):
-    """Deterministic checkout input shared by Gateway and Order."""
-
-    order_id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._-]+$")
-    items: tuple[LineItem, ...] = Field(min_length=1, max_length=20)
-    amount_minor: int = Field(ge=1, le=10_000_000)
-    currency: str = Field(pattern=r"^[A-Z]{3}$")
 
 
 class ReservationResult(BaseModel):
@@ -54,6 +49,7 @@ class OrderResult(BaseModel):
     reservation_id: str
     authorization_id: str
     correlation_id: str
+    created: bool
 
 
 class ServiceCaller(Protocol):
@@ -136,10 +132,31 @@ def create_app(
     service: ServiceName,
     *,
     caller: ServiceCaller | None = None,
+    order_store: OrderStore | None = None,
+    inventory_store: InventoryStore | None = None,
     correlation_factory: Callable[[], str] | None = None,
 ) -> FastAPI:
     """Create one role-specific simulator application."""
-    app = FastAPI(title=f"AgentOps Simulator {service.title()}", version="1.0.0")
+    selected_order_store = (order_store or PostgresOrderStore()) if service == "order" else None
+    selected_inventory_store = (
+        (inventory_store or RedisInventoryStore()) if service == "inventory" else None
+    )
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> Any:
+        try:
+            yield
+        finally:
+            if selected_order_store is not None:
+                await selected_order_store.close()
+            if selected_inventory_store is not None:
+                await selected_inventory_store.close()
+
+    app = FastAPI(
+        title=f"AgentOps Simulator {service.title()}",
+        version="1.0.0",
+        lifespan=lifespan,
+    )
     downstream = caller or _default_caller()
     new_correlation = correlation_factory or (lambda: str(uuid4()))
 
@@ -169,6 +186,16 @@ def create_app(
 
     @app.get("/readyz")
     async def ready(request: Request) -> dict[str, str]:
+        correlation_id = _correlation_id(request)
+        try:
+            if selected_order_store is not None:
+                await selected_order_store.ready(correlation_id)
+            if selected_inventory_store is not None:
+                await selected_inventory_store.ready(correlation_id)
+        except DependencyUnavailable as error:
+            raise HTTPException(
+                status_code=503, detail="required dependency unavailable"
+            ) from error
         return {
             "status": "ready",
             "service": service,
@@ -179,9 +206,18 @@ def create_app(
 
         @app.post("/v1/reservations")
         async def reserve(checkout: CheckoutRequest, request: Request) -> dict[str, Any]:
+            assert selected_inventory_store is not None
+            try:
+                outcome = await selected_inventory_store.reserve(checkout, _correlation_id(request))
+            except InventoryInsufficient as error:
+                raise HTTPException(status_code=409, detail="insufficient inventory") from error
+            except DependencyUnavailable as error:
+                raise HTTPException(
+                    status_code=503, detail="inventory dependency unavailable"
+                ) from error
             return {
-                "reservation_id": f"res-{checkout.order_id}",
-                "status": "reserved",
+                "reservation_id": outcome.reservation_id,
+                "status": "reserved" if outcome.created else "already_reserved",
                 "items": [item.model_dump() for item in checkout.items],
                 "correlation_id": _correlation_id(request),
             }
@@ -202,6 +238,7 @@ def create_app(
 
         @app.post("/v1/orders")
         async def create_order(checkout: CheckoutRequest, request: Request) -> dict[str, Any]:
+            assert selected_order_store is not None
             correlation_id = _correlation_id(request)
             payload = checkout.model_dump(mode="json")
             reservation = await downstream.post(
@@ -216,12 +253,19 @@ def create_app(
             validated_authorization = _validate_downstream(
                 AuthorizationResult, authorization, "payment"
             )
+            try:
+                created = await selected_order_store.save(checkout, correlation_id)
+            except DependencyUnavailable as error:
+                raise HTTPException(
+                    status_code=503, detail="order dependency unavailable"
+                ) from error
             return {
                 "order_id": checkout.order_id,
                 "status": "confirmed",
                 "reservation_id": validated_reservation.reservation_id,
                 "authorization_id": validated_authorization.authorization_id,
                 "correlation_id": correlation_id,
+                "created": created,
             }
 
     elif service == "gateway":

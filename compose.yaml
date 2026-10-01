@@ -23,7 +23,7 @@ services:
     command: [gateway]
     environment:
       ORDER_SERVICE_URL: http://order:8000
-    tmpfs: [/tmp:size=16m,mode=1777]
+    tmpfs: ["/tmp:size=16m,mode=1777"]
     ports:
       - name: gateway-http
         target: 8000
@@ -41,7 +41,7 @@ services:
         - -c
         - >-
           import urllib.request;
-          urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=2).read()
+          urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=2).read()
       interval: 5s
       timeout: 3s
       retries: 12
@@ -58,12 +58,21 @@ services:
     environment:
       INVENTORY_SERVICE_URL: http://inventory:8000
       PAYMENT_SERVICE_URL: http://payment:8000
-    tmpfs: [/tmp:size=16m,mode=1777]
+      SIMULATOR_DB_HOST: simulator-postgres
+      SIMULATOR_DB_PORT: 5432
+      SIMULATOR_DB_NAME: ${SIMULATOR_DB_NAME:-commerce}
+      SIMULATOR_DB_USER: ${SIMULATOR_DB_USER:-simulator}
+      SIMULATOR_DB_PASSWORD_FILE: /run/secrets/simulator_db_password
+      DEPENDENCY_TIMEOUT_SECONDS: ${DEPENDENCY_TIMEOUT_SECONDS:-2}
+    secrets: [simulator_db_password]
+    tmpfs: ["/tmp:size=16m,mode=1777"]
     networks: [simulator]
     depends_on:
       inventory:
         condition: service_healthy
       payment:
+        condition: service_healthy
+      simulator-postgres:
         condition: service_healthy
     healthcheck: *simulator-healthcheck
 
@@ -75,8 +84,17 @@ services:
       dockerfile: Dockerfile.simulator
     profiles: [simulator]
     command: [inventory]
-    tmpfs: [/tmp:size=16m,mode=1777]
+    environment:
+      SIMULATOR_REDIS_HOST: simulator-redis
+      SIMULATOR_REDIS_PORT: 6379
+      SIMULATOR_REDIS_PASSWORD_FILE: /run/secrets/simulator_redis_password
+      DEPENDENCY_TIMEOUT_SECONDS: ${DEPENDENCY_TIMEOUT_SECONDS:-2}
+    secrets: [simulator_redis_password]
+    tmpfs: ["/tmp:size=16m,mode=1777"]
     networks: [simulator]
+    depends_on:
+      simulator-redis:
+        condition: service_healthy
     healthcheck: *simulator-healthcheck
 
   payment:
@@ -87,7 +105,7 @@ services:
       dockerfile: Dockerfile.simulator
     profiles: [simulator]
     command: [payment]
-    tmpfs: [/tmp:size=16m,mode=1777]
+    tmpfs: ["/tmp:size=16m,mode=1777"]
     networks: [simulator]
     healthcheck: *simulator-healthcheck
 

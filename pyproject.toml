@@ -12,8 +12,10 @@ authors = [
     { name = "AgentOps contributors" },
 ]
 dependencies = [
+    "asyncpg>=0.31,<0.32",
     "fastapi>=0.141.1,<0.142",
     "httpx>=0.28.1,<0.29",
+    "redis>=8.1,<8.2",
     "uvicorn>=0.54,<0.55",
 ]
 

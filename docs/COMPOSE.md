@@ -1,6 +1,6 @@
 # Local Compose Foundation
 
-The checked-in `compose.yaml` establishes the Phase 1B trust and resource boundaries before application containers are added. A passing static contract does not claim that the full simulator already starts; runtime startup/readiness becomes enforceable as the service implementations land.
+The checked-in `compose.yaml` establishes the Phase 1B trust and resource boundaries and runs the four simulator application roles. A passing static contract does not claim that the full simulator started on this host; runtime startup remains an explicit verification item until a Docker daemon is available.
 
 ## Profiles and isolation
 
@@ -38,4 +38,6 @@ The initial versions were selected from official upstream release streams on 202
 
 ## Current verification boundary
 
-On the implementation host, Docker Compose v5.5.1 parsed and normalized the complete file, but the Docker daemon was not running. Therefore this batch verifies topology and configuration only. Container startup, endpoint readiness, inter-service telemetry, and clean shutdown remain open Phase 1B tasks and must pass before the Phase 1 exit claim.
+Order receives only the simulator PostgreSQL secret and waits for the database health check. Inventory receives only the simulator Redis secret and waits for Redis health. The shared application health check calls `/readyz`: it probes PostgreSQL from Order and Redis from Inventory with a bounded timeout, while Gateway and Payment report process readiness. `/healthz` remains a liveness endpoint and does not probe dependencies.
+
+On the implementation host, Docker Compose v5.5.1 parsed and normalized the complete file, but the Docker daemon was not running. Therefore the current evidence covers topology, configuration, deterministic adapter tests, and in-process HTTP behavior only. Live container startup, inter-service telemetry, and clean shutdown remain open Phase 1B verification work and must pass before the Phase 1 exit claim.

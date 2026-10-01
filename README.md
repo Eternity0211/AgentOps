@@ -2,7 +2,7 @@
 
 AgentOps Incident Commander is an evidence-driven platform for diagnosing microservice incidents and performing controlled recovery. It combines metrics, logs, traces, topology, and deployment history; a constrained Diagnosis Agent builds verifiable root-cause hypotheses; a constrained Remediation Agent proposes recovery only after a deterministic evidence gate passes. Deterministic policy, approval, execution, health verification, and failure routing retain authority over every state change.
 
-> Status: Phase 1A complete. The Python workspace, cross-platform task runner, and enforced domain import boundaries exist; simulator and incident-domain business implementation begin in subsequent batches.
+> Status: Phase 1A complete; Phase 1B in progress. The reproducible Python workspace, guarded Compose topology, four-service simulator request path, and bounded PostgreSQL/Redis simulator adapters are implemented. OpenTelemetry and deterministic fault scenarios remain in Phase 1B.
 
 ## Why this project exists
 
@@ -114,7 +114,7 @@ The current topology is intentionally profile-scoped: `control-plane` provides i
 
 The image tags are explicit release versions selected from the upstream PostgreSQL, Redis, Prometheus, Grafana Loki/Tempo, and OpenTelemetry Collector release streams on 2026-10-01. Digest locking and the update/SBOM policy remain a later hardening item and are not claimed here.
 
-The simulator will include API Gateway, Order, Inventory, and Payment services, PostgreSQL, Redis, Prometheus, Loki, Tempo, and OpenTelemetry Collector. Six deterministic scenarios will cover deployment-induced HTTP 500s, database pool exhaustion, Redis timeout, downstream latency, memory leak, and bad configuration.
+The simulator includes API Gateway, Order, Inventory, and Payment services plus isolated PostgreSQL and Redis dependencies. Order writes are idempotent, Inventory reservations are atomic and idempotent, and dependency-aware readiness fails closed. Prometheus, Loki, Tempo, and the OpenTelemetry Collector are wired but application instrumentation remains open. Six deterministic scenarios will cover deployment-induced HTTP 500s, database pool exhaustion, Redis timeout, downstream latency, memory leak, and bad configuration.
 
 ## Documentation
 

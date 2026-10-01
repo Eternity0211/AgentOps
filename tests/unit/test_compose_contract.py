@@ -23,6 +23,25 @@ def test_checked_in_compose_contract_is_valid(rendered_config: dict[str, object]
     assert compose_contract.validate_compose_config(rendered_config) == ()
 
 
+def test_simulator_services_have_dependency_aware_wiring(
+    rendered_config: dict[str, object],
+) -> None:
+    """Order and Inventory receive only their required store and readiness contract."""
+    services = rendered_config["services"]
+    assert isinstance(services, dict)
+    order = services["order"]
+    inventory = services["inventory"]
+    assert isinstance(order, dict)
+    assert isinstance(inventory, dict)
+
+    assert order["depends_on"]["simulator-postgres"]["condition"] == "service_healthy"
+    assert inventory["depends_on"]["simulator-redis"]["condition"] == "service_healthy"
+    assert [secret["source"] for secret in order["secrets"]] == ["simulator_db_password"]
+    assert [secret["source"] for secret in inventory["secrets"]] == ["simulator_redis_password"]
+    assert "/readyz" in order["healthcheck"]["test"][-1]
+    assert order["tmpfs"] == ["/tmp:size=16m,mode=1777"]
+
+
 def test_validation_reports_service_and_topology_violations(
     rendered_config: dict[str, object],
 ) -> None:

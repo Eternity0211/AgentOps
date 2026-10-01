@@ -48,7 +48,7 @@ Verification: clean diff review, Markdown/link checks, secret scan, `git status`
 - [x] Add simulator PostgreSQL and Redis dependencies with observable client behavior.
 - [x] Instrument services using OpenTelemetry and route metrics/logs/traces through OTel Collector to Prometheus, Loki, and Tempo.
 - [x] Record deployment/version change events usable by diagnosis.
-- [ ] Provide task-runner start/stop and health/readiness validation.
+- [x] Provide task-runner start/stop and health/readiness validation.
 
 ### Phase 1C — Reproducible faults and evaluation-only labels
 

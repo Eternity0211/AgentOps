@@ -50,6 +50,23 @@ QUALITY_COMMANDS = (
     CommandSpec("build", ("uv", "build", "--offline", "--no-sources"), 120),
 )
 
+COMPOSE_PROFILES = (
+    "--profile",
+    "simulator",
+    "--profile",
+    "observability",
+)
+DOCKER_DAEMON = CommandSpec(
+    "docker-daemon",
+    ("docker", "info", "--format", "{{json .ServerVersion}}"),
+    15,
+)
+COMPOSE_DOWN = CommandSpec(
+    "runtime-down",
+    ("docker", "compose", *COMPOSE_PROFILES, "down", "--remove-orphans", "--timeout", "20"),
+    60,
+)
+
 
 def repository_root() -> Path:
     """Return the repository root for the editable or source checkout."""
@@ -138,6 +155,51 @@ def command_specs(
                 180,
             ),
         )
+    if task == "up":
+        return (
+            CommandSpec(
+                "compose-contract",
+                ("uv", "run", "--frozen", "python", "scripts/check_compose.py"),
+                60,
+            ),
+            DOCKER_DAEMON,
+            CommandSpec(
+                "runtime-up",
+                (
+                    "docker",
+                    "compose",
+                    *COMPOSE_PROFILES,
+                    "up",
+                    "--build",
+                    "--detach",
+                    "--wait",
+                    "--wait-timeout",
+                    "120",
+                ),
+                600,
+            ),
+            CommandSpec(
+                "runtime-health",
+                ("uv", "run", "--frozen", "python", "scripts/check_runtime.py"),
+                90,
+            ),
+        )
+    if task == "down":
+        return (DOCKER_DAEMON, COMPOSE_DOWN)
+    if task == "status":
+        return (
+            DOCKER_DAEMON,
+            CommandSpec(
+                "runtime-ps",
+                ("docker", "compose", *COMPOSE_PROFILES, "ps", "--status", "running"),
+                30,
+            ),
+            CommandSpec(
+                "runtime-health",
+                ("uv", "run", "--frozen", "python", "scripts/check_runtime.py"),
+                90,
+            ),
+        )
     raise TaskConfigurationError(f"unknown task: {task}")
 
 
@@ -212,6 +274,9 @@ def build_parser() -> argparse.ArgumentParser:
             "docs",
             "build",
             "pre-commit",
+            "up",
+            "down",
+            "status",
         ),
     )
     parser.add_argument("--write", action="store_true", help="Apply formatting changes.")
@@ -234,4 +299,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
 
     root = repository_root()
-    return run_commands(commands, root=root, environment=build_environment(root))
+    environment = build_environment(root)
+    if arguments.task != "up":
+        return run_commands(commands, root=root, environment=environment)
+
+    preflight_result = run_commands(commands[:2], root=root, environment=environment)
+    if preflight_result != 0:
+        return preflight_result
+    launch_result = run_commands(commands[2:], root=root, environment=environment)
+    if launch_result == 0:
+        return 0
+    cleanup_result = run_commands((COMPOSE_DOWN,), root=root, environment=environment)
+    if cleanup_result != 0:
+        print(
+            f"[dev] warning task=runtime-cleanup exit_code={cleanup_result}",
+            file=sys.stderr,
+            flush=True,
+        )
+    return launch_result

@@ -62,6 +62,41 @@ def test_format_write_is_explicit() -> None:
     assert "--check" not in write_command.argv
 
 
+def test_up_task_has_bounded_preflight_launch_and_health_sequence() -> None:
+    """Runtime startup cannot bypass static validation, daemon checks, or readiness."""
+    commands = dev_tasks.command_specs("up")
+
+    assert [command.label for command in commands] == [
+        "compose-contract",
+        "docker-daemon",
+        "runtime-up",
+        "runtime-health",
+    ]
+    assert commands[2].argv[-4:] == ("--detach", "--wait", "--wait-timeout", "120")
+    assert "--volumes" not in dev_tasks.COMPOSE_DOWN.argv
+
+
+def test_status_checks_running_containers_then_health() -> None:
+    """Status is read-only and uses the same observable readiness contract."""
+    commands = dev_tasks.command_specs("status")
+
+    assert [command.label for command in commands] == [
+        "docker-daemon",
+        "runtime-ps",
+        "runtime-health",
+    ]
+    assert commands[1].argv[-3:] == ("ps", "--status", "running")
+
+
+def test_down_checks_daemon_and_preserves_volumes() -> None:
+    """Stop is allowlisted, removes orphans, and never deletes persistent data."""
+    commands = dev_tasks.command_specs("down")
+
+    assert [command.label for command in commands] == ["docker-daemon", "runtime-down"]
+    assert "--remove-orphans" in commands[1].argv
+    assert "--volumes" not in commands[1].argv
+
+
 @pytest.mark.parametrize(
     ("task", "write", "suite", "message"),
     [
@@ -225,3 +260,70 @@ def test_main_runs_resolved_task(monkeypatch: pytest.MonkeyPatch) -> None:
     assert dev_tasks.main(("lint",)) == 0
     assert captured["root"] == dev_tasks.repository_root()
     assert isinstance(captured["environment"], dict)
+
+
+@pytest.mark.parametrize("failed_call", [1, 2])
+def test_up_failure_cleans_partial_runtime_and_preserves_original_code(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    failed_call: int,
+) -> None:
+    """A launch/health failure cleans containers without replacing the cause code."""
+    calls: list[tuple[str, ...]] = []
+
+    def fake_run(
+        commands: tuple[dev_tasks.CommandSpec, ...],
+        *,
+        root: Path,
+        environment: dict[str, str],
+    ) -> int:
+        calls.append(tuple(command.label for command in commands))
+        if len(calls) == failed_call:
+            return 9
+        if len(calls) == 3:
+            return 7
+        return 0
+
+    monkeypatch.setattr(dev_tasks, "run_commands", fake_run)
+
+    result = dev_tasks.main(("up",))
+
+    if failed_call == 1:
+        assert result == 9
+        assert calls == [("compose-contract", "docker-daemon")]
+    else:
+        assert result == 9
+        assert calls[-1] == ("runtime-down",)
+        assert "runtime-cleanup exit_code=7" in capsys.readouterr().err
+
+
+def test_up_success_does_not_run_cleanup(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A healthy launch returns zero without invoking the stop command."""
+    calls: list[tuple[str, ...]] = []
+
+    def fake_run(
+        commands: tuple[dev_tasks.CommandSpec, ...],
+        *,
+        root: Path,
+        environment: dict[str, str],
+    ) -> int:
+        calls.append(tuple(command.label for command in commands))
+        return 0
+
+    monkeypatch.setattr(dev_tasks, "run_commands", fake_run)
+
+    assert dev_tasks.main(("up",)) == 0
+    assert calls == [
+        ("compose-contract", "docker-daemon"),
+        ("runtime-up", "runtime-health"),
+    ]
+
+
+def test_up_returns_launch_failure_after_successful_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Successful cleanup remains silent and cannot erase the launch failure code."""
+    results = iter((0, 11, 0))
+    monkeypatch.setattr(dev_tasks, "run_commands", lambda *args, **kwargs: next(results))
+
+    assert dev_tasks.main(("up",)) == 11

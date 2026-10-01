@@ -2,7 +2,7 @@
 
 AgentOps Incident Commander is an evidence-driven platform for diagnosing microservice incidents and performing controlled recovery. It combines metrics, logs, traces, topology, and deployment history; a constrained Diagnosis Agent builds verifiable root-cause hypotheses; a constrained Remediation Agent proposes recovery only after a deterministic evidence gate passes. Deterministic policy, approval, execution, health verification, and failure routing retain authority over every state change.
 
-> Status: Phase 1A tooling scaffold. The Python package, locked development dependencies, and quality gates exist; no incident-domain or simulator business implementation exists yet.
+> Status: Phase 1A complete. The Python workspace, cross-platform task runner, and enforced domain import boundaries exist; simulator and incident-domain business implementation begin in subsequent batches.
 
 ## Why this project exists
 
@@ -73,6 +73,7 @@ uv sync --frozen --all-groups
 uv lock --check
 uv run --frozen ruff format --check .
 uv run --frozen ruff check .
+uv run --frozen python scripts/check_architecture.py
 uv run --frozen mypy src scripts tests
 uv run --frozen pytest
 uv run --frozen pre-commit run --all-files
@@ -93,6 +94,7 @@ python scripts/dev.py quality
 python scripts/dev.py format
 python scripts/dev.py format --write
 python scripts/dev.py lint
+python scripts/dev.py architecture
 python scripts/dev.py typecheck
 python scripts/dev.py test --suite unit
 python scripts/dev.py docs
@@ -100,7 +102,7 @@ python scripts/dev.py build
 python scripts/dev.py pre-commit
 ```
 
-The runner never forwards arbitrary shell text: every task maps to an immutable argument list, runs without a shell, has a timeout, stops on first failure, and emits start/pass/fail timing lines. Future `up`, fault, E2E, and evaluation tasks remain unavailable until their implementation phases.
+The runner never forwards arbitrary shell text: every task maps to an immutable argument list, runs without a shell, has a timeout, stops on first failure, and emits start/pass/fail timing lines. The `architecture` task rejects domain imports of FastAPI, SQLAlchemy, LangGraph/LangChain, model-provider SDKs, or higher internal layers. Future `up`, fault, E2E, and evaluation tasks remain unavailable until their implementation phases.
 
 The simulator will include API Gateway, Order, Inventory, and Payment services, PostgreSQL, Redis, Prometheus, Loki, Tempo, and OpenTelemetry Collector. Six deterministic scenarios will cover deployment-induced HTTP 500s, database pool exhaustion, Redis timeout, downstream latency, memory leak, and bad configuration.
 

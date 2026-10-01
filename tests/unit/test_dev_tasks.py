@@ -19,6 +19,7 @@ def test_quality_task_has_stable_bounded_order() -> None:
         "lock",
         "format",
         "lint",
+        "architecture",
         "types",
         "tests",
         "planning-docs",
@@ -33,6 +34,7 @@ def test_quality_task_has_stable_bounded_order() -> None:
     [
         ("sync", "sync"),
         ("lint", "lint"),
+        ("architecture", "architecture"),
         ("typecheck", "types"),
         ("test", "tests"),
         ("docs", "planning-docs"),

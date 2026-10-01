@@ -19,6 +19,12 @@ repos:
         language: system
         pass_filenames: false
 
+      - id: architecture
+        name: architecture boundaries
+        entry: uv run --frozen python scripts/check_architecture.py
+        language: system
+        pass_filenames: false
+
       - id: pytest
         name: pytest
         entry: uv run --frozen pytest

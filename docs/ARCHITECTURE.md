@@ -182,16 +182,15 @@ Infrastructure implements domain ports. Domain code does not import web, ORM, gr
 ## Planned package shape
 
 ```text
-apps/api/                 FastAPI composition and routes
-apps/worker/              job leasing and workflow runner
-agentops/domain/          pure domain models and invariants
-agentops/application/     use cases and ports
-agentops/workflows/       LangGraph state/nodes/routes
-agentops/infrastructure/  SQLAlchemy, tools, model and telemetry adapters
+src/agentops_incident_commander/apps/            FastAPI and worker composition
+src/agentops_incident_commander/domain/          pure domain models and invariants
+src/agentops_incident_commander/application/     use cases and ports
+src/agentops_incident_commander/workflows/       LangGraph state/nodes/routes
+src/agentops_incident_commander/infrastructure/  SQLAlchemy, tools, model and telemetry adapters
 console/                  Next.js UI
 simulator/                services, scenarios and fault controls
 evaluation/               datasets, isolated Ground Truth and scoring
 tests/                    unit, contract, integration, workflow and E2E
 ```
 
-The exact layout is accepted only when the first code-scaffolding TODO is implemented and may change through an ADR.
+This source layout is now enforced incrementally by `python scripts/dev.py architecture`. The domain package cannot import the API/application/workflow/infrastructure layers or the web, ORM, graph, and model-provider SDKs owned by those layers. Additional cross-layer rules are added alongside the corresponding packages rather than claiming checks for code that does not yet exist.

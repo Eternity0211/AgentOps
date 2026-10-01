@@ -30,6 +30,11 @@ QUALITY_COMMANDS = (
     CommandSpec("lock", ("uv", "lock", "--check"), 60),
     CommandSpec("format", ("uv", "run", "--frozen", "ruff", "format", "--check", "."), 60),
     CommandSpec("lint", ("uv", "run", "--frozen", "ruff", "check", "."), 60),
+    CommandSpec(
+        "architecture",
+        ("uv", "run", "--frozen", "python", "scripts/check_architecture.py"),
+        60,
+    ),
     CommandSpec("types", ("uv", "run", "--frozen", "mypy", "src", "scripts", "tests"), 120),
     CommandSpec("tests", ("uv", "run", "--frozen", "pytest"), 120),
     CommandSpec(
@@ -80,6 +85,14 @@ def command_specs(
         return (CommandSpec("format", (*format_args, "."), 60),)
     if task == "lint":
         return (CommandSpec("lint", ("uv", "run", "--frozen", "ruff", "check", "."), 60),)
+    if task == "architecture":
+        return (
+            CommandSpec(
+                "architecture",
+                ("uv", "run", "--frozen", "python", "scripts/check_architecture.py"),
+                60,
+            ),
+        )
     if task == "typecheck":
         return (
             CommandSpec(
@@ -179,6 +192,7 @@ def build_parser() -> argparse.ArgumentParser:
             "sync",
             "format",
             "lint",
+            "architecture",
             "typecheck",
             "test",
             "docs",

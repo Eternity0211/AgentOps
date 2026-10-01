@@ -39,7 +39,7 @@ Verification: clean diff review, Markdown/link checks, secret scan, `git status`
 
 - [x] Scaffold Python 3.12 backend/workspace, locked dependencies, formatting, lint, typing, Pytest, and pre-commit/CI commands.
 - [x] Implement the cross-platform `python scripts/dev.py` task runner used by Windows and CI; optional wrappers may delegate to it but cannot be required.
-- [ ] Add architecture/import-boundary checks so domain modules cannot depend on FastAPI, SQLAlchemy, LangGraph, or model-provider adapters.
+- [x] Add architecture/import-boundary checks so domain modules cannot depend on FastAPI, SQLAlchemy, LangGraph, or model-provider adapters.
 
 ### Phase 1B — Simulator topology and baseline signals
 

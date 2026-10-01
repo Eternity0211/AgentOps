@@ -61,7 +61,7 @@ python scripts/dev.py down
 
 `up` validates the static Compose contract and Docker daemon, builds/starts with Compose `--wait`, then checks Gateway readiness/version, Prometheus/Loki/Tempo readiness, and the Collector's Prometheus target. A post-start failure automatically stops partial containers without deleting named volumes. `status` repeats the observable health contract. `down` removes containers and orphans but deliberately does not remove persistent volumes.
 
-The remaining commands below are reserved and continue to fail closed until their implementation phases:
+The fault controller syntax and safe state/cleanup framework are available, but each scenario continues to fail closed until its symptom is implemented and registered. E2E and evaluation commands remain reserved:
 
 ```text
 python scripts/dev.py fault inject --scenario http-500
@@ -69,6 +69,8 @@ python scripts/dev.py fault clean
 python scripts/dev.py test --suite e2e
 python scripts/dev.py eval --model mock
 ```
+
+See [Deterministic fault control](docs/FAULT_INJECTION.md) for run IDs, concurrency, recovery state, cleanup, and the scenario enablement boundary.
 
 The repository-owned Python task runner below is the single cross-platform entry point for Windows, POSIX shells, and CI; `make` may be offered later only as an optional convenience wrapper.
 
@@ -140,6 +142,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Local Compose foundation](docs/COMPOSE.md)
 - [Simulator service contracts](docs/SIMULATOR_SERVICES.md)
 - [Simulator observability baseline](docs/OBSERVABILITY.md)
+- [Deterministic fault control](docs/FAULT_INJECTION.md)
 - [Architecture decisions](docs/ADR/README.md)
 - [Delivery plan](TODO.md)
 

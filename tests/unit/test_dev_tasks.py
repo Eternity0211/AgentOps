@@ -240,6 +240,44 @@ def test_main_reports_configuration_error(capsys: pytest.CaptureFixture[str]) ->
     assert "configuration-error" in output.err
 
 
+def test_main_rejects_fault_options_for_other_tasks(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Scenario and run selections cannot alter ordinary allowlisted commands."""
+    assert dev_tasks.main(("lint", "--run-id", "run-abcdef123456")) == 2
+    assert "fault options require the fault task" in capsys.readouterr().err
+
+
+def test_main_dispatches_fault_task(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Nested fault syntax reaches the typed controller without shell forwarding."""
+    from agentops_incident_commander import faults
+
+    captured: dict[str, object] = {}
+
+    def fake_main(action: str, **kwargs: object) -> int:
+        captured.update(action=action, **kwargs)
+        return 17
+
+    monkeypatch.setattr(faults, "main", fake_main)
+
+    assert (
+        dev_tasks.main(
+            (
+                "fault",
+                "inject",
+                "--scenario",
+                "http-500",
+                "--run-id",
+                "run-abcdef123456",
+            )
+        )
+        == 17
+    )
+    assert captured["action"] == "inject"
+    assert captured["scenario"] == "http-500"
+    assert captured["run_id"] == "run-abcdef123456"
+
+
 def test_main_runs_resolved_task(monkeypatch: pytest.MonkeyPatch) -> None:
     """The CLI resolves the repository and delegates an allowlisted task."""
     captured: dict[str, object] = {}

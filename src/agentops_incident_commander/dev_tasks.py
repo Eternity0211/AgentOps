@@ -277,8 +277,12 @@ def build_parser() -> argparse.ArgumentParser:
             "up",
             "down",
             "status",
+            "fault",
         ),
     )
+    parser.add_argument("fault_action", nargs="?", help="Fault action: inject or clean.")
+    parser.add_argument("--scenario", help="Allowlisted simulator fault scenario.")
+    parser.add_argument("--run-id", help="Validated run identifier for injection or cleanup.")
     parser.add_argument("--write", action="store_true", help="Apply formatting changes.")
     parser.add_argument(
         "--suite",
@@ -292,14 +296,35 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     """Run one allowlisted developer task."""
     arguments = build_parser().parse_args(argv)
+    root = repository_root()
+    environment = build_environment(root)
+    if arguments.task == "fault":
+        from agentops_incident_commander import faults
+
+        return faults.main(
+            arguments.fault_action or "",
+            scenario=arguments.scenario,
+            run_id=arguments.run_id,
+            root=root,
+            environment=environment,
+        )
+    if (
+        arguments.fault_action is not None
+        or arguments.scenario is not None
+        or arguments.run_id is not None
+    ):
+        print(
+            "[dev] configuration-error reason=fault options require the fault task",
+            file=sys.stderr,
+            flush=True,
+        )
+        return 2
     try:
         commands = command_specs(arguments.task, write=arguments.write, suite=arguments.suite)
     except TaskConfigurationError as error:
         print(f"[dev] configuration-error reason={error}", file=sys.stderr, flush=True)
         return 2
 
-    root = repository_root()
-    environment = build_environment(root)
     if arguments.task != "up":
         return run_commands(commands, root=root, environment=environment)
 

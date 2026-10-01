@@ -52,7 +52,7 @@ Verification: clean diff review, Markdown/link checks, secret scan, `git status`
 
 ### Phase 1C — Reproducible faults and evaluation-only labels
 
-- [ ] Implement task-runner fault injection and cleanup with run/scenario IDs and repeatable reset.
+- [x] Implement task-runner fault injection and cleanup with run/scenario IDs and repeatable reset.
 - [ ] Implement deployment-induced HTTP 500 scenario.
 - [ ] Implement database connection-pool exhaustion scenario.
 - [ ] Implement Redis timeout scenario.

@@ -19,7 +19,7 @@ Run the same check locally:
 pwsh -NoProfile -File scripts/check_planning_docs.ps1
 ```
 
-The initial status-check name is expected to appear as `Planning Docs / validate`. The Phase 1A workspace adds `Python Quality / quality` for lock verification, formatting, lint, architecture boundaries, strict typing, unit tests, planning validation, and offline package builds. These expectations must be confirmed by successful Actions runs before they are selected as required checks. Later phases add integration, security, frontend, and E2E jobs only when their corresponding code exists.
+The initial status-check name is expected to appear as `Planning Docs / validate`. The Python workspace adds `Python Quality / quality` for lock verification, formatting, lint, architecture and Compose contracts, strict typing, unit tests, planning validation, and offline package builds. These expectations must be confirmed by successful Actions runs before they are selected as required checks. Later phases add integration, security, frontend, and E2E jobs only when their corresponding code exists.
 
 ## Not configured or verified remotely
 

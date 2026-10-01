@@ -25,6 +25,12 @@ repos:
         language: system
         pass_filenames: false
 
+      - id: compose
+        name: compose contract
+        entry: uv run --frozen python scripts/check_compose.py
+        language: system
+        pass_filenames: false
+
       - id: pytest
         name: pytest
         entry: uv run --frozen pytest

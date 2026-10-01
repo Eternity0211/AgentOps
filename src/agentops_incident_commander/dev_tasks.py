@@ -35,6 +35,11 @@ QUALITY_COMMANDS = (
         ("uv", "run", "--frozen", "python", "scripts/check_architecture.py"),
         60,
     ),
+    CommandSpec(
+        "compose",
+        ("uv", "run", "--frozen", "python", "scripts/check_compose.py"),
+        60,
+    ),
     CommandSpec("types", ("uv", "run", "--frozen", "mypy", "src", "scripts", "tests"), 120),
     CommandSpec("tests", ("uv", "run", "--frozen", "pytest"), 120),
     CommandSpec(
@@ -90,6 +95,14 @@ def command_specs(
             CommandSpec(
                 "architecture",
                 ("uv", "run", "--frozen", "python", "scripts/check_architecture.py"),
+                60,
+            ),
+        )
+    if task == "compose":
+        return (
+            CommandSpec(
+                "compose",
+                ("uv", "run", "--frozen", "python", "scripts/check_compose.py"),
                 60,
             ),
         )
@@ -193,6 +206,7 @@ def build_parser() -> argparse.ArgumentParser:
             "format",
             "lint",
             "architecture",
+            "compose",
             "typecheck",
             "test",
             "docs",

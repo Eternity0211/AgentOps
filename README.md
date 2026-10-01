@@ -74,6 +74,7 @@ uv lock --check
 uv run --frozen ruff format --check .
 uv run --frozen ruff check .
 uv run --frozen python scripts/check_architecture.py
+uv run --frozen python scripts/check_compose.py
 uv run --frozen mypy src scripts tests
 uv run --frozen pytest
 uv run --frozen pre-commit run --all-files
@@ -95,6 +96,7 @@ python scripts/dev.py format
 python scripts/dev.py format --write
 python scripts/dev.py lint
 python scripts/dev.py architecture
+python scripts/dev.py compose
 python scripts/dev.py typecheck
 python scripts/dev.py test --suite unit
 python scripts/dev.py docs
@@ -103,6 +105,14 @@ python scripts/dev.py pre-commit
 ```
 
 The runner never forwards arbitrary shell text: every task maps to an immutable argument list, runs without a shell, has a timeout, stops on first failure, and emits start/pass/fail timing lines. The `architecture` task rejects domain imports of FastAPI, SQLAlchemy, LangGraph/LangChain, model-provider SDKs, or higher internal layers. Future `up`, fault, E2E, and evaluation tasks remain unavailable until their implementation phases.
+
+## Compose foundation
+
+Copy `.env.example` to the ignored `.env` file, then create the three ignored local secret files referenced by `CONTROL_DB_PASSWORD_FILE`, `SIMULATOR_DB_PASSWORD_FILE`, and `SIMULATOR_REDIS_PASSWORD_FILE`. Each file must contain a distinct, non-empty local-only credential. The repository does not commit working credentials or unsafe fallback passwords; absent secret files prevent profile startup.
+
+The current topology is intentionally profile-scoped: `control-plane` provides its isolated PostgreSQL store, `simulator` provides the diagnosed PostgreSQL and Redis dependencies, and `observability` provides Prometheus, Loki, Tempo, and the OpenTelemetry Collector. Persistent stores use named volumes; runtime root filesystems are read-only; CPU, memory, and process counts are bounded; and published observability ports bind to `127.0.0.1` by default. `python scripts/dev.py compose` renders every profile with synthetic secret sentinels and verifies those invariants without starting containers or exposing the sentinels.
+
+The image tags are explicit release versions selected from the upstream PostgreSQL, Redis, Prometheus, Grafana Loki/Tempo, and OpenTelemetry Collector release streams on 2026-10-01. Digest locking and the update/SBOM policy remain a later hardening item and are not claimed here.
 
 The simulator will include API Gateway, Order, Inventory, and Payment services, PostgreSQL, Redis, Prometheus, Loki, Tempo, and OpenTelemetry Collector. Six deterministic scenarios will cover deployment-induced HTTP 500s, database pool exhaustion, Redis timeout, downstream latency, memory leak, and bad configuration.
 
@@ -116,6 +126,7 @@ The simulator will include API Gateway, Order, Inventory, and Payment services, 
 - [Threat model](docs/THREAT_MODEL.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)
+- [Local Compose foundation](docs/COMPOSE.md)
 - [Architecture decisions](docs/ADR/README.md)
 - [Delivery plan](TODO.md)
 

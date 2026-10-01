@@ -1,0 +1,230 @@
+name: ${COMPOSE_PROJECT_NAME:-agentops}
+
+x-runtime-defaults: &runtime-defaults
+  restart: unless-stopped
+  init: true
+  read_only: true
+  security_opt:
+    - no-new-privileges:true
+
+x-small-resources: &small-resources
+  cpus: 0.50
+  mem_limit: 512m
+  pids_limit: 200
+
+services:
+  control-postgres:
+    <<: [*runtime-defaults, *small-resources]
+    image: postgres:18.6-alpine
+    profiles: [control-plane]
+    environment:
+      POSTGRES_DB: ${CONTROL_DB_NAME:-agentops}
+      POSTGRES_USER: ${CONTROL_DB_USER:-agentops}
+      POSTGRES_PASSWORD_FILE: /run/secrets/control_db_password
+    secrets: [control_db_password]
+    volumes:
+      - control_postgres_data:/var/lib/postgresql/data
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+      - /var/run/postgresql:size=16m,uid=70,gid=70,mode=3775
+    networks: [control-plane]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  simulator-postgres:
+    <<: [*runtime-defaults, *small-resources]
+    image: postgres:18.6-alpine
+    profiles: [simulator]
+    environment:
+      POSTGRES_DB: ${SIMULATOR_DB_NAME:-commerce}
+      POSTGRES_USER: ${SIMULATOR_DB_USER:-simulator}
+      POSTGRES_PASSWORD_FILE: /run/secrets/simulator_db_password
+    secrets: [simulator_db_password]
+    volumes:
+      - simulator_postgres_data:/var/lib/postgresql/data
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+      - /var/run/postgresql:size=16m,uid=70,gid=70,mode=3775
+    networks: [simulator]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  simulator-redis:
+    <<: [*runtime-defaults, *small-resources]
+    image: redis:8.10.2-alpine
+    profiles: [simulator]
+    command:
+      - /bin/sh
+      - -ec
+      - >-
+        printf 'requirepass %s\n' "$$(cat /run/secrets/simulator_redis_password)"
+        > /tmp/redis.conf;
+        exec redis-server /tmp/redis.conf --appendonly yes --maxmemory 192mb
+        --maxmemory-policy allkeys-lru
+    secrets: [simulator_redis_password]
+    volumes:
+      - simulator_redis_data:/data
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    networks: [simulator]
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - REDISCLI_AUTH="$$(cat /run/secrets/simulator_redis_password)" redis-cli ping | grep -q PONG
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  prometheus:
+    <<: [*runtime-defaults, *small-resources]
+    image: prom/prometheus:v3.13.3
+    profiles: [observability]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-24h}
+      - --web.enable-lifecycle
+    configs:
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
+    volumes:
+      - prometheus_data:/prometheus
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    ports:
+      - name: prometheus-http
+        target: 9090
+        published: ${PROMETHEUS_PORT:-9090}
+        host_ip: ${BIND_ADDRESS:-127.0.0.1}
+        protocol: tcp
+    networks: [observability]
+    healthcheck:
+      test: [CMD, /bin/prometheus, --version]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  loki:
+    <<: [*runtime-defaults, *small-resources]
+    image: grafana/loki:3.7.8
+    profiles: [observability]
+    command: [-config.file=/etc/loki/config.yml]
+    configs:
+      - source: loki_config
+        target: /etc/loki/config.yml
+    volumes:
+      - loki_data:/loki
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    ports:
+      - name: loki-http
+        target: 3100
+        published: ${LOKI_PORT:-3100}
+        host_ip: ${BIND_ADDRESS:-127.0.0.1}
+        protocol: tcp
+    networks: [observability]
+    healthcheck:
+      test: [CMD, /usr/bin/loki, -version]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  tempo:
+    <<: [*runtime-defaults, *small-resources]
+    image: grafana/tempo:2.10.8
+    profiles: [observability]
+    command: [-config.file=/etc/tempo/config.yml]
+    configs:
+      - source: tempo_config
+        target: /etc/tempo/config.yml
+    volumes:
+      - tempo_data:/var/tempo
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    ports:
+      - name: tempo-http
+        target: 3200
+        published: ${TEMPO_PORT:-3200}
+        host_ip: ${BIND_ADDRESS:-127.0.0.1}
+        protocol: tcp
+    networks: [observability]
+    healthcheck:
+      test: [CMD, /tempo, -version]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  otel-collector:
+    <<: [*runtime-defaults, *small-resources]
+    image: otel/opentelemetry-collector-contrib:0.162.0
+    profiles: [observability]
+    command: [--config=/etc/otelcol-contrib/config.yml]
+    configs:
+      - source: otel_collector_config
+        target: /etc/otelcol-contrib/config.yml
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    networks: [simulator, observability]
+    depends_on:
+      loki:
+        condition: service_healthy
+      tempo:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - /otelcol-contrib
+        - validate
+        - --config=/etc/otelcol-contrib/config.yml
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+networks:
+  control-plane:
+    internal: true
+  simulator:
+    internal: true
+  observability:
+    internal: true
+  evaluation:
+    internal: true
+
+volumes:
+  control_postgres_data:
+  simulator_postgres_data:
+  simulator_redis_data:
+  prometheus_data:
+  loki_data:
+  tempo_data:
+
+configs:
+  prometheus_config:
+    file: ./config/observability/prometheus.yml
+  loki_config:
+    file: ./config/observability/loki.yml
+  tempo_config:
+    file: ./config/observability/tempo.yml
+  otel_collector_config:
+    file: ./config/observability/otel-collector.yml
+
+secrets:
+  control_db_password:
+    file: ${CONTROL_DB_PASSWORD_FILE:?set CONTROL_DB_PASSWORD_FILE to a local secret file}
+  simulator_db_password:
+    file: ${SIMULATOR_DB_PASSWORD_FILE:?set SIMULATOR_DB_PASSWORD_FILE to a local secret file}
+  simulator_redis_password:
+    file: ${SIMULATOR_REDIS_PASSWORD_FILE:?set SIMULATOR_REDIS_PASSWORD_FILE to a local secret file}

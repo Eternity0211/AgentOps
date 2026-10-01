@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+secrets/*.txt
 *.pem
 *.key
 *.p12
@@ -14,6 +15,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .pre-commit-cache/
+.docker-config/
 .coverage
 htmlcov/
 .venv/

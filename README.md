@@ -51,7 +51,7 @@ uv venv --python .python/cpython-3.12.14-windows-x86_64-none/python.exe .venv
 
 ## Planned local experience
 
-The commands below describe the target developer contract and will be enabled incrementally; they are not claimed to work in this planning-only commit.
+The commands below describe the remaining developer contract and will be enabled incrementally. They currently fail closed instead of pretending that an unavailable capability ran.
 
 ```text
 python scripts/dev.py up
@@ -62,7 +62,7 @@ python scripts/dev.py test --suite e2e
 python scripts/dev.py eval --model mock
 ```
 
-These are target commands; `scripts/dev.py` is the next Phase 1A batch and is not implemented yet. The repository-owned Python task runner will be the single cross-platform entry point for Windows, POSIX shells, and CI; `make` may be offered later only as an optional convenience wrapper.
+The repository-owned Python task runner below is the single cross-platform entry point for Windows, POSIX shells, and CI; `make` may be offered later only as an optional convenience wrapper.
 
 ## Python quality commands
 
@@ -73,15 +73,34 @@ uv sync --frozen --all-groups
 uv lock --check
 uv run --frozen ruff format --check .
 uv run --frozen ruff check .
-uv run --frozen mypy src tests
+uv run --frozen mypy src scripts tests
 uv run --frozen pytest
 uv run --frozen pre-commit run --all-files
-uv build --no-sources
+uv build --offline --no-sources
 ```
 
 The same commands run in the `Python Quality / quality` GitHub Actions job. The current package is intentionally minimal; simulator and application code arrive in later atomic batches.
 
-If the host restricts the normal user cache directory, set `PRE_COMMIT_HOME` to the ignored repository-local `.pre-commit-cache` directory before running pre-commit. The project task runner added in the next Phase 1A batch will normalize this automatically.
+If the host restricts the normal user cache directory, set `PRE_COMMIT_HOME` to the ignored repository-local `.pre-commit-cache` directory before running pre-commit. The project task runner normalizes this automatically.
+
+## Cross-platform task runner
+
+The repository now provides one fixed-command development entry point used by Windows and CI:
+
+```text
+python scripts/dev.py sync
+python scripts/dev.py quality
+python scripts/dev.py format
+python scripts/dev.py format --write
+python scripts/dev.py lint
+python scripts/dev.py typecheck
+python scripts/dev.py test --suite unit
+python scripts/dev.py docs
+python scripts/dev.py build
+python scripts/dev.py pre-commit
+```
+
+The runner never forwards arbitrary shell text: every task maps to an immutable argument list, runs without a shell, has a timeout, stops on first failure, and emits start/pass/fail timing lines. Future `up`, fault, E2E, and evaluation tasks remain unavailable until their implementation phases.
 
 The simulator will include API Gateway, Order, Inventory, and Payment services, PostgreSQL, Redis, Prometheus, Loki, Tempo, and OpenTelemetry Collector. Six deterministic scenarios will cover deployment-induced HTTP 500s, database pool exhaustion, Redis timeout, downstream latency, memory leak, and bad configuration.
 

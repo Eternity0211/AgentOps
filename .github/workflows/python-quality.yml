@@ -36,20 +36,5 @@ jobs:
       - name: Sync locked dependencies
         run: uv sync --frozen --all-groups
 
-      - name: Verify lock file
-        run: uv lock --check
-
-      - name: Check formatting
-        run: uv run --frozen ruff format --check .
-
-      - name: Lint
-        run: uv run --frozen ruff check .
-
-      - name: Type check
-        run: uv run --frozen mypy src tests
-
-      - name: Test
-        run: uv run --frozen pytest
-
-      - name: Build distributions
-        run: uv build --no-sources
+      - name: Run repository quality task
+        run: uv run --frozen python scripts/dev.py quality

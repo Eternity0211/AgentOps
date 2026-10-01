@@ -23,6 +23,11 @@ services:
     command: [gateway]
     environment:
       ORDER_SERVICE_URL: http://order:8000
+      OTEL_SDK_ENABLED: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORT_TIMEOUT_SECONDS: 2
+      OTEL_METRIC_EXPORT_INTERVAL_MILLIS: 5000
+      DEPLOYMENT_ENVIRONMENT: local
     tmpfs: ["/tmp:size=16m,mode=1777"]
     ports:
       - name: gateway-http
@@ -64,6 +69,11 @@ services:
       SIMULATOR_DB_USER: ${SIMULATOR_DB_USER:-simulator}
       SIMULATOR_DB_PASSWORD_FILE: /run/secrets/simulator_db_password
       DEPENDENCY_TIMEOUT_SECONDS: ${DEPENDENCY_TIMEOUT_SECONDS:-2}
+      OTEL_SDK_ENABLED: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORT_TIMEOUT_SECONDS: 2
+      OTEL_METRIC_EXPORT_INTERVAL_MILLIS: 5000
+      DEPLOYMENT_ENVIRONMENT: local
     secrets: [simulator_db_password]
     tmpfs: ["/tmp:size=16m,mode=1777"]
     networks: [simulator]
@@ -89,6 +99,11 @@ services:
       SIMULATOR_REDIS_PORT: 6379
       SIMULATOR_REDIS_PASSWORD_FILE: /run/secrets/simulator_redis_password
       DEPENDENCY_TIMEOUT_SECONDS: ${DEPENDENCY_TIMEOUT_SECONDS:-2}
+      OTEL_SDK_ENABLED: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORT_TIMEOUT_SECONDS: 2
+      OTEL_METRIC_EXPORT_INTERVAL_MILLIS: 5000
+      DEPLOYMENT_ENVIRONMENT: local
     secrets: [simulator_redis_password]
     tmpfs: ["/tmp:size=16m,mode=1777"]
     networks: [simulator]
@@ -105,6 +120,12 @@ services:
       dockerfile: Dockerfile.simulator
     profiles: [simulator]
     command: [payment]
+    environment:
+      OTEL_SDK_ENABLED: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORT_TIMEOUT_SECONDS: 2
+      OTEL_METRIC_EXPORT_INTERVAL_MILLIS: 5000
+      DEPLOYMENT_ENVIRONMENT: local
     tmpfs: ["/tmp:size=16m,mode=1777"]
     networks: [simulator]
     healthcheck: *simulator-healthcheck

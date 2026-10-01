@@ -2,7 +2,7 @@
 
 AgentOps Incident Commander is an evidence-driven platform for diagnosing microservice incidents and performing controlled recovery. It combines metrics, logs, traces, topology, and deployment history; a constrained Diagnosis Agent builds verifiable root-cause hypotheses; a constrained Remediation Agent proposes recovery only after a deterministic evidence gate passes. Deterministic policy, approval, execution, health verification, and failure routing retain authority over every state change.
 
-> Status: Phase 1A complete; Phase 1B in progress. The reproducible Python workspace, guarded Compose topology, four-service simulator request path, and bounded PostgreSQL/Redis simulator adapters are implemented. OpenTelemetry and deterministic fault scenarios remain in Phase 1B.
+> Status: Phase 1A complete; Phase 1B in progress. The reproducible Python workspace, guarded Compose topology, four-service simulator request path, bounded PostgreSQL/Redis adapters, and OpenTelemetry signal/export baseline are implemented. Deployment events, runtime controls, and deterministic fault scenarios remain in Phase 1.
 
 ## Why this project exists
 
@@ -114,7 +114,7 @@ The current topology is intentionally profile-scoped: `control-plane` provides i
 
 The image tags are explicit release versions selected from the upstream PostgreSQL, Redis, Prometheus, Grafana Loki/Tempo, and OpenTelemetry Collector release streams on 2026-10-01. Digest locking and the update/SBOM policy remain a later hardening item and are not claimed here.
 
-The simulator includes API Gateway, Order, Inventory, and Payment services plus isolated PostgreSQL and Redis dependencies. Order writes are idempotent, Inventory reservations are atomic and idempotent, and dependency-aware readiness fails closed. Prometheus, Loki, Tempo, and the OpenTelemetry Collector are wired but application instrumentation remains open. Six deterministic scenarios will cover deployment-induced HTTP 500s, database pool exhaustion, Redis timeout, downstream latency, memory leak, and bad configuration.
+The simulator includes API Gateway, Order, Inventory, and Payment services plus isolated PostgreSQL and Redis dependencies. Order writes are idempotent, Inventory reservations are atomic and idempotent, and dependency-aware readiness fails closed. Services emit bounded traces, HTTP metrics, and trace-linked logs through the OpenTelemetry Collector toward Prometheus, Loki, and Tempo. Six deterministic scenarios will cover deployment-induced HTTP 500s, database pool exhaustion, Redis timeout, downstream latency, memory leak, and bad configuration.
 
 ## Documentation
 
@@ -128,6 +128,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)
 - [Local Compose foundation](docs/COMPOSE.md)
 - [Simulator service contracts](docs/SIMULATOR_SERVICES.md)
+- [Simulator observability baseline](docs/OBSERVABILITY.md)
 - [Architecture decisions](docs/ADR/README.md)
 - [Delivery plan](TODO.md)
 

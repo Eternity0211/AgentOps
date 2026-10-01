@@ -42,6 +42,39 @@ def test_simulator_services_have_dependency_aware_wiring(
     assert order["tmpfs"] == ["/tmp:size=16m,mode=1777"]
 
 
+def test_simulator_services_export_otlp_to_internal_collector(
+    rendered_config: dict[str, object],
+) -> None:
+    """Every application role sends all SDK signals to the internal OTLP receiver."""
+    services = rendered_config["services"]
+    assert isinstance(services, dict)
+
+    for service_name in ("gateway", "order", "inventory", "payment"):
+        service = services[service_name]
+        assert isinstance(service, dict)
+        environment = service["environment"]
+        assert environment["OTEL_SDK_ENABLED"] == "true"
+        assert environment["OTEL_EXPORTER_OTLP_ENDPOINT"] == "http://otel-collector:4318"
+        assert environment["OTEL_EXPORT_TIMEOUT_SECONDS"] == "2"
+
+
+def test_observability_config_routes_three_signal_pipelines() -> None:
+    """Collector and Prometheus configs retain the required signal destinations."""
+    root = compose_contract.repository_root()
+    collector = (root / "config" / "observability" / "otel-collector.yml").read_text(
+        encoding="utf-8"
+    )
+    prometheus = (root / "config" / "observability" / "prometheus.yml").read_text(encoding="utf-8")
+
+    assert "metrics:\n      receivers: [otlp]" in collector
+    assert "exporters: [prometheus]" in collector
+    assert "logs:\n      receivers: [otlp]" in collector
+    assert "exporters: [otlp_http/loki]" in collector
+    assert "traces:\n      receivers: [otlp]" in collector
+    assert "exporters: [otlp_http/tempo]" in collector
+    assert "targets: [otel-collector:9464]" in prometheus
+
+
 def test_validation_reports_service_and_topology_violations(
     rendered_config: dict[str, object],
 ) -> None:

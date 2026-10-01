@@ -15,6 +15,8 @@ from typing import Protocol, cast
 
 import asyncpg  # type: ignore[import-untyped]
 import redis.asyncio as redis_asyncio
+from opentelemetry import trace
+from opentelemetry.trace import SpanKind, Status, StatusCode, Tracer
 from redis.exceptions import RedisError
 
 from agentops_incident_commander.simulator.models import CheckoutRequest
@@ -101,14 +103,27 @@ async def _observe[ResultT](
     operation: str,
     correlation_id: str,
     action: Awaitable[ResultT],
+    tracer: Tracer | None = None,
 ) -> ResultT:
     started_at = time.monotonic()
     result = "ok"
+    selected_tracer = tracer or trace.get_tracer(__name__)
     try:
-        return await action
-    except Exception:
-        result = "error"
-        raise
+        with selected_tracer.start_as_current_span(
+            f"{dependency}.{operation}",
+            kind=SpanKind.CLIENT,
+            attributes={
+                "db.system.name": dependency,
+                "db.operation.name": operation,
+                "agentops.correlation_id": correlation_id,
+            },
+        ) as span:
+            try:
+                return await action
+            except Exception:
+                result = "error"
+                span.set_status(Status(StatusCode.ERROR))
+                raise
     finally:
         logger.info(
             json.dumps(
@@ -139,7 +154,12 @@ class PostgresOrderStore:
         )
     """
 
-    def __init__(self, environment: Mapping[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        environment: Mapping[str, str] | None = None,
+        *,
+        tracer: Tracer | None = None,
+    ) -> None:
         source = os.environ if environment is None else environment
         self._host = source.get("SIMULATOR_DB_HOST", "simulator-postgres")
         self._port = int(source.get("SIMULATOR_DB_PORT", "5432"))
@@ -151,6 +171,7 @@ class PostgresOrderStore:
         self._timeout = float(source.get("DEPENDENCY_TIMEOUT_SECONDS", "2"))
         self._pool: PgPool | None = None
         self._pool_lock = asyncio.Lock()
+        self._tracer = tracer
 
     async def _get_pool(self) -> PgPool:
         if self._pool is None:
@@ -196,7 +217,7 @@ class PostgresOrderStore:
 
             await self._with_connection(query)
 
-        await _observe("postgres", "ready", correlation_id, action())
+        await _observe("postgres", "ready", correlation_id, action(), self._tracer)
 
     async def save(self, checkout: CheckoutRequest, correlation_id: str) -> bool:
         async def action() -> bool:
@@ -220,7 +241,7 @@ class PostgresOrderStore:
 
             return await self._with_connection(query)
 
-        return await _observe("postgres", "save_order", correlation_id, action())
+        return await _observe("postgres", "save_order", correlation_id, action(), self._tracer)
 
     async def close(self) -> None:
         if self._pool is not None:
@@ -252,6 +273,7 @@ class RedisInventoryStore:
         environment: Mapping[str, str] | None = None,
         *,
         client: RedisClient | None = None,
+        tracer: Tracer | None = None,
     ) -> None:
         source = os.environ if environment is None else environment
         timeout = float(source.get("DEPENDENCY_TIMEOUT_SECONDS", "2"))
@@ -275,6 +297,7 @@ class RedisInventoryStore:
             )
         self._client = client
         self._timeout = timeout
+        self._tracer = tracer
 
     async def _bounded[ResultT](self, action: Awaitable[ResultT]) -> ResultT:
         try:
@@ -283,7 +306,13 @@ class RedisInventoryStore:
             raise DependencyUnavailable("redis operation failed") from error
 
     async def ready(self, correlation_id: str) -> None:
-        await _observe("redis", "ready", correlation_id, self._bounded(self._client.ping()))
+        await _observe(
+            "redis",
+            "ready",
+            correlation_id,
+            self._bounded(self._client.ping()),
+            self._tracer,
+        )
 
     async def reserve(self, checkout: CheckoutRequest, correlation_id: str) -> ReservationOutcome:
         async def action() -> ReservationOutcome:
@@ -306,7 +335,7 @@ class RedisInventoryStore:
                 raise DependencyUnavailable("redis returned an invalid reservation result")
             return ReservationOutcome(reservation_id, created=result == 1)
 
-        return await _observe("redis", "reserve_inventory", correlation_id, action())
+        return await _observe("redis", "reserve_inventory", correlation_id, action(), self._tracer)
 
     async def close(self) -> None:
         await self._client.aclose()

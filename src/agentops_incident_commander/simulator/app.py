@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any, Literal, Protocol
@@ -12,6 +13,7 @@ from uuid import uuid4
 import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+from opentelemetry.propagate import inject
 from pydantic import BaseModel, Field, ValidationError
 
 from agentops_incident_commander.simulator.dependencies import (
@@ -23,6 +25,10 @@ from agentops_incident_commander.simulator.dependencies import (
     RedisInventoryStore,
 )
 from agentops_incident_commander.simulator.models import CheckoutRequest
+from agentops_incident_commander.simulator.telemetry import (
+    SimulatorTelemetry,
+    create_telemetry,
+)
 
 ServiceName = Literal["gateway", "order", "inventory", "payment"]
 CORRELATION_HEADER = "X-Correlation-ID"
@@ -69,10 +75,12 @@ class HttpxServiceCaller:
         *,
         timeout_seconds: float = 2.0,
         transport: httpx.AsyncBaseTransport | None = None,
+        telemetry: SimulatorTelemetry | None = None,
     ) -> None:
         self._service_urls = service_urls
         self._timeout = timeout_seconds
         self._transport = transport
+        self._telemetry = telemetry
 
     async def post(
         self, service: str, path: str, payload: dict[str, Any], correlation_id: str
@@ -80,17 +88,22 @@ class HttpxServiceCaller:
         base_url = self._service_urls.get(service)
         if base_url is None:
             raise HTTPException(status_code=500, detail=f"unknown downstream service: {service}")
+        headers = {CORRELATION_HEADER: correlation_id}
         try:
-            async with httpx.AsyncClient(
-                timeout=self._timeout, transport=self._transport
-            ) as client:
-                response = await client.post(
-                    f"{base_url}{path}",
-                    json=payload,
-                    headers={CORRELATION_HEADER: correlation_id},
-                )
-                response.raise_for_status()
-                body = response.json()
+            span_context = (
+                self._telemetry.client_span(service, "POST", path, correlation_id)
+                if self._telemetry is not None
+                else None
+            )
+            if span_context is None:
+                response = await self._post(base_url, path, payload, headers)
+            else:
+                with span_context as span:
+                    inject(headers)
+                    response = await self._post(base_url, path, payload, headers)
+                    span.set_attribute("http.response.status_code", response.status_code)
+            response.raise_for_status()
+            body = response.json()
         except (httpx.HTTPError, ValueError) as error:
             raise HTTPException(
                 status_code=502,
@@ -102,14 +115,25 @@ class HttpxServiceCaller:
             )
         return body
 
+    async def _post(
+        self,
+        base_url: str,
+        path: str,
+        payload: dict[str, Any],
+        headers: dict[str, str],
+    ) -> httpx.Response:
+        async with httpx.AsyncClient(timeout=self._timeout, transport=self._transport) as client:
+            return await client.post(f"{base_url}{path}", json=payload, headers=headers)
 
-def _default_caller() -> HttpxServiceCaller:
+
+def _default_caller(telemetry: SimulatorTelemetry) -> HttpxServiceCaller:
     return HttpxServiceCaller(
         {
             "order": os.getenv("ORDER_SERVICE_URL", "http://order:8000"),
             "inventory": os.getenv("INVENTORY_SERVICE_URL", "http://inventory:8000"),
             "payment": os.getenv("PAYMENT_SERVICE_URL", "http://payment:8000"),
-        }
+        },
+        telemetry=telemetry,
     )
 
 
@@ -135,11 +159,19 @@ def create_app(
     order_store: OrderStore | None = None,
     inventory_store: InventoryStore | None = None,
     correlation_factory: Callable[[], str] | None = None,
+    telemetry: SimulatorTelemetry | None = None,
 ) -> FastAPI:
     """Create one role-specific simulator application."""
-    selected_order_store = (order_store or PostgresOrderStore()) if service == "order" else None
+    selected_telemetry = telemetry or create_telemetry(service)
+    selected_order_store = (
+        (order_store or PostgresOrderStore(tracer=selected_telemetry.tracer))
+        if service == "order"
+        else None
+    )
     selected_inventory_store = (
-        (inventory_store or RedisInventoryStore()) if service == "inventory" else None
+        (inventory_store or RedisInventoryStore(tracer=selected_telemetry.tracer))
+        if service == "inventory"
+        else None
     )
 
     @asynccontextmanager
@@ -147,17 +179,20 @@ def create_app(
         try:
             yield
         finally:
-            if selected_order_store is not None:
-                await selected_order_store.close()
-            if selected_inventory_store is not None:
-                await selected_inventory_store.close()
+            try:
+                if selected_order_store is not None:
+                    await selected_order_store.close()
+                if selected_inventory_store is not None:
+                    await selected_inventory_store.close()
+            finally:
+                await selected_telemetry.shutdown()
 
     app = FastAPI(
         title=f"AgentOps Simulator {service.title()}",
         version="1.0.0",
         lifespan=lifespan,
     )
-    downstream = caller or _default_caller()
+    downstream = caller or _default_caller(selected_telemetry)
     new_correlation = correlation_factory or (lambda: str(uuid4()))
 
     @app.middleware("http")
@@ -172,9 +207,28 @@ def create_app(
             )
         correlation_id = supplied or new_correlation()
         request.state.correlation_id = correlation_id
-        response = await call_next(request)
-        response.headers[CORRELATION_HEADER] = correlation_id
-        return response
+        started_at = time.monotonic()
+        status_code = 500
+        route = "unmatched"
+        with selected_telemetry.server_span(request.method, correlation_id) as span:
+            try:
+                response = await call_next(request)
+                status_code = response.status_code
+                response.headers[CORRELATION_HEADER] = correlation_id
+                return response
+            finally:
+                route_object = request.scope.get("route")
+                route_path = getattr(route_object, "path", None)
+                if isinstance(route_path, str):
+                    route = route_path
+                selected_telemetry.complete_request(
+                    span,
+                    method=request.method,
+                    route=route,
+                    status_code=status_code,
+                    started_at=started_at,
+                    correlation_id=correlation_id,
+                )
 
     @app.get("/healthz")
     async def health(request: Request) -> dict[str, str]:

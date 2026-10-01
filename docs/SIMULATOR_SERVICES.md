@@ -1,6 +1,6 @@
 # Simulator Service Contracts
 
-The diagnosed system has four independently runnable FastAPI roles built from one locked Python image. Order persists confirmed orders in simulator PostgreSQL, and Inventory performs atomic reservations in simulator Redis. OpenTelemetry instrumentation remains a separate Phase 1B batch.
+The diagnosed system has four independently runnable FastAPI roles built from one locked Python image. Order persists confirmed orders in simulator PostgreSQL, Inventory performs atomic reservations in simulator Redis, and every role emits the bounded OpenTelemetry signal contract documented in `docs/OBSERVABILITY.md`.
 
 ## Request path
 
@@ -27,7 +27,7 @@ Credentials are read only from mounted secret files. Connection strings, passwor
 
 `X-Correlation-ID` is the sole request-correlation header. Gateway creates a UUID when it is absent. A supplied value must be 1–128 characters from the conservative `[A-Za-z0-9._:-]` set and cannot start with punctuation. The same validated value is returned in every response and forwarded on every internal HTTP request. Invalid values fail with HTTP 400 before a handler or downstream call runs.
 
-This identifier is for correlation, not authentication or authorization. Later OpenTelemetry work will add it to structured logs and trace attributes without treating it as trusted identity.
+This identifier is for correlation, not authentication or authorization. It is attached to structured logs and trace attributes without being treated as trusted identity; it is intentionally excluded from metric dimensions to avoid unbounded cardinality. W3C trace context is propagated independently so traces remain standards-compatible.
 
 ## Runtime composition
 

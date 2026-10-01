@@ -13,6 +13,8 @@ The checked-in `compose.yaml` establishes the Phase 1B trust and resource bounda
 
 Service and data networks are internal. The explicit `ingress` network exists only for Gateway, whose port `8080` is published on loopback. Prometheus `9090`, Loki `3100`, and Tempo `3200` are also bound to `127.0.0.1` by default.
 
+All application roles export OTLP/HTTP over the internal `simulator` network to the Collector. The Collector's metrics, logs, and traces pipelines route to Prometheus, Loki, and Tempo respectively; its receiver ports are not published to the host. See `docs/OBSERVABILITY.md` for the signal and redaction contract.
+
 Each current container has an explicit profile, image version, health check, read-only root filesystem, init process, `no-new-privileges`, named or temporary writable storage, and limits of `0.50` CPU, `512 MiB` memory, and 200 processes. Redis additionally limits its dataset to `192 MiB`. These are local-lab bounds, not capacity claims.
 
 ## Secret setup

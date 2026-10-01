@@ -5,7 +5,7 @@ This comparison prevents portfolio and architecture drift. It records the confir
 ## Portfolio narratives
 
 - **Programming Tutor:** neuro-symbolic program analysis + educational memory + knowledge augmentation + personalized feedback.
-- **AgentOps:** durable execution + dynamic incident investigation + authority isolation + approval + verification + rollback.
+- **AgentOps:** durable execution + dynamic incident investigation + authority isolation + approval + verification + safe failure routing.
 
 Both projects can demonstrate strong agent engineering, but they must earn that claim through different product pressures and technical constraints.
 
@@ -23,12 +23,12 @@ It also has a custom `DialogueStateGraph` with nodes, edges, state, loop protect
 | Main stack | TypeScript, Next.js/React, Prisma/PostgreSQL. | Python 3.12, FastAPI, Pydantic, SQLAlchemy/Alembic, PostgreSQL/pgvector, small Next.js console. |
 | Trigger model | User dialogue and code submission. | Alerts and manually declared incidents. |
 | Runtime shape | Primarily request/response interactions and predefined DAG execution. | Long-running event workflow that can pause for approval, resume hours later, survive worker failure, cancel, and compensate. |
-| Orchestration | Custom `DialogueStateGraph`; Code Review followed by parallel optional Emotion/Navigation agents. | LangGraph typed persistent state, conditional routing, parallel read-only investigation, bounded replanning, interrupts, checkpoints, recovery, verification and rollback routes. |
+| Orchestration | Custom `DialogueStateGraph`; Code Review followed by parallel optional Emotion/Navigation agents. | LangGraph typed persistent state, conditional routing, parallel read-only investigation, bounded replanning, interrupts, checkpoints, recovery, verification and safe failure routes. |
 | Decision agents | Code Review, Emotion, Learning Navigation. | Only Diagnosis and Remediation. Postmortem is a constrained node; all safety/collection components are deterministic. |
 | Primary evidence | Source code, tests, static/dynamic analysis, assignment/course knowledge, dialogue and learner context. | Metrics, logs, traces, topology, deployment records, alerts, and current-incident Evidence/Artifacts. |
 | Memory | Dialogue/session memory, student profiles, educational semantic memory. | Incident working state/checkpoints, Evidence Workspace, and confirmed historical incident memory. No user-profile-style memory. |
 | Knowledge retrieval | Course/knowledge RAG, hybrid retrieval, pgvector option, Neo4j knowledge relations. | pgvector similar-incident retrieval only in MVP; historical facts are advisory. General runbook/document RAG and Neo4j are excluded. |
-| Tool authority | Mostly read/analyze and Judge0 sandboxed code execution. | Read-only operational queries plus one side-effecting allowlisted rollback with policy, approval, idempotency, verification, and rollback handling. |
+| Tool authority | Mostly read/analyze and Judge0 sandboxed code execution. | Read-only operational queries plus one side-effecting allowlisted version-recovery action with policy, approval, idempotency, verification, and safe failure handoff. |
 | Core safety question | Is feedback supported by code/teaching evidence and useful to the learner? | Is the root cause evidence-valid, is the action authorized, did it execute once, and did real service health recover? |
 | Human involvement | Educational interaction and review. | Formal approval interrupt for medium/high risk and human handoff for insufficient evidence or failed rollback. |
 | Observability | Agent/RAG/evaluation and application telemetry. | Dual-layer telemetry for both the diagnosed microservices and every workflow/model/tool/approval/checkpoint/action/verification event. |
@@ -69,7 +69,7 @@ AgentOps is not a renamed tutoring RAG system. If a proposed feature resembles o
 | --- | --- | --- |
 | Evidence | Tie review/teaching feedback to code, tests, and knowledge sources. | Establish current-incident facts with immutable provenance and pass deterministic evidence rules. |
 | Memory | Preserve learner/dialogue context and personalization. | Resume one durable incident and retrieve outcome-labeled historical cases without treating them as current facts. |
-| Evaluation worker | Run offline agent/RAG benchmarks independently of web requests. | Run versioned incident baselines and validate crash recovery, safety, recovery, and rollback behavior. |
+| Evaluation worker | Run offline agent/RAG benchmarks independently of web requests. | Run versioned incident baselines and validate crash recovery, safe handoff, eligible recovery, and worker-resume behavior. |
 | Prompt versions | Reproduce and gate educational-agent behavior. | Reproduce diagnosis/remediation/postmortem nodes and prevent untested prompt promotion. |
 | Observability | Understand application, agent, RAG, and evaluation behavior. | Correlate the failing system with the control workflow, authority decisions, and side effects. |
 | Graph execution | Coordinate a bounded predefined educational DAG. | Persist a long-lived state machine with dynamic investigation, human interrupts, recovery, and compensation. |

@@ -4,18 +4,20 @@ These instructions are binding for every coding agent working in this repository
 
 ## Product invariant
 
-AgentOps is an evidence-driven microservice incident diagnosis and controlled recovery platform. It must reduce diagnosis time without allowing an LLM to become an execution authority. Every decision, tool call, approval, action, verification, rollback, token, and cost event must be observable, explainable, and auditable.
+AgentOps Incident Commander is an evidence-driven microservice incident diagnosis and controlled recovery platform. It must reduce diagnosis time without allowing an LLM to become an execution authority. Every decision, tool call, approval, recovery action, verification, failure route, compensation, token, and cost event must be observable, explainable, and auditable.
 
 The only core decision agents are:
 
 1. **Diagnosis Agent**: creates a bounded investigation plan, invokes only read-only tools, correlates evidence, and reports root-cause candidates, supporting evidence, counter-evidence, missing evidence, and uncertainty.
-2. **Remediation Agent**: runs only after the deterministic evidence gate passes and proposes a typed remediation, validation conditions, and rollback plan.
+2. **Remediation Agent**: runs only after the deterministic evidence gate passes and proposes a typed remediation, validation conditions, and safe failure/compensation handling.
 
-Postmortem generation is a constrained LLM node after incident closure, not an agent team. Collectors, Evidence Validator/Gate, Policy Engine, Action Executor, Health Verifier, and Rollback Controller are deterministic components and must never be relabeled as agents.
+Postmortem generation is a constrained LLM node after incident closure, not an agent team. Collectors, Evidence Validator/Gate, Policy Engine, Action Executor, Health Verifier, and any future Compensation Controller are deterministic components and must never be relabeled as agents.
 
 The non-bypassable recovery chain is:
 
-`LLM proposal -> schema validation -> policy engine -> human approval -> deterministic executor -> deterministic health verifier -> rollback when required`
+`LLM proposal -> schema validation -> policy engine -> human approval -> deterministic executor -> deterministic health verifier -> close, bounded re-diagnosis, or human handoff`
+
+`rollback_service` is itself the MVP recovery action: it moves a service from a faulty deployment to a known stable version. If verification fails, never automatically redeploy the known faulty version. Generic compensation is a separate, future capability permitted only for an explicitly reversible write tool with independent policy and approval.
 
 LLMs may propose but may not run arbitrary shell commands, mutate infrastructure directly, bypass gateways/policy/approval, declare recovery success, or cite evidence that the Evidence Store cannot resolve.
 
@@ -69,5 +71,5 @@ Do not introduce A2A, a general agent harness, multi-agent writing, collector ag
 - Version schemas, prompts, datasets, policies, and evaluation rules.
 - Make retries bounded and classify retryable errors. All external calls need timeouts.
 - Use UTC internally; include timezone-aware timestamps.
-- Tests must cover success, refusal, timeout, duplicate/replay, concurrent approval, crash/resume, rollback, and authorization failures.
+- Tests must cover success, refusal, timeout, duplicate/replay, concurrent approval, crash/resume, recovery verification, non-compensable failure routing, and authorization failures.
 - Keep dependency direction aligned with `docs/ARCHITECTURE.md`; document intentional deviations in an ADR before implementation.

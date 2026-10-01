@@ -1,4 +1,4 @@
-# AgentOps Architecture
+# AgentOps Incident Commander Architecture
 
 ## System context
 
@@ -35,7 +35,7 @@ flowchart LR
 | Tool Gateway | validate versioned calls, enforce permission/risk/timeout/retry/idempotency, audit | expose arbitrary shell/network capabilities |
 | Policy/Approval | deterministic risk decisions and proposal-bound approvals | trust client-side checks |
 | Executor | allowlisted idempotent mutation with locks and snapshots | accept free-form commands |
-| Verifier/Rollback | determine observed recovery and safe rollback route | accept LLM declaration of success |
+| Verifier/Compensation | determine observed recovery and, only for future explicitly reversible actions, verify authorized compensation | accept LLM success claims or infer that every action has a safe inverse |
 | Evaluation | datasets, Ground Truth, baselines, scoring, reports | leak labels to runtime/model context |
 | Console | explain state/evidence and collect authorized intent | become system of record |
 
@@ -55,26 +55,85 @@ flowchart TD
     G -->|pass| RA[Remediation Agent: typed proposal]
     RA --> S[Schema validation]
     S --> PE{Policy Engine}
-    PE -->|deny| R[Rejected / human review]
+    PE -->|deny, replannable| RA
+    PE -->|deny, no safe plan| X
     PE -->|approval required| I[LangGraph interrupt]
     I --> AP{Human approval valid?}
-    AP -->|no / expired| R
+    AP -->|rejected / expired, replannable| RA
+    AP -->|rejected / expired, no safe plan| X
     AP -->|yes| EX[Deterministic idempotent executor]
     PE -->|allowed| EX
     EX --> V{Deterministic health verification}
     V -->|stable| CL[Resolve and close]
-    V -->|re-diagnose budget| DA
-    V -->|rollback required| RB[Idempotent rollback]
-    RB -->|success| X
-    RB -->|failure| X
+    V -->|rollback_service failed, budget remains| DA
+    V -->|rollback_service failed / no budget| X
+    V -->|future action: separately authorized compensation| CP[Deterministic compensation]
+    CP --> CV{Verify compensation}
+    CV -->|safe baseline restored, budget remains| DA
+    CV -->|failed / no budget| X
     CL --> PM[Evidence-linked postmortem node]
 ```
 
+## Incident state topology
+
+Approval `REJECTED` and `EXPIRED` are Approval-record statuses and therefore do not appear as Incident states. The graph uses the same state names as the domain model and project specification.
+
+```mermaid
+stateDiagram-v2
+    [*] --> DETECTED
+    DETECTED --> TRIAGED
+    TRIAGED --> INVESTIGATING
+    INVESTIGATING --> EVIDENCE_REVIEW
+    EVIDENCE_REVIEW --> INVESTIGATING: bounded replan
+    EVIDENCE_REVIEW --> NEEDS_HUMAN: insufficient evidence or budget
+    EVIDENCE_REVIEW --> PLANNING_REMEDIATION: evidence gate passed
+    PLANNING_REMEDIATION --> POLICY_REVIEW: valid proposal
+    PLANNING_REMEDIATION --> INVESTIGATING: diagnosis must be revised
+    PLANNING_REMEDIATION --> NEEDS_HUMAN: no safe proposal
+    POLICY_REVIEW --> PLANNING_REMEDIATION: denied but replannable
+    POLICY_REVIEW --> NEEDS_HUMAN: denied with no safe plan
+    POLICY_REVIEW --> AWAITING_APPROVAL: approval required
+    POLICY_REVIEW --> READY_TO_EXECUTE: policy permits
+    AWAITING_APPROVAL --> READY_TO_EXECUTE: approved
+    AWAITING_APPROVAL --> PLANNING_REMEDIATION: rejected or expired, retry allowed
+    AWAITING_APPROVAL --> NEEDS_HUMAN: rejected or expired, no safe retry
+    READY_TO_EXECUTE --> EXECUTING
+    EXECUTING --> VERIFYING: action result is observable
+    EXECUTING --> INVESTIGATING: failed safely before side effect
+    EXECUTING --> NEEDS_HUMAN: uncertain or unsafe execution result
+    VERIFYING --> RESOLVED: stable health window passed
+    VERIFYING --> INVESTIGATING: budgeted re-diagnosis
+    VERIFYING --> NEEDS_HUMAN: no safe automated route
+    VERIFYING --> COMPENSATING: future reversible action separately authorized
+    COMPENSATING --> VERIFYING_COMPENSATION
+    COMPENSATING --> NEEDS_HUMAN: compensation failed or uncertain
+    VERIFYING_COMPENSATION --> INVESTIGATING: safe baseline restored and budget remains
+    VERIFYING_COMPENSATION --> NEEDS_HUMAN: failed or no budget
+    NEEDS_HUMAN --> INVESTIGATING: human resumes diagnosis
+    NEEDS_HUMAN --> PLANNING_REMEDIATION: human supplies safe planning input
+    NEEDS_HUMAN --> VERIFYING: recorded external action
+    RESOLVED --> CLOSED
+    CLOSED --> [*]
+    CANCELLED --> [*]
+
+    DETECTED --> CANCELLED
+    TRIAGED --> CANCELLED
+    INVESTIGATING --> CANCELLED
+    EVIDENCE_REVIEW --> CANCELLED
+    NEEDS_HUMAN --> CANCELLED
+    PLANNING_REMEDIATION --> CANCELLED
+    POLICY_REVIEW --> CANCELLED
+    AWAITING_APPROVAL --> CANCELLED
+    READY_TO_EXECUTE --> CANCELLED
+```
+
+`CLOSED` and `CANCELLED` are terminal. `AWAITING_APPROVAL` and `NEEDS_HUMAN` are durable waits. All other non-terminal states are checkpoint-recoverable active states, with `RESOLVED` awaiting closure. Cancellation during execution, verification, or compensation is recorded but deferred until deterministic processing reaches a permitted safe state.
+
 ## LangGraph state and durability
 
-The graph state is a versioned Pydantic model holding identifiers and bounded summaries, not large raw telemetry. Raw results live behind Artifact references. Key fields include workflow/incident IDs, state schema version, plan and attempt budgets, selected tool calls, evidence IDs, hypotheses, gate decision, remediation proposal fingerprint, policy decision, approval reference, action reference, verification observations, rollback reference, and error classification.
+The graph state is a versioned Pydantic model holding identifiers and bounded summaries, not large raw telemetry. Raw results live behind Artifact references. Key fields include workflow/incident IDs, state schema version, plan and attempt budgets, selected tool calls, evidence IDs, hypotheses, gate decision, remediation proposal fingerprint, policy decision, approval reference, recovery-action reference, verification observations, optional compensation authorization/reference, and error classification.
 
-Each externally visible transition writes domain state, outbox/audit event, and next job intent transactionally where possible. PostgreSQL checkpointing supports pauses, interrupts, cancellation, and worker recovery. Jobs use `SELECT ... FOR UPDATE SKIP LOCKED` (or an equivalently documented strategy), owner/lease timestamps, heartbeat, attempts, and stale-lease reclamation. Execution idempotency is independent of workflow retry semantics.
+Each externally visible transition writes domain state, outbox/audit event, and next job intent transactionally where possible. PostgreSQL checkpointing supports pauses, interrupts, safe-boundary cancellation, and worker recovery. Jobs use `SELECT ... FOR UPDATE SKIP LOCKED` (or an equivalently documented strategy), owner/lease timestamps, heartbeat, attempts, and stale-lease reclamation. Execution idempotency is independent of workflow retry semantics.
 
 LangGraph, rather than a black-box general ReAct agent, is the workflow authority because the graph must expose safety routing, durable pauses, resumption, and compensation. `langchain-core` model/message/tool-schema or retriever components may be used underneath nodes where helpful, but Evidence, Policy, RBAC, Executor, and Verifier remain application/domain responsibilities.
 
@@ -99,6 +158,8 @@ Historical incidents use a separate trust label. Similarity search results inclu
 ## Control plane safety sequence
 
 Approval binds `(incident_id, proposal_hash, policy_decision_id, actor, expiry)`. Immediately before execution, the server re-loads all records, verifies RBAC, state, hashes, expiry, policy version, and idempotency key, then acquires a target/action lock. Any material proposal edit creates a new version and invalidates the old approval. Append-only events capture request and result hashes plus before/after state.
+
+`rollback_service` is a forward recovery action to a known stable version. Its pre-action faulty version is not a safe compensation target. Failed verification therefore routes to bounded re-diagnosis or human handoff. A future action can enter `COMPENSATING` only when the tool declares a typed safe inverse and a separate policy decision/approval authorizes it; compensation success restores a safe baseline but still returns to investigation or human handling rather than resolving the incident.
 
 ## API outline
 

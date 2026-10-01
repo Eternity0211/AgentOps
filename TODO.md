@@ -7,11 +7,12 @@ Checkboxes are completion claims. Check an item only when its acceptance criteri
 - [x] Initialize local Git repository on `main`.
 - [x] Add `AGENTS.md`, `README.md`, project specification, architecture/workflow diagrams, data model, threat model, evaluation plan, ADR directory, and this complete phased TODO.
 - [x] Preserve product decision rationale and the non-duplication boundary with Programming Tutor in maintained comparison/history documents.
+- [x] Resolve recovery-versus-compensation semantics, complete the Incident lifecycle, define scenario automation eligibility, and specify fair baseline evaluation.
 - [x] Add secret/runtime-safe `.gitignore`.
 - [x] Connect the uniquely confirmed existing GitHub `AgentOps` repository as `origin`; never create a duplicate.
 - [x] Run planning-document checks and create the initial Conventional Commit.
 - [ ] Push the initial commit immediately after `origin` is uniquely confirmed.
-- [ ] Establish Python 3.12 locally (current environment audit found default Python 3.14 and a broken registered 3.12 launcher) and record a reproducible bootstrap path.
+- [x] Establish a verified Python 3.12.14 runtime and `.venv` via `uv`, pin `.python-version`, and record bootstrap/verification commands without substituting Python 3.14.
 - [ ] Add repository CI and branch-protection guidance without claiming protection is enabled unless verified through GitHub.
 
 Verification: clean diff review, Markdown/link checks, secret scan, `git status`, remote verification, commit SHA, and push confirmation.
@@ -25,15 +26,16 @@ Verification: clean diff review, Markdown/link checks, secret scan, `git status`
 - [ ] Add simulator PostgreSQL and Redis dependencies with observable client behavior.
 - [ ] Instrument services using OpenTelemetry and route metrics/logs/traces through OTel Collector to Prometheus, Loki, and Tempo.
 - [ ] Record deployment/version change events usable by diagnosis.
-- [ ] Provide one-command start/stop and health/readiness validation.
-- [ ] Implement one-command fault injection and cleanup with run/scenario IDs and repeatable reset.
+- [ ] Implement the cross-platform `python scripts/dev.py` task runner used by Windows and CI; optional wrappers may delegate to it but cannot be required.
+- [ ] Provide task-runner start/stop and health/readiness validation.
+- [ ] Implement task-runner fault injection and cleanup with run/scenario IDs and repeatable reset.
 - [ ] Implement deployment-induced HTTP 500 scenario.
 - [ ] Implement database connection-pool exhaustion scenario.
 - [ ] Implement Redis timeout scenario.
 - [ ] Implement downstream-service high-latency scenario.
 - [ ] Implement memory-leak scenario with bounded safe resource settings.
 - [ ] Implement bad-configuration scenario.
-- [ ] Define separate Ground Truth manifests for all six scenarios: cause, symptoms, key metrics/logs/traces, deployment change, recommended action, verification, rollback.
+- [ ] Define separate Ground Truth manifests for all six scenarios: cause, symptoms, key metrics/logs/traces, deployment change, automation eligibility, expected safe outcome/handoff reason, recovery action, verification, evaluator cleanup, and future-tool requirement.
 - [ ] Enforce Ground Truth isolation through separate profile/path/network/credentials and canary leakage tests.
 - [ ] Add simulator smoke tests and deterministic scenario setup/cleanup tests.
 
@@ -42,7 +44,7 @@ Exit: Compose starts cleanly, each fault reproduces and resets, telemetry is que
 ## Phase 2 — Domain model, persistence, and API/worker foundation
 
 - [ ] Implement pure typed domain identifiers, enums, errors, and UTC time handling.
-- [ ] Implement Incident state machine, enumerated legal/cancel transitions, optimistic versioning, and exhaustive transition tests.
+- [ ] Implement the complete Incident state machine with `CLOSED`/`CANCELLED` terminals, durable waits, safe-boundary cancellation, no dead-end non-terminals, optimistic versioning, and exhaustive transition/liveness tests.
 - [ ] Implement deterministic Alert fingerprinting, deduplication, merging, and triage with race/concurrency tests.
 - [ ] Implement SQLAlchemy models/repositories and initial Alembic migrations for operational aggregates.
 - [ ] Enable PostgreSQL pgvector extension and versioned embedding metadata.
@@ -136,7 +138,7 @@ Exit: retrieval improves context experimentally without label/fact leakage; ever
 
 ## Phase 8 — Remediation, policy, approval, and safe execution
 
-- [ ] Define Remediation Agent structured proposal, prerequisites, verification conditions, rollback plan, and risk assumptions.
+- [ ] Define Remediation Agent structured proposal, prerequisites, verification conditions, safe failure routing, explicit compensation eligibility, and risk assumptions; prohibit compensation for `rollback_service`.
 - [ ] Prevent remediation until an immutable passing EvidenceGateDecision is present.
 - [ ] Define risk levels and versioned deterministic Policy Engine inputs/outputs/reasons.
 - [ ] Implement policy rules for environment, role, action/target, evidence gate, blast radius, maintenance constraints, and separation of duties.
@@ -147,25 +149,25 @@ Exit: retrieval improves context experimentally without label/fact leakage; ever
 - [ ] Implement service/version resolution from server-owned allowlists; reject free-form commands/targets.
 - [ ] Implement Action Executor with execution locks, database uniqueness, idempotent result replay, before/after snapshots, timeout, and audit.
 - [ ] Recheck RBAC, policy, state, approval hash/expiry, and idempotency immediately before mutation.
-- [ ] Add concurrent approval, expiry, mutation, replay, duplicate delivery, timeout, unauthorized role, and bypass tests.
+- [ ] Add concurrent approval, rejection/expiry routing, mutation, replay, duplicate delivery, timeout, unauthorized role, and bypass tests.
 
 Exit: exactly one allowlisted mutation occurs for concurrent/retried identical requests, and no invalid or stale approval can execute.
 
-## Phase 9 — Deterministic verification, rollback, and postmortem
+## Phase 9 — Deterministic verification, failure routing, and postmortem
 
 - [ ] Define versioned scenario-aware Health Verification criteria and observation-window contract.
 - [ ] Verify error rate and P95 latency from real metric evidence.
 - [ ] Verify health endpoint, active service version, new alerts, and stable observation window.
 - [ ] Persist verification observations/evidence and deterministic decision reasons.
 - [ ] Route verification success to resolved/closed workflow states.
-- [ ] Route failure to bounded re-diagnosis or idempotent rollback according to policy/state.
-- [ ] Implement Rollback Controller with locks, idempotency, before/after state, audit, and failure-to-human behavior.
-- [ ] Add verification timeout, flapping/stability-window, rollback duplicate, rollback failure, and re-diagnosis budget tests.
+- [ ] Route failed `rollback_service` verification to bounded re-diagnosis or `NEEDS_HUMAN`; never restore the known faulty version.
+- [ ] Keep generic compensation unreachable in the MVP unless a future write tool provides typed safe-inverse metadata plus independent policy/approval.
+- [ ] Add verification timeout, flapping/stability-window, non-compensable failure, cancellation-safe-boundary, and re-diagnosis budget tests.
 - [ ] Implement constrained postmortem draft from confirmed facts and resolvable references only.
 - [ ] Support versioned human postmortem revisions with authorship/audit.
 - [ ] Add false-fact/reference and unauthorized-edit tests.
 
-Exit: the system never self-declares recovery; observed success closes the incident, while failed verification safely rolls back/re-diagnoses or transfers to a human.
+Exit: the system never self-declares recovery; observed success closes the incident, while failed verification safely re-diagnoses or transfers to a human without reverting to a known faulty version.
 
 ## Phase 10 — Administration console
 
@@ -176,7 +178,7 @@ Exit: the system never self-declares recovery; observed success closes the incid
 - [ ] Implement Evidence/Artifact view with provenance, query/time/hash/version/quality/expiry/trust.
 - [ ] Show ranked root causes, supporting evidence, counter-evidence, missing evidence, and gate result.
 - [ ] Implement approval center with immutable proposal diff, risk/policy reasons, expiry, separation-of-duties feedback, approve/reject.
-- [ ] Show execution before/after metrics, service versions, trace links, verification window, and rollback.
+- [ ] Show execution before/after metrics, service versions, trace links, verification window, failure route, and any separately authorized compensation.
 - [ ] Show agent-platform traces, tokens/cost, checkpoints, and audit completeness.
 - [ ] Add component, API contract, authorization, accessibility, and critical-flow browser tests.
 
@@ -186,7 +188,7 @@ Exit: an operator can understand and safely control a full incident without the 
 
 - [ ] Standardize trace/correlation/causation IDs across alert, incident, graph, tool, model, approval, execution, and verification.
 - [ ] Instrument diagnosed-system service metrics/logs/traces and deployment markers.
-- [ ] Instrument graph nodes/routes, model latency/errors/tokens/cost, tool calls/retries, evidence gate, checkpoints, jobs/leases, approvals, executions, verification, and rollback.
+- [ ] Instrument graph nodes/routes, model latency/errors/tokens/cost, tool calls/retries, evidence gate, checkpoints, jobs/leases, approvals, recovery executions, verification, failure routes, and compensation.
 - [ ] Create dashboards and actionable alerts for both observability layers.
 - [ ] Add structured logging schema, redaction, payload limits, and no-secret telemetry tests.
 - [ ] Enforce append-only audit permissions and integrity/sequence checks; document retention/export.
@@ -198,9 +200,9 @@ Exit: one correlation ID reconstructs the incident and agent-control flow withou
 
 - [ ] Complete unit tests for domain, gate, policy, schemas, redaction, idempotency, and state transitions.
 - [ ] Complete Agent output/schema/property tests including malformed and adversarial outputs.
-- [ ] Complete LangGraph all-path tests including replans, refusal, human handoff, approval, success, re-diagnosis, rollback, cancel.
+- [ ] Complete LangGraph all-path tests including replans, refusal, human handoff, approval rejection/expiry, success, re-diagnosis, safe-boundary cancellation, and future compensation guards.
 - [ ] Complete Testcontainers external integration tests for PostgreSQL/pgvector and applicable observability/tool adapters.
-- [ ] Complete six fault-scenario E2E suites from alert through postmortem.
+- [ ] Complete six fault-scenario E2E suites from alert through postmortem, asserting the recovery-eligibility matrix and correct handoffs.
 - [ ] Test worker crashes at checkpoint/action/verification boundaries and stale-lease recovery.
 - [ ] Test duplicate execution/delivery and concurrent approval races.
 - [ ] Test model/tool timeouts, retry exhaustion, malformed payloads, and dependency outages.
@@ -210,7 +212,7 @@ Exit: one correlation ID reconstructs the incident and agent-control flow withou
 - [ ] Run single-Agent baseline.
 - [ ] Run controlled LangGraph baseline.
 - [ ] Run controlled LangGraph plus incident-memory baseline.
-- [ ] Report Top-1/Top-3 root cause, unsupported conclusions, fabricated references, correct refusal, diagnosis time, tool calls, tokens/cost, proposal correctness, dangerous-action blocks, duplicate executions, recovery, rollback, and worker recovery.
+- [ ] Report Top-1/Top-3 root cause, unsupported conclusions, fabricated references, correct refusal/handoff, diagnosis time, tool calls, tokens/cost, proposal correctness, dangerous-action blocks, unapproved/duplicate executions, eligible recovery, safe outcomes, future compensation, and worker recovery with explicit denominators.
 - [ ] Add configured evaluation regression gates for prompt/model/policy promotion based on measured baselines.
 - [ ] Add bounded concurrency/load tests for API, job leasing, evidence queries, and workers; report observed limits without production-scale claims.
 
@@ -218,14 +220,14 @@ Exit: versioned raw results reproduce every published claim and all required saf
 
 ## Phase 13 — Developer experience, security, and demo release
 
-- [ ] Provide one-command Compose startup/shutdown with readiness and troubleshooting.
-- [ ] Provide one-command fault injection/cleanup and one-command evaluation.
+- [ ] Provide cross-platform task-runner Compose startup/shutdown with readiness and troubleshooting.
+- [ ] Provide task-runner fault injection/cleanup and evaluation commands shared by Windows and CI.
 - [ ] Provide deterministic mock-model mode requiring no external model credential.
 - [ ] Add dependency/image locking, update policy, vulnerability/secret scans, SBOM/provenance plan, and minimal container users/permissions.
 - [ ] Validate least-privilege DB roles, network paths, filesystem mounts, and service credentials.
 - [ ] Complete README quickstart, configuration reference, architecture/workflow diagrams, data model, threat model, ADRs, API docs, runbooks, and contribution guide.
 - [ ] Publish evaluation report containing methods, environment, raw-result links, limitations, and reproducible commands.
-- [ ] Create demo script showing six faults, evidence, approval, safe action, verification/rollback, audit, crash resume, and mock mode.
+- [ ] Create demo script showing six faults, eligibility-aware handoff or approved recovery, verification/failure routing, audit, crash resume, and mock mode.
 - [ ] Run clean-machine rehearsal and record exact versions/timings/issues.
 - [ ] Derive portfolio/resume statements only from committed reproducible measurements.
 
@@ -234,24 +236,25 @@ Exit: a reviewer can clone, run mock mode, reproduce representative scenarios/ev
 ## Enhancements after core acceptance
 
 - [ ] Add optional read-only MCP adapters behind the existing Tool Gateway contracts.
-- [ ] Add another tightly scoped write tool only with a new ADR, threat review, policy, verification, rollback, and adversarial suite.
+- [ ] Add another tightly scoped write tool only with a new ADR, threat review, policy, verification, failure/compensation semantics, and adversarial suite.
+- [ ] Implement a generic Compensation Controller only after a future write tool defines a safe typed inverse, independent policy/approval, idempotency, and compensation verification.
 - [ ] Evaluate stronger audit integrity (hash chaining/external anchoring) based on threat/deployment needs.
 - [ ] Add alternative artifact stores and enterprise identity providers behind ports.
 - [ ] Add chaos/network-fault variants and larger scenario parameterization.
 - [ ] Evaluate horizontal worker scaling and a message broker only after PostgreSQL queue measurements demonstrate need.
 - [ ] Consider A2A only if independently deployed, separately owned agent services create a real protocol boundary.
 
-## Explicit non-goals for the core version
+## Explicit non-goal guardrails for the core version
 
-- [ ] **DO NOT IMPLEMENT:** A2A without a real independent-agent service boundary.
-- [ ] **DO NOT IMPLEMENT:** a general Agent Harness framework.
-- [ ] **DO NOT IMPLEMENT:** a multi-agent postmortem/writing team.
-- [ ] **DO NOT IMPLEMENT:** Metrics, Logs, Traces, Deployment, Evidence, Policy, Executor, Verifier, or Rollback as agents.
-- [ ] **DO NOT IMPLEMENT:** arbitrary shell execution or a shell-capable agent.
-- [ ] **DO NOT IMPLEMENT:** real production Kubernetes control.
-- [ ] **DO NOT IMPLEMENT:** Kafka/NATS before evidence-based need.
-- [ ] **DO NOT IMPLEMENT:** multiple competing agent frameworks.
-- [ ] **DO NOT IMPLEMENT:** general-purpose document Q&A.
-- [ ] **DO NOT IMPLEMENT:** comprehensive MCP conversion of the core control path.
+These are scope constraints, not open checklist work:
 
-These boxes intentionally remain unchecked; they are guardrails, not backlog work.
+- Do not implement A2A without a real independent-agent service boundary.
+- Do not build a general Agent Harness framework.
+- Do not create a multi-agent postmortem/writing team.
+- Do not represent Metrics, Logs, Traces, Deployment, Evidence, Policy, Executor, Verifier, or Compensation as agents.
+- Do not permit arbitrary shell execution or a shell-capable agent.
+- Do not control real production Kubernetes.
+- Do not add Kafka/NATS before evidence-based need.
+- Do not mix competing agent frameworks.
+- Do not build general-purpose document Q&A.
+- Do not convert the core control path comprehensively to MCP.

@@ -1,15 +1,15 @@
-# AgentOps Project Specification
+# AgentOps Incident Commander Project Specification
 
 ## 1. Product definition
 
-AgentOps is an evidence-driven microservice incident diagnosis and controlled recovery platform aimed at demonstrating AI-agent and Python-backend engineering. It aggregates operational signals, produces bounded and reviewable hypotheses, and safely coordinates recovery without granting an LLM execution authority.
+AgentOps Incident Commander (repository: `AgentOps`) is an evidence-driven microservice incident diagnosis and controlled recovery platform aimed at demonstrating AI-agent and Python-backend engineering. It aggregates operational signals, produces bounded and reviewable hypotheses, and safely coordinates recovery without granting an LLM execution authority.
 
 ### Objectives
 
 1. Reduce incident diagnosis time.
 2. Increase completeness and traceability of root-cause evidence.
 3. Reduce risk from automated recovery.
-4. Make every decision, model call, tool call, approval, action, verification, and rollback observable, explainable, and auditable.
+4. Make every decision, model call, tool call, approval, recovery action, verification, failure route, and compensation observable, explainable, and auditable.
 
 ### Success is measured, not asserted
 
@@ -31,11 +31,11 @@ Separation of duties is configurable but must be enforced for medium/high-risk a
 ### Decision agents
 
 - **Diagnosis Agent** receives a typed, budgeted context. It produces a finite investigation plan, calls only read-only tools through the Tool Gateway, and returns ranked root-cause candidates with evidence IDs, counter-evidence, missing evidence, and uncertainty.
-- **Remediation Agent** runs only for candidates accepted by the Evidence Gate. It emits a typed recovery proposal containing prerequisites, exact allowed action, risk assumptions, verification criteria, and rollback plan.
+- **Remediation Agent** runs only for candidates accepted by the Evidence Gate. It emits a typed recovery proposal containing prerequisites, exact allowed action, risk assumptions, verification criteria, and failure-handling/compensation eligibility. For `rollback_service`, compensation back to the known faulty version is forbidden.
 
 ### Deterministic components
 
-Alert deduplicator/merger, Triage, collectors, Evidence normalizer/validator/store, Evidence Gate, Context Builder preprocessing, Tool Gateway, Policy Engine, Approval service, Action Executor, Health Verifier, Rollback Controller, incident state machine, audit ledger, checkpoint/work queue, and Ground Truth evaluator are ordinary deterministic services/modules.
+Alert deduplicator/merger, Triage, collectors, Evidence normalizer/validator/store, Evidence Gate, Context Builder preprocessing, Tool Gateway, Policy Engine, Approval service, Action Executor, Health Verifier, incident state machine, audit ledger, checkpoint/work queue, and Ground Truth evaluator are ordinary deterministic services/modules. A generic Compensation Controller is a future deterministic component and is inactive unless a write tool declares safe reversibility and receives independent policy/approval authorization.
 
 ### Constrained postmortem node
 
@@ -56,28 +56,35 @@ After closure, a constrained LLM node may draft a postmortem from confirmed fact
 11. LangGraph Interrupt persists a checkpoint while medium/high-risk action awaits non-expired approval.
 12. The Executor acquires an action lock and executes idempotently through the versioned write tool.
 13. Health Verifier observes real metrics, health endpoint, running version, new alerts, and a stable window.
-14. On success, close the incident. On verification failure, perform an idempotent rollback when allowed, or re-diagnose within budget. Rollback failure transfers to a human.
+14. On success, resolve and close the incident. If `rollback_service` fails verification, never automatically return to the prior known faulty version; re-diagnose within budget or transfer to a human. Future write tools may enter compensation only when their ToolDefinition, policy decision, and approval explicitly authorize a safe compensation action.
 15. Generate an evidence-linked postmortem from confirmed facts.
 
 ## 5. Incident lifecycle
 
-Initial states and allowed transitions (final names may be refined in an ADR before schema implementation):
+The Incident state machine uses the following complete transition set. Approval decisions (`REJECTED`, `EXPIRED`) are Approval-record statuses, not Incident states.
 
 ```text
 DETECTED -> TRIAGED -> INVESTIGATING -> EVIDENCE_REVIEW
-EVIDENCE_REVIEW -> INVESTIGATING             (bounded replan)
-EVIDENCE_REVIEW -> NEEDS_HUMAN               (insufficient evidence/budget)
-EVIDENCE_REVIEW -> PLANNING_REMEDIATION
-PLANNING_REMEDIATION -> POLICY_REVIEW
-POLICY_REVIEW -> REJECTED | AWAITING_APPROVAL | READY_TO_EXECUTE
-AWAITING_APPROVAL -> REJECTED | EXPIRED | READY_TO_EXECUTE
-READY_TO_EXECUTE -> EXECUTING -> VERIFYING
-VERIFYING -> RESOLVED | ROLLING_BACK | INVESTIGATING
-ROLLING_BACK -> ROLLED_BACK | NEEDS_HUMAN
+EVIDENCE_REVIEW -> INVESTIGATING | NEEDS_HUMAN | PLANNING_REMEDIATION
+PLANNING_REMEDIATION -> POLICY_REVIEW | INVESTIGATING | NEEDS_HUMAN
+POLICY_REVIEW -> PLANNING_REMEDIATION | NEEDS_HUMAN | AWAITING_APPROVAL | READY_TO_EXECUTE
+AWAITING_APPROVAL -> PLANNING_REMEDIATION | NEEDS_HUMAN | READY_TO_EXECUTE
+READY_TO_EXECUTE -> EXECUTING
+EXECUTING -> VERIFYING | INVESTIGATING | NEEDS_HUMAN
+VERIFYING -> RESOLVED | INVESTIGATING | NEEDS_HUMAN | COMPENSATING
+COMPENSATING -> VERIFYING_COMPENSATION | NEEDS_HUMAN
+VERIFYING_COMPENSATION -> INVESTIGATING | NEEDS_HUMAN
+NEEDS_HUMAN -> INVESTIGATING | PLANNING_REMEDIATION | VERIFYING | CANCELLED
 RESOLVED -> CLOSED
+
+DETECTED | TRIAGED | INVESTIGATING | EVIDENCE_REVIEW | NEEDS_HUMAN |
+PLANNING_REMEDIATION | POLICY_REVIEW | AWAITING_APPROVAL | READY_TO_EXECUTE
+  -> CANCELLED
 ```
 
-Cancellation is legal only from explicitly enumerated non-terminal states. Every transition records actor, reason, correlation/causation IDs, prior/new state, and timestamp. Database constraints and transition tests prevent illegal jumps.
+`CLOSED` and `CANCELLED` are terminal. `AWAITING_APPROVAL` and `NEEDS_HUMAN` are durable waiting states. Every other non-terminal state is a checkpoint-recoverable active state; `RESOLVED` is specifically closure-pending. Approval rejection/expiry routes to a new remediation version and policy review when retry is allowed, otherwise to `NEEDS_HUMAN`; any retry creates a new Approval and never strands the Incident in an approval-status state. `NEEDS_HUMAN` may resume investigation/planning, or enter `VERIFYING` after a recorded external human action. Successful compensation returns to `INVESTIGATING` when budget remains, otherwise `NEEDS_HUMAN`; compensation never resolves the original incident by itself.
+
+Cancellation is legal only from the states explicitly listed above. `EXECUTING`, `VERIFYING`, `COMPENSATING`, and `VERIFYING_COMPENSATION` cannot be cancelled mid-side-effect/observation; a cancellation request is recorded, but the deterministic result first routes to a safe state. It can then cancel if that state permits cancellation, while a successful recovery continues through `RESOLVED` to `CLOSED`. Every transition records actor, reason, correlation/causation IDs, prior/new state, and timestamp. Database constraints and exhaustive transition tests prevent illegal jumps or non-terminal dead ends.
 
 ## 6. Evidence contract
 
@@ -107,7 +114,7 @@ Read tools:
 - `get_service_topology`
 - `search_similar_incidents`
 
-The first write tool is a strict allowlisted `rollback_service`. It requires Incident ID, Approval ID, and Idempotency Key. It accepts no free-form command or arbitrary target. Old similar incidents are clearly labeled historical references and never promoted to current-incident facts.
+The first write tool is a strict allowlisted `rollback_service`. It requires Incident ID, Approval ID, and Idempotency Key and changes a service from a diagnosed faulty version to a server-resolved known stable version. It accepts no free-form command or arbitrary target. This is the primary recovery action, not compensation. A failed verification cannot use the tool to redeploy the known faulty version. Old similar incidents are clearly labeled historical references and never promoted to current-incident facts.
 
 ## 8. Context construction
 
@@ -131,20 +138,24 @@ Policy consumes actor, incident, evidence-gate result, proposal, tool metadata, 
 
 Executor accepts typed commands only, verifies policy and approval again, acquires an execution lock, enforces idempotency/replay protection, records before/after snapshots, times out safely, and writes append-only audit events.
 
-Health verification is deterministic and scenario-aware. It checks error rate, P95 latency, health endpoint, running service version, new alerts, and a stability observation window. Failure triggers an idempotent rollback where permitted; rollback failure becomes `NEEDS_HUMAN`.
+Health verification is deterministic and scenario-aware. It checks error rate, P95 latency, health endpoint, running service version, new alerts, and a stability observation window. Failure after `rollback_service` routes to bounded re-diagnosis or `NEEDS_HUMAN`; automatic restoration of the known faulty version is prohibited. Generic compensation is not part of the MVP write surface and requires a future reversible action plus independent policy/approval.
 
 ## 12. Simulator and Ground Truth
 
 Docker Compose must run API Gateway, Order Service, Inventory Service, Payment Service, PostgreSQL, Redis, Prometheus, Loki, Tempo, and OpenTelemetry Collector.
 
-Each reproducible scenario owns an isolated Ground Truth manifest with actual root cause, symptoms, decisive metrics/logs/traces, deployment change, recommended action, validation conditions, and rollback conditions:
+Each reproducible scenario owns an isolated Ground Truth manifest with actual root cause, symptoms, decisive metrics/logs/traces, deployment change, recommended action, validation conditions, automation eligibility, expected handoff reason, evaluator cleanup procedure, and any future tool required. Runtime components cannot read these labels.
 
-1. new release causes HTTP 500;
-2. database connection pool exhaustion;
-3. Redis timeout;
-4. downstream service high latency;
-5. memory leak;
-6. bad configuration.
+| Scenario | `rollback_service` eligible in MVP? | Expected safe outcome | Evaluator cleanup / future automation |
+| --- | --- | --- | --- |
+| New release causes HTTP 500 | Yes, only with evidence linking the regression and a known stable prior version. | Approved rollback, deterministic verification, then resolve; otherwise handoff. | Fault injector resets the lab after scoring. |
+| Database connection-pool exhaustion | No. | Diagnose and hand off without proposing a forced version rollback. | Injector restores pool/load. Future typed pool/config/restart/scale action would need its own ADR. |
+| Redis timeout | No. | Diagnose the dependency failure and hand off. | Injector restores Redis/network behavior. Future failover/config action would need its own ADR. |
+| Downstream service high latency | No. | Diagnose the downstream dependency and hand off. | Injector clears latency. Future traffic/dependency action would need its own ADR. |
+| Memory leak | Yes only for the MVP's deployment-linked leak when evidence identifies the introducing version and a stable predecessor. | Approved rollback and verification; otherwise handoff. | Injector resets memory/process state after scoring. |
+| Bad configuration | No for the MVP configuration-drift scenario. | Diagnose and hand off; do not pretend a service-version rollback changes external configuration. | Injector restores configuration. Future typed configuration rollback would need its own ADR. |
+
+Fault-injector cleanup is evaluation infrastructure, not an AgentOps write tool or recovery. It may restore the lab so the next run is valid, but it never turns a correct handoff into an automated recovery or inflates the platform recovery rate.
 
 Ground Truth is mounted/read only by evaluation processes, never the platform API/worker or model context path. Tests must prove this separation.
 
@@ -157,7 +168,7 @@ The initial console provides incident list/detail, workflow timeline, investigat
 Two layers are mandatory:
 
 - **Diagnosed system:** metrics, logs, traces, deployments, topology, and alerts.
-- **Agent platform:** workflow nodes, model calls, prompt versions, tool calls, evidence gates, approvals, checkpoints, job leases, executions, verifications, rollbacks, tokens, latency, and cost.
+- **Agent platform:** workflow nodes, model calls, prompt versions, tool calls, evidence gates, approvals, checkpoints, job leases, recovery executions, verifications, failure routes, compensations, tokens, latency, and cost.
 
 All layers share correlation identifiers while preventing sensitive payload leakage.
 

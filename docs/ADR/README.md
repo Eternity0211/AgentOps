@@ -7,6 +7,7 @@ ADRs capture decisions that constrain implementation. Accepted ADRs are immutabl
 | [0001](0001-agent-boundaries-and-safety-chain.md) | Two decision agents and deterministic safety chain | Accepted |
 | [0002](0002-langgraph-and-postgresql-durability.md) | LangGraph orchestration with PostgreSQL durability/queue | Accepted |
 | [0003](0003-ground-truth-isolation.md) | Evaluation-only Ground Truth isolation | Accepted |
-| [0004](0004-initial-remediation-scope.md) | Allow only typed `rollback_service` mutation initially | Accepted |
+| [0004](0004-initial-remediation-scope.md) | Allow only typed `rollback_service` mutation initially (clarified by ADR 0005) | Accepted |
+| [0005](0005-recovery-action-and-compensation-semantics.md) | Distinguish recovery from separately authorized compensation | Accepted |
 
 New ADRs use `NNNN-short-title.md` and contain context, decision, consequences, alternatives, and verification.

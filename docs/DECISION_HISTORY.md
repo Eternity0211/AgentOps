@@ -6,7 +6,7 @@ This document preserves the reasoning behind the current AgentOps specification.
 
 The project is designed for AI-agent and AI-oriented Python backend roles. Agent capabilities must arise from the incident-response problem rather than from a checklist of fashionable techniques. AgentOps therefore focuses on evidence-driven microservice diagnosis and controlled recovery: operational signals are fragmented, investigation is iterative, recovery can have external side effects, and a long-running workflow may wait for approval or survive worker failure.
 
-This choice deliberately complements the existing Programming Tutor project. Programming Tutor demonstrates neuro-symbolic code analysis, educational memory, knowledge augmentation, and personalized feedback. AgentOps must instead demonstrate durable execution, dynamic investigation, least privilege, approval, idempotency, health verification, and rollback. Shared engineering foundations are acceptable; repeating the same chat/RAG/multi-agent product under another domain name is not.
+This choice deliberately complements the existing Programming Tutor project. Programming Tutor demonstrates neuro-symbolic code analysis, educational memory, knowledge augmentation, and personalized feedback. AgentOps must instead demonstrate durable execution, dynamic investigation, least privilege, approval, idempotency, health verification, and safe failure routing. Shared engineering foundations are acceptable; repeating the same chat/RAG/multi-agent product under another domain name is not.
 
 ## Final decisions and why they were made
 
@@ -23,8 +23,8 @@ This choice deliberately complements the existing Programming Tutor project. Pro
 | Context strategy | Use incident working memory, an Evidence Workspace, and historical incident memory. Context Builder clusters logs, summarizes trends/critical paths/deployments, budgets tokens, labels sources, redacts secrets, and quarantines untrusted content. | Operational telemetry is too large and too hostile to send directly to a model. Diagnosis, remediation, and postmortem require different minimum contexts. |
 | Historical retrieval | pgvector retrieves similar closed incidents with service/fault/time filters. Historical records are reference-only and cannot establish current facts. Runbook RAG is deferred. | This gains useful experience without rebuilding general document Q&A or contaminating current evidence. |
 | Core tool integration | Prometheus, Loki, Tempo, deployments, topology, and `rollback_service` use direct versioned typed adapters behind the Tool Gateway. | Core paths need predictable latency, schemas, timeout, RBAC, idempotency, and audit behavior. |
-| Mutation scope | The first and only core write tool is allowlisted `rollback_service`, requiring Incident ID, Approval ID, and Idempotency Key. No arbitrary shell or raw target. | A narrow action makes the entire approval/execution/verification/rollback chain deeply testable before expanding authority. |
-| Safety chain | Proposal -> schema validation -> Policy Engine -> human approval for medium/high risk -> deterministic idempotent Executor -> deterministic Health Verifier -> rollback or human handoff. | LLMs can propose but cannot authorize, execute, or declare success. Every authority transition is explicit and auditable. |
+| Mutation scope | The first and only core write tool is allowlisted `rollback_service`, requiring Incident ID, Approval ID, and Idempotency Key. It is a recovery action to a known stable version, not generic compensation. | A narrow action makes the entire approval/execution/verification chain deeply testable before expanding authority. |
+| Safety chain | Proposal -> schema validation -> Policy Engine -> human approval for medium/high risk -> deterministic idempotent Executor -> deterministic Health Verifier -> close, bounded re-diagnosis, or human handoff. | LLMs can propose but cannot authorize, execute, or declare success. A future compensation requires separate reversibility metadata, policy, and approval. |
 | Evaluation | Compare rules, a single agent, controlled LangGraph, and controlled LangGraph plus incident memory on versioned scenarios. | The portfolio must demonstrate measured contribution and tradeoffs rather than attribute gains to architecture by assertion. |
 | Claims | Do not claim hallucination elimination, production scale, or high concurrency. Use “production-oriented” only when controls exist; publish quantitative claims only from reproducible evaluations. | Safety controls reduce and expose failure modes but do not eliminate them; scale and quality require evidence. |
 
@@ -41,7 +41,7 @@ This choice deliberately complements the existing Programming Tutor project. Pro
 ### Remediation Agent
 
 - Receives only a root cause that passed the deterministic Evidence Gate plus the minimum supporting context.
-- Selects from an allowed action catalog and returns a typed proposal, prerequisites, risk assumptions, validation criteria, and rollback conditions.
+- Selects from an allowed action catalog and returns a typed proposal, prerequisites, risk assumptions, validation criteria, and explicit failure/compensation handling.
 - Cannot call the write adapter, approve itself, or declare recovery.
 
 This separation provides context isolation and least privilege, and prevents a single agent from controlling hypothesis, justification, mutation, and success judgment. Postmortem generation occurs only after closure from confirmed facts and resolvable references; Writer/Critic/Reviewer agents add no necessary authority or reliability.
@@ -63,8 +63,8 @@ alert or manual incident
   -> LangGraph Interrupt for required approval
   -> deterministic idempotent Action Executor
   -> deterministic observation-window Health Verifier
-  -> close, bounded re-diagnosis, or idempotent rollback
-  -> human handoff when rollback fails
+  -> close, bounded re-diagnosis, or human handoff
+  -> separately authorized compensation only for a future safely reversible action
   -> evidence-linked postmortem from confirmed facts
 ```
 
@@ -92,12 +92,12 @@ The system constrains model failure rather than claiming to remove hallucination
 - medium/high-risk actions require proposal-bound, expiring human approval;
 - locks and idempotency keys prevent replay and duplicate mutation;
 - the executor runs a typed allowlisted action in an isolated execution boundary, not arbitrary shell;
-- real health observations determine success; failures trigger bounded re-diagnosis, rollback, or human handoff;
-- append-only audit events cover decisions, calls, checkpoints, approval, execution, verification, and rollback.
+- real health observations determine success; failed `rollback_service` verification triggers bounded re-diagnosis or human handoff, never redeployment of the known faulty version;
+- append-only audit events cover decisions, calls, checkpoints, approval, recovery execution, verification, failure routing, and any future compensation.
 
 ## Evaluation and honest scale language
 
-Required comparison groups are a rules baseline, single agent, controlled LangGraph agent, and controlled LangGraph plus historical memory. Required outcomes include root-cause Top-1/Top-3, unsupported-conclusion rate, fabricated-reference rate, correct-refusal rate, diagnosis time, calls, tokens/cost, plan correctness, dangerous-action blocking, unapproved and duplicate executions, verification pass rate, rollback success, and worker recovery.
+Required comparison groups are a rules baseline, single agent, controlled LangGraph agent, and controlled LangGraph plus historical memory. Required outcomes include root-cause Top-1/Top-3, unsupported-conclusion rate, fabricated-reference rate, correct-refusal/handoff rate, diagnosis time, calls, tokens/cost, plan correctness, dangerous-action blocking, unapproved and duplicate executions, eligible recovery, safe outcomes, and worker recovery.
 
 Until fault, recovery, security, and load suites produce reproducible data, documentation must not say “production-grade,” “high concurrency,” “solves hallucinations,” or equivalent. “Production-oriented design” is acceptable only when paired with the implemented controls and explicit limitations.
 
@@ -106,7 +106,7 @@ Until fault, recovery, security, and load suites produce reproducible data, docu
 | Approach | Status | Reason / reconsideration trigger |
 | --- | --- | --- |
 | General ReAct agent controlling the workflow | Rejected | Hides state and safety routing; cannot replace explicit checkpoints, gates, approvals, verification, and compensation. |
-| Agents for metrics/logs/traces/deployments, evidence, policy, execution, verification, or rollback | Rejected | These are deterministic capabilities and authorities, not open-ended decisions. |
+| Agents for metrics/logs/traces/deployments, evidence, policy, execution, verification, or compensation | Rejected | These are deterministic capabilities and authorities, not open-ended decisions. |
 | Postmortem multi-agent writing team | Rejected | Adds coordination and cost without improving the core incident-control boundary. |
 | General Agent Harness or Deep Agents | Rejected for core | Build only domain runtime capabilities. Reconsider reusable extraction after multiple real consumers exist. |
 | MCP on core control/write paths | Rejected | Direct typed adapters give tighter authority and reliability. Optional read-only MCP adapters may later cover runbooks, history, Git, or service catalogs. |

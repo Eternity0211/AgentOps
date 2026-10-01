@@ -15,6 +15,8 @@ Service and data networks are internal. The explicit `ingress` network exists on
 
 All application roles export OTLP/HTTP over the internal `simulator` network to the Collector. The Collector's metrics, logs, and traces pipelines route to Prometheus, Loki, and Tempo respectively; its receiver ports are not published to the host. See `docs/OBSERVABILITY.md` for the signal and redaction contract.
 
+Each application role also receives an explicit service version and unique deployment ID, with an optional previous version. These are non-secret, validated diagnostic facts used by the startup deployment event and `/versionz`; they do not grant mutation authority or imply that a deployment occurred at container startup.
+
 Each current container has an explicit profile, image version, health check, read-only root filesystem, init process, `no-new-privileges`, named or temporary writable storage, and limits of `0.50` CPU, `512 MiB` memory, and 200 processes. Redis additionally limits its dataset to `192 MiB`. These are local-lab bounds, not capacity claims.
 
 ## Secret setup

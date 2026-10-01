@@ -2,7 +2,7 @@
 
 AgentOps Incident Commander is an evidence-driven platform for diagnosing microservice incidents and performing controlled recovery. It combines metrics, logs, traces, topology, and deployment history; a constrained Diagnosis Agent builds verifiable root-cause hypotheses; a constrained Remediation Agent proposes recovery only after a deterministic evidence gate passes. Deterministic policy, approval, execution, health verification, and failure routing retain authority over every state change.
 
-> Status: Phase 1A complete; Phase 1B in progress. The reproducible Python workspace, guarded Compose topology, four-service simulator request path, bounded PostgreSQL/Redis adapters, and OpenTelemetry signal/export baseline are implemented. Deployment events, runtime controls, and deterministic fault scenarios remain in Phase 1.
+> Status: Phase 1A complete; Phase 1B in progress. The reproducible Python workspace, guarded Compose topology, four-service simulator request path, bounded PostgreSQL/Redis adapters, OpenTelemetry signals, and deployment/version markers are implemented. Runtime controls and deterministic fault scenarios remain in Phase 1.
 
 ## Why this project exists
 

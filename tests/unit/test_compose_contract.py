@@ -56,6 +56,9 @@ def test_simulator_services_export_otlp_to_internal_collector(
         assert environment["OTEL_SDK_ENABLED"] == "true"
         assert environment["OTEL_EXPORTER_OTLP_ENDPOINT"] == "http://otel-collector:4318"
         assert environment["OTEL_EXPORT_TIMEOUT_SECONDS"] == "2"
+        assert environment["SERVICE_VERSION"] == "1.0.0"
+        assert environment["DEPLOYMENT_ID"] == f"baseline-{service_name}-v1"
+        assert environment["PREVIOUS_SERVICE_VERSION"] == ""
 
 
 def test_observability_config_routes_three_signal_pipelines() -> None:

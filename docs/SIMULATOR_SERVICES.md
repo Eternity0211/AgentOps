@@ -13,7 +13,7 @@ POST Gateway /v1/checkout
 
 The request schema requires a bounded client `order_id`, 1–20 line items with bounded SKU/quantity values, a positive bounded minor-unit amount, and a three-letter uppercase currency. Inventory derives `res-{order_id}` and Payment derives `auth-{order_id}`; Order confirms only after both typed downstream contracts validate and PostgreSQL accepts the idempotent write. Network, HTTP, malformed JSON, wrong-shape downstream responses, and unavailable data stores do not become false success.
 
-Every service exposes `/healthz` and `/readyz`. Health proves that the process can answer; readiness additionally executes a bounded `SELECT 1` for Order and `PING` for Inventory. Compose health checks use readiness, so Gateway cannot become healthy through an Order instance whose PostgreSQL dependency is unavailable, and Order cannot proceed through an Inventory instance whose Redis dependency is unavailable.
+Every service exposes `/healthz`, `/readyz`, and `/versionz`. Health proves that the process can answer; readiness additionally executes a bounded `SELECT 1` for Order and `PING` for Inventory. Version reports the same validated service version, deployment ID, optional previous version, and schema version emitted by the startup deployment marker. Compose health checks use readiness, so Gateway cannot become healthy through an Order instance whose PostgreSQL dependency is unavailable, and Order cannot proceed through an Inventory instance whose Redis dependency is unavailable.
 
 ## Data dependency contract
 

@@ -128,8 +128,20 @@ def test_enabled_http_telemetry_exports_safe_spans_metrics_and_logs() -> None:
     assert metrics.closed is True
 
     finished_logs = logs.get_finished_logs()
-    assert len(finished_logs) == 1
-    record = finished_logs[0].log_record
+    assert {item.log_record.body for item in finished_logs} == {
+        "service.deployment.changed",
+        "http_request",
+    }
+    deployment_record = next(
+        item.log_record
+        for item in finished_logs
+        if item.log_record.body == "service.deployment.changed"
+    )
+    assert deployment_record.attributes is not None
+    assert deployment_record.attributes["deployment.id"] == "baseline-gateway-v1"
+    record = next(
+        item.log_record for item in finished_logs if item.log_record.body == "http_request"
+    )
     assert record.body == "http_request"
     assert record.attributes is not None
     assert record.attributes["http.route"] == "/healthz"

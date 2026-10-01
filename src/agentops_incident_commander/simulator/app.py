@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse
 from opentelemetry.propagate import inject
 from pydantic import BaseModel, Field, ValidationError
 
+from agentops_incident_commander.simulator.app_types import ServiceName as ServiceName
 from agentops_incident_commander.simulator.dependencies import (
     DependencyUnavailable,
     InventoryInsufficient,
@@ -24,13 +25,13 @@ from agentops_incident_commander.simulator.dependencies import (
     PostgresOrderStore,
     RedisInventoryStore,
 )
+from agentops_incident_commander.simulator.deployment import DeploymentMarker
 from agentops_incident_commander.simulator.models import CheckoutRequest
 from agentops_incident_commander.simulator.telemetry import (
     SimulatorTelemetry,
     create_telemetry,
 )
 
-ServiceName = Literal["gateway", "order", "inventory", "payment"]
 CORRELATION_HEADER = "X-Correlation-ID"
 CORRELATION_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 
@@ -160,9 +161,11 @@ def create_app(
     inventory_store: InventoryStore | None = None,
     correlation_factory: Callable[[], str] | None = None,
     telemetry: SimulatorTelemetry | None = None,
+    deployment_marker: DeploymentMarker | None = None,
 ) -> FastAPI:
     """Create one role-specific simulator application."""
     selected_telemetry = telemetry or create_telemetry(service)
+    selected_deployment = deployment_marker or DeploymentMarker.from_environment(service)
     selected_order_store = (
         (order_store or PostgresOrderStore(tracer=selected_telemetry.tracer))
         if service == "order"
@@ -177,6 +180,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> Any:
         try:
+            selected_telemetry.record_deployment(selected_deployment.attributes())
             yield
         finally:
             try:
@@ -253,6 +257,17 @@ def create_app(
         return {
             "status": "ready",
             "service": service,
+            "correlation_id": _correlation_id(request),
+        }
+
+    @app.get("/versionz")
+    async def version(request: Request) -> dict[str, str | None]:
+        return {
+            "service": selected_deployment.service,
+            "deployment_id": selected_deployment.deployment_id,
+            "version": selected_deployment.version,
+            "previous_version": selected_deployment.previous_version,
+            "schema_version": selected_deployment.schema_version,
             "correlation_id": _correlation_id(request),
         }
 

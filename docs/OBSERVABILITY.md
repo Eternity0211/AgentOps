@@ -12,6 +12,7 @@ Each process uses a resource with `service.name=agentops-simulator-{role}`, pack
 - `simulator.http.server.requests` counts completed requests using method, matched route, and status dimensions.
 - `simulator.http.server.duration` records milliseconds with the same bounded dimensions.
 - The `http_request` log record contains service, method, matched route, status, duration, and correlation ID. The SDK binds its trace and span IDs from the active request context.
+- Each process emits one `service.deployment.changed` log at startup with event schema `1.0`, service, deployment ID, current version, and optional previous version. A matching `/versionz` response exposes the same facts for deterministic health verification. The log timestamp is the observation time; no unverified deployment time is invented.
 
 Exporter work is batched with bounded queues and two-second default export deadlines. Telemetry configuration or background export failure degrades to no-op/lost telemetry and cannot turn a valid business request into a failure. Shutdown flush is also bounded. These behaviors prioritize simulator availability; exporter failures remain visible in local SDK diagnostics and will gain explicit alerting in the later observability-hardening phase.
 
@@ -28,6 +29,8 @@ Compose enables the SDK for all four roles and supplies only non-secret settings
 | `DEPLOYMENT_ENVIRONMENT` | `local` | Non-secret resource label |
 
 The application expands the base endpoint to `/v1/traces`, `/v1/metrics`, and `/v1/logs`, following the official [OTLP exporter endpoint convention](https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/). The selected SDK is OpenTelemetry Python 1.45.0; traces and metrics are stable while the upstream Python logs signal remains under development, as documented in the official [Python signal status](https://opentelemetry.io/docs/languages/python/).
+
+Deployment marker values use a conservative character set and fixed size limits. `SERVICE_VERSION`, `DEPLOYMENT_ID`, and optional `PREVIOUS_SERVICE_VERSION` cannot contain whitespace, newlines, paths, or arbitrary log text. Compose gives every baseline service a unique deployment ID. Later fault commands must create a new ID and set the prior version explicitly rather than rewriting telemetry after the fact.
 
 ## Collector routes
 

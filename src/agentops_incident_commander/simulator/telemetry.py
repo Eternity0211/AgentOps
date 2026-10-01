@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import time
@@ -244,6 +245,17 @@ class SimulatorTelemetry:
                     "duration_ms": duration_ms,
                     "agentops.correlation_id": correlation_id,
                 },
+            )
+
+    def record_deployment(self, attributes: Mapping[str, str]) -> None:
+        """Emit one bounded, queryable deployment marker during process startup."""
+        logger.info(json.dumps(dict(attributes), sort_keys=True))
+        if self._otel_logger is not None:
+            self._otel_logger.emit(
+                severity_number=SeverityNumber.INFO,
+                severity_text="INFO",
+                body="service.deployment.changed",
+                attributes=dict(attributes),
             )
 
     async def shutdown(self) -> None:

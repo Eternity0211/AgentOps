@@ -28,6 +28,9 @@ services:
       OTEL_EXPORT_TIMEOUT_SECONDS: 2
       OTEL_METRIC_EXPORT_INTERVAL_MILLIS: 5000
       DEPLOYMENT_ENVIRONMENT: local
+      SERVICE_VERSION: ${GATEWAY_SERVICE_VERSION:-1.0.0}
+      DEPLOYMENT_ID: ${GATEWAY_DEPLOYMENT_ID:-baseline-gateway-v1}
+      PREVIOUS_SERVICE_VERSION: ${GATEWAY_PREVIOUS_VERSION:-}
     tmpfs: ["/tmp:size=16m,mode=1777"]
     ports:
       - name: gateway-http
@@ -74,6 +77,9 @@ services:
       OTEL_EXPORT_TIMEOUT_SECONDS: 2
       OTEL_METRIC_EXPORT_INTERVAL_MILLIS: 5000
       DEPLOYMENT_ENVIRONMENT: local
+      SERVICE_VERSION: ${ORDER_SERVICE_VERSION:-1.0.0}
+      DEPLOYMENT_ID: ${ORDER_DEPLOYMENT_ID:-baseline-order-v1}
+      PREVIOUS_SERVICE_VERSION: ${ORDER_PREVIOUS_VERSION:-}
     secrets: [simulator_db_password]
     tmpfs: ["/tmp:size=16m,mode=1777"]
     networks: [simulator]
@@ -104,6 +110,9 @@ services:
       OTEL_EXPORT_TIMEOUT_SECONDS: 2
       OTEL_METRIC_EXPORT_INTERVAL_MILLIS: 5000
       DEPLOYMENT_ENVIRONMENT: local
+      SERVICE_VERSION: ${INVENTORY_SERVICE_VERSION:-1.0.0}
+      DEPLOYMENT_ID: ${INVENTORY_DEPLOYMENT_ID:-baseline-inventory-v1}
+      PREVIOUS_SERVICE_VERSION: ${INVENTORY_PREVIOUS_VERSION:-}
     secrets: [simulator_redis_password]
     tmpfs: ["/tmp:size=16m,mode=1777"]
     networks: [simulator]
@@ -126,6 +135,9 @@ services:
       OTEL_EXPORT_TIMEOUT_SECONDS: 2
       OTEL_METRIC_EXPORT_INTERVAL_MILLIS: 5000
       DEPLOYMENT_ENVIRONMENT: local
+      SERVICE_VERSION: ${PAYMENT_SERVICE_VERSION:-1.0.0}
+      DEPLOYMENT_ID: ${PAYMENT_DEPLOYMENT_ID:-baseline-payment-v1}
+      PREVIOUS_SERVICE_VERSION: ${PAYMENT_PREVIOUS_VERSION:-}
     tmpfs: ["/tmp:size=16m,mode=1777"]
     networks: [simulator]
     healthcheck: *simulator-healthcheck

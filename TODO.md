@@ -11,7 +11,7 @@ Checkboxes are completion claims. Check an item only when its acceptance criteri
 - [x] Add secret/runtime-safe `.gitignore`.
 - [x] Connect the uniquely confirmed existing GitHub `AgentOps` repository as `origin`; never create a duplicate.
 - [x] Run planning-document checks and create the initial Conventional Commit.
-- [ ] Push the initial commit immediately after `origin` is uniquely confirmed.
+- [x] Push the initial planning commits to `origin/main` and establish upstream tracking.
 - [x] Establish a verified Python 3.12.14 runtime and `.venv` via `uv`, pin `.python-version`, and record bootstrap/verification commands without substituting Python 3.14.
 - [ ] Add repository CI and branch-protection guidance without claiming protection is enabled unless verified through GitHub.
 

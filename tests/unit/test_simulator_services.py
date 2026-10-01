@@ -16,6 +16,7 @@ from agentops_incident_commander.simulator.dependencies import (
     InventoryInsufficient,
     ReservationOutcome,
 )
+from agentops_incident_commander.simulator.fault_behavior import FaultBehavior
 from agentops_incident_commander.simulator.models import CheckoutRequest
 
 CHECKOUT = {
@@ -296,6 +297,54 @@ def test_order_maps_store_unavailability() -> None:
 
     assert response.status_code == 503
     assert response.json() == {"detail": "order dependency unavailable"}
+
+
+def test_deployment_http_500_fault_is_bounded_to_order_business_path() -> None:
+    """Faulty Order returns generic 500 without calling dependencies or exposing its label."""
+    caller = FakeCaller()
+    store = FakeOrderStore()
+    app = simulator_app.create_app(
+        "order",
+        caller=caller,
+        order_store=store,
+        fault_behavior=FaultBehavior("http-500", "run-abcdef123456"),
+    )
+    client = TestClient(app)
+
+    health = client.get("/healthz")
+    ready = client.get("/readyz")
+    first = client.post("/v1/orders", json=CHECKOUT)
+    second = client.post("/v1/orders", json=CHECKOUT)
+
+    assert health.status_code == ready.status_code == 200
+    assert first.status_code == second.status_code == 500
+    assert first.json() == {"detail": "internal server error"}
+    assert "fault" not in first.text
+    assert caller.calls == []
+    assert store.saved == set()
+
+
+def test_http_500_overlay_environment_links_fault_and_deployment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Generated overlay fields activate the symptom and an opaque version transition."""
+    monkeypatch.setenv("SIMULATOR_FAULT_SCENARIO", "http-500")
+    monkeypatch.setenv("SIMULATOR_FAULT_RUN_ID", "run-abcdef123456")
+    monkeypatch.setenv("SERVICE_VERSION", "2.0.0")
+    monkeypatch.setenv("PREVIOUS_SERVICE_VERSION", "1.0.0")
+    monkeypatch.setenv("DEPLOYMENT_ID", "run-abcdef123456")
+    client = TestClient(
+        simulator_app.create_app("order", caller=FakeCaller(), order_store=FakeOrderStore())
+    )
+
+    version = client.get("/versionz").json()
+    response = client.post("/v1/orders", json=CHECKOUT)
+
+    assert version["version"] == "2.0.0"
+    assert version["previous_version"] == "1.0.0"
+    assert version["deployment_id"] == "run-abcdef123456"
+    assert "http-500" not in str(version)
+    assert response.status_code == 500
 
 
 @pytest.mark.parametrize("service", ["order", "inventory"])

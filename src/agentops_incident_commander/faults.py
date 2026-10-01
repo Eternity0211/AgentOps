@@ -34,7 +34,7 @@ SCENARIO_TARGETS: dict[ScenarioName, str] = {
     "memory-leak": "order",
     "bad-configuration": "payment",
 }
-IMPLEMENTED_SCENARIOS: frozenset[ScenarioName] = frozenset()
+IMPLEMENTED_SCENARIOS: frozenset[ScenarioName] = frozenset({"http-500"})
 RUN_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{5,63}$")
 STATE_SCHEMA_VERSION = "1.0"
 RUNTIME_DIRECTORY = Path("data/runtime")
@@ -192,7 +192,7 @@ def _read_state(path: Path) -> FaultState | None:
 
 
 def _overlay(state: FaultState) -> str:
-    fault_version = f"fault-{state.scenario}-1"
+    fault_version = "2.0.0"
     return (
         "services:\n"
         f"  {state.target_service}:\n"

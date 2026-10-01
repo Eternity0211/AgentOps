@@ -61,7 +61,7 @@ python scripts/dev.py down
 
 `up` validates the static Compose contract and Docker daemon, builds/starts with Compose `--wait`, then checks Gateway readiness/version, Prometheus/Loki/Tempo readiness, and the Collector's Prometheus target. A post-start failure automatically stops partial containers without deleting named volumes. `status` repeats the observable health contract. `down` removes containers and orphans but deliberately does not remove persistent volumes.
 
-The fault controller syntax and safe state/cleanup framework are available, but each scenario continues to fail closed until its symptom is implemented and registered. E2E and evaluation commands remain reserved:
+The fault controller syntax and safe state/cleanup framework are available. The deployment-induced `http-500` scenario is enabled; other scenarios fail closed until their symptom is implemented and registered. E2E and evaluation commands remain reserved:
 
 ```text
 python scripts/dev.py fault inject --scenario http-500

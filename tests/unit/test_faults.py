@@ -85,7 +85,9 @@ def test_overlay_and_compose_commands_are_bounded(tmp_path: Path) -> None:
 
     assert 'SIMULATOR_FAULT_SCENARIO: "http-500"' in content
     assert 'SIMULATOR_FAULT_RUN_ID: "run-abcdef123456"' in content
-    assert "PREVIOUS_SERVICE_VERSION" in content
+    assert 'SERVICE_VERSION: "2.0.0"' in content
+    assert 'PREVIOUS_SERVICE_VERSION: "1.0.0"' in content
+    assert "fault-http-500" not in content
     assert apply_command[-3:] == ("--no-deps", "--force-recreate", "order")
     assert str(overlay) in apply_command
     assert str(overlay) not in reset_command
@@ -310,7 +312,6 @@ def test_posix_lock_and_contention_paths(tmp_path: Path, monkeypatch: pytest.Mon
     [
         ("inject", None, "known --scenario"),
         ("inject", "unknown", "known --scenario"),
-        ("inject", "http-500", "not implemented yet"),
         ("clean", "http-500", "does not accept"),
         ("unknown", None, "inject or clean"),
     ],
@@ -325,6 +326,25 @@ def test_main_rejects_invalid_selection(
     """CLI validation returns two before any Compose mutation."""
     assert faults.main(action, scenario=scenario, run_id=None, root=tmp_path, environment={}) == 2
     assert expected in capsys.readouterr().err
+
+
+def test_main_rejects_known_but_unimplemented_scenario(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Registry membership cannot precede the scenario's symptom implementation."""
+    monkeypatch.setattr(faults, "IMPLEMENTED_SCENARIOS", frozenset())
+
+    assert (
+        faults.main(
+            "inject",
+            scenario="http-500",
+            run_id="run-abcdef123456",
+            root=tmp_path,
+            environment={},
+        )
+        == 2
+    )
+    assert "not implemented yet" in capsys.readouterr().err
 
 
 def test_main_dispatches_inject_and_clean(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

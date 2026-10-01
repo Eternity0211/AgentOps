@@ -19,6 +19,8 @@ from opentelemetry.trace import SpanKind, StatusCode
 
 from agentops_incident_commander.simulator import app as simulator_app
 from agentops_incident_commander.simulator import dependencies, telemetry
+from agentops_incident_commander.simulator.fault_behavior import FaultBehavior
+from agentops_incident_commander.simulator.models import CheckoutRequest
 
 
 @pytest.fixture
@@ -56,6 +58,28 @@ class FailingSpanExporter(InMemorySpanExporter):
 
     def export(self, spans: Any) -> Any:
         raise OSError("collector unavailable")
+
+
+class UnusedOrderStore:
+    """Satisfy Order composition while proving the fault short-circuits persistence."""
+
+    async def ready(self, correlation_id: str) -> None:
+        return None
+
+    async def save(self, checkout: CheckoutRequest, correlation_id: str) -> bool:
+        raise AssertionError("faulty request must not be persisted")
+
+    async def close(self) -> None:
+        return None
+
+
+class UnusedCaller:
+    """Prove a fault response occurs before either downstream call."""
+
+    async def post(
+        self, service: str, path: str, payload: dict[str, Any], correlation_id: str
+    ) -> dict[str, Any]:
+        raise AssertionError("faulty request must not call downstream services")
 
 
 def enabled_settings() -> telemetry.TelemetrySettings:
@@ -183,6 +207,42 @@ def test_export_failure_does_not_fail_business_request() -> None:
         response = client.get("/healthz")
 
     assert response.status_code == 200
+
+
+def test_http_500_fault_emits_error_span_and_status_metric() -> None:
+    """The symptom is observable as failure signals without a root-cause label."""
+    spans = InMemorySpanExporter()
+    metrics = CapturingMetricExporter()
+    observed = telemetry.SimulatorTelemetry(
+        "order",
+        enabled_settings(),
+        span_exporter=spans,
+        metric_exporter=metrics,
+        log_exporter=in_memory_log_exporter(),
+    )
+    app = simulator_app.create_app(
+        "order",
+        caller=UnusedCaller(),
+        order_store=UnusedOrderStore(),
+        telemetry=observed,
+        fault_behavior=FaultBehavior("http-500", "run-abcdef123456"),
+    )
+    checkout = {
+        "order_id": "order-123",
+        "items": [{"sku": "widget-1", "quantity": 2}],
+        "amount_minor": 2500,
+        "currency": "USD",
+    }
+
+    with TestClient(app) as client:
+        response = client.post("/v1/orders", json=checkout)
+
+    assert response.status_code == 500
+    span = next(item for item in spans.get_finished_spans() if item.kind is SpanKind.SERVER)
+    assert span.status.status_code is StatusCode.ERROR
+    assert "http-500" not in str(span.attributes)
+    points = metric_points(metrics)["simulator.http.server.requests"]
+    assert points[0].attributes["status"] == "500"
 
 
 @pytest.mark.anyio

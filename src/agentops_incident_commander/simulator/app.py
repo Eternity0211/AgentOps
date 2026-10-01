@@ -26,6 +26,7 @@ from agentops_incident_commander.simulator.dependencies import (
     RedisInventoryStore,
 )
 from agentops_incident_commander.simulator.deployment import DeploymentMarker
+from agentops_incident_commander.simulator.fault_behavior import FaultBehavior
 from agentops_incident_commander.simulator.models import CheckoutRequest
 from agentops_incident_commander.simulator.telemetry import (
     SimulatorTelemetry,
@@ -162,10 +163,12 @@ def create_app(
     correlation_factory: Callable[[], str] | None = None,
     telemetry: SimulatorTelemetry | None = None,
     deployment_marker: DeploymentMarker | None = None,
+    fault_behavior: FaultBehavior | None = None,
 ) -> FastAPI:
     """Create one role-specific simulator application."""
     selected_telemetry = telemetry or create_telemetry(service)
     selected_deployment = deployment_marker or DeploymentMarker.from_environment(service)
+    selected_fault = fault_behavior or FaultBehavior.from_environment(service)
     selected_order_store = (
         (order_store or PostgresOrderStore(tracer=selected_telemetry.tracer))
         if service == "order"
@@ -308,6 +311,8 @@ def create_app(
         @app.post("/v1/orders")
         async def create_order(checkout: CheckoutRequest, request: Request) -> dict[str, Any]:
             assert selected_order_store is not None
+            if selected_fault is not None and selected_fault.forces_internal_error:
+                raise HTTPException(status_code=500, detail="internal server error")
             correlation_id = _correlation_id(request)
             payload = checkout.model_dump(mode="json")
             reservation = await downstream.post(

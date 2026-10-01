@@ -19,7 +19,7 @@ Run the same check locally:
 pwsh -NoProfile -File scripts/check_planning_docs.ps1
 ```
 
-The initial status-check name is expected to appear as `Planning Docs / validate`. This expectation must be confirmed by a successful Actions run before it is selected as a required check. Phase 1A will add Python dependency, format, lint, type, and unit-test jobs; later phases add integration, security, frontend, and E2E jobs only when their corresponding code exists.
+The initial status-check name is expected to appear as `Planning Docs / validate`. The Phase 1A workspace adds `Python Quality / quality` for locked dependency sync, formatting, lint, strict typing, and unit tests. These expectations must be confirmed by successful Actions runs before they are selected as required checks. Later phases add integration, security, frontend, and E2E jobs only when their corresponding code exists.
 
 ## Not configured or verified remotely
 

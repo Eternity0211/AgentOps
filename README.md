@@ -2,7 +2,7 @@
 
 AgentOps Incident Commander is an evidence-driven platform for diagnosing microservice incidents and performing controlled recovery. It combines metrics, logs, traces, topology, and deployment history; a constrained Diagnosis Agent builds verifiable root-cause hypotheses; a constrained Remediation Agent proposes recovery only after a deterministic evidence gate passes. Deterministic policy, approval, execution, health verification, and failure routing retain authority over every state change.
 
-> Status: planning baseline. No business implementation exists yet. The first implementation milestone will build the reproducible microservice simulator, observability signals, and evaluation-only Ground Truth.
+> Status: Phase 1A tooling scaffold. The Python package, locked development dependencies, and quality gates exist; no incident-domain or simulator business implementation exists yet.
 
 ## Why this project exists
 
@@ -62,7 +62,26 @@ python scripts/dev.py test --suite e2e
 python scripts/dev.py eval --model mock
 ```
 
-These are the target commands and are not claimed to work in the planning-only baseline. The repository-owned Python task runner will be the single cross-platform entry point for Windows, POSIX shells, and CI; `make` may be offered later only as an optional convenience wrapper.
+These are target commands; `scripts/dev.py` is the next Phase 1A batch and is not implemented yet. The repository-owned Python task runner will be the single cross-platform entry point for Windows, POSIX shells, and CI; `make` may be offered later only as an optional convenience wrapper.
+
+## Python quality commands
+
+The Python workspace uses the committed `uv.lock`. After bootstrapping Python 3.12.14:
+
+```text
+uv sync --frozen --all-groups
+uv lock --check
+uv run --frozen ruff format --check .
+uv run --frozen ruff check .
+uv run --frozen mypy src tests
+uv run --frozen pytest
+uv run --frozen pre-commit run --all-files
+uv build --no-sources
+```
+
+The same commands run in the `Python Quality / quality` GitHub Actions job. The current package is intentionally minimal; simulator and application code arrive in later atomic batches.
+
+If the host restricts the normal user cache directory, set `PRE_COMMIT_HOME` to the ignored repository-local `.pre-commit-cache` directory before running pre-commit. The project task runner added in the next Phase 1A batch will normalize this automatically.
 
 The simulator will include API Gateway, Order, Inventory, and Payment services, PostgreSQL, Redis, Prometheus, Loki, Tempo, and OpenTelemetry Collector. Six deterministic scenarios will cover deployment-induced HTTP 500s, database pool exhaustion, Redis timeout, downstream latency, memory leak, and bad configuration.
 

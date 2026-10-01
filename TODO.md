@@ -2,7 +2,7 @@
 
 Checkboxes are completion claims. Check an item only when its acceptance criteria and listed verification pass. Record measured results in committed reports; do not invent numbers.
 
-> Implementation status: **awaiting user review and explicit approval**. Planning/documentation work may continue, but no business implementation starts until the approval item in Phase 0 is checked.
+> Implementation status: **approved**. Business implementation may begin only after all Phase 0 exit checks pass; the next batch starts at Phase 1A.
 
 ## Execution protocol and dependency order
 
@@ -28,8 +28,8 @@ The default critical path is:
 - [x] Run planning-document checks and create the initial Conventional Commit.
 - [x] Push the initial planning commits to `origin/main` and establish upstream tracking.
 - [x] Establish a verified Python 3.12.14 runtime and `.venv` via `uv`, pin `.python-version`, and record bootstrap/verification commands without substituting Python 3.14.
-- [ ] Add repository CI and branch-protection guidance without claiming protection is enabled unless verified through GitHub.
-- [ ] Obtain explicit user approval of this implementation plan before creating business-code scaffolding.
+- [x] Add a locally reproducible planning-document CI workflow and branch-protection guidance that distinguishes repository implementation from unverified GitHub administrator settings.
+- [x] Obtain explicit user approval of this implementation plan before creating business-code scaffolding.
 
 Verification: clean diff review, Markdown/link checks, secret scan, `git status`, remote verification, commit SHA, and push confirmation.
 

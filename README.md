@@ -75,6 +75,7 @@ The simulator will include API Gateway, Order, Inventory, and Payment services, 
 - [Data model](docs/DATA_MODEL.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
+- [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)
 - [Architecture decisions](docs/ADR/README.md)
 - [Delivery plan](TODO.md)
 

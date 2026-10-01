@@ -7,11 +7,11 @@ The checked-in `compose.yaml` establishes the Phase 1B trust and resource bounda
 | Profile | Current services | Networks | Persistent volumes |
 | --- | --- | --- | --- |
 | `control-plane` | control PostgreSQL | `control-plane` | `control_postgres_data` |
-| `simulator` | diagnosed PostgreSQL and Redis | `simulator` | `simulator_postgres_data`, `simulator_redis_data` |
+| `simulator` | Gateway, Order, Inventory, Payment, diagnosed PostgreSQL and Redis | `ingress` for Gateway; internal `simulator` for service traffic | `simulator_postgres_data`, `simulator_redis_data` |
 | `observability` | Prometheus, Loki, Tempo, OpenTelemetry Collector | `observability`; Collector also receives on `simulator` | `prometheus_data`, `loki_data`, `tempo_data` |
 | future `evaluation` | no service until the isolated evaluator batch | reserved internal `evaluation` network | none |
 
-All declared networks are internal. The only published ports are Prometheus `9090`, Loki `3100`, and Tempo `3200`, bound to `127.0.0.1` by default. The future Gateway will be the intentional simulator ingress boundary.
+Service and data networks are internal. The explicit `ingress` network exists only for Gateway, whose port `8080` is published on loopback. Prometheus `9090`, Loki `3100`, and Tempo `3200` are also bound to `127.0.0.1` by default.
 
 Each current container has an explicit profile, image version, health check, read-only root filesystem, init process, `no-new-privileges`, named or temporary writable storage, and limits of `0.50` CPU, `512 MiB` memory, and 200 processes. Redis additionally limits its dataset to `192 MiB`. These are local-lab bounds, not capacity claims.
 

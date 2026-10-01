@@ -1,0 +1,22 @@
+FROM python:3.12.14-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_NO_CACHE=1 \
+    PATH=/app/.venv/bin:$PATH
+
+WORKDIR /app
+
+RUN groupadd --system --gid 10001 simulator \
+    && useradd --system --uid 10001 --gid simulator --home-dir /app simulator
+
+COPY pyproject.toml uv.lock README.md ./
+COPY src ./src
+RUN pip install --no-cache-dir uv==0.12.20 \
+    && uv sync --frozen --no-dev \
+    && chown -R simulator:simulator /app
+
+USER 10001:10001
+EXPOSE 8000
+
+ENTRYPOINT ["python", "-m", "agentops_incident_commander.simulator.main"]

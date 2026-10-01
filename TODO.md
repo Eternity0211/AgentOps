@@ -44,7 +44,7 @@ Verification: clean diff review, Markdown/link checks, secret scan, `git status`
 ### Phase 1B — Simulator topology and baseline signals
 
 - [x] Define Compose networks, health checks, volumes, profiles, resource bounds, `.env.example`, and secret-safe local defaults.
-- [ ] Implement API Gateway, Order Service, Inventory Service, and Payment Service with deterministic request correlation.
+- [x] Implement API Gateway, Order Service, Inventory Service, and Payment Service with deterministic request correlation.
 - [ ] Add simulator PostgreSQL and Redis dependencies with observable client behavior.
 - [ ] Instrument services using OpenTelemetry and route metrics/logs/traces through OTel Collector to Prometheus, Loki, and Tempo.
 - [ ] Record deployment/version change events usable by diagnosis.

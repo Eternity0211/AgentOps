@@ -65,6 +65,10 @@ FORBIDDEN_IMPORTS: tuple[tuple[str, str], ...] = (
         "agentops_incident_commander.infrastructure",
         "domain must not depend on infrastructure or provider adapters",
     ),
+    (
+        "agentops_incident_commander.simulator",
+        "domain must not depend on the diagnosed-system simulator",
+    ),
 )
 
 

@@ -16,6 +16,10 @@ class ComposeConfigurationError(RuntimeError):
 
 
 EXPECTED_SERVICES = {
+    "gateway",
+    "order",
+    "inventory",
+    "payment",
     "control-postgres",
     "simulator-postgres",
     "simulator-redis",
@@ -155,6 +159,9 @@ def validate_compose_config(config: Mapping[str, Any]) -> tuple[str, ...]:
     for name in EXPECTED_NETWORKS:
         if not isinstance(networks.get(name), dict) or networks[name].get("internal") is not True:
             violations.append(f"network {name} must exist and be internal")
+    ingress = networks.get("ingress")
+    if not isinstance(ingress, dict) or ingress.get("internal") is True:
+        violations.append("network ingress must exist and permit explicit host ingress")
     if set(config.get("volumes", {})) != EXPECTED_VOLUMES:
         violations.append("named volumes must match the approved persistent stores")
     secrets = config.get("secrets", {})

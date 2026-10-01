@@ -127,6 +127,7 @@ The simulator will include API Gateway, Order, Inventory, and Payment services, 
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)
 - [Local Compose foundation](docs/COMPOSE.md)
+- [Simulator service contracts](docs/SIMULATOR_SERVICES.md)
 - [Architecture decisions](docs/ADR/README.md)
 - [Delivery plan](TODO.md)
 

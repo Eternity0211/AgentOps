@@ -11,7 +11,11 @@ requires-python = ">=3.12,<3.13"
 authors = [
     { name = "AgentOps contributors" },
 ]
-dependencies = []
+dependencies = [
+    "fastapi>=0.141.1,<0.142",
+    "httpx>=0.28.1,<0.29",
+    "uvicorn>=0.54,<0.55",
+]
 
 [dependency-groups]
 dev = [

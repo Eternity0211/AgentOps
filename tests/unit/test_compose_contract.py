@@ -139,7 +139,7 @@ def test_main_success(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFix
     monkeypatch.setattr(compose_contract, "validate_compose_config", lambda config: ())
 
     assert compose_contract.main() == 0
-    assert "passed services=7" in capsys.readouterr().out
+    assert "passed services=11" in capsys.readouterr().out
 
 
 def test_main_reports_violations(

@@ -2,7 +2,7 @@
 
 Checkboxes are completion claims. Check an item only when its acceptance criteria and listed verification pass. Record measured results in committed reports; do not invent numbers.
 
-> Implementation status: **approved**. Phase 0 and Phase 1 exit checks pass; the next batch starts at Phase 2.
+> Implementation status: **approved**. Phase 0 and Phase 1 exit checks pass; Phase 2 is in progress.
 
 ## Execution protocol and dependency order
 
@@ -68,8 +68,8 @@ Exit: Compose starts cleanly, each fault reproduces and resets, telemetry is que
 
 ## Phase 2 — Domain model, persistence, and API/worker foundation
 
-- [ ] Implement pure typed domain identifiers, enums, errors, and UTC time handling.
-- [ ] Implement the complete Incident state machine with `CLOSED`/`CANCELLED` terminals, durable waits, safe-boundary cancellation, no dead-end non-terminals, optimistic versioning, and exhaustive transition/liveness tests.
+- [x] Implement pure typed domain identifiers, enums, errors, and UTC time handling.
+- [x] Implement the complete Incident state machine with `CLOSED`/`CANCELLED` terminals, durable waits, safe-boundary cancellation, no dead-end non-terminals, optimistic versioning, and exhaustive transition/liveness tests.
 - [ ] Implement deterministic Alert fingerprinting, deduplication, merging, and triage with race/concurrency tests.
 - [ ] Implement SQLAlchemy models/repositories and initial Alembic migrations for operational aggregates.
 - [ ] Enable PostgreSQL pgvector extension and versioned embedding metadata.

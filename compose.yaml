@@ -331,8 +331,6 @@ networks:
     internal: true
   observability:
     internal: true
-  evaluation:
-    internal: true
 
 volumes:
   control_postgres_data:

@@ -9,7 +9,7 @@ The checked-in `compose.yaml` establishes the Phase 1B trust and resource bounda
 | `control-plane` | control PostgreSQL | `control-plane` | `control_postgres_data` |
 | `simulator` | Gateway, Order, Inventory, Payment, diagnosed PostgreSQL and Redis | `ingress` for Gateway; internal `simulator` for service traffic | `simulator_postgres_data`, `simulator_redis_data` |
 | `observability` | Prometheus, Loki, Tempo, OpenTelemetry Collector | `observability`; Collector also receives on `simulator` | `prometheus_data`, `loki_data`, `tempo_data` |
-| future `evaluation` | no service until the isolated evaluator batch | reserved internal `evaluation` network | none |
+| `evaluation` (separate file) | Ground Truth evaluator | dedicated internal `ground-truth` network | none; two read-only bind mounts |
 
 Service and data networks are internal. The explicit `ingress` network exists only for Gateway, whose port `8080` is published on loopback. Prometheus `9090`, Loki `3100`, and Tempo `3200` are also bound to `127.0.0.1` by default.
 
@@ -27,6 +27,8 @@ Each current container has an explicit profile, image version, health check, rea
 4. Never use a production, personal, or shared credential in this lab.
 
 The secret files and `.env` are ignored. Compose mounts secrets as files; PostgreSQL uses `POSTGRES_PASSWORD_FILE`, and Redis builds an ephemeral configuration in its read-only container instead of placing a password in the committed command or environment.
+
+The separate evaluation file additionally requires `secrets/ground-truth-access.txt`. Runtime profiles never receive this credential or the evaluation mounts/network. See `docs/GROUND_TRUTH.md` for the isolated one-shot evaluator contract.
 
 ## Static validation
 

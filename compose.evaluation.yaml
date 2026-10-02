@@ -1,0 +1,40 @@
+name: agentops-evaluation
+
+services:
+  ground-truth-evaluator:
+    image: agentops-ground-truth-evaluator:phase1c
+    build:
+      context: .
+      dockerfile: Dockerfile.evaluator
+    profiles: [evaluation]
+    read_only: true
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    cpus: 0.25
+    mem_limit: 128m
+    pids_limit: 64
+    restart: "no"
+    tmpfs:
+      - /tmp:size=8m,mode=1777
+    volumes:
+      - type: bind
+        source: ./evaluation/ground_truth/v1
+        target: /evaluation/ground-truth
+        read_only: true
+      - type: bind
+        source: ./evaluation/ground_truth/canary
+        target: /evaluation/canary
+        read_only: true
+    secrets:
+      - ground_truth_access
+    networks: [ground-truth]
+
+networks:
+  ground-truth:
+    internal: true
+
+secrets:
+  ground_truth_access:
+    file: ${GROUND_TRUTH_ACCESS_FILE:?set GROUND_TRUTH_ACCESS_FILE to an evaluation-only secret file}

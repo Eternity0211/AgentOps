@@ -1,0 +1,15 @@
+FROM python:3.12.14-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+RUN groupadd --system evaluator \
+    && useradd --system --gid evaluator --no-create-home evaluator
+
+COPY evaluation/verify_ground_truth.py /app/verify_ground_truth.py
+
+USER evaluator:evaluator
+
+ENTRYPOINT ["python", "/app/verify_ground_truth.py"]

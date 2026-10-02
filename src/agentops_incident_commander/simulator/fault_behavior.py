@@ -10,7 +10,7 @@ from typing import Literal
 
 from agentops_incident_commander.simulator.app_types import ServiceName
 
-FaultScenario = Literal["http-500", "db-pool-exhaustion", "redis-timeout"]
+FaultScenario = Literal["http-500", "db-pool-exhaustion", "redis-timeout", "downstream-latency"]
 RUN_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{5,63}$")
 
 
@@ -36,9 +36,19 @@ class FaultBehavior:
             raise ValueError("fault scenario and run ID must be configured together")
         if RUN_ID_PATTERN.fullmatch(run_id) is None:
             raise ValueError("invalid fault run ID")
-        if scenario not in {"http-500", "db-pool-exhaustion", "redis-timeout"}:
+        if scenario not in {
+            "http-500",
+            "db-pool-exhaustion",
+            "redis-timeout",
+            "downstream-latency",
+        }:
             raise ValueError("unsupported simulator fault scenario")
-        expected_service: ServiceName = "inventory" if scenario == "redis-timeout" else "order"
+        if scenario == "redis-timeout":
+            expected_service: ServiceName = "inventory"
+        elif scenario == "downstream-latency":
+            expected_service = "payment"
+        else:
+            expected_service = "order"
         if service != expected_service:
             raise ValueError(f"selected fault can only target {expected_service.title()}")
         selected: FaultScenario
@@ -46,8 +56,10 @@ class FaultBehavior:
             selected = "http-500"
         elif scenario == "db-pool-exhaustion":
             selected = "db-pool-exhaustion"
-        else:
+        elif scenario == "redis-timeout":
             selected = "redis-timeout"
+        else:
+            selected = "downstream-latency"
         return cls(scenario=selected, run_id=run_id)
 
     @property
@@ -64,3 +76,8 @@ class FaultBehavior:
     def times_out_redis(self) -> bool:
         """Select a bounded Redis timeout without invoking the real client."""
         return self.scenario == "redis-timeout"
+
+    @property
+    def delays_downstream(self) -> bool:
+        """Select the fixed Payment response delay."""
+        return self.scenario == "downstream-latency"

@@ -121,6 +121,17 @@ def test_redis_timeout_overlay_targets_inventory_without_deployment_change() -> 
     assert "DEPLOYMENT_ID" not in content
 
 
+def test_downstream_latency_overlay_targets_payment_without_deployment_change() -> None:
+    """A response delay restarts only Payment and preserves deployment evidence."""
+    state = faults.FaultState.create("run-abcdef123456", "downstream-latency")
+    content = faults._overlay(state)
+
+    assert state.target_service == "payment"
+    assert 'SIMULATOR_FAULT_SCENARIO: "downstream-latency"' in content
+    assert "SERVICE_VERSION" not in content
+    assert "DEPLOYMENT_ID" not in content
+
+
 @pytest.mark.parametrize(
     ("effect", "expected"),
     [

@@ -258,6 +258,42 @@ def test_http_500_fault_emits_error_span_and_status_metric() -> None:
     assert points[0].attributes["status"] == "500"
 
 
+def test_downstream_latency_fault_emits_three_second_payment_duration() -> None:
+    """The fixed delay is visible in HTTP metrics without exposing its scenario label."""
+    spans = InMemorySpanExporter()
+    metrics = CapturingMetricExporter()
+    observed = telemetry.SimulatorTelemetry(
+        "payment",
+        enabled_settings(),
+        span_exporter=spans,
+        metric_exporter=metrics,
+        log_exporter=in_memory_log_exporter(),
+    )
+
+    app = simulator_app.create_app(
+        "payment",
+        telemetry=observed,
+        fault_behavior=FaultBehavior("downstream-latency", "run-abcdef123456"),
+    )
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/authorizations",
+            json={
+                "order_id": "order-123",
+                "items": [{"sku": "widget-1", "quantity": 2}],
+                "amount_minor": 2500,
+                "currency": "USD",
+            },
+        )
+
+    assert response.status_code == 200
+    duration = metric_points(metrics)["simulator.http.server.duration"][0]
+    assert duration.sum >= 2900.0
+    span = next(item for item in spans.get_finished_spans() if item.kind is SpanKind.SERVER)
+    assert "downstream-latency" not in str(span.attributes)
+
+
 @pytest.mark.anyio
 async def test_http_client_span_propagates_w3c_context() -> None:
     """Internal HTTP carries traceparent and creates a bounded client span."""

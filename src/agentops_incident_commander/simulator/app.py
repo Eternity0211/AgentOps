@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import re
 import time
@@ -35,6 +36,7 @@ from agentops_incident_commander.simulator.telemetry import (
 
 CORRELATION_HEADER = "X-Correlation-ID"
 CORRELATION_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+DOWNSTREAM_LATENCY_SECONDS = 3.0
 
 
 class ReservationResult(BaseModel):
@@ -164,6 +166,7 @@ def create_app(
     telemetry: SimulatorTelemetry | None = None,
     deployment_marker: DeploymentMarker | None = None,
     fault_behavior: FaultBehavior | None = None,
+    sleeper: Callable[[float], Awaitable[None]] | None = None,
 ) -> FastAPI:
     """Create one role-specific simulator application."""
     selected_telemetry = telemetry or create_telemetry(service)
@@ -213,6 +216,7 @@ def create_app(
     )
     downstream = caller or _default_caller(selected_telemetry)
     new_correlation = correlation_factory or (lambda: str(uuid4()))
+    selected_sleep = sleeper or asyncio.sleep
 
     @app.middleware("http")
     async def correlation_middleware(
@@ -310,6 +314,8 @@ def create_app(
 
         @app.post("/v1/authorizations")
         async def authorize(checkout: CheckoutRequest, request: Request) -> dict[str, Any]:
+            if selected_fault is not None and selected_fault.delays_downstream:
+                await selected_sleep(DOWNSTREAM_LATENCY_SECONDS)
             return {
                 "authorization_id": f"auth-{checkout.order_id}",
                 "status": "authorized",

@@ -56,7 +56,7 @@ Verification: clean diff review, Markdown/link checks, secret scan, `git status`
 - [x] Implement deployment-induced HTTP 500 scenario.
 - [x] Implement database connection-pool exhaustion scenario.
 - [x] Implement Redis timeout scenario.
-- [ ] Implement downstream-service high-latency scenario.
+- [x] Implement downstream-service high-latency scenario.
 - [ ] Implement memory-leak scenario with bounded safe resource settings.
 - [ ] Implement bad-configuration scenario.
 - [ ] Define separate Ground Truth manifests for all six scenarios: cause, symptoms, key metrics/logs/traces, deployment change, automation eligibility, expected safe outcome/handoff reason, recovery action, verification, evaluator cleanup, and future-tool requirement.

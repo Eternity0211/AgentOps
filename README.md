@@ -2,7 +2,7 @@
 
 AgentOps Incident Commander is an evidence-driven platform for diagnosing microservice incidents and performing controlled recovery. It combines metrics, logs, traces, topology, and deployment history; a constrained Diagnosis Agent builds verifiable root-cause hypotheses; a constrained Remediation Agent proposes recovery only after a deterministic evidence gate passes. Deterministic policy, approval, execution, health verification, and failure routing retain authority over every state change.
 
-> Status: Phase 1A and Phase 1B are complete; Phase 1C is in progress. The reproducible workspace, guarded Compose topology, four-service simulator, PostgreSQL/Redis adapters, OpenTelemetry signals, deployment markers, bounded runtime controls, and the first three deterministic fault scenarios are implemented. A live clean-start/scenario proof is still pending because Docker Engine was unavailable on the implementation host.
+> Status: Phase 1A and Phase 1B are complete; Phase 1C is in progress. The reproducible workspace, guarded Compose topology, four-service simulator, PostgreSQL/Redis adapters, OpenTelemetry signals, deployment markers, bounded runtime controls, and the first four deterministic fault scenarios are implemented. A live clean-start/scenario proof is still pending because Docker Engine was unavailable on the implementation host.
 
 ## Why this project exists
 
@@ -61,12 +61,13 @@ python scripts/dev.py down
 
 `up` validates the static Compose contract and Docker daemon, builds/starts with Compose `--wait`, then checks Gateway readiness/version, Prometheus/Loki/Tempo readiness, and the Collector's Prometheus target. A post-start failure automatically stops partial containers without deleting named volumes. `status` repeats the observable health contract. `down` removes containers and orphans but deliberately does not remove persistent volumes.
 
-The fault controller syntax and safe state/cleanup framework are available. The `http-500`, `db-pool-exhaustion`, and `redis-timeout` scenarios are enabled; other scenarios fail closed until their symptom is implemented and registered. E2E and evaluation commands remain reserved:
+The fault controller syntax and safe state/cleanup framework are available. The `http-500`, `db-pool-exhaustion`, `redis-timeout`, and `downstream-latency` scenarios are enabled; other scenarios fail closed until their symptom is implemented and registered. E2E and evaluation commands remain reserved:
 
 ```text
 python scripts/dev.py fault inject --scenario http-500
 python scripts/dev.py fault inject --scenario db-pool-exhaustion
 python scripts/dev.py fault inject --scenario redis-timeout
+python scripts/dev.py fault inject --scenario downstream-latency
 python scripts/dev.py fault clean
 python scripts/dev.py test --suite e2e
 python scripts/dev.py eval --model mock

@@ -251,6 +251,32 @@ def test_payment_authorization_is_deterministic() -> None:
     assert response.json()["currency"] == "USD"
 
 
+def test_downstream_latency_fault_delays_only_payment_business_path() -> None:
+    """Payment uses the fixed delay while health, readiness, and version remain baseline."""
+    delays: list[float] = []
+
+    async def sleep(seconds: float) -> None:
+        delays.append(seconds)
+
+    client = TestClient(
+        simulator_app.create_app(
+            "payment",
+            fault_behavior=FaultBehavior("downstream-latency", "run-abcdef123456"),
+            sleeper=sleep,
+        )
+    )
+
+    assert client.get("/healthz").status_code == 200
+    assert client.get("/readyz").status_code == 200
+    response = client.post("/v1/authorizations", json=CHECKOUT)
+    version = client.get("/versionz").json()
+
+    assert response.status_code == 200
+    assert delays == [simulator_app.DOWNSTREAM_LATENCY_SECONDS]
+    assert version["version"] == "1.0.0"
+    assert "downstream-latency" not in str(version)
+
+
 def test_order_calls_inventory_then_payment_with_same_correlation() -> None:
     """Order propagates one correlation ID across its deterministic dependency chain."""
     caller = FakeCaller()
@@ -545,11 +571,13 @@ async def test_httpx_caller_propagates_header_and_returns_object() -> None:
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("mode", ["status", "json", "array"])
+@pytest.mark.parametrize("mode", ["status", "json", "array", "timeout"])
 async def test_httpx_caller_maps_downstream_failures(mode: str) -> None:
     """HTTP, malformed JSON, and wrong-shape responses become bounded 502 errors."""
 
     async def handler(request: httpx.Request) -> httpx.Response:
+        if mode == "timeout":
+            raise httpx.ReadTimeout("slow downstream", request=request)
         if mode == "status":
             return httpx.Response(503, text="unavailable")
         if mode == "json":

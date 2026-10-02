@@ -23,6 +23,8 @@ Inventory executes one Redis Lua script. The script first verifies all requested
 
 The Redis-timeout fixture exercises the same configured adapter deadline but deliberately never invokes the underlying `PING` or Lua callable. This makes readiness and reservation failures deterministic and side-effect free; replacing Inventory removes the fixture without changing Redis data.
 
+The downstream-latency fixture delays only Payment authorization by a fixed three seconds. Order's internal two-second HTTP timeout bounds propagation to callers; health, readiness, and version endpoints remain responsive.
+
 Credentials are read only from mounted secret files. Connection strings, passwords, request payloads, and stock values are not logged. Each dependency operation emits one structured record with only `event`, `dependency`, `operation`, `result`, `duration_ms`, and the validated `correlation_id`. Adapter timeouts and connection failures map to stable HTTP 503 responses; insufficient inventory maps to HTTP 409. Internal exception text is not returned to clients.
 
 ## Correlation contract

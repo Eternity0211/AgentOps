@@ -26,6 +26,7 @@ def test_http_500_behavior_requires_order_and_safe_run_id() -> None:
     assert behavior.forces_internal_error is True
     assert behavior.exhausts_database_pool is False
     assert behavior.times_out_redis is False
+    assert behavior.delays_downstream is False
 
 
 def test_database_pool_behavior_is_a_distinct_typed_effect() -> None:
@@ -42,6 +43,7 @@ def test_database_pool_behavior_is_a_distinct_typed_effect() -> None:
     assert behavior.forces_internal_error is False
     assert behavior.exhausts_database_pool is True
     assert behavior.times_out_redis is False
+    assert behavior.delays_downstream is False
 
 
 def test_redis_timeout_behavior_targets_inventory() -> None:
@@ -58,6 +60,22 @@ def test_redis_timeout_behavior_targets_inventory() -> None:
     assert behavior.forces_internal_error is False
     assert behavior.exhausts_database_pool is False
     assert behavior.times_out_redis is True
+    assert behavior.delays_downstream is False
+
+
+def test_downstream_latency_behavior_targets_payment() -> None:
+    """The fixed delay can activate only in Payment."""
+    behavior = FaultBehavior.from_environment(
+        "payment",
+        {
+            "SIMULATOR_FAULT_SCENARIO": "downstream-latency",
+            "SIMULATOR_FAULT_RUN_ID": "run-abcdef123456",
+        },
+    )
+
+    assert behavior == FaultBehavior("downstream-latency", "run-abcdef123456")
+    assert behavior.delays_downstream is True
+    assert behavior.forces_internal_error is False
 
 
 @pytest.mark.parametrize(
@@ -101,6 +119,14 @@ def test_redis_timeout_behavior_targets_inventory() -> None:
                 "SIMULATOR_FAULT_RUN_ID": "run-abcdef123456",
             },
             "only target Inventory",
+        ),
+        (
+            "inventory",
+            {
+                "SIMULATOR_FAULT_SCENARIO": "downstream-latency",
+                "SIMULATOR_FAULT_RUN_ID": "run-abcdef123456",
+            },
+            "only target Payment",
         ),
     ],
 )

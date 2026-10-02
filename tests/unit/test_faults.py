@@ -139,6 +139,15 @@ def test_memory_leak_overlay_records_opaque_deployment_change() -> None:
     assert "memory-leak" in content
 
 
+def test_bad_configuration_overlay_preserves_payment_deployment() -> None:
+    state = faults.FaultState.create("run-abcdef123456", "bad-configuration")
+    content = faults._overlay(state)
+    assert state.target_service == "payment"
+    assert 'SIMULATOR_FAULT_SCENARIO: "bad-configuration"' in content
+    assert "SERVICE_VERSION" not in content
+    assert "DEPLOYMENT_ID" not in content
+
+
 @pytest.mark.parametrize(
     ("effect", "expected"),
     [

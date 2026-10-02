@@ -58,7 +58,7 @@ Verification: clean diff review, Markdown/link checks, secret scan, `git status`
 - [x] Implement Redis timeout scenario.
 - [x] Implement downstream-service high-latency scenario.
 - [x] Implement memory-leak scenario with bounded safe resource settings.
-- [ ] Implement bad-configuration scenario.
+- [x] Implement bad-configuration scenario.
 - [ ] Define separate Ground Truth manifests for all six scenarios: cause, symptoms, key metrics/logs/traces, deployment change, automation eligibility, expected safe outcome/handoff reason, recovery action, verification, evaluator cleanup, and future-tool requirement.
 - [ ] Enforce Ground Truth isolation through separate profile/path/network/credentials and canary leakage tests.
 - [ ] Add simulator smoke tests and deterministic scenario setup/cleanup tests.

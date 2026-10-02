@@ -271,6 +271,8 @@ def create_app(
     @app.get("/readyz")
     async def ready(request: Request) -> dict[str, str]:
         correlation_id = _correlation_id(request)
+        if selected_fault is not None and selected_fault.has_invalid_configuration:
+            raise HTTPException(status_code=503, detail="service configuration unavailable")
         try:
             if selected_order_store is not None:
                 await selected_order_store.ready(correlation_id)
@@ -321,6 +323,8 @@ def create_app(
 
         @app.post("/v1/authorizations")
         async def authorize(checkout: CheckoutRequest, request: Request) -> dict[str, Any]:
+            if selected_fault is not None and selected_fault.has_invalid_configuration:
+                raise HTTPException(status_code=503, detail="payment configuration unavailable")
             if selected_fault is not None and selected_fault.delays_downstream:
                 await selected_sleep(DOWNSTREAM_LATENCY_SECONDS)
             return {

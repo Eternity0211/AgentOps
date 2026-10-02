@@ -35,7 +35,14 @@ SCENARIO_TARGETS: dict[ScenarioName, str] = {
     "bad-configuration": "payment",
 }
 IMPLEMENTED_SCENARIOS: frozenset[ScenarioName] = frozenset(
-    {"http-500", "db-pool-exhaustion", "redis-timeout", "downstream-latency", "memory-leak"}
+    {
+        "http-500",
+        "db-pool-exhaustion",
+        "redis-timeout",
+        "downstream-latency",
+        "memory-leak",
+        "bad-configuration",
+    }
 )
 RUN_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{5,63}$")
 STATE_SCHEMA_VERSION = "1.0"

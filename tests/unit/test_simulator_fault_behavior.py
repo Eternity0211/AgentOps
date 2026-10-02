@@ -87,6 +87,18 @@ def test_memory_retention_behavior_targets_order() -> None:
     assert behavior.retains_memory is True
 
 
+def test_bad_configuration_behavior_targets_payment() -> None:
+    behavior = FaultBehavior.from_environment(
+        "payment",
+        {
+            "SIMULATOR_FAULT_SCENARIO": "bad-configuration",
+            "SIMULATOR_FAULT_RUN_ID": "run-abcdef123456",
+        },
+    )
+    assert behavior == FaultBehavior("bad-configuration", "run-abcdef123456")
+    assert behavior.has_invalid_configuration is True
+
+
 @pytest.mark.parametrize(
     ("service", "environment", "message"),
     [
@@ -133,6 +145,14 @@ def test_memory_retention_behavior_targets_order() -> None:
             "inventory",
             {
                 "SIMULATOR_FAULT_SCENARIO": "downstream-latency",
+                "SIMULATOR_FAULT_RUN_ID": "run-abcdef123456",
+            },
+            "only target Payment",
+        ),
+        (
+            "order",
+            {
+                "SIMULATOR_FAULT_SCENARIO": "bad-configuration",
                 "SIMULATOR_FAULT_RUN_ID": "run-abcdef123456",
             },
             "only target Payment",

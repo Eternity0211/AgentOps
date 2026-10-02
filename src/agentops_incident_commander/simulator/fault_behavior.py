@@ -11,7 +11,12 @@ from typing import Literal
 from agentops_incident_commander.simulator.app_types import ServiceName
 
 FaultScenario = Literal[
-    "http-500", "db-pool-exhaustion", "redis-timeout", "downstream-latency", "memory-leak"
+    "http-500",
+    "db-pool-exhaustion",
+    "redis-timeout",
+    "downstream-latency",
+    "memory-leak",
+    "bad-configuration",
 ]
 RUN_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{5,63}$")
 
@@ -44,11 +49,12 @@ class FaultBehavior:
             "redis-timeout",
             "downstream-latency",
             "memory-leak",
+            "bad-configuration",
         }:
             raise ValueError("unsupported simulator fault scenario")
         if scenario == "redis-timeout":
             expected_service: ServiceName = "inventory"
-        elif scenario == "downstream-latency":
+        elif scenario in {"downstream-latency", "bad-configuration"}:
             expected_service = "payment"
         else:
             expected_service = "order"
@@ -63,8 +69,10 @@ class FaultBehavior:
             selected = "redis-timeout"
         elif scenario == "downstream-latency":
             selected = "downstream-latency"
-        else:
+        elif scenario == "memory-leak":
             selected = "memory-leak"
+        else:
+            selected = "bad-configuration"
         return cls(scenario=selected, run_id=run_id)
 
     @property
@@ -90,3 +98,8 @@ class FaultBehavior:
     @property
     def retains_memory(self) -> bool:
         return self.scenario == "memory-leak"
+
+    @property
+    def has_invalid_configuration(self) -> bool:
+        """Select the fixed Payment configuration refusal."""
+        return self.scenario == "bad-configuration"

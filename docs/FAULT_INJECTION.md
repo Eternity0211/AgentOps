@@ -11,7 +11,7 @@ python scripts/dev.py fault clean
 python scripts/dev.py fault clean --run-id run-demo001
 ```
 
-Scenario names are a fixed allowlist: `http-500`, `db-pool-exhaustion`, `redis-timeout`, `downstream-latency`, `memory-leak`, and `bad-configuration`. A known name is not sufficient for activation: the controller rejects it until that scenario's symptom, cleanup, and tests are implemented and registered. Currently only `bad-configuration` remains disabled.
+Scenario names are a fixed implemented allowlist: `http-500`, `db-pool-exhaustion`, `redis-timeout`, `downstream-latency`, `memory-leak`, and `bad-configuration`. Unknown names remain fail-closed.
 
 Run IDs are generated as `run-` plus 12 hexadecimal characters, or supplied using the conservative `[a-z0-9][a-z0-9-]{5,63}` contract. They are correlation labels, not authorization tokens.
 
@@ -66,6 +66,12 @@ Payment's server duration metric and Span expose the slow route, while Order obs
 The controller recreates Order as an opaque `2.0.0` deployment with the stable predecessor recorded. Each order request touches and retains one MiB, stopping permanently at 32 MiB—well below the container's 512 MiB limit and the code's absolute 64 MiB safety ceiling. Health, readiness, and version requests allocate nothing; normal order behavior continues.
 
 The active request Span and a structured event expose retained bytes, allocation count, and limit without the scenario or run label. Cleanup recreates Order, releasing all process-local allocations and restoring the baseline version. Per ADR 0005, rollback is eligible only when evidence proves this deployment introduced the growth and identifies its stable predecessor.
+
+### `bad-configuration`
+
+The controller recreates only Payment while preserving its baseline deployment marker. `/healthz` stays available, but `/readyz` and authorization return bounded generic HTTP 503 responses. The fixture is a fixed typed refusal and accepts no arbitrary configuration value, path, URL, or credential.
+
+Normal request metrics, server Spans, and access logs expose the failing Payment routes and status without the scenario or run label. Cleanup recreates Payment without the fault values. Configuration drift is not rollback-eligible under ADR 0005; the expected product outcome is diagnosis plus human handoff.
 
 Operational fault state contains no Ground Truth cause or evaluation label. Evaluation-only Ground Truth remains a later isolated artifact and must not be mounted or retrievable by simulator/control-plane runtime paths.
 

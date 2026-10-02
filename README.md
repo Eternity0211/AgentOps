@@ -148,6 +148,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Simulator service contracts](docs/SIMULATOR_SERVICES.md)
 - [Simulator observability baseline](docs/OBSERVABILITY.md)
 - [Deterministic fault control](docs/FAULT_INJECTION.md)
+- [Evaluation-only Ground Truth](docs/GROUND_TRUTH.md)
 - [Architecture decisions](docs/ADR/README.md)
 - [Delivery plan](TODO.md)
 

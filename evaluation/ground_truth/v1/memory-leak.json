@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0", "dataset_version": "phase1c-v1", "scenario_id": "memory-leak", "target_service": "order",
+  "cause": "Order version 2.0.0 retains one MiB per order request up to a 32 MiB safety cap.",
+  "symptoms": ["Retained bytes rise with Order request count", "Growth plateaus at 32 MiB", "Order business responses and readiness remain successful"],
+  "key_evidence": {"metrics": ["simulator.http.server.requests{service=order,route=/v1/orders}"], "logs": ["memory_retention retained bytes and hard limit"], "traces": ["Order request Spans show increasing process.memory.retained_bytes"], "deployments": ["Order changed from 1.0.0 to 2.0.0 with an opaque deployment ID"]},
+  "deployment_change": {"introduced_version": "2.0.0", "stable_predecessor": "1.0.0"},
+  "automation_eligible": true, "eligibility_prerequisites": ["Evidence correlates memory growth to version 2.0.0", "Server resolves 1.0.0 as the stable predecessor"],
+  "expected_safe_outcome": "approved_rollback_or_handoff", "handoff_reason_code": "ROLLBACK_PREREQUISITES_MISSING", "recovery_action": "rollback_service",
+  "verification": ["Memory stabilizes after replacement", "P95 latency is within threshold", "Health succeeds", "Active version is 1.0.0", "No new alerts during the stability window"],
+  "evaluator_cleanup": {"action": "fault_clean", "readiness_check": "simulator_status", "recovery_credit": false}, "future_tool_requirement": null
+}

@@ -34,7 +34,9 @@ SCENARIO_TARGETS: dict[ScenarioName, str] = {
     "memory-leak": "order",
     "bad-configuration": "payment",
 }
-IMPLEMENTED_SCENARIOS: frozenset[ScenarioName] = frozenset({"http-500", "db-pool-exhaustion"})
+IMPLEMENTED_SCENARIOS: frozenset[ScenarioName] = frozenset(
+    {"http-500", "db-pool-exhaustion", "redis-timeout"}
+)
 RUN_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{5,63}$")
 STATE_SCHEMA_VERSION = "1.0"
 RUNTIME_DIRECTORY = Path("data/runtime")

@@ -9,6 +9,7 @@ Each process uses a resource with `service.name=agentops-simulator-{role}`, pack
 - Server spans use the matched FastAPI route, HTTP method/status, and validated correlation ID. Unknown paths collapse to `unmatched`; query strings and request/response bodies are never attributes.
 - Internal HTTP client spans identify only the allowlisted destination service, method, and route. W3C `traceparent` is propagated together with `X-Correlation-ID`.
 - PostgreSQL and Redis spans contain dependency system, operation name, result status, and correlation ID. PostgreSQL spans also contain bounded pool size/idle observations, allowing saturation to be diagnosed without a Ground Truth label. They do not contain statements, credentials, order payloads, stock values, or exception text.
+- A Redis deadline records `error.type=timeout` on the dependency Span and a bounded structured timeout event containing dependency, operation, and timeout duration. Scenario/run labels and request data are excluded.
 - `simulator.http.server.requests` counts completed requests using method, matched route, and status dimensions.
 - `simulator.http.server.duration` records milliseconds with the same bounded dimensions.
 - The `http_request` log record contains service, method, matched route, status, duration, and correlation ID. The SDK binds its trace and span IDs from the active request context.

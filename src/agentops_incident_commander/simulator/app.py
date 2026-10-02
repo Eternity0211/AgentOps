@@ -181,7 +181,13 @@ def create_app(
         else None
     )
     selected_inventory_store = (
-        (inventory_store or RedisInventoryStore(tracer=selected_telemetry.tracer))
+        (
+            inventory_store
+            or RedisInventoryStore(
+                tracer=selected_telemetry.tracer,
+                force_timeout=(selected_fault is not None and selected_fault.times_out_redis),
+            )
+        )
         if service == "inventory"
         else None
     )

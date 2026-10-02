@@ -82,6 +82,19 @@ class UnusedCaller:
         raise AssertionError("faulty request must not call downstream services")
 
 
+class UnusedRedisClient:
+    """Prove forced timeout telemetry is emitted before the real client is invoked."""
+
+    async def ping(self) -> bool:
+        raise AssertionError("forced timeout must not ping Redis")
+
+    async def eval(self, script: str, numkeys: int, *keys_and_args: object) -> object:
+        raise AssertionError("forced timeout must not run Redis Lua")
+
+    async def aclose(self) -> None:
+        return None
+
+
 def enabled_settings() -> telemetry.TelemetrySettings:
     """Return fast, valid settings for in-memory exporters."""
     return telemetry.TelemetrySettings(
@@ -305,6 +318,37 @@ async def test_dependency_observation_creates_error_span() -> None:
     assert span.attributes is not None
     assert span.attributes["db.system.name"] == "postgres"
     assert "contains-sensitive-detail" not in str(span.attributes)
+
+
+@pytest.mark.anyio
+async def test_redis_timeout_marks_dependency_span_without_ground_truth_label() -> None:
+    """The dependency trace exposes a timeout symptom, not the injected scenario identity."""
+    spans = InMemorySpanExporter()
+    observed = telemetry.SimulatorTelemetry(
+        "inventory",
+        enabled_settings(),
+        span_exporter=spans,
+        metric_exporter=CapturingMetricExporter(),
+        log_exporter=in_memory_log_exporter(),
+    )
+    store = dependencies.RedisInventoryStore(
+        {"DEPENDENCY_TIMEOUT_SECONDS": "0.001"},
+        client=UnusedRedisClient(),
+        tracer=observed.tracer,
+        force_timeout=True,
+    )
+
+    with pytest.raises(dependencies.DependencyUnavailable):
+        await store.ready("corr-cache-deadline")
+    await observed.shutdown()
+
+    span = spans.get_finished_spans()[0]
+    assert span.name == "redis.ready"
+    assert span.status.status_code is StatusCode.ERROR
+    assert span.attributes is not None
+    assert span.attributes["error.type"] == "timeout"
+    assert "redis-timeout" not in str(span.attributes)
+    assert "run-" not in str(span.attributes)
 
 
 @pytest.mark.parametrize(

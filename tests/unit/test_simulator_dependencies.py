@@ -142,9 +142,11 @@ class FakeRedis:
         self.result = result
         self.closed = False
         self.failure: Exception | None = None
+        self.ping_calls = 0
         self.eval_calls: list[tuple[str, int, tuple[object, ...]]] = []
 
     async def ping(self) -> bool:
+        self.ping_calls += 1
         if self.failure is not None:
             raise self.failure
         return True
@@ -522,6 +524,49 @@ async def test_redis_maps_timeout() -> None:
 
     with pytest.raises(dependencies.DependencyUnavailable, match="redis operation failed"):
         await store.ready("corr-timeout")
+
+
+@pytest.mark.anyio
+async def test_forced_redis_timeout_is_repeatable_observable_and_side_effect_free(
+    checkout: CheckoutRequest,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The scenario reaches the real deadline without invoking PING or reservation Lua."""
+    client = FakeRedis()
+    store = dependencies.RedisInventoryStore(
+        {"DEPENDENCY_TIMEOUT_SECONDS": "0.001"},
+        client=client,
+        force_timeout=True,
+    )
+    caplog.set_level(logging.INFO, logger="agentops.simulator.dependencies")
+
+    with pytest.raises(dependencies.DependencyUnavailable, match="redis operation failed"):
+        await store.ready("corr-timeout-ready")
+    with pytest.raises(dependencies.DependencyUnavailable, match="redis operation failed"):
+        await store.reserve(checkout, "corr-timeout-reserve")
+
+    assert client.ping_calls == 0
+    assert client.eval_calls == []
+    timeout_events = [
+        json.loads(record.message)
+        for record in caplog.records
+        if "dependency_timeout" in record.message
+    ]
+    assert timeout_events == [
+        {
+            "dependency": "redis",
+            "event": "dependency_timeout",
+            "operation": "ready",
+            "timeout_ms": 1.0,
+        },
+        {
+            "dependency": "redis",
+            "event": "dependency_timeout",
+            "operation": "reserve_inventory",
+            "timeout_ms": 1.0,
+        },
+    ]
+    assert "redis-timeout" not in caplog.text
 
 
 def test_redis_default_client_uses_secret_and_bounded_options(

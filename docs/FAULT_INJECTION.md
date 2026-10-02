@@ -11,7 +11,7 @@ python scripts/dev.py fault clean
 python scripts/dev.py fault clean --run-id run-demo001
 ```
 
-Scenario names are a fixed allowlist: `http-500`, `db-pool-exhaustion`, `redis-timeout`, `downstream-latency`, `memory-leak`, and `bad-configuration`. A known name is not sufficient for activation: the controller rejects it until that scenario's symptom, cleanup, and tests are implemented and registered. This prevents a container restart from being falsely reported as an active fault. Currently `http-500` and `db-pool-exhaustion` are enabled; the other four fail closed.
+Scenario names are a fixed allowlist: `http-500`, `db-pool-exhaustion`, `redis-timeout`, `downstream-latency`, `memory-leak`, and `bad-configuration`. A known name is not sufficient for activation: the controller rejects it until that scenario's symptom, cleanup, and tests are implemented and registered. This prevents a container restart from being falsely reported as an active fault. Currently `http-500`, `db-pool-exhaustion`, and `redis-timeout` are enabled; the other three fail closed.
 
 Run IDs are generated as `run-` plus 12 hexadecimal characters, or supplied using the conservative `[a-z0-9][a-z0-9-]{5,63}` contract. They are correlation labels, not authorization tokens.
 
@@ -46,6 +46,14 @@ The controller recreates only Order and preserves its baseline version/deploymen
 The PostgreSQL dependency Span records pool size and idle connections, the existing operation signal records an error and bounded duration, and a structured local log records `pool_size=5` and `pool_idle=0`. These observations contain neither the scenario name nor the run ID. Holding is idempotent under concurrent probes and cannot grow beyond five connections. Partial activation releases already acquired connections.
 
 Cleanup force-recreates Order from the base Compose file. Application shutdown releases every held connection before closing the pool; container replacement is the evaluator reset mechanism. This scenario is not rollback-eligible under ADR 0005 and its eventual expected product outcome is diagnosis plus human handoff, not automatic service rollback.
+
+### `redis-timeout`
+
+The controller recreates only Inventory and preserves its baseline version/deployment marker. The adapter routes each Redis readiness or reservation operation into the existing dependency deadline without calling the real client's `PING` or Lua command. `/healthz` remains available, while `/readyz` and `POST /v1/reservations` return bounded generic HTTP 503 responses. No inventory mutation can occur during the injected timeout.
+
+The Redis dependency Span records `error.type=timeout`; the existing dependency operation signal records its error and duration; and a structured local event records only dependency, operation, and configured timeout. None contains the scenario name, run ID, credential, SKU, quantity, or request payload. Repeated probes use the same bounded behavior and create no background tasks.
+
+Cleanup force-recreates Inventory from the base Compose file, removing the two fault environment values and restoring normal client calls. This dependency scenario is not rollback-eligible under ADR 0005 and its eventual expected product outcome is diagnosis plus human handoff.
 
 Operational fault state contains no Ground Truth cause or evaluation label. Evaluation-only Ground Truth remains a later isolated artifact and must not be mounted or retrievable by simulator/control-plane runtime paths.
 

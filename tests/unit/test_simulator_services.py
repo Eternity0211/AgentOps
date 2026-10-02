@@ -383,6 +383,40 @@ def test_database_pool_fault_composes_bounded_store_and_returns_503(
     assert "db-pool-exhaustion" not in str(version)
 
 
+def test_redis_timeout_fault_composes_inventory_store_and_returns_503(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Inventory stays live while readiness and reservations expose Redis unavailability."""
+    store = FakeInventoryStore()
+    store.failure = DependencyUnavailable("redis timed out")
+    captured: dict[str, object] = {}
+
+    def create_store(*, tracer: object, force_timeout: bool) -> FakeInventoryStore:
+        captured.update(tracer=tracer, force_timeout=force_timeout)
+        return store
+
+    monkeypatch.setattr(simulator_app, "RedisInventoryStore", create_store)
+    app = simulator_app.create_app(
+        "inventory",
+        caller=FakeCaller(),
+        fault_behavior=FaultBehavior("redis-timeout", "run-abcdef123456"),
+    )
+    client = TestClient(app)
+
+    health = client.get("/healthz")
+    ready = client.get("/readyz")
+    response = client.post("/v1/reservations", json=CHECKOUT)
+    version = client.get("/versionz").json()
+
+    assert captured["force_timeout"] is True
+    assert health.status_code == 200
+    assert ready.status_code == 503
+    assert response.status_code == 503
+    assert response.json() == {"detail": "inventory dependency unavailable"}
+    assert version["version"] == "1.0.0"
+    assert "redis-timeout" not in str(version)
+
+
 @pytest.mark.parametrize("service", ["order", "inventory"])
 def test_dependency_unavailability_fails_readiness(service: simulator_app.ServiceName) -> None:
     """Dependency-aware readiness fails closed without exposing adapter details."""

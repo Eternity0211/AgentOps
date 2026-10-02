@@ -21,6 +21,8 @@ Order creates `simulator_orders` on first use and inserts with `ON CONFLICT (ord
 
 Inventory executes one Redis Lua script. The script first verifies all requested SKU quantities, only then decrements stock, and finally records the reservation with a one-hour TTL. An insufficient line therefore cannot leave earlier lines partially decremented. A repeated `order_id` returns the existing `res-{order_id}` as `already_reserved` without decrementing stock again. Initial stock is deterministic at 100 units per SKU for the Phase 1 simulator.
 
+The Redis-timeout fixture exercises the same configured adapter deadline but deliberately never invokes the underlying `PING` or Lua callable. This makes readiness and reservation failures deterministic and side-effect free; replacing Inventory removes the fixture without changing Redis data.
+
 Credentials are read only from mounted secret files. Connection strings, passwords, request payloads, and stock values are not logged. Each dependency operation emits one structured record with only `event`, `dependency`, `operation`, `result`, `duration_ms`, and the validated `correlation_id`. Adapter timeouts and connection failures map to stable HTTP 503 responses; insufficient inventory maps to HTTP 409. Internal exception text is not returned to clients.
 
 ## Correlation contract

@@ -10,7 +10,7 @@ from typing import Literal
 
 from agentops_incident_commander.simulator.app_types import ServiceName
 
-FaultScenario = Literal["http-500", "db-pool-exhaustion"]
+FaultScenario = Literal["http-500", "db-pool-exhaustion", "redis-timeout"]
 RUN_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{5,63}$")
 
 
@@ -36,11 +36,18 @@ class FaultBehavior:
             raise ValueError("fault scenario and run ID must be configured together")
         if RUN_ID_PATTERN.fullmatch(run_id) is None:
             raise ValueError("invalid fault run ID")
-        if scenario not in {"http-500", "db-pool-exhaustion"}:
+        if scenario not in {"http-500", "db-pool-exhaustion", "redis-timeout"}:
             raise ValueError("unsupported simulator fault scenario")
-        if service != "order":
-            raise ValueError("selected fault can only target Order")
-        selected: FaultScenario = "http-500" if scenario == "http-500" else "db-pool-exhaustion"
+        expected_service: ServiceName = "inventory" if scenario == "redis-timeout" else "order"
+        if service != expected_service:
+            raise ValueError(f"selected fault can only target {expected_service.title()}")
+        selected: FaultScenario
+        if scenario == "http-500":
+            selected = "http-500"
+        elif scenario == "db-pool-exhaustion":
+            selected = "db-pool-exhaustion"
+        else:
+            selected = "redis-timeout"
         return cls(scenario=selected, run_id=run_id)
 
     @property
@@ -52,3 +59,8 @@ class FaultBehavior:
     def exhausts_database_pool(self) -> bool:
         """Select the bounded PostgreSQL pool-saturation behavior."""
         return self.scenario == "db-pool-exhaustion"
+
+    @property
+    def times_out_redis(self) -> bool:
+        """Select a bounded Redis timeout without invoking the real client."""
+        return self.scenario == "redis-timeout"

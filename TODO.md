@@ -55,7 +55,7 @@ Verification: clean diff review, Markdown/link checks, secret scan, `git status`
 - [x] Implement task-runner fault injection and cleanup with run/scenario IDs and repeatable reset.
 - [x] Implement deployment-induced HTTP 500 scenario.
 - [x] Implement database connection-pool exhaustion scenario.
-- [ ] Implement Redis timeout scenario.
+- [x] Implement Redis timeout scenario.
 - [ ] Implement downstream-service high-latency scenario.
 - [ ] Implement memory-leak scenario with bounded safe resource settings.
 - [ ] Implement bad-configuration scenario.

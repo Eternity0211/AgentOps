@@ -341,6 +341,7 @@ class RedisInventoryStore:
         *,
         client: RedisClient | None = None,
         tracer: Tracer | None = None,
+        force_timeout: bool = False,
     ) -> None:
         source = os.environ if environment is None else environment
         timeout = float(source.get("DEPENDENCY_TIMEOUT_SECONDS", "2"))
@@ -365,11 +366,35 @@ class RedisInventoryStore:
         self._client = client
         self._timeout = timeout
         self._tracer = tracer
+        self._force_timeout = force_timeout
 
-    async def _bounded[ResultT](self, action: Awaitable[ResultT]) -> ResultT:
+    async def _bounded[ResultT](
+        self,
+        operation: str,
+        action: Callable[[], Awaitable[ResultT]],
+    ) -> ResultT:
+        async def invoke() -> ResultT:
+            if self._force_timeout:
+                return cast(ResultT, await asyncio.Event().wait())
+            return await action()
+
         try:
-            return cast(ResultT, await asyncio.wait_for(action, timeout=self._timeout))
-        except (RedisError, OSError, TimeoutError) as error:
+            return cast(ResultT, await asyncio.wait_for(invoke(), timeout=self._timeout))
+        except TimeoutError as error:
+            trace.get_current_span().set_attribute("error.type", "timeout")
+            logger.warning(
+                json.dumps(
+                    {
+                        "event": "dependency_timeout",
+                        "dependency": "redis",
+                        "operation": operation,
+                        "timeout_ms": round(self._timeout * 1000, 3),
+                    },
+                    sort_keys=True,
+                )
+            )
+            raise DependencyUnavailable("redis operation failed") from error
+        except (RedisError, OSError) as error:
             raise DependencyUnavailable("redis operation failed") from error
 
     async def ready(self, correlation_id: str) -> None:
@@ -377,7 +402,7 @@ class RedisInventoryStore:
             "redis",
             "ready",
             correlation_id,
-            self._bounded(self._client.ping()),
+            self._bounded("ready", self._client.ping),
             self._tracer,
         )
 
@@ -388,13 +413,14 @@ class RedisInventoryStore:
             keys.extend(f"stock:{item.sku}" for item in checkout.items)
             quantities: Sequence[object] = [item.quantity for item in checkout.items]
             result = await self._bounded(
-                self._client.eval(
+                "reserve_inventory",
+                lambda: self._client.eval(
                     RESERVE_SCRIPT,
                     len(keys),
                     *keys,
                     *quantities,
                     correlation_id,
-                )
+                ),
             )
             if result == 0:
                 raise InventoryInsufficient("insufficient inventory")

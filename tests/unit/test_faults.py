@@ -107,6 +107,20 @@ def test_pool_exhaustion_overlay_preserves_baseline_deployment() -> None:
     assert "DEPLOYMENT_ID" not in content
 
 
+def test_redis_timeout_overlay_targets_inventory_without_deployment_change() -> None:
+    """A dependency timeout restarts only Inventory and keeps its baseline marker."""
+    state = faults.FaultState.create("run-abcdef123456", "redis-timeout")
+
+    content = faults._overlay(state)
+
+    assert state.target_service == "inventory"
+    assert 'SIMULATOR_FAULT_SCENARIO: "redis-timeout"' in content
+    assert 'SIMULATOR_FAULT_RUN_ID: "run-abcdef123456"' in content
+    assert "SERVICE_VERSION" not in content
+    assert "PREVIOUS_SERVICE_VERSION" not in content
+    assert "DEPLOYMENT_ID" not in content
+
+
 @pytest.mark.parametrize(
     ("effect", "expected"),
     [

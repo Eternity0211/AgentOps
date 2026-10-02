@@ -149,6 +149,38 @@ def test_environment_removes_missing_managed_python(tmp_path: Path) -> None:
     assert "UV_PYTHON_INSTALL_DIR" not in environment
 
 
+def test_environment_loads_only_allowlisted_runtime_dotenv_values(tmp_path: Path) -> None:
+    dotenv = tmp_path / ".env"
+    dotenv.write_text(
+        "# local ports\n\nignored-line\nPROMETHEUS_PORT=19090\n"
+        "LOKI_PORT=13100\nCONTROL_DB_PASSWORD=do-not-load\n",
+        encoding="utf-8",
+    )
+
+    environment = dev_tasks.build_environment(tmp_path, {"PROMETHEUS_PORT": "29090"})
+
+    assert environment["PROMETHEUS_PORT"] == "29090"
+    assert environment["LOKI_PORT"] == "13100"
+    assert "CONTROL_DB_PASSWORD" not in environment
+
+
+def test_runtime_dotenv_is_bounded_and_fail_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dotenv = tmp_path / ".env"
+    dotenv.write_text("LOKI_PORT='quoted'\n", encoding="utf-8")
+    with pytest.raises(dev_tasks.TaskConfigurationError, match="invalid runtime setting"):
+        dev_tasks.runtime_environment_from_dotenv(tmp_path)
+
+    dotenv.write_text("x" * 65_537, encoding="utf-8")
+    with pytest.raises(dev_tasks.TaskConfigurationError, match="size limit"):
+        dev_tasks.runtime_environment_from_dotenv(tmp_path)
+
+    monkeypatch.setattr(Path, "read_text", lambda *args, **kwargs: (_ for _ in ()).throw(OSError()))
+    with pytest.raises(dev_tasks.TaskConfigurationError, match="cannot be read"):
+        dev_tasks.runtime_environment_from_dotenv(tmp_path)
+
+
 def monotonic_values(*values: float) -> Iterator[float]:
     """Yield deterministic monotonic clock values for task-runner tests."""
     yield from values
@@ -247,6 +279,20 @@ def test_main_reports_configuration_error(capsys: pytest.CaptureFixture[str]) ->
     output = capsys.readouterr()
     assert result == 2
     assert "configuration-error" in output.err
+
+
+def test_main_reports_invalid_local_environment(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A malformed local runtime setting fails before command execution."""
+    monkeypatch.setattr(
+        dev_tasks,
+        "build_environment",
+        lambda root: (_ for _ in ()).throw(dev_tasks.TaskConfigurationError("bad dotenv")),
+    )
+
+    assert dev_tasks.main(("lint",)) == 2
+    assert "bad dotenv" in capsys.readouterr().err
 
 
 def test_main_rejects_fault_options_for_other_tasks(

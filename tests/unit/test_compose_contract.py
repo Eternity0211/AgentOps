@@ -42,6 +42,18 @@ def test_simulator_services_have_dependency_aware_wiring(
     assert order["tmpfs"] == ["/tmp:size=16m,mode=1777"]
 
 
+def test_postgres_18_volumes_mount_at_version_aware_parent(
+    rendered_config: dict[str, object],
+) -> None:
+    """PostgreSQL 18 rejects the pre-18 data-directory mount layout."""
+    services = rendered_config["services"]
+    assert isinstance(services, dict)
+    for service_name in ("control-postgres", "simulator-postgres"):
+        service = services[service_name]
+        assert isinstance(service, dict)
+        assert service["volumes"][0]["target"] == "/var/lib/postgresql"
+
+
 def test_simulator_services_export_otlp_to_internal_collector(
     rendered_config: dict[str, object],
 ) -> None:
@@ -76,6 +88,33 @@ def test_observability_config_routes_three_signal_pipelines() -> None:
     assert "traces:\n      receivers: [otlp]" in collector
     assert "exporters: [otlp_http/tempo]" in collector
     assert "targets: [otel-collector:9464]" in prometheus
+
+
+def test_observability_backends_use_a_separate_host_ingress(
+    rendered_config: dict[str, object],
+) -> None:
+    """Host diagnostics do not place observability backends on Gateway ingress."""
+    networks = rendered_config["networks"]
+    services = rendered_config["services"]
+    assert isinstance(networks, dict)
+    assert isinstance(services, dict)
+    assert networks["observability-ingress"].get("internal") is not True
+    for service_name in ("prometheus", "loki", "tempo"):
+        service = services[service_name]
+        assert isinstance(service, dict)
+        assert set(service["networks"]) == {"observability", "observability-ingress"}
+        assert "ingress" not in service["networks"]
+
+
+def test_collector_uses_last_published_multi_arch_release(
+    rendered_config: dict[str, object],
+) -> None:
+    """Do not select the upstream release whose container manifest is missing."""
+    services = rendered_config["services"]
+    assert isinstance(services, dict)
+    collector = services["otel-collector"]
+    assert isinstance(collector, dict)
+    assert collector["image"] == "otel/opentelemetry-collector-contrib:0.161.0"
 
 
 def test_validation_reports_service_and_topology_violations(

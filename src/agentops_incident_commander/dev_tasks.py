@@ -56,6 +56,9 @@ COMPOSE_PROFILES = (
     "--profile",
     "observability",
 )
+RUNTIME_ENVIRONMENT_KEYS = frozenset(
+    {"BIND_ADDRESS", "GATEWAY_PORT", "PROMETHEUS_PORT", "LOKI_PORT", "TEMPO_PORT"}
+)
 DOCKER_DAEMON = CommandSpec(
     "docker-daemon",
     ("docker", "info", "--format", "{{json .ServerVersion}}"),
@@ -73,9 +76,36 @@ def repository_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def runtime_environment_from_dotenv(root: Path) -> dict[str, str]:
+    """Read only non-secret runtime-check settings from the local Compose dotenv file."""
+    path = root / ".env"
+    if not path.is_file():
+        return {}
+    try:
+        content = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as error:
+        raise TaskConfigurationError("local .env cannot be read") from error
+    if len(content.encode("utf-8")) > 65_536:
+        raise TaskConfigurationError("local .env exceeds the size limit")
+
+    selected: dict[str, str] = {}
+    for line in content.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        name, value = stripped.split("=", 1)
+        if name in RUNTIME_ENVIRONMENT_KEYS:
+            if not value or value != value.strip() or value[0] in {'"', "'"}:
+                raise TaskConfigurationError(f"local .env has invalid runtime setting: {name}")
+            selected[name] = value
+    return selected
+
+
 def build_environment(root: Path, source: Mapping[str, str] | None = None) -> dict[str, str]:
     """Build a deterministic environment that keeps tool caches inside ignored paths."""
     environment = dict(os.environ if source is None else source)
+    for name, value in runtime_environment_from_dotenv(root).items():
+        environment.setdefault(name, value)
     environment["UV_CACHE_DIR"] = str(root / ".uv-cache")
     environment["UV_PROJECT_ENVIRONMENT"] = str(root / ".venv")
     environment["PRE_COMMIT_HOME"] = str(root / ".pre-commit-cache")
@@ -305,7 +335,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Run one allowlisted developer task."""
     arguments = build_parser().parse_args(argv)
     root = repository_root()
-    environment = build_environment(root)
+    try:
+        environment = build_environment(root)
+    except TaskConfigurationError as error:
+        print(f"[dev] configuration-error reason={error}", file=sys.stderr, flush=True)
+        return 2
     if arguments.task == "fault":
         from agentops_incident_commander import faults
 

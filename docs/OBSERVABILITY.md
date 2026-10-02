@@ -46,10 +46,10 @@ OTLP logs    -> Collector OTLP/HTTP exporter   -> Loki /otlp
 OTLP traces  -> Collector OTLP/HTTP exporter   -> Tempo :4318
 ```
 
-Prometheus, Loki, Tempo, and the Collector share only the internal observability network; the Collector additionally joins the internal simulator network to receive OTLP. No telemetry receiver is published to the host.
+Prometheus, Loki, Tempo, and the Collector share the internal observability network; the Collector additionally joins the internal simulator network to receive OTLP. No Collector receiver is published to the host. Prometheus, Loki, and Tempo also join a separate host-ingress network solely for their loopback-bound diagnostic/query ports; they never join Gateway ingress.
 
 ## Verification boundary
 
 Unit tests use in-memory exporters to assert trace hierarchy/propagation, metric names and attributes, log trace/span linkage, redaction boundaries, invalid configuration, disabled mode, exporter failure, and bounded shutdown. Static tests assert all service OTLP settings and all three Collector destinations.
 
-The Docker daemon was unavailable on the implementation host. Therefore no claim is made yet that a live Collector received data or that Prometheus/Loki/Tempo queries returned it. Those runtime checks remain part of Phase 1 startup/readiness and smoke-test work.
+The 2026-10-02 Phase 1 run observed the Collector scrape target as `up`, queried `simulator_http_server_requests_total` including the injected Order 500 and Gateway 502 series, listed Loki OTLP resource labels, and returned simulator traces from Tempo search. The exact functional evidence and limitations are recorded in `docs/PHASE_1_VERIFICATION.md`; this single run is not a throughput, retention, or reliability measurement.

@@ -152,7 +152,7 @@ services:
       POSTGRES_PASSWORD_FILE: /run/secrets/control_db_password
     secrets: [control_db_password]
     volumes:
-      - control_postgres_data:/var/lib/postgresql/data
+      - control_postgres_data:/var/lib/postgresql
     tmpfs:
       - /tmp:size=32m,mode=1777
       - /var/run/postgresql:size=16m,uid=70,gid=70,mode=3775
@@ -174,7 +174,7 @@ services:
       POSTGRES_PASSWORD_FILE: /run/secrets/simulator_db_password
     secrets: [simulator_db_password]
     volumes:
-      - simulator_postgres_data:/var/lib/postgresql/data
+      - simulator_postgres_data:/var/lib/postgresql
     tmpfs:
       - /tmp:size=32m,mode=1777
       - /var/run/postgresql:size=16m,uid=70,gid=70,mode=3775
@@ -235,7 +235,7 @@ services:
         published: ${PROMETHEUS_PORT:-9090}
         host_ip: ${BIND_ADDRESS:-127.0.0.1}
         protocol: tcp
-    networks: [observability]
+    networks: [observability, observability-ingress]
     healthcheck:
       test: [CMD, /bin/prometheus, --version]
       interval: 10s
@@ -261,7 +261,7 @@ services:
         published: ${LOKI_PORT:-3100}
         host_ip: ${BIND_ADDRESS:-127.0.0.1}
         protocol: tcp
-    networks: [observability]
+    networks: [observability, observability-ingress]
     healthcheck:
       test: [CMD, /usr/bin/loki, -version]
       interval: 10s
@@ -287,7 +287,7 @@ services:
         published: ${TEMPO_PORT:-3200}
         host_ip: ${BIND_ADDRESS:-127.0.0.1}
         protocol: tcp
-    networks: [observability]
+    networks: [observability, observability-ingress]
     healthcheck:
       test: [CMD, /tempo, -version]
       interval: 10s
@@ -297,7 +297,7 @@ services:
 
   otel-collector:
     <<: [*runtime-defaults, *small-resources]
-    image: otel/opentelemetry-collector-contrib:0.162.0
+    image: otel/opentelemetry-collector-contrib:0.161.0
     profiles: [observability]
     command: [--config=/etc/otelcol-contrib/config.yml]
     configs:
@@ -331,6 +331,8 @@ networks:
     internal: true
   observability:
     internal: true
+  observability-ingress:
+    internal: false
 
 volumes:
   control_postgres_data:

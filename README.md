@@ -2,7 +2,7 @@
 
 AgentOps Incident Commander is an evidence-driven platform for diagnosing microservice incidents and performing controlled recovery. It combines metrics, logs, traces, topology, and deployment history; a constrained Diagnosis Agent builds verifiable root-cause hypotheses; a constrained Remediation Agent proposes recovery only after a deterministic evidence gate passes. Deterministic policy, approval, execution, health verification, and failure routing retain authority over every state change.
 
-> Status: Phase 1A and Phase 1B are complete; Phase 1C implementation and in-process smoke coverage are complete. The reproducible workspace, guarded Compose topology, four-service simulator, PostgreSQL/Redis adapters, OpenTelemetry signals, deployment markers, bounded runtime controls, all six deterministic fault symptoms, and isolated Ground Truth are implemented. The Phase 1 exit claim remains pending because Docker Engine was unavailable for a live clean-start, telemetry-query, and scenario proof on the implementation host.
+> Status: Phase 1 is complete. The reproducible workspace, guarded Compose topology, four-service simulator, PostgreSQL/Redis adapters, OpenTelemetry signals, deployment markers, bounded runtime controls, six deterministic fault symptoms, isolated Ground Truth, in-process smoke suite, and live local Compose verification are implemented. The versioned [Phase 1 verification record](docs/PHASE_1_VERIFICATION.md) states the measured evidence and its limits; no production-scale or reliability claim is implied.
 
 ## Why this project exists
 
@@ -151,6 +151,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Simulator observability baseline](docs/OBSERVABILITY.md)
 - [Deterministic fault control](docs/FAULT_INJECTION.md)
 - [Evaluation-only Ground Truth](docs/GROUND_TRUTH.md)
+- [Phase 1 live verification](docs/PHASE_1_VERIFICATION.md)
 - [Architecture decisions](docs/ADR/README.md)
 - [Delivery plan](TODO.md)
 

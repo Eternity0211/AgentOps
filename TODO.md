@@ -2,7 +2,7 @@
 
 Checkboxes are completion claims. Check an item only when its acceptance criteria and listed verification pass. Record measured results in committed reports; do not invent numbers.
 
-> Implementation status: **approved**. Business implementation may begin only after all Phase 0 exit checks pass; the next batch starts at Phase 1A.
+> Implementation status: **approved**. Phase 0 and Phase 1 exit checks pass; the next batch starts at Phase 2.
 
 ## Execution protocol and dependency order
 
@@ -62,6 +62,7 @@ Verification: clean diff review, Markdown/link checks, secret scan, `git status`
 - [x] Define separate Ground Truth manifests for all six scenarios: cause, symptoms, key metrics/logs/traces, deployment change, automation eligibility, expected safe outcome/handoff reason, recovery action, verification, evaluator cleanup, and future-tool requirement.
 - [x] Enforce Ground Truth isolation through separate profile/path/network/credentials and canary leakage tests.
 - [x] Add simulator smoke tests and deterministic scenario setup/cleanup tests.
+- [x] Record a live clean-start, six-scenario reset, telemetry-query, final-health, and clean-shutdown verification run.
 
 Exit: Compose starts cleanly, each fault reproduces and resets, telemetry is queryable, and runtime/model paths cannot access Ground Truth.
 

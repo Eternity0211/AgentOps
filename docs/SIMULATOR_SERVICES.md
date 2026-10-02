@@ -25,6 +25,8 @@ The Redis-timeout fixture exercises the same configured adapter deadline but del
 
 The downstream-latency fixture delays only Payment authorization by a fixed three seconds. Order's internal two-second HTTP timeout bounds propagation to callers; health, readiness, and version endpoints remain responsive.
 
+The memory fixture retains one touched MiB per Order request up to 32 MiB, with a 64 MiB code-level ceiling and 512 MiB container limit. Process recreation is its complete cleanup boundary.
+
 Credentials are read only from mounted secret files. Connection strings, passwords, request payloads, and stock values are not logged. Each dependency operation emits one structured record with only `event`, `dependency`, `operation`, `result`, `duration_ms`, and the validated `correlation_id`. Adapter timeouts and connection failures map to stable HTTP 503 responses; insufficient inventory maps to HTTP 409. Internal exception text is not returned to clients.
 
 ## Correlation contract

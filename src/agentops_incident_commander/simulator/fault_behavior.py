@@ -10,7 +10,9 @@ from typing import Literal
 
 from agentops_incident_commander.simulator.app_types import ServiceName
 
-FaultScenario = Literal["http-500", "db-pool-exhaustion", "redis-timeout", "downstream-latency"]
+FaultScenario = Literal[
+    "http-500", "db-pool-exhaustion", "redis-timeout", "downstream-latency", "memory-leak"
+]
 RUN_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{5,63}$")
 
 
@@ -41,6 +43,7 @@ class FaultBehavior:
             "db-pool-exhaustion",
             "redis-timeout",
             "downstream-latency",
+            "memory-leak",
         }:
             raise ValueError("unsupported simulator fault scenario")
         if scenario == "redis-timeout":
@@ -58,8 +61,10 @@ class FaultBehavior:
             selected = "db-pool-exhaustion"
         elif scenario == "redis-timeout":
             selected = "redis-timeout"
-        else:
+        elif scenario == "downstream-latency":
             selected = "downstream-latency"
+        else:
+            selected = "memory-leak"
         return cls(scenario=selected, run_id=run_id)
 
     @property
@@ -81,3 +86,7 @@ class FaultBehavior:
     def delays_downstream(self) -> bool:
         """Select the fixed Payment response delay."""
         return self.scenario == "downstream-latency"
+
+    @property
+    def retains_memory(self) -> bool:
+        return self.scenario == "memory-leak"

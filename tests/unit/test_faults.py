@@ -132,6 +132,13 @@ def test_downstream_latency_overlay_targets_payment_without_deployment_change() 
     assert "DEPLOYMENT_ID" not in content
 
 
+def test_memory_leak_overlay_records_opaque_deployment_change() -> None:
+    content = faults._overlay(faults.FaultState.create("run-abcdef123456", "memory-leak"))
+    assert 'SERVICE_VERSION: "2.0.0"' in content
+    assert 'DEPLOYMENT_ID: "run-abcdef123456"' in content
+    assert "memory-leak" in content
+
+
 @pytest.mark.parametrize(
     ("effect", "expected"),
     [

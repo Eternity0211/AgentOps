@@ -17,6 +17,7 @@ from agentops_incident_commander.simulator.dependencies import (
     ReservationOutcome,
 )
 from agentops_incident_commander.simulator.fault_behavior import FaultBehavior
+from agentops_incident_commander.simulator.memory_fault import BoundedMemoryRetention
 from agentops_incident_commander.simulator.models import CheckoutRequest
 
 CHECKOUT = {
@@ -407,6 +408,24 @@ def test_database_pool_fault_composes_bounded_store_and_returns_503(
     assert [call[0] for call in caller.calls] == ["inventory", "payment"]
     assert version["version"] == "1.0.0"
     assert "db-pool-exhaustion" not in str(version)
+
+
+def test_memory_fault_retains_only_on_order_business_requests() -> None:
+    retention = BoundedMemoryRetention(chunk_bytes=4, limit_bytes=8)
+    client = TestClient(
+        simulator_app.create_app(
+            "order",
+            caller=FakeCaller(),
+            order_store=FakeOrderStore(),
+            fault_behavior=FaultBehavior("memory-leak", "run-abcdef123456"),
+            memory_retention=retention,
+        )
+    )
+    assert client.get("/healthz").status_code == 200
+    assert client.get("/readyz").status_code == 200
+    assert retention.retain().retained_bytes == 4
+    assert client.post("/v1/orders", json=CHECKOUT).status_code == 200
+    assert retention.retain().retained_bytes == 8
 
 
 def test_redis_timeout_fault_composes_inventory_store_and_returns_503(

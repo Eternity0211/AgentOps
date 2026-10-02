@@ -78,6 +78,15 @@ def test_downstream_latency_behavior_targets_payment() -> None:
     assert behavior.forces_internal_error is False
 
 
+def test_memory_retention_behavior_targets_order() -> None:
+    behavior = FaultBehavior.from_environment(
+        "order",
+        {"SIMULATOR_FAULT_SCENARIO": "memory-leak", "SIMULATOR_FAULT_RUN_ID": "run-abcdef123456"},
+    )
+    assert behavior == FaultBehavior("memory-leak", "run-abcdef123456")
+    assert behavior.retains_memory is True
+
+
 @pytest.mark.parametrize(
     ("service", "environment", "message"),
     [

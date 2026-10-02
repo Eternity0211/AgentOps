@@ -11,7 +11,7 @@ python scripts/dev.py fault clean
 python scripts/dev.py fault clean --run-id run-demo001
 ```
 
-Scenario names are a fixed allowlist: `http-500`, `db-pool-exhaustion`, `redis-timeout`, `downstream-latency`, `memory-leak`, and `bad-configuration`. A known name is not sufficient for activation: the controller rejects it until that scenario's symptom, cleanup, and tests are implemented and registered. This prevents a container restart from being falsely reported as an active fault. The first four scenarios are enabled; `memory-leak` and `bad-configuration` fail closed.
+Scenario names are a fixed allowlist: `http-500`, `db-pool-exhaustion`, `redis-timeout`, `downstream-latency`, `memory-leak`, and `bad-configuration`. A known name is not sufficient for activation: the controller rejects it until that scenario's symptom, cleanup, and tests are implemented and registered. Currently only `bad-configuration` remains disabled.
 
 Run IDs are generated as `run-` plus 12 hexadecimal characters, or supplied using the conservative `[a-z0-9][a-z0-9-]{5,63}` contract. They are correlation labels, not authorization tokens.
 
@@ -60,6 +60,12 @@ Cleanup force-recreates Inventory from the base Compose file, removing the two f
 The controller recreates only Payment and preserves its baseline version/deployment marker. Each authorization request awaits a fixed three seconds; health, readiness, and version requests are not delayed. Order's internal HTTP deadline is two seconds, so the request chain fails at a bounded upstream boundary rather than waiting indefinitely.
 
 Payment's server duration metric and Span expose the slow route, while Order observes a timed-out downstream client call. Neither signal includes the scenario name or run ID. The delay accepts no external duration, creates no background task, and consumes no memory beyond the request coroutine. Cleanup recreates Payment without the fault environment. This scenario is not rollback-eligible under ADR 0005 and expects diagnosis plus human handoff.
+
+### `memory-leak`
+
+The controller recreates Order as an opaque `2.0.0` deployment with the stable predecessor recorded. Each order request touches and retains one MiB, stopping permanently at 32 MiB—well below the container's 512 MiB limit and the code's absolute 64 MiB safety ceiling. Health, readiness, and version requests allocate nothing; normal order behavior continues.
+
+The active request Span and a structured event expose retained bytes, allocation count, and limit without the scenario or run label. Cleanup recreates Order, releasing all process-local allocations and restoring the baseline version. Per ADR 0005, rollback is eligible only when evidence proves this deployment introduced the growth and identifies its stable predecessor.
 
 Operational fault state contains no Ground Truth cause or evaluation label. Evaluation-only Ground Truth remains a later isolated artifact and must not be mounted or retrievable by simulator/control-plane runtime paths.
 

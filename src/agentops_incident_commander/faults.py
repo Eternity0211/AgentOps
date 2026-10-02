@@ -35,7 +35,7 @@ SCENARIO_TARGETS: dict[ScenarioName, str] = {
     "bad-configuration": "payment",
 }
 IMPLEMENTED_SCENARIOS: frozenset[ScenarioName] = frozenset(
-    {"http-500", "db-pool-exhaustion", "redis-timeout", "downstream-latency"}
+    {"http-500", "db-pool-exhaustion", "redis-timeout", "downstream-latency", "memory-leak"}
 )
 RUN_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{5,63}$")
 STATE_SCHEMA_VERSION = "1.0"
@@ -201,7 +201,7 @@ def _overlay(state: FaultState) -> str:
         f'      SIMULATOR_FAULT_SCENARIO: "{state.scenario}"\n'
         f'      SIMULATOR_FAULT_RUN_ID: "{state.run_id}"\n'
     )
-    if state.scenario == "http-500":
+    if state.scenario in {"http-500", "memory-leak"}:
         content += (
             '      SERVICE_VERSION: "2.0.0"\n'
             '      PREVIOUS_SERVICE_VERSION: "1.0.0"\n'

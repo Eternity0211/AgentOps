@@ -11,6 +11,7 @@ Each process uses a resource with `service.name=agentops-simulator-{role}`, pack
 - PostgreSQL and Redis spans contain dependency system, operation name, result status, and correlation ID. PostgreSQL spans also contain bounded pool size/idle observations, allowing saturation to be diagnosed without a Ground Truth label. They do not contain statements, credentials, order payloads, stock values, or exception text.
 - A Redis deadline records `error.type=timeout` on the dependency Span and a bounded structured timeout event containing dependency, operation, and timeout duration. Scenario/run labels and request data are excluded.
 - The Payment latency fixture is visible through the normal server duration histogram and Span timing; Order records the downstream client failure without any injected-cause label.
+- The bounded memory fixture records retained bytes, allocation count, and the hard limit on Order request Spans and in structured events, without cause labels.
 - `simulator.http.server.requests` counts completed requests using method, matched route, and status dimensions.
 - `simulator.http.server.duration` records milliseconds with the same bounded dimensions.
 - The `http_request` log record contains service, method, matched route, status, duration, and correlation ID. The SDK binds its trace and span IDs from the active request context.

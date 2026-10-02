@@ -28,6 +28,7 @@ from agentops_incident_commander.simulator.dependencies import (
 )
 from agentops_incident_commander.simulator.deployment import DeploymentMarker
 from agentops_incident_commander.simulator.fault_behavior import FaultBehavior
+from agentops_incident_commander.simulator.memory_fault import BoundedMemoryRetention
 from agentops_incident_commander.simulator.models import CheckoutRequest
 from agentops_incident_commander.simulator.telemetry import (
     SimulatorTelemetry,
@@ -167,6 +168,7 @@ def create_app(
     deployment_marker: DeploymentMarker | None = None,
     fault_behavior: FaultBehavior | None = None,
     sleeper: Callable[[float], Awaitable[None]] | None = None,
+    memory_retention: BoundedMemoryRetention | None = None,
 ) -> FastAPI:
     """Create one role-specific simulator application."""
     selected_telemetry = telemetry or create_telemetry(service)
@@ -217,6 +219,11 @@ def create_app(
     downstream = caller or _default_caller(selected_telemetry)
     new_correlation = correlation_factory or (lambda: str(uuid4()))
     selected_sleep = sleeper or asyncio.sleep
+    selected_memory = memory_retention or (
+        BoundedMemoryRetention()
+        if selected_fault is not None and selected_fault.retains_memory
+        else None
+    )
 
     @app.middleware("http")
     async def correlation_middleware(
@@ -331,6 +338,8 @@ def create_app(
             assert selected_order_store is not None
             if selected_fault is not None and selected_fault.forces_internal_error:
                 raise HTTPException(status_code=500, detail="internal server error")
+            if selected_memory is not None:
+                selected_memory.retain()
             correlation_id = _correlation_id(request)
             payload = checkout.model_dump(mode="json")
             reservation = await downstream.post(

@@ -8,7 +8,7 @@ import logging
 import os
 import time
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from contextlib import AbstractAsyncContextManager
+from contextlib import AbstractAsyncContextManager, suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, cast
@@ -74,6 +74,10 @@ class PgPool(Protocol):
     """Subset of asyncpg pool behavior used by the adapter."""
 
     def acquire(self) -> AbstractAsyncContextManager[PgConnection]: ...
+
+    def get_size(self) -> int: ...
+
+    def get_idle_size(self) -> int: ...
 
     async def close(self) -> None: ...
 
@@ -159,6 +163,7 @@ class PostgresOrderStore:
         environment: Mapping[str, str] | None = None,
         *,
         tracer: Tracer | None = None,
+        exhaust_pool: bool = False,
     ) -> None:
         source = os.environ if environment is None else environment
         self._host = source.get("SIMULATOR_DB_HOST", "simulator-postgres")
@@ -169,8 +174,12 @@ class PostgresOrderStore:
             "SIMULATOR_DB_PASSWORD_FILE", "/run/secrets/simulator_db_password"
         )
         self._timeout = float(source.get("DEPENDENCY_TIMEOUT_SECONDS", "2"))
+        self._pool_max_size = 5
         self._pool: PgPool | None = None
         self._pool_lock = asyncio.Lock()
+        self._exhaust_pool = exhaust_pool
+        self._exhaustion_lock = asyncio.Lock()
+        self._held_connections: list[AbstractAsyncContextManager[PgConnection]] = []
         self._tracer = tracer
 
     async def _get_pool(self) -> PgPool:
@@ -187,7 +196,7 @@ class PostgresOrderStore:
                                 user=self._user,
                                 password=password,
                                 min_size=1,
-                                max_size=5,
+                                max_size=self._pool_max_size,
                                 command_timeout=self._timeout,
                             ),
                             timeout=self._timeout,
@@ -197,17 +206,71 @@ class PostgresOrderStore:
                     self._pool = cast(PgPool, pool)
         return self._pool
 
+    async def _activate_pool_exhaustion(self, pool: PgPool) -> None:
+        if not self._exhaust_pool or self._held_connections:
+            return
+        async with self._exhaustion_lock:
+            if self._held_connections:
+                return
+            try:
+                for _ in range(self._pool_max_size):
+                    manager = pool.acquire()
+                    await asyncio.wait_for(manager.__aenter__(), timeout=self._timeout)
+                    self._held_connections.append(manager)
+            except (asyncpg.PostgresError, OSError, TimeoutError) as error:
+                with suppress(DependencyUnavailable):
+                    await self._release_held_connections()
+                raise DependencyUnavailable("postgres pool saturation failed") from error
+
+    async def _release_held_connections(self) -> None:
+        first_error: Exception | None = None
+        while self._held_connections:
+            manager = self._held_connections.pop()
+            try:
+                await manager.__aexit__(None, None, None)
+            except Exception as error:  # external driver cleanup must not skip later holders
+                if first_error is None:
+                    first_error = error
+        if first_error is not None:
+            raise DependencyUnavailable("postgres pool release failed") from first_error
+
+    async def _acquire_and_run[ResultT](
+        self,
+        pool: PgPool,
+        operation: Callable[[PgConnection], Awaitable[ResultT]],
+    ) -> ResultT:
+        async with pool.acquire() as connection:
+            return await operation(connection)
+
     async def _with_connection[ResultT](
         self, operation: Callable[[PgConnection], Awaitable[ResultT]]
     ) -> ResultT:
         pool = await self._get_pool()
+        await self._activate_pool_exhaustion(pool)
+        span = trace.get_current_span()
+        span.set_attribute("db.client.connection.pool.size", pool.get_size())
+        span.set_attribute("db.client.connection.pool.idle", pool.get_idle_size())
         try:
-            async with pool.acquire() as connection:
-                return cast(
-                    ResultT,
-                    await asyncio.wait_for(operation(connection), timeout=self._timeout),
+            return cast(
+                ResultT,
+                await asyncio.wait_for(
+                    self._acquire_and_run(pool, operation), timeout=self._timeout
+                ),
+            )
+        except TimeoutError as error:
+            logger.warning(
+                json.dumps(
+                    {
+                        "event": "dependency_pool_acquire_timeout",
+                        "dependency": "postgres",
+                        "pool_size": pool.get_size(),
+                        "pool_idle": pool.get_idle_size(),
+                    },
+                    sort_keys=True,
                 )
-        except (asyncpg.PostgresError, OSError, TimeoutError) as error:
+            )
+            raise DependencyUnavailable("postgres operation failed") from error
+        except (asyncpg.PostgresError, OSError) as error:
             raise DependencyUnavailable("postgres operation failed") from error
 
     async def ready(self, correlation_id: str) -> None:
@@ -245,8 +308,12 @@ class PostgresOrderStore:
 
     async def close(self) -> None:
         if self._pool is not None:
-            await self._pool.close()
-            self._pool = None
+            pool = self._pool
+            try:
+                await self._release_held_connections()
+            finally:
+                await pool.close()
+                self._pool = None
 
 
 RESERVE_SCRIPT = """

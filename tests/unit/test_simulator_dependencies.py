@@ -75,6 +75,62 @@ class FakePool:
             raise self.acquire_failure
         yield self.connection
 
+    def get_size(self) -> int:
+        return 1
+
+    def get_idle_size(self) -> int:
+        return 1
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+class BoundedFakePool:
+    """Model a five-slot asyncpg pool closely enough to prove saturation and release."""
+
+    def __init__(
+        self,
+        *,
+        fail_after: int | None = None,
+        pause_first: bool = False,
+        fail_release: bool = False,
+    ) -> None:
+        self.connection = FakeConnection()
+        self.capacity = 5
+        self._semaphore = asyncio.Semaphore(self.capacity)
+        self.fail_after = fail_after
+        self.pause_first = pause_first
+        self.fail_release = fail_release
+        self.first_started = asyncio.Event()
+        self.first_release = asyncio.Event()
+        self.entered = 0
+        self.active = 0
+        self.closed = False
+
+    @asynccontextmanager
+    async def acquire(self) -> AsyncIterator[FakeConnection]:
+        if self.fail_after is not None and self.entered >= self.fail_after:
+            raise OSError("acquire failed")
+        self.entered += 1
+        if self.pause_first and self.entered == 1:
+            self.first_started.set()
+            await self.first_release.wait()
+        await self._semaphore.acquire()
+        self.active += 1
+        try:
+            yield self.connection
+        finally:
+            self.active -= 1
+            self._semaphore.release()
+            if self.fail_release:
+                raise OSError("release failed")
+
+    def get_size(self) -> int:
+        return self.capacity
+
+    def get_idle_size(self) -> int:
+        return self.capacity - self.active
+
     async def close(self) -> None:
         self.closed = True
 
@@ -277,6 +333,107 @@ async def test_postgres_maps_timeout_and_operation_failure(
     store._pool = pool
     with pytest.raises(dependencies.DependencyUnavailable, match="operation failed"):
         await store.ready("corr-fail")
+
+
+@pytest.mark.anyio
+async def test_postgres_pool_exhaustion_is_bounded_observable_and_released(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The fault holds exactly five slots, times out acquisition, and releases on close."""
+    pool = BoundedFakePool()
+    store = dependencies.PostgresOrderStore(
+        {"DEPENDENCY_TIMEOUT_SECONDS": "0.001"}, exhaust_pool=True
+    )
+    store._pool = pool
+    caplog.set_level(logging.INFO, logger="agentops.simulator.dependencies")
+
+    with pytest.raises(dependencies.DependencyUnavailable, match="operation failed"):
+        await store.ready("corr-exhausted")
+
+    assert pool.active == pool.get_size() == 5
+    assert pool.get_idle_size() == 0
+    pool_event = next(
+        json.loads(record.message)
+        for record in caplog.records
+        if "dependency_pool_acquire_timeout" in record.message
+    )
+    assert pool_event == {
+        "dependency": "postgres",
+        "event": "dependency_pool_acquire_timeout",
+        "pool_idle": 0,
+        "pool_size": 5,
+    }
+    assert "db-pool-exhaustion" not in caplog.text
+
+    await store.close()
+    assert pool.active == 0
+    assert pool.closed is True
+
+
+@pytest.mark.anyio
+async def test_postgres_pool_exhaustion_activation_is_single_and_repeatable() -> None:
+    """Concurrent probes share one fixed set of held connections without growth."""
+    pool = BoundedFakePool()
+    store = dependencies.PostgresOrderStore(
+        {"DEPENDENCY_TIMEOUT_SECONDS": "0.001"}, exhaust_pool=True
+    )
+    store._pool = pool
+
+    results = await asyncio.gather(
+        store.ready("corr-one"), store.ready("corr-two"), return_exceptions=True
+    )
+
+    assert all(isinstance(result, dependencies.DependencyUnavailable) for result in results)
+    assert pool.active == 5
+    assert pool.entered == 7
+    await store.close()
+
+
+@pytest.mark.anyio
+async def test_postgres_pool_exhaustion_serializes_first_activation() -> None:
+    """A second initializer rechecks state after waiting for the activation lock."""
+    pool = BoundedFakePool(pause_first=True)
+    store = dependencies.PostgresOrderStore({"DEPENDENCY_TIMEOUT_SECONDS": "1"}, exhaust_pool=True)
+    store._pool = pool
+
+    first = asyncio.create_task(store._activate_pool_exhaustion(pool))
+    await pool.first_started.wait()
+    second = asyncio.create_task(store._activate_pool_exhaustion(pool))
+    pool.first_release.set()
+    await asyncio.gather(first, second)
+
+    assert pool.entered == pool.active == 5
+    await store.close()
+
+
+@pytest.mark.anyio
+async def test_postgres_pool_exhaustion_partial_activation_releases_slots() -> None:
+    """A driver failure while filling the pool cannot leak the slots already acquired."""
+    pool = BoundedFakePool(fail_after=2)
+    store = dependencies.PostgresOrderStore({"DEPENDENCY_TIMEOUT_SECONDS": "1"}, exhaust_pool=True)
+    store._pool = pool
+
+    with pytest.raises(dependencies.DependencyUnavailable, match="saturation failed"):
+        await store.ready("corr-partial")
+
+    assert pool.active == 0
+    await store.close()
+
+
+@pytest.mark.anyio
+async def test_postgres_pool_release_attempts_every_holder_before_failing() -> None:
+    """Driver release errors are reported only after every held slot is attempted."""
+    pool = BoundedFakePool(fail_release=True)
+    store = dependencies.PostgresOrderStore({"DEPENDENCY_TIMEOUT_SECONDS": "1"}, exhaust_pool=True)
+    store._pool = pool
+    await store._activate_pool_exhaustion(pool)
+
+    with pytest.raises(dependencies.DependencyUnavailable, match="pool release failed"):
+        await store.close()
+
+    assert pool.active == 0
+    assert pool.closed is True
+    assert store._pool is None
 
 
 @pytest.mark.anyio

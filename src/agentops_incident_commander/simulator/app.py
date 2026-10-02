@@ -170,7 +170,13 @@ def create_app(
     selected_deployment = deployment_marker or DeploymentMarker.from_environment(service)
     selected_fault = fault_behavior or FaultBehavior.from_environment(service)
     selected_order_store = (
-        (order_store or PostgresOrderStore(tracer=selected_telemetry.tracer))
+        (
+            order_store
+            or PostgresOrderStore(
+                tracer=selected_telemetry.tracer,
+                exhaust_pool=(selected_fault is not None and selected_fault.exhausts_database_pool),
+            )
+        )
         if service == "order"
         else None
     )

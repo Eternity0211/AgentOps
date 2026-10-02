@@ -347,6 +347,42 @@ def test_http_500_overlay_environment_links_fault_and_deployment(
     assert response.status_code == 500
 
 
+def test_database_pool_fault_composes_bounded_store_and_returns_503(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Order remains live while readiness and persistence expose database unavailability."""
+    caller = FakeCaller()
+    store = FakeOrderStore()
+    store.failure = DependencyUnavailable("pool exhausted")
+    captured: dict[str, object] = {}
+
+    def create_store(*, tracer: object, exhaust_pool: bool) -> FakeOrderStore:
+        captured.update(tracer=tracer, exhaust_pool=exhaust_pool)
+        return store
+
+    monkeypatch.setattr(simulator_app, "PostgresOrderStore", create_store)
+    app = simulator_app.create_app(
+        "order",
+        caller=caller,
+        fault_behavior=FaultBehavior("db-pool-exhaustion", "run-abcdef123456"),
+    )
+    client = TestClient(app)
+
+    health = client.get("/healthz")
+    ready = client.get("/readyz")
+    response = client.post("/v1/orders", json=CHECKOUT)
+    version = client.get("/versionz").json()
+
+    assert captured["exhaust_pool"] is True
+    assert health.status_code == 200
+    assert ready.status_code == 503
+    assert response.status_code == 503
+    assert response.json() == {"detail": "order dependency unavailable"}
+    assert [call[0] for call in caller.calls] == ["inventory", "payment"]
+    assert version["version"] == "1.0.0"
+    assert "db-pool-exhaustion" not in str(version)
+
+
 @pytest.mark.parametrize("service", ["order", "inventory"])
 def test_dependency_unavailability_fails_readiness(service: simulator_app.ServiceName) -> None:
     """Dependency-aware readiness fails closed without exposing adapter details."""

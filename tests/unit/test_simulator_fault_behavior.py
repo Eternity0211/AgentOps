@@ -24,6 +24,22 @@ def test_http_500_behavior_requires_order_and_safe_run_id() -> None:
 
     assert behavior == FaultBehavior("http-500", "run-abcdef123456")
     assert behavior.forces_internal_error is True
+    assert behavior.exhausts_database_pool is False
+
+
+def test_database_pool_behavior_is_a_distinct_typed_effect() -> None:
+    """Pool saturation cannot accidentally enable the deployment failure branch."""
+    behavior = FaultBehavior.from_environment(
+        "order",
+        {
+            "SIMULATOR_FAULT_SCENARIO": "db-pool-exhaustion",
+            "SIMULATOR_FAULT_RUN_ID": "run-abcdef123456",
+        },
+    )
+
+    assert behavior == FaultBehavior("db-pool-exhaustion", "run-abcdef123456")
+    assert behavior.forces_internal_error is False
+    assert behavior.exhausts_database_pool is True
 
 
 @pytest.mark.parametrize(
@@ -48,6 +64,14 @@ def test_http_500_behavior_requires_order_and_safe_run_id() -> None:
             "payment",
             {
                 "SIMULATOR_FAULT_SCENARIO": "http-500",
+                "SIMULATOR_FAULT_RUN_ID": "run-abcdef123456",
+            },
+            "only target Order",
+        ),
+        (
+            "inventory",
+            {
+                "SIMULATOR_FAULT_SCENARIO": "db-pool-exhaustion",
                 "SIMULATOR_FAULT_RUN_ID": "run-abcdef123456",
             },
             "only target Order",

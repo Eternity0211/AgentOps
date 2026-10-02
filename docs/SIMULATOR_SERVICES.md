@@ -17,7 +17,7 @@ Every service exposes `/healthz`, `/readyz`, and `/versionz`. Health proves that
 
 ## Data dependency contract
 
-Order creates `simulator_orders` on first use and inserts with `ON CONFLICT (order_id) DO NOTHING`. Its response includes `created=true` for the first row and `created=false` for an existing `order_id`; no duplicate row is created. The database pool is lazy, bounded to five connections, and all connect/command paths have a configured deadline.
+Order creates `simulator_orders` on first use and inserts with `ON CONFLICT (order_id) DO NOTHING`. Its response includes `created=true` for the first row and `created=false` for an existing `order_id`; no duplicate row is created. The database pool is lazy, bounded to five connections, and pool acquisition, connection setup, and command paths all have a configured deadline. The pool-exhaustion fixture holds exactly those five slots, exposes size/idle observations, and releases them during shutdown.
 
 Inventory executes one Redis Lua script. The script first verifies all requested SKU quantities, only then decrements stock, and finally records the reservation with a one-hour TTL. An insufficient line therefore cannot leave earlier lines partially decremented. A repeated `order_id` returns the existing `res-{order_id}` as `already_reserved` without decrementing stock again. Initial stock is deterministic at 100 units per SKU for the Phase 1 simulator.
 

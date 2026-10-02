@@ -8,7 +8,7 @@ Each process uses a resource with `service.name=agentops-simulator-{role}`, pack
 
 - Server spans use the matched FastAPI route, HTTP method/status, and validated correlation ID. Unknown paths collapse to `unmatched`; query strings and request/response bodies are never attributes.
 - Internal HTTP client spans identify only the allowlisted destination service, method, and route. W3C `traceparent` is propagated together with `X-Correlation-ID`.
-- PostgreSQL and Redis spans contain dependency system, operation name, result status, and correlation ID. They do not contain statements, credentials, order payloads, stock values, or exception text.
+- PostgreSQL and Redis spans contain dependency system, operation name, result status, and correlation ID. PostgreSQL spans also contain bounded pool size/idle observations, allowing saturation to be diagnosed without a Ground Truth label. They do not contain statements, credentials, order payloads, stock values, or exception text.
 - `simulator.http.server.requests` counts completed requests using method, matched route, and status dimensions.
 - `simulator.http.server.duration` records milliseconds with the same bounded dimensions.
 - The `http_request` log record contains service, method, matched route, status, duration, and correlation ID. The SDK binds its trace and span IDs from the active request context.
@@ -30,7 +30,7 @@ Compose enables the SDK for all four roles and supplies only non-secret settings
 
 The application expands the base endpoint to `/v1/traces`, `/v1/metrics`, and `/v1/logs`, following the official [OTLP exporter endpoint convention](https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/). The selected SDK is OpenTelemetry Python 1.45.0; traces and metrics are stable while the upstream Python logs signal remains under development, as documented in the official [Python signal status](https://opentelemetry.io/docs/languages/python/).
 
-Deployment marker values use a conservative character set and fixed size limits. `SERVICE_VERSION`, `DEPLOYMENT_ID`, and optional `PREVIOUS_SERVICE_VERSION` cannot contain whitespace, newlines, paths, or arbitrary log text. Compose gives every baseline service a unique deployment ID. Later fault commands must create a new ID and set the prior version explicitly rather than rewriting telemetry after the fact.
+Deployment marker values use a conservative character set and fixed size limits. `SERVICE_VERSION`, `DEPLOYMENT_ID`, and optional `PREVIOUS_SERVICE_VERSION` cannot contain whitespace, newlines, paths, or arbitrary log text. Compose gives every baseline service a unique deployment ID. Deployment-changing fault commands must create a new ID and set the prior version explicitly rather than rewriting telemetry after the fact; resource and dependency faults preserve the baseline marker.
 
 ## Collector routes
 

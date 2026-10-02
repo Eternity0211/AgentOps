@@ -34,7 +34,7 @@ SCENARIO_TARGETS: dict[ScenarioName, str] = {
     "memory-leak": "order",
     "bad-configuration": "payment",
 }
-IMPLEMENTED_SCENARIOS: frozenset[ScenarioName] = frozenset({"http-500"})
+IMPLEMENTED_SCENARIOS: frozenset[ScenarioName] = frozenset({"http-500", "db-pool-exhaustion"})
 RUN_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{5,63}$")
 STATE_SCHEMA_VERSION = "1.0"
 RUNTIME_DIRECTORY = Path("data/runtime")
@@ -192,17 +192,20 @@ def _read_state(path: Path) -> FaultState | None:
 
 
 def _overlay(state: FaultState) -> str:
-    fault_version = "2.0.0"
-    return (
+    content = (
         "services:\n"
         f"  {state.target_service}:\n"
         "    environment:\n"
         f'      SIMULATOR_FAULT_SCENARIO: "{state.scenario}"\n'
         f'      SIMULATOR_FAULT_RUN_ID: "{state.run_id}"\n'
-        f'      SERVICE_VERSION: "{fault_version}"\n'
-        '      PREVIOUS_SERVICE_VERSION: "1.0.0"\n'
-        f'      DEPLOYMENT_ID: "{state.run_id}"\n'
     )
+    if state.scenario == "http-500":
+        content += (
+            '      SERVICE_VERSION: "2.0.0"\n'
+            '      PREVIOUS_SERVICE_VERSION: "1.0.0"\n'
+            f'      DEPLOYMENT_ID: "{state.run_id}"\n'
+        )
+    return content
 
 
 def _compose_apply(root: Path, overlay: Path, target: str) -> tuple[str, ...]:

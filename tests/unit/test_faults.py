@@ -94,6 +94,19 @@ def test_overlay_and_compose_commands_are_bounded(tmp_path: Path) -> None:
     assert reset_command[-1] == "order"
 
 
+def test_pool_exhaustion_overlay_preserves_baseline_deployment() -> None:
+    """A resource fault must not create a false version-change explanation."""
+    state = faults.FaultState.create("run-abcdef123456", "db-pool-exhaustion")
+
+    content = faults._overlay(state)
+
+    assert 'SIMULATOR_FAULT_SCENARIO: "db-pool-exhaustion"' in content
+    assert 'SIMULATOR_FAULT_RUN_ID: "run-abcdef123456"' in content
+    assert "SERVICE_VERSION" not in content
+    assert "PREVIOUS_SERVICE_VERSION" not in content
+    assert "DEPLOYMENT_ID" not in content
+
+
 @pytest.mark.parametrize(
     ("effect", "expected"),
     [

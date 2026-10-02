@@ -61,7 +61,7 @@ Verification: clean diff review, Markdown/link checks, secret scan, `git status`
 - [x] Implement bad-configuration scenario.
 - [x] Define separate Ground Truth manifests for all six scenarios: cause, symptoms, key metrics/logs/traces, deployment change, automation eligibility, expected safe outcome/handoff reason, recovery action, verification, evaluator cleanup, and future-tool requirement.
 - [x] Enforce Ground Truth isolation through separate profile/path/network/credentials and canary leakage tests.
-- [ ] Add simulator smoke tests and deterministic scenario setup/cleanup tests.
+- [x] Add simulator smoke tests and deterministic scenario setup/cleanup tests.
 
 Exit: Compose starts cleanly, each fault reproduces and resets, telemetry is queryable, and runtime/model paths cannot access Ground Truth.
 

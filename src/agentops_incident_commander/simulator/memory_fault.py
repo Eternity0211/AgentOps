@@ -38,6 +38,10 @@ class BoundedMemoryRetention:
         self._chunks: list[bytearray] = []
         self._retained_bytes = 0
 
+    def snapshot(self) -> RetentionSnapshot:
+        """Return bounded observable state without exposing retained allocations."""
+        return RetentionSnapshot(self._retained_bytes, self._limit_bytes, len(self._chunks))
+
     def retain(self) -> RetentionSnapshot:
         remaining = self._limit_bytes - self._retained_bytes
         if remaining > 0:
@@ -45,7 +49,7 @@ class BoundedMemoryRetention:
             marker = (len(self._chunks) % 251) + 1
             self._chunks.append(bytearray([marker]) * size)
             self._retained_bytes += size
-        snapshot = RetentionSnapshot(self._retained_bytes, self._limit_bytes, len(self._chunks))
+        snapshot = self.snapshot()
         attributes = {
             "process.memory.retained_bytes": snapshot.retained_bytes,
             "process.memory.retention_limit_bytes": snapshot.limit_bytes,

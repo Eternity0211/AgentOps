@@ -42,3 +42,14 @@ def test_memory_retention_grows_then_stops_at_limit(caplog: pytest.LogCaptureFix
     assert event["process.memory.retained_bytes"] == 10
     assert event["process.memory.retention_limit_bytes"] == 10
     assert "memory-leak" not in caplog.text
+
+
+def test_snapshot_observes_state_without_allocating() -> None:
+    retention = BoundedMemoryRetention(chunk_bytes=4, limit_bytes=8)
+
+    before = retention.snapshot()
+    retention.retain()
+    after = retention.snapshot()
+
+    assert before == RetentionSnapshot(retained_bytes=0, limit_bytes=8, allocation_count=0)
+    assert after == RetentionSnapshot(retained_bytes=4, limit_bytes=8, allocation_count=1)

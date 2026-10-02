@@ -53,6 +53,15 @@ def test_single_tasks_resolve_to_allowlisted_commands(task: str, expected_label:
     assert isinstance(commands[0].argv, tuple)
 
 
+def test_smoke_suite_is_bounded_and_does_not_weaken_the_full_gate() -> None:
+    """The focused smoke command owns a folder while quality still runs every test."""
+    command = dev_tasks.command_specs("test", suite="smoke")[0]
+
+    assert command.label == "smoke-tests"
+    assert command.argv[-3:] == ("pytest", "--no-cov", "tests/smoke")
+    assert dev_tasks.QUALITY_COMMANDS[6].argv == ("uv", "run", "--frozen", "pytest")
+
+
 def test_format_write_is_explicit() -> None:
     """Formatting defaults to check-only and mutates files only with --write."""
     check_command = dev_tasks.command_specs("format")[0]

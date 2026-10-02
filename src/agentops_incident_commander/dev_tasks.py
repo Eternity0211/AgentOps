@@ -132,11 +132,19 @@ def command_specs(
             ),
         )
     if task == "test":
-        if suite != "unit":
-            raise TaskConfigurationError(
-                f"test suite '{suite}' is not implemented yet; available suite: unit"
+        if suite == "unit":
+            return (CommandSpec("tests", ("uv", "run", "--frozen", "pytest"), 120),)
+        if suite == "smoke":
+            return (
+                CommandSpec(
+                    "smoke-tests",
+                    ("uv", "run", "--frozen", "pytest", "--no-cov", "tests/smoke"),
+                    120,
+                ),
             )
-        return (CommandSpec("tests", ("uv", "run", "--frozen", "pytest"), 120),)
+        raise TaskConfigurationError(
+            f"test suite '{suite}' is not implemented yet; available suites: unit, smoke"
+        )
     if task == "docs":
         return (
             CommandSpec(
@@ -286,9 +294,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--write", action="store_true", help="Apply formatting changes.")
     parser.add_argument(
         "--suite",
-        choices=("unit", "e2e"),
+        choices=("unit", "smoke", "e2e"),
         default="unit",
-        help="Test suite to run; e2e is reserved until its phase is implemented.",
+        help="Test suite to run; smoke is in-process and e2e remains reserved.",
     )
     return parser
 

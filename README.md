@@ -2,7 +2,7 @@
 
 AgentOps Incident Commander is an evidence-driven platform for diagnosing microservice incidents and performing controlled recovery. It combines metrics, logs, traces, topology, and deployment history; a constrained Diagnosis Agent builds verifiable root-cause hypotheses; a constrained Remediation Agent proposes recovery only after a deterministic evidence gate passes. Deterministic policy, approval, execution, health verification, and failure routing retain authority over every state change.
 
-> Status: Phase 1A and Phase 1B are complete; Phase 1C is in progress. The reproducible workspace, guarded Compose topology, four-service simulator, PostgreSQL/Redis adapters, OpenTelemetry signals, deployment markers, bounded runtime controls, and all six deterministic fault symptoms are implemented. A live clean-start/scenario proof is still pending because Docker Engine was unavailable on the implementation host.
+> Status: Phase 1A and Phase 1B are complete; Phase 1C implementation and in-process smoke coverage are complete. The reproducible workspace, guarded Compose topology, four-service simulator, PostgreSQL/Redis adapters, OpenTelemetry signals, deployment markers, bounded runtime controls, all six deterministic fault symptoms, and isolated Ground Truth are implemented. The Phase 1 exit claim remains pending because Docker Engine was unavailable for a live clean-start, telemetry-query, and scenario proof on the implementation host.
 
 ## Why this project exists
 
@@ -61,7 +61,7 @@ python scripts/dev.py down
 
 `up` validates the static Compose contract and Docker daemon, builds/starts with Compose `--wait`, then checks Gateway readiness/version, Prometheus/Loki/Tempo readiness, and the Collector's Prometheus target. A post-start failure automatically stops partial containers without deleting named volumes. `status` repeats the observable health contract. `down` removes containers and orphans but deliberately does not remove persistent volumes.
 
-The fault controller syntax and safe state/cleanup framework are available for all six scenarios. E2E and evaluation commands remain reserved:
+The fault controller syntax and safe state/cleanup framework are available for all six scenarios. The focused in-process smoke suite verifies the four-service baseline, each fault symptom, and restoration to a fresh baseline without requiring Docker. Container E2E and evaluation commands remain reserved:
 
 ```text
 python scripts/dev.py fault inject --scenario http-500
@@ -71,6 +71,7 @@ python scripts/dev.py fault inject --scenario downstream-latency
 python scripts/dev.py fault inject --scenario memory-leak
 python scripts/dev.py fault inject --scenario bad-configuration
 python scripts/dev.py fault clean
+python scripts/dev.py test --suite smoke
 python scripts/dev.py test --suite e2e
 python scripts/dev.py eval --model mock
 ```
@@ -114,6 +115,7 @@ python scripts/dev.py architecture
 python scripts/dev.py compose
 python scripts/dev.py typecheck
 python scripts/dev.py test --suite unit
+python scripts/dev.py test --suite smoke
 python scripts/dev.py docs
 python scripts/dev.py build
 python scripts/dev.py pre-commit
@@ -122,7 +124,7 @@ python scripts/dev.py status
 python scripts/dev.py down
 ```
 
-The runner never forwards arbitrary shell text: every task maps to an immutable argument list, runs without a shell, has a timeout, stops on first failure, and emits start/pass/fail timing lines. The `architecture` task rejects domain imports of FastAPI, SQLAlchemy, LangGraph/LangChain, model-provider SDKs, or higher internal layers. Future fault, E2E, and evaluation tasks remain unavailable until their implementation phases.
+The runner never forwards arbitrary shell text: every task maps to an immutable argument list, runs without a shell, has a timeout, stops on first failure, and emits start/pass/fail timing lines. The `architecture` task rejects domain imports of FastAPI, SQLAlchemy, LangGraph/LangChain, model-provider SDKs, or higher internal layers. The smoke suite is deliberately in-process; E2E and evaluation tasks remain unavailable until their implementation phases.
 
 ## Compose foundation
 

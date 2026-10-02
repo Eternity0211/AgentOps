@@ -77,4 +77,8 @@ Operational fault state contains no Ground Truth cause or evaluation label. Eval
 
 ## Verification boundary
 
-Unit tests cover state corruption, command construction, subprocess refusal/timeout, injection replay, conflicting runs, failed apply, repeatable cleanup, failed cleanup retry, run matching, Windows/POSIX lock acquisition and contention, and CLI validation. Docker Engine was unavailable on the implementation host, so no real scenario activation is claimed by this framework batch.
+Run `python scripts/dev.py test --suite smoke` for the fast, Docker-independent contract. It verifies all four baseline service roles, each scenario's bounded HTTP symptom, health/readiness behavior, fixed latency, bounded retained-memory growth, and reconstruction of a healthy fresh baseline after every case.
+
+Unit tests cover state corruption, command construction, subprocess refusal/timeout, injection replay, conflicting runs, failed apply, repeatable cleanup, failed cleanup retry, run matching, Windows/POSIX lock acquisition and contention, and CLI validation. They also drive every scenario through setup, typed state/overlay generation, target-specific Compose arguments, and cleanup.
+
+The smoke suite uses in-memory dependency boundaries and does not claim that containers, PostgreSQL, Redis, Prometheus, Loki, Tempo, or the Collector ran. Docker Engine was unavailable on the implementation host, so the Phase 1 exit still requires the live Compose scenario and telemetry-query proof.

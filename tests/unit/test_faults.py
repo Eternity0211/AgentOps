@@ -283,6 +283,36 @@ def test_clean_restores_baseline_and_is_repeatable(
     assert "clean no-active-fault" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize("scenario", sorted(faults.IMPLEMENTED_SCENARIOS))
+def test_every_scenario_setup_and_cleanup_cycle_is_deterministic(
+    tmp_path: Path, scenario: faults.ScenarioName
+) -> None:
+    """Each allowlisted scenario writes one typed overlay and restores base Compose."""
+    commands: list[tuple[str, ...]] = []
+
+    def runner(argv: tuple[str, ...], root: Path, environment: Any) -> int:
+        commands.append(argv)
+        return 0
+
+    run_id = f"run-{scenario.replace('-', '')[:12]}"
+    assert faults.inject(scenario, root=tmp_path, environment={}, run_id=run_id, runner=runner) == 0
+    state_path, overlay_path, _ = faults._paths(tmp_path)
+    active = faults.FaultState.from_json(state_path.read_text(encoding="utf-8"))
+    overlay = overlay_path.read_text(encoding="utf-8")
+
+    assert active.scenario == scenario
+    assert active.status == "active"
+    assert active.target_service == faults.SCENARIO_TARGETS[scenario]
+    assert f'SIMULATOR_FAULT_SCENARIO: "{scenario}"' in overlay
+    assert faults.clean(root=tmp_path, environment={}, run_id=run_id, runner=runner) == 0
+    assert not state_path.exists()
+    assert not overlay_path.exists()
+    assert len(commands) == 2
+    assert str(overlay_path) in commands[0]
+    assert str(overlay_path) not in commands[1]
+    assert commands[0][-1] == commands[1][-1] == faults.SCENARIO_TARGETS[scenario]
+
+
 def test_clean_refuses_wrong_run_and_retains_state_on_failure(tmp_path: Path) -> None:
     """Cleanup cannot target another run and failed restore remains retryable."""
     faults.inject(

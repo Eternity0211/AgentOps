@@ -25,6 +25,10 @@ dependencies = [
     "uvicorn>=0.54,<0.55",
 ]
 
+[project.scripts]
+agentops-api = "agentops_incident_commander.apps.api:main"
+agentops-worker = "agentops_incident_commander.apps.worker:main"
+
 [dependency-groups]
 dev = [
     "mypy>=1.18,<2",

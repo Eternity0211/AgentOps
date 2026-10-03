@@ -31,3 +31,25 @@ that merely stored Evidence is sufficient.
 
 Normalized query parameters and quality/lineage collections are bounded. Raw telemetry remains
 in Artifact storage and Ground Truth fields are not represented in the runtime schema.
+
+## Deterministic normalization and validation
+
+The normalization service accepts JSON-compatible collector output only. It recursively enforces
+depth and node limits, rejects non-finite numbers, unsupported values, and invalid object keys,
+then emits canonical sorted UTF-8 JSON. Identical logical input therefore produces identical bytes
+and SHA-256 content hashes independent of input key order.
+
+Artifact and Evidence records are built together from one typed request. Their tenant, Incident,
+Artifact ID, digest, collection time, versions, and lineage cannot drift. Evidence cannot outlive
+its Artifact. Suspected prompt injection cannot enter normal Evidence construction until it is
+explicitly quarantined; quarantined material remains visibly low-quality and untrusted.
+
+Quality scoring uses deterministic collector facts rather than model confidence: source
+availability, observation-window completeness, observed/dropped record counts, parser warnings,
+and injection classification. Every deduction emits a stable reason code. Scores use integer basis
+points to avoid floating-point ambiguity.
+
+Validation first performs authorized Artifact resolution, then rechecks ownership, ID, hash, and
+byte size. It returns `VALID` or `EXPIRED` with separate Evidence and Artifact expiry reasons.
+Missing, altered, unauthorized, cross-Incident, or cross-tenant content raises a typed failure
+instead of producing a partially trusted result.

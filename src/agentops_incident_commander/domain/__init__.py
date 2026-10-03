@@ -99,6 +99,16 @@ from .log_patterns import (
     cluster_log_errors,
     normalize_log_template,
 )
+from .metric_trends import (
+    MAX_METRIC_LABELS,
+    MAX_METRIC_POINTS,
+    METRIC_TREND_SCHEMA_VERSION,
+    MetricPoint,
+    MetricSeries,
+    MetricTrendDirection,
+    MetricTrendSummary,
+    summarize_metric_trend,
+)
 from .outbox import OutboxClaim, OutboxEvent, OutboxPayload
 from .values import (
     ActorId,
@@ -134,8 +144,11 @@ __all__ = [
     "FINGERPRINT_SCHEMA_VERSION",
     "LOG_PATTERN_SCHEMA_VERSION",
     "MAX_LOG_EVENTS",
+    "MAX_METRIC_LABELS",
+    "MAX_METRIC_POINTS",
     "MAX_NORMALIZATION_DEPTH",
     "MAX_NORMALIZATION_NODES",
+    "METRIC_TREND_SCHEMA_VERSION",
     "NORMALIZED_PAYLOAD_SCHEMA_VERSION",
     "ROLE_PERMISSIONS",
     "TERMINAL_STATES",
@@ -199,6 +212,10 @@ __all__ = [
     "JsonValue",
     "LogErrorEvent",
     "LogErrorPattern",
+    "MetricPoint",
+    "MetricSeries",
+    "MetricTrendDirection",
+    "MetricTrendSummary",
     "NaiveDateTimeError",
     "NonMonotonicTimeError",
     "NormalizedEvidence",
@@ -235,6 +252,7 @@ __all__ = [
     "require_permission",
     "resolve_and_validate_evidence",
     "select_alert_group",
+    "summarize_metric_trend",
     "utc_now",
     "validate_evidence_content",
 ]

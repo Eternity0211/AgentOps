@@ -30,6 +30,22 @@ and numbers with stable placeholders, then groups only error-level records. Ever
 its count, first/last observation, services, severities, schema-versioned fingerprint, and all raw
 Artifact positions; informational records are not promoted into error evidence.
 
+## Metric trend summaries
+
+Metric trend summaries compare one bounded current series with one explicit earlier baseline. Both
+series must describe the same metric and normalized label set, use the same positive sampling
+interval, contain finite values in strict time order, and retain their own immutable Artifact ID.
+Aligned gaps are allowed so missing samples remain visible in the point counts; overlapping or
+future baselines, mixed metrics, duplicate timestamps, and mislabeled sampling intervals fail
+closed.
+
+The schema-versioned summary records current and baseline time ranges, sampling interval and point
+counts, first/last/minimum/maximum/mean values, baseline mean, absolute and percentage change, the
+stable threshold, and a deterministic direction. Direction compares interval means rather than
+inferring from a single endpoint. A zero baseline has no meaningful percentage change, so that
+field is `null`; its direction is determined only by the signed absolute change. Both current and
+baseline Artifact IDs remain available to resolve the raw samples.
+
 ## Integration boundary
 
 These adapters transform already retrieved typed results. Phase 4 Tool Gateway adapters will own

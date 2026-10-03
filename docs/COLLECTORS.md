@@ -24,6 +24,12 @@ classification. `SUSPECTED` content cannot become normal Evidence; it must first
 quarantine/redaction boundary. `QUARANTINED` content remains explicitly marked and receives a
 bounded low quality score. Raw records stay in the Artifact payload rather than workflow state.
 
+For clustering, the log adapter binds each typed record to `(Artifact ID, record index)` before any
+summary is created. The deterministic clusterer replaces volatile UUIDs, IP addresses, hex values,
+and numbers with stable placeholders, then groups only error-level records. Every pattern retains
+its count, first/last observation, services, severities, schema-versioned fingerprint, and all raw
+Artifact positions; informational records are not promoted into error evidence.
+
 ## Integration boundary
 
 These adapters transform already retrieved typed results. Phase 4 Tool Gateway adapters will own

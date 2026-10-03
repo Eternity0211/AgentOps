@@ -90,6 +90,15 @@ from .incidents import (
     IncidentTransition,
 )
 from .jobs import Job, JobFailureRoute, JobLease, JobStatus
+from .log_patterns import (
+    LOG_PATTERN_SCHEMA_VERSION,
+    MAX_LOG_EVENTS,
+    ArtifactRecordReference,
+    LogErrorEvent,
+    LogErrorPattern,
+    cluster_log_errors,
+    normalize_log_template,
+)
 from .outbox import OutboxClaim, OutboxEvent, OutboxPayload
 from .values import (
     ActorId,
@@ -123,6 +132,8 @@ __all__ = [
     "DURABLE_WAIT_STATES",
     "EVIDENCE_SCHEMA_VERSION",
     "FINGERPRINT_SCHEMA_VERSION",
+    "LOG_PATTERN_SCHEMA_VERSION",
+    "MAX_LOG_EVENTS",
     "MAX_NORMALIZATION_DEPTH",
     "MAX_NORMALIZATION_NODES",
     "NORMALIZED_PAYLOAD_SCHEMA_VERSION",
@@ -147,6 +158,7 @@ __all__ = [
     "ArtifactId",
     "ArtifactIntegrityError",
     "ArtifactNotFoundError",
+    "ArtifactRecordReference",
     "ArtifactStorage",
     "AuditEvent",
     "AuditEventId",
@@ -185,6 +197,8 @@ __all__ = [
     "JobLeaseError",
     "JobStatus",
     "JsonValue",
+    "LogErrorEvent",
+    "LogErrorPattern",
     "NaiveDateTimeError",
     "NonMonotonicTimeError",
     "NormalizedEvidence",
@@ -213,7 +227,9 @@ __all__ = [
     "WorkflowRunId",
     "as_utc",
     "assess_evidence_quality",
+    "cluster_log_errors",
     "normalize_json_payload",
+    "normalize_log_template",
     "require_authenticated",
     "require_independent_approver",
     "require_permission",

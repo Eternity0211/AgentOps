@@ -8,11 +8,14 @@ from datetime import datetime
 from typing import Final
 
 from agentops_incident_commander.domain import (
+    ArtifactId,
+    ArtifactRecordReference,
     EvidenceBuildRequest,
     EvidenceNormalizer,
     EvidenceSourceType,
     InvalidDomainValueError,
     JsonValue,
+    LogErrorEvent,
     NormalizedEvidence,
     PromptInjectionStatus,
     QualitySignals,
@@ -140,6 +143,23 @@ class LogRecord:
 
 
 class LogsCollector:
+    @staticmethod
+    def error_events(
+        artifact_id: ArtifactId, records: tuple[LogRecord, ...]
+    ) -> tuple[LogErrorEvent, ...]:
+        """Bind collected records to their immutable raw Artifact positions."""
+        _records(records)
+        return tuple(
+            LogErrorEvent(
+                reference=ArtifactRecordReference(artifact_id, index),
+                observed_at=record.observed_at,
+                service=record.service,
+                severity=record.severity,
+                message=record.message,
+            )
+            for index, record in enumerate(records)
+        )
+
     def collect(
         self,
         request: EvidenceBuildRequest,

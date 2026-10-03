@@ -1,5 +1,15 @@
 """Pure incident-domain contracts and invariants."""
 
+from .alerts import (
+    FINGERPRINT_SCHEMA_VERSION,
+    Alert,
+    AlertDeduplicator,
+    AlertDimension,
+    AlertFingerprint,
+    AlertGroup,
+    AlertTriageAction,
+    AlertTriageDecision,
+)
 from .errors import (
     DomainError,
     InvalidDomainValueError,
@@ -27,12 +37,14 @@ from .incidents import (
 from .values import (
     ActorId,
     AggregateVersion,
+    AlertGroupId,
     AlertId,
     CausationId,
     CorrelationId,
     EventReason,
     IncidentId,
     OpaqueIdentifier,
+    TenantId,
     as_utc,
     utc_now,
 )
@@ -42,10 +54,19 @@ __all__ = [
     "CANCELLABLE_STATES",
     "DEFERRED_CANCELLATION_STATES",
     "DURABLE_WAIT_STATES",
+    "FINGERPRINT_SCHEMA_VERSION",
     "TERMINAL_STATES",
     "ActorId",
     "AggregateVersion",
+    "Alert",
+    "AlertDeduplicator",
+    "AlertDimension",
+    "AlertFingerprint",
+    "AlertGroup",
+    "AlertGroupId",
     "AlertId",
+    "AlertTriageAction",
+    "AlertTriageDecision",
     "CancellationDisposition",
     "CausationId",
     "CorrelationId",
@@ -66,6 +87,7 @@ __all__ = [
     "NonMonotonicTimeError",
     "OpaqueIdentifier",
     "OptimisticVersionError",
+    "TenantId",
     "as_utc",
     "utc_now",
 ]

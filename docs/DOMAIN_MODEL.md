@@ -59,3 +59,32 @@ every undeclared state pair, assert non-terminal liveness, cover immediate/defer
 and verify optimistic concurrency, time normalization, chronology, terminal timestamps, bounded
 values, and import isolation. Persistence constraints, API mappings, and LangGraph route parity are
 not claimed until their later Phase 2 batches exist.
+
+## Alert fingerprinting and deterministic triage
+
+The versioned `alert-fingerprint/v1` contract hashes canonical JSON with SHA-256. Its grouping
+identity contains tenant, environment, service, alert rule, and an explicitly supplied set of
+stable dimensions. Dimension order, Alert ID, severity, observation time, and receipt time do not
+change the fingerprint. This lets repeated observations and severity escalation merge while
+preventing cross-tenant, cross-environment, cross-service, or cross-rule merging. Dimension names
+are unique and conservative; values are bounded, control-free, trimmed, and Unicode NFC
+normalized.
+
+An `AlertGroup` is an immutable, optimistically versioned aggregate. It records unique Alert IDs,
+occurrence count, first/last observation and receipt times, and the highest observed severity
+(`SEV1` is highest). Replaying an existing Alert ID is idempotent and does not advance the version.
+Merging a new Alert advances the version once; a stale expected version or different fingerprint
+is rejected.
+
+The deduplication window is positive and inclusive at its exact boundary. An equal-fingerprint
+Alert that touches an existing group's observation interval joins it; otherwise it opens another
+group with the same fingerprint. If out-of-order observations overlap more than one group, a
+stable nearest-time, first-seen, then group-ID tie breaker selects one group. Triage emits one of
+`OPEN_GROUP`, `MERGE_GROUP`, or `DUPLICATE` together with the complete resulting group.
+
+The current reference coordinator provides a lock-protected atomic critical section for one
+process. Concurrency tests prove that simultaneous unique deliveries produce one group without
+lost updates and a replay storm remains one occurrence. The upcoming PostgreSQL repository batch
+must replace that critical section with a unique-key/row-lock transaction while preserving the
+same fingerprint, time-window, idempotency, severity, and optimistic-version rules; this batch
+does not claim cross-process durability.

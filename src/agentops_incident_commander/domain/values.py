@@ -51,6 +51,16 @@ class AlertId(OpaqueIdentifier):
 
 
 @dataclass(frozen=True, slots=True)
+class AlertGroupId(OpaqueIdentifier):
+    """Identity of one time-bounded deduplicated Alert group."""
+
+
+@dataclass(frozen=True, slots=True)
+class TenantId(OpaqueIdentifier):
+    """Authorization and deduplication scope of a control-plane tenant."""
+
+
+@dataclass(frozen=True, slots=True)
 class ActorId(OpaqueIdentifier):
     """Identity of a human or deterministic component causing an event."""
 

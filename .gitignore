@@ -12,6 +12,7 @@ secrets/*.txt
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.pytest-runtime/
 .mypy_cache/
 .ruff_cache/
 .pre-commit-cache/

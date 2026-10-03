@@ -2,7 +2,7 @@
 
 AgentOps Incident Commander is an evidence-driven platform for diagnosing microservice incidents and performing controlled recovery. It combines metrics, logs, traces, topology, and deployment history; a constrained Diagnosis Agent builds verifiable root-cause hypotheses; a constrained Remediation Agent proposes recovery only after a deterministic evidence gate passes. Deterministic policy, approval, execution, health verification, and failure routing retain authority over every state change.
 
-> Status: Phase 1 is complete and Phase 2 is in progress. The reproducible simulator and live local Compose verification remain documented in the versioned [Phase 1 verification record](docs/PHASE_1_VERIFICATION.md). Phase 2 now includes the framework-free [typed domain model](docs/DOMAIN_MODEL.md), complete Incident lifecycle, and deterministic Alert fingerprinting/deduplication/triage; persistence, API, worker, authentication, and RBAC remain open and no production-scale or reliability claim is implied.
+> Status: Phase 1 is complete and Phase 2 is in progress. The reproducible simulator and live local Compose verification remain documented in the versioned [Phase 1 verification record](docs/PHASE_1_VERIFICATION.md). Phase 2 now includes the framework-free [typed domain model](docs/DOMAIN_MODEL.md), complete Incident lifecycle, deterministic Alert triage, and the initial [PostgreSQL persistence foundation](docs/PERSISTENCE.md); pgvector, audit/outbox, jobs, API/worker composition, authentication, and RBAC remain open and no production-scale or reliability claim is implied.
 
 ## Why this project exists
 
@@ -143,6 +143,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Decision history and rationale](docs/DECISION_HISTORY.md)
 - [Comparison with Programming Tutor](docs/COMPARISON_WITH_PROGRAMMING_TUTOR.md)
 - [Data model](docs/DATA_MODEL.md)
+- [Operational persistence foundation](docs/PERSISTENCE.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)

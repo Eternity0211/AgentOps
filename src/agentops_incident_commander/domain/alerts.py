@@ -247,6 +247,23 @@ class AlertTriageDecision:
     fingerprint: AlertFingerprint
 
 
+def select_alert_group(
+    groups: Iterable[AlertGroup], alert: Alert, window: timedelta
+) -> AlertGroup | None:
+    """Select the deterministic matching group shared by all persistence adapters."""
+    candidates = [group for group in groups if group.is_within(alert, window)]
+    if not candidates:
+        return None
+    return min(
+        candidates,
+        key=lambda group: (
+            abs((group.last_observed_at - alert.observed_at).total_seconds()),
+            group.first_observed_at,
+            group.id.value,
+        ),
+    )
+
+
 class AlertDeduplicator:
     """Thread-safe reference coordinator for one process.
 
@@ -272,13 +289,13 @@ class AlertDeduplicator:
         fingerprint = alert.fingerprint()
         with self._lock:
             groups = self._groups.setdefault(fingerprint, [])
-            candidate = self._select_candidate(groups, alert)
-            if candidate is None:
+            existing = select_alert_group(groups, alert, self._window)
+            if existing is None:
                 group = AlertGroup.open(self._group_id_factory(), alert)
                 groups.append(group)
                 return AlertTriageDecision(AlertTriageAction.OPEN_GROUP, group, fingerprint)
 
-            index, existing = candidate
+            index = groups.index(existing)
             group, action = existing.merge(alert, expected_version=existing.version)
             groups[index] = group
             return AlertTriageDecision(action, group, fingerprint)
@@ -292,22 +309,3 @@ class AlertDeduplicator:
                     key=lambda group: group.id.value,
                 )
             )
-
-    def _select_candidate(
-        self, groups: Iterable[AlertGroup], alert: Alert
-    ) -> tuple[int, AlertGroup] | None:
-        candidates = [
-            (index, group)
-            for index, group in enumerate(groups)
-            if group.is_within(alert, self._window)
-        ]
-        if not candidates:
-            return None
-        return min(
-            candidates,
-            key=lambda candidate: (
-                abs((candidate[1].last_observed_at - alert.observed_at).total_seconds()),
-                candidate[1].first_observed_at,
-                candidate[1].id.value,
-            ),
-        )

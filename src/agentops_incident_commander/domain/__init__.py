@@ -9,6 +9,7 @@ from .alerts import (
     AlertGroup,
     AlertTriageAction,
     AlertTriageDecision,
+    select_alert_group,
 )
 from .errors import (
     DomainError,
@@ -89,5 +90,6 @@ __all__ = [
     "OptimisticVersionError",
     "TenantId",
     "as_utc",
+    "select_alert_group",
     "utc_now",
 ]

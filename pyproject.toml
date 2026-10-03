@@ -12,6 +12,7 @@ authors = [
     { name = "AgentOps contributors" },
 ]
 dependencies = [
+    "alembic>=1.20,<2",
     "asyncpg>=0.31,<0.32",
     "fastapi>=0.141.1,<0.142",
     "httpx>=0.28.1,<0.29",
@@ -19,6 +20,7 @@ dependencies = [
     "opentelemetry-exporter-otlp-proto-http>=1.45,<1.46",
     "opentelemetry-sdk>=1.45,<1.46",
     "redis>=8.1,<8.2",
+    "sqlalchemy[asyncio]>=2.1.2,<2.2",
     "uvicorn>=0.54,<0.55",
 ]
 
@@ -29,6 +31,7 @@ dev = [
     "pytest>=8.4,<10",
     "pytest-cov>=7,<8",
     "ruff>=0.13,<1",
+    "testcontainers[postgres]>=4.15,<5",
 ]
 
 [tool.uv]
@@ -65,6 +68,9 @@ testpaths = ["tests"]
 addopts = [
     "--strict-config",
     "--strict-markers",
+    "--basetemp=.pytest-runtime",
+    "-p",
+    "no:cacheprovider",
     "--cov=agentops_incident_commander",
     "--cov-branch",
     "--cov-report=term-missing:skip-covered",

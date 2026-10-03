@@ -5,13 +5,13 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator, Callable, Iterator
 from datetime import UTC, datetime, timedelta
-from itertools import count
+from itertools import count, pairwise
 
 import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import func, select, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -28,6 +28,9 @@ from agentops_incident_commander.domain import (
     AlertGroupId,
     AlertId,
     AlertTriageAction,
+    AuditEvent,
+    AuditEventId,
+    AuditTarget,
     CausationId,
     CorrelationId,
     EventMetadata,
@@ -39,12 +42,15 @@ from agentops_incident_commander.domain import (
     IncidentState,
     InvalidDomainValueError,
     OptimisticVersionError,
+    Sha256Digest,
     TenantId,
 )
 from agentops_incident_commander.infrastructure.persistence import (
     AlertGroupRow,
     AlertRepository,
     AlertRow,
+    AuditEventRow,
+    AuditRepository,
     IncidentCancellationRequestRow,
     IncidentMemoryEmbeddingRow,
     IncidentRepository,
@@ -123,6 +129,22 @@ def group_ids() -> Callable[[], AlertGroupId]:
     return lambda: AlertGroupId(f"group-{next(sequence)}")
 
 
+def audit_event(event_id: str, correlation_id: str = "audit-correlation") -> AuditEvent:
+    return AuditEvent(
+        id=AuditEventId(event_id),
+        type="incident.transitioned",
+        event_version=1,
+        payload_schema_version="incident/v1",
+        actor_id=ActorId("operator-1"),
+        correlation_id=CorrelationId(correlation_id),
+        causation_id=CausationId(f"command-{event_id}"),
+        target=AuditTarget("incident.record", IncidentId("incident-1")),
+        occurred_at=NOW,
+        request_hash=Sha256Digest("a" * 64),
+        result_hash=Sha256Digest("b" * 64),
+    )
+
+
 @pytest.mark.anyio
 async def test_migration_created_expected_tables_and_constraints(engine: AsyncEngine) -> None:
     """The upgraded schema contains all initial operational tables."""
@@ -141,6 +163,7 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "alembic_version",
         "alerts",
         "alert_groups",
+        "audit_events",
         "incidents",
         "incident_transitions",
         "incident_cancellation_requests",
@@ -150,6 +173,97 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         assert await connection.scalar(
             text("SELECT extversion FROM pg_extension WHERE extname='vector'")
         )
+
+
+@pytest.mark.anyio
+async def test_audit_repository_appends_and_reads_correlation_timeline(
+    engine: AsyncEngine,
+) -> None:
+    """The repository exposes only append and sequence-ordered correlation reads."""
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        repository = AuditRepository(session)
+        first = await repository.append(audit_event("audit-read-1"))
+        second = await repository.append(audit_event("audit-read-2"))
+        await repository.append(audit_event("audit-other", "other-correlation"))
+
+    assert first.sequence < second.sequence
+    async with sessions() as session:
+        timeline = await AuditRepository(session).by_correlation(CorrelationId("audit-correlation"))
+
+    assert [stored.event.id for stored in timeline] == [
+        AuditEventId("audit-read-1"),
+        AuditEventId("audit-read-2"),
+    ]
+    assert timeline[0].event.request_hash == Sha256Digest("a" * 64)
+    assert timeline[0].event.result_hash == Sha256Digest("b" * 64)
+
+
+@pytest.mark.anyio
+async def test_audit_sequence_is_unique_under_concurrent_appends(engine: AsyncEngine) -> None:
+    """Independent writers receive one globally unique monotonically ordered sequence."""
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+
+    async def append(index: int) -> int:
+        async with sessions.begin() as session:
+            stored = await AuditRepository(session).append(
+                audit_event(f"audit-concurrent-{index}", "concurrent-correlation")
+            )
+            return stored.sequence
+
+    sequences = await asyncio.gather(*(append(index) for index in range(16)))
+    ordered = sorted(sequences)
+    assert len(set(ordered)) == 16
+    assert all(later > earlier for earlier, later in pairwise(ordered))
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "UPDATE audit_events SET actor_id = 'attacker' WHERE id = 'audit-protected'",
+        "DELETE FROM audit_events WHERE id = 'audit-protected'",
+        "TRUNCATE audit_events",
+    ],
+)
+async def test_audit_ledger_rejects_all_mutation_paths(engine: AsyncEngine, statement: str) -> None:
+    """Database triggers protect history even from the table-owning connection."""
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        existing = await session.scalar(
+            select(AuditEventRow).where(AuditEventRow.id == "audit-protected")
+        )
+        if existing is None:
+            await AuditRepository(session).append(audit_event("audit-protected"))
+
+    async with sessions.begin() as session:
+        with pytest.raises(DBAPIError, match="append-only"):
+            await session.execute(text(statement))
+
+
+@pytest.mark.anyio
+async def test_audit_database_constraints_reject_invalid_raw_hash(engine: AsyncEngine) -> None:
+    """Direct inserts cannot bypass the canonical digest rule."""
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        session.add(
+            AuditEventRow(
+                id="audit-invalid-hash",
+                event_type="incident.transitioned",
+                event_version=1,
+                payload_schema_version="incident/v1",
+                actor_id="operator-1",
+                correlation_id="audit-invalid-correlation",
+                causation_id="command-invalid",
+                target_type="incident.record",
+                target_id="incident-1",
+                request_hash="A" * 64,
+                result_hash=None,
+                occurred_at=NOW,
+            )
+        )
+        with pytest.raises(IntegrityError, match="ck_audit_request_hash"):
+            await session.flush()
 
 
 @pytest.mark.anyio

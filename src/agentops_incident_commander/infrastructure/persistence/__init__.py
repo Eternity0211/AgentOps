@@ -3,18 +3,21 @@
 from .models import (
     AlertGroupRow,
     AlertRow,
+    AuditEventRow,
     Base,
     IncidentCancellationRequestRow,
     IncidentMemoryEmbeddingRow,
     IncidentRow,
     IncidentTransitionRow,
 )
-from .repositories import AlertRepository, IncidentRepository
+from .repositories import AlertRepository, AuditRepository, IncidentRepository
 
 __all__ = [
     "AlertGroupRow",
     "AlertRepository",
     "AlertRow",
+    "AuditEventRow",
+    "AuditRepository",
     "Base",
     "IncidentCancellationRequestRow",
     "IncidentMemoryEmbeddingRow",

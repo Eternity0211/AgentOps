@@ -47,10 +47,10 @@ immediate and deferred cancellation persistence, and concurrent Alert ingestion 
 independent transactions followed by a replay storm. Unit tests retain fail-closed coverage for
 defensive paths that valid foreign keys and locks should make unreachable.
 
-The test suite uses the ignored repository-local `.pytest-runtime/` directory because elevated
+The test suite uses an ignored repository-local `.pytest-runtime-*` directory because elevated
 Docker access on Windows cannot reliably access the normal per-user pytest temporary root. This is
-test isolation only; no runtime data is committed. The audit ledger, outbox, workflow checkpoints,
-and job queue are separate remaining Phase 2 batches.
+test isolation only; no runtime data is committed. The outbox, workflow checkpoints, and job queue
+are separate remaining Phase 2 batches.
 
 ## Versioned embedding metadata
 
@@ -61,3 +61,20 @@ declared dimensions, creation time, and explicit reindex flag. A database check 
 `vector_dims(embedding)` to equal the declared positive dimension, and a versioned-source unique
 key prevents ambiguous duplicates. No similarity-search API, embedding generation, or claim that
 historical memory is current evidence is enabled in this Phase 2 storage batch.
+
+## Append-only audit ledger
+
+Revision `20261003_0003` adds `audit_events`. Its database-assigned 64-bit sequence is the global
+ordering key; the stable event ID prevents replay from creating the same logical event twice.
+Each row records a versioned dotted event type, payload schema version, actor, correlation and
+causation IDs, typed target, UTC occurrence time, and optional canonical request/result SHA-256
+digests. Request and result bodies are deliberately excluded so the ledger does not become an
+uncontrolled secret store.
+
+The application adapter exposes append and correlation-timeline reads only. PostgreSQL privileges
+are narrowed with explicit `REVOKE`, while owner-visible triggers independently reject `UPDATE`,
+`DELETE`, and `TRUNCATE`. Database constraints also reject noncanonical hashes inserted outside
+the typed domain path. Integration tests prove migration round trips, ordered reads, sixteen
+concurrent inserts with unique increasing sequences, direct raw mutation refusal, and invalid raw
+hash refusal. Stronger integrity mechanisms such as hash chaining or external anchoring remain an
+explicit later threat/deployment decision rather than an unverified current claim.

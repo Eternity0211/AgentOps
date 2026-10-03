@@ -10,6 +10,7 @@ from sqlalchemy import CursorResult, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentops_incident_commander.domain import (
+    ActorId,
     AggregateVersion,
     Alert,
     AlertFingerprint,
@@ -18,13 +19,21 @@ from agentops_incident_commander.domain import (
     AlertId,
     AlertTriageAction,
     AlertTriageDecision,
+    AuditEvent,
+    AuditEventId,
+    AuditTarget,
+    CausationId,
+    CorrelationId,
     Incident,
     IncidentChange,
     IncidentId,
     IncidentSeverity,
     IncidentState,
     InvalidDomainValueError,
+    OpaqueIdentifier,
     OptimisticVersionError,
+    Sha256Digest,
+    StoredAuditEvent,
     TenantId,
     select_alert_group,
 )
@@ -32,10 +41,68 @@ from agentops_incident_commander.domain import (
 from .models import (
     AlertGroupRow,
     AlertRow,
+    AuditEventRow,
     IncidentCancellationRequestRow,
     IncidentRow,
     IncidentTransitionRow,
 )
+
+
+def _audit_from_row(row: AuditEventRow) -> StoredAuditEvent:
+    return StoredAuditEvent(
+        sequence=row.sequence,
+        event=AuditEvent(
+            id=AuditEventId(row.id),
+            type=row.event_type,
+            event_version=row.event_version,
+            payload_schema_version=row.payload_schema_version,
+            actor_id=ActorId(row.actor_id),
+            correlation_id=CorrelationId(row.correlation_id),
+            causation_id=CausationId(row.causation_id),
+            target=AuditTarget(row.target_type, OpaqueIdentifier(row.target_id)),
+            request_hash=None if row.request_hash is None else Sha256Digest(row.request_hash),
+            result_hash=None if row.result_hash is None else Sha256Digest(row.result_hash),
+            occurred_at=row.occurred_at,
+        ),
+    )
+
+
+class AuditRepository:
+    """The only application adapter permitted to append and read audit events."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def append(self, event: AuditEvent) -> StoredAuditEvent:
+        """Append one immutable event and return its global database sequence."""
+        row = AuditEventRow(
+            id=event.id.value,
+            event_type=event.type,
+            event_version=event.event_version,
+            payload_schema_version=event.payload_schema_version,
+            actor_id=event.actor_id.value,
+            correlation_id=event.correlation_id.value,
+            causation_id=event.causation_id.value,
+            target_type=event.target.type,
+            target_id=event.target.id.value,
+            request_hash=None if event.request_hash is None else event.request_hash.value,
+            result_hash=None if event.result_hash is None else event.result_hash.value,
+            occurred_at=event.occurred_at,
+        )
+        self._session.add(row)
+        await self._session.flush()
+        return _audit_from_row(row)
+
+    async def by_correlation(self, correlation_id: CorrelationId) -> tuple[StoredAuditEvent, ...]:
+        """Read one correlation timeline in immutable sequence order."""
+        rows = (
+            await self._session.scalars(
+                select(AuditEventRow)
+                .where(AuditEventRow.correlation_id == correlation_id.value)
+                .order_by(AuditEventRow.sequence)
+            )
+        ).all()
+        return tuple(_audit_from_row(row) for row in rows)
 
 
 def _incident_from_row(row: IncidentRow) -> Incident:

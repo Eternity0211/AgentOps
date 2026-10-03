@@ -10,6 +10,7 @@ from agentops_incident_commander.domain import (
     ActorId,
     AggregateVersion,
     AlertId,
+    AuditEventId,
     CausationId,
     CorrelationId,
     EventReason,
@@ -25,7 +26,15 @@ from agentops_incident_commander.domain import (
 
 @pytest.mark.parametrize(
     "identifier_type",
-    [OpaqueIdentifier, IncidentId, AlertId, ActorId, CorrelationId, CausationId],
+    [
+        OpaqueIdentifier,
+        IncidentId,
+        AlertId,
+        AuditEventId,
+        ActorId,
+        CorrelationId,
+        CausationId,
+    ],
 )
 def test_opaque_identifier_types_preserve_valid_values(
     identifier_type: type[OpaqueIdentifier],

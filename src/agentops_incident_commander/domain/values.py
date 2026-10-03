@@ -61,6 +61,25 @@ class TenantId(OpaqueIdentifier):
 
 
 @dataclass(frozen=True, slots=True)
+class AuditEventId(OpaqueIdentifier):
+    """Immutable identity of one audit event."""
+
+
+@dataclass(frozen=True, slots=True)
+class Sha256Digest:
+    """Validated lowercase SHA-256 digest used instead of sensitive payloads."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        if re.fullmatch(r"[0-9a-f]{64}", self.value) is None:
+            raise InvalidDomainValueError("SHA-256 digest must contain 64 lowercase hex characters")
+
+    def __str__(self) -> str:
+        return self.value
+
+
+@dataclass(frozen=True, slots=True)
 class ActorId(OpaqueIdentifier):
     """Identity of a human or deterministic component causing an event."""
 

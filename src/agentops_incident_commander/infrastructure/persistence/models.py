@@ -28,6 +28,39 @@ class Base(DeclarativeBase):
     """Metadata root for control-plane migrations."""
 
 
+class AuditEventRow(Base):
+    """Database-protected append-only audit ledger row."""
+
+    __tablename__ = "audit_events"
+    __table_args__ = (
+        CheckConstraint("event_version >= 1", name="ck_audit_event_version"),
+        CheckConstraint(
+            "request_hash IS NULL OR request_hash ~ '^[0-9a-f]{64}$'",
+            name="ck_audit_request_hash",
+        ),
+        CheckConstraint(
+            "result_hash IS NULL OR result_hash ~ '^[0-9a-f]{64}$'",
+            name="ck_audit_result_hash",
+        ),
+        Index("ix_audit_correlation_sequence", "correlation_id", "sequence"),
+        Index("ix_audit_target_sequence", "target_type", "target_id", "sequence"),
+    )
+
+    sequence: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    event_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    event_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    payload_schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    actor_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    correlation_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    causation_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    target_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    target_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    request_hash: Mapped[str | None] = mapped_column(String(64))
+    result_hash: Mapped[str | None] = mapped_column(String(64))
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class IncidentRow(Base):
     """Mutable Incident aggregate guarded by an optimistic version."""
 

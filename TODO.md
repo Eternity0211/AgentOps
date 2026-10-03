@@ -89,7 +89,7 @@ Exit: migrations apply/rollback in test, API and workers run separately, state/R
 - [x] Implement immutable Artifact storage interface, local development backend, hashes, size/type/version, retention metadata, and safe retrieval authorization.
 - [x] Implement Evidence schema with ID, incident ownership, source, normalized query, time range, content hash, Artifact, lineage, version, quality, trust, and expiry.
 - [x] Implement evidence normalization, provenance, content verification, quality reasons, and expiration evaluation.
-- [ ] Implement deterministic collectors/adapters for metrics, logs, traces, deployments, and topology; keep them non-agent components.
+- [x] Implement deterministic collectors/adapters for metrics, logs, traces, deployments, and topology; keep them non-agent components.
 - [ ] Implement log error-pattern clustering/deduplication with raw Artifact links.
 - [ ] Implement metric trend summaries with interval/baseline/source metadata.
 - [ ] Implement trace critical-path/error summaries with trace/span references.

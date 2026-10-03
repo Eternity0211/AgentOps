@@ -12,9 +12,9 @@ from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
 from agentops_incident_commander.apps.api import create_app
+from agentops_incident_commander.apps.api_errors import ApiProblem
 from agentops_incident_commander.apps.api_v1 import (
     ControlRequest,
-    IdempotencyConflictError,
     SessionFactory,
     build_api_v1_router,
     new_identifier,
@@ -358,7 +358,7 @@ async def test_control_route_replay_conflict_incomplete_and_hidden_paths() -> No
     replay_session = FakeSession(scalar_values=[None, replay_record])
 
     # Capture the canonical request hash from the first conflict, then replay it.
-    with pytest.raises(IdempotencyConflictError):
+    with pytest.raises(ApiProblem):
         await route(
             incident_id="incident-a",
             command=cmd,

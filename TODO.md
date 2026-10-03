@@ -80,7 +80,7 @@ Exit: Compose starts cleanly, each fault reproduces and resets, telemetry is que
 - [x] Add worker concurrency limits, graceful shutdown, stale-lease recovery, and cancellation checks.
 - [x] Add authentication principal abstraction and RBAC roles Viewer, Operator, Approver, Admin.
 - [x] Implement versioned `/api/v1` incident, timeline, control, and audit endpoints with pagination, idempotency, and authorization.
-- [ ] Add OpenAPI contract snapshots and API error/idempotency conventions.
+- [x] Add OpenAPI contract snapshots and API error/idempotency conventions.
 
 Exit: migrations apply/rollback in test, API and workers run separately, state/RBAC/job invariants pass unit and Testcontainers integration tests.
 

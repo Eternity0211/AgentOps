@@ -45,8 +45,23 @@ commit together. A rejected or failed command rolls the claim back, so an incomp
 mask a later valid retry. PostgreSQL uniqueness plus row locking serializes concurrent uses of the
 same key. The audit ledger stores request/result hashes rather than the bodies.
 
-This batch provides typed FastAPI-generated OpenAPI but does not yet claim a committed OpenAPI
-snapshot or the final cross-endpoint error envelope. Those remain the next explicit Phase 2 task.
+## Error and correlation convention
+
+Every response includes a server-generated `X-Request-ID`. Errors use
+`application/problem+json` and a version-stable envelope containing `type`, `title`, HTTP `status`,
+machine-readable `code`, bounded `detail`, request-path `instance`, and `request_id`. Request
+validation may additionally include field locations, validator codes, and safe reasons; rejected
+input values are never echoed.
+
+The stable codes distinguish authentication, permission, resource absence, request/domain
+validation, Incident state/version conflict, malformed request, method rejection, and idempotency
+conflict. Cross-tenant resources deliberately use `RESOURCE_NOT_FOUND`. Unexpected internal
+exceptions are not converted into detailed public errors by this contract.
+
+The generated OpenAPI contract documents the problem media type, `X-Request-ID`, required
+`Idempotency-Key`, and the `Idempotency-Replayed` response header. A reviewable snapshot in
+`tests/snapshots/openapi_v1.json` records the complete canonical-schema digest plus paths and model
+names; any schema drift fails tests and requires an intentional snapshot review.
 
 ## Verification
 

@@ -316,6 +316,7 @@ async def test_api_fails_closed_without_identity_and_denies_viewer_control(
     ) as client:
         response = await client.get("/api/v1/incidents")
     assert response.status_code == 401
+    assert response.json()["code"] == "AUTHENTICATION_REQUIRED"
 
     viewer_app = api_app(engine, principal(roles=frozenset({Role.VIEWER})))
     async with AsyncClient(
@@ -332,7 +333,10 @@ async def test_api_fails_closed_without_identity_and_denies_viewer_control(
             },
         )
     assert response.status_code == 403
-    assert response.json() == {"detail": "principal lacks permission investigation:start"}
+    assert response.json()["code"] == "PERMISSION_DENIED"
+    assert response.json()["detail"] == "principal lacks permission investigation:start"
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.headers["x-request-id"] == response.json()["request_id"]
 
 
 @pytest.mark.anyio
@@ -451,6 +455,7 @@ async def test_control_commands_are_atomic_audited_and_idempotent(engine: AsyncE
     assert first.json() == replay.json()
     assert first.json()["incident"]["state"] == IncidentState.INVESTIGATING.value
     assert conflict.status_code == 409
+    assert conflict.json()["code"] == "IDEMPOTENCY_CONFLICT"
 
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     async with sessions() as session:
@@ -498,6 +503,7 @@ async def test_cancel_control_and_audit_pages_are_tenant_scoped(engine: AsyncEng
             json=body,
         )
     assert hidden.status_code == 404
+    assert hidden.json()["code"] == "RESOURCE_NOT_FOUND"
 
     owner = principal(tenant="tenant-cancel-owner")
     app = api_app(engine, owner, audit_id="api-audit-cancel")
@@ -566,8 +572,11 @@ async def test_control_conflicts_invalid_values_and_incomplete_replay_fail_close
         )
 
     assert illegal.status_code == stale.status_code == 409
+    assert illegal.json()["code"] == stale.json()["code"] == "INCIDENT_STATE_CONFLICT"
     assert invalid_id.status_code == 422
+    assert invalid_id.json()["code"] == "DOMAIN_VALIDATION_FAILED"
     assert invalid_header.status_code == 422
+    assert invalid_header.json()["code"] == "REQUEST_VALIDATION_FAILED"
 
     request_hash = hashlib.sha256(
         json.dumps(

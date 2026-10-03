@@ -8,21 +8,16 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import uvicorn
-from fastapi import FastAPI, Request, status
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request, Response
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from starlette.middleware.base import RequestResponseEndpoint
 
-from agentops_incident_commander.domain import (
-    AuthorizationError,
-    DomainError,
-    InvalidIncidentTransitionError,
-    OptimisticVersionError,
-    utc_now,
-)
+from agentops_incident_commander.domain import OpaqueIdentifier, utc_now
 
+from .api_contracts import install_openapi_contract
+from .api_errors import REQUEST_ID_HEADER, install_error_handlers
 from .api_v1 import (
     Clock,
-    IdempotencyConflictError,
     IdFactory,
     PrincipalResolver,
     SessionFactory,
@@ -40,6 +35,7 @@ def create_app(
     principal_resolver: PrincipalResolver | None = None,
     clock: Clock | None = None,
     id_factory: IdFactory | None = None,
+    request_id_factory: IdFactory | None = None,
 ) -> FastAPI:
     """Create the HTTP process without starting worker tasks in its lifespan."""
     engine = None
@@ -57,25 +53,16 @@ def create_app(
     app.state.process_role = "api"
     app.state.settings = settings
     app.state.session_factory = session_factory
+    request_ids = request_id_factory or new_identifier
 
-    @app.exception_handler(AuthorizationError)
-    async def authorization_error(_: Request, exc: AuthorizationError) -> JSONResponse:
-        return JSONResponse(status_code=status.HTTP_403_FORBIDDEN, content={"detail": str(exc)})
+    @app.middleware("http")
+    async def correlate_request(request: Request, call_next: RequestResponseEndpoint) -> Response:
+        request.state.request_id = OpaqueIdentifier(request_ids()).value
+        response = await call_next(request)
+        response.headers[REQUEST_ID_HEADER] = request.state.request_id
+        return response
 
-    @app.exception_handler(IdempotencyConflictError)
-    async def idempotency_conflict(_: Request, exc: IdempotencyConflictError) -> JSONResponse:
-        return JSONResponse(status_code=status.HTTP_409_CONFLICT, content={"detail": str(exc)})
-
-    @app.exception_handler(InvalidIncidentTransitionError)
-    @app.exception_handler(OptimisticVersionError)
-    async def state_conflict(_: Request, exc: DomainError) -> JSONResponse:
-        return JSONResponse(status_code=status.HTTP_409_CONFLICT, content={"detail": str(exc)})
-
-    @app.exception_handler(DomainError)
-    async def invalid_domain_value(_: Request, exc: DomainError) -> JSONResponse:
-        return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, content={"detail": str(exc)}
-        )
+    install_error_handlers(app)
 
     @app.get("/healthz", include_in_schema=False)
     async def health() -> dict[str, str]:
@@ -89,6 +76,7 @@ def create_app(
             id_factory=id_factory or new_identifier,
         )
     )
+    install_openapi_contract(app)
 
     return app
 

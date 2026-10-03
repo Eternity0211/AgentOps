@@ -1,0 +1,23 @@
+{
+  "sha256": "75b14b44247dd68d07d47a54bac9a1163f0b8276b2d63dd1cf9adffc32bcc557",
+  "paths": {
+    "/api/v1/audit": ["get"],
+    "/api/v1/incidents": ["get"],
+    "/api/v1/incidents/{incident_id}": ["get"],
+    "/api/v1/incidents/{incident_id}/controls/cancel": ["post"],
+    "/api/v1/incidents/{incident_id}/controls/start-investigation": ["post"],
+    "/api/v1/incidents/{incident_id}/timeline": ["get"]
+  },
+  "schemas": [
+    "AuditEventView",
+    "AuditPage",
+    "ControlRequest",
+    "ControlResult",
+    "IncidentPage",
+    "IncidentView",
+    "InvalidParameter",
+    "ProblemDetail",
+    "TimelineEventView",
+    "TimelinePage"
+  ]
+}

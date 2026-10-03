@@ -47,6 +47,8 @@ from agentops_incident_commander.infrastructure.persistence.repositories import 
     IncidentRepository,
 )
 
+from .api_errors import common_error_responses, problem
+
 PrincipalResolver = Callable[[Request], Awaitable[Principal | None]]
 Clock = Callable[[], datetime]
 IdFactory = Callable[[], str]
@@ -127,10 +129,6 @@ class ControlResult(ApiModel):
     cancellation_disposition: str | None = None
 
 
-class IdempotencyConflictError(ValueError):
-    """A key was reused with a semantically different request."""
-
-
 def _encode_cursor(parts: list[str | int]) -> str:
     payload = json.dumps(parts, separators=(",", ":")).encode()
     return base64.urlsafe_b64encode(payload).decode().rstrip("=")
@@ -186,7 +184,7 @@ def build_api_v1_router(
     clock: Clock = utc_now,
     id_factory: IdFactory = new_identifier,
 ) -> APIRouter:
-    router = APIRouter(prefix="/api/v1")
+    router = APIRouter(prefix="/api/v1", responses=common_error_responses())
 
     async def session_dependency() -> AsyncIterator[AsyncSession]:
         async with session_factory() as session:
@@ -196,7 +194,12 @@ def build_api_v1_router(
         try:
             return require_authenticated(await principal_resolver(request))
         except AuthenticationError as exc:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(exc)) from exc
+            raise problem(
+                status.HTTP_401_UNAUTHORIZED,
+                "AUTHENTICATION_REQUIRED",
+                "Authentication required",
+                str(exc),
+            ) from exc
 
     Session = Annotated[AsyncSession, Depends(session_dependency)]
     Authenticated = Annotated[Principal, Depends(principal_dependency)]
@@ -452,8 +455,11 @@ def build_api_v1_router(
                 )
             if inserted is None:
                 if record.request_hash != request_hash:
-                    raise IdempotencyConflictError(
-                        "idempotency key was already used with a different request"
+                    raise problem(
+                        status.HTTP_409_CONFLICT,
+                        "IDEMPOTENCY_CONFLICT",
+                        "Idempotency conflict",
+                        "idempotency key was already used with a different request",
                     )
                 if record.response_body is None:
                     raise RuntimeError("committed idempotency record has no response")

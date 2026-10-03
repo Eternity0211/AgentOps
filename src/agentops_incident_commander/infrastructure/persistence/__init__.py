@@ -5,6 +5,7 @@ from .models import (
     AlertRow,
     Base,
     IncidentCancellationRequestRow,
+    IncidentMemoryEmbeddingRow,
     IncidentRow,
     IncidentTransitionRow,
 )
@@ -16,6 +17,7 @@ __all__ = [
     "AlertRow",
     "Base",
     "IncidentCancellationRequestRow",
+    "IncidentMemoryEmbeddingRow",
     "IncidentRepository",
     "IncidentRow",
     "IncidentTransitionRow",

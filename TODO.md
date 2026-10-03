@@ -72,7 +72,7 @@ Exit: Compose starts cleanly, each fault reproduces and resets, telemetry is que
 - [x] Implement the complete Incident state machine with `CLOSED`/`CANCELLED` terminals, durable waits, safe-boundary cancellation, no dead-end non-terminals, optimistic versioning, and exhaustive transition/liveness tests.
 - [x] Implement deterministic Alert fingerprinting, deduplication, merging, and triage with race/concurrency tests.
 - [x] Implement SQLAlchemy models/repositories and initial Alembic migrations for operational aggregates.
-- [ ] Enable PostgreSQL pgvector extension and versioned embedding metadata.
+- [x] Enable PostgreSQL pgvector extension and versioned embedding metadata.
 - [ ] Implement append-only AuditEvent model with correlation/causation IDs and restricted mutation path.
 - [ ] Implement transactional outbox where cross-process event intent is required.
 - [ ] Separate FastAPI API and worker process composition.

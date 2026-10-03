@@ -11,6 +11,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import func, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -45,6 +46,7 @@ from agentops_incident_commander.infrastructure.persistence import (
     AlertRepository,
     AlertRow,
     IncidentCancellationRequestRow,
+    IncidentMemoryEmbeddingRow,
     IncidentRepository,
     IncidentTransitionRow,
 )
@@ -55,7 +57,7 @@ NOW = datetime(2026, 10, 3, 8, 0, tzinfo=UTC)
 @pytest.fixture(scope="module")
 def postgres_url() -> Iterator[str]:
     """Run the same major PostgreSQL image as the local control plane."""
-    with PostgresContainer("postgres:18.6-alpine", driver="asyncpg") as postgres:
+    with PostgresContainer("pgvector/pgvector:0.8.6-pg18", driver="asyncpg") as postgres:
         yield postgres.get_connection_url()
 
 
@@ -142,7 +144,12 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "incidents",
         "incident_transitions",
         "incident_cancellation_requests",
+        "incident_memory_embeddings",
     } <= names
+    async with engine.connect() as connection:
+        assert await connection.scalar(
+            text("SELECT extversion FROM pg_extension WHERE extname='vector'")
+        )
 
 
 @pytest.mark.anyio
@@ -306,3 +313,57 @@ async def test_alert_repository_rejects_invalid_window(engine: AsyncEngine) -> N
     async with AsyncSession(engine) as session:
         with pytest.raises(InvalidDomainValueError, match="must be positive"):
             AlertRepository(session, window=timedelta(0), group_id_factory=group_ids())
+
+
+@pytest.mark.anyio
+async def test_embedding_metadata_retains_versions_and_enforces_vector_dimensions(
+    engine: AsyncEngine,
+) -> None:
+    """Embedding rows remain reproducible to source/model/schema and reject shape drift."""
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    incident = Incident.open(IncidentId("incident-memory"), IncidentSeverity.SEV3, opened_at=NOW)
+    async with sessions.begin() as session:
+        await IncidentRepository(session).add(incident)
+        session.add(
+            IncidentMemoryEmbeddingRow(
+                id="embedding-1",
+                incident_id=incident.id.value,
+                source_content_hash="a" * 64,
+                provider="mock",
+                model="deterministic-embedding",
+                model_version="1.0.0",
+                dimensions=3,
+                content_schema_version="incident-memory/v1",
+                normalization_version="l2/v1",
+                embedding=[0.1, 0.2, 0.3],
+                reindex_required=False,
+                created_at=NOW,
+            )
+        )
+
+    async with sessions() as session:
+        row = await session.get(IncidentMemoryEmbeddingRow, "embedding-1")
+        assert row is not None
+        assert row.embedding == pytest.approx([0.1, 0.2, 0.3])
+        assert row.model_version == "1.0.0"
+        assert row.content_schema_version == "incident-memory/v1"
+
+    async with sessions.begin() as session:
+        session.add(
+            IncidentMemoryEmbeddingRow(
+                id="embedding-invalid",
+                incident_id=incident.id.value,
+                source_content_hash="b" * 64,
+                provider="mock",
+                model="deterministic-embedding",
+                model_version="2.0.0",
+                dimensions=3,
+                content_schema_version="incident-memory/v1",
+                normalization_version="l2/v1",
+                embedding=[0.1, 0.2],
+                reindex_required=True,
+                created_at=NOW,
+            )
+        )
+        with pytest.raises(IntegrityError, match="ck_embeddings_vector_dimensions"):
+            await session.flush()

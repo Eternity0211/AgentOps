@@ -144,7 +144,7 @@ services:
 
   control-postgres:
     <<: [*runtime-defaults, *small-resources]
-    image: postgres:18.6-alpine
+    image: pgvector/pgvector:0.8.6-pg18
     profiles: [control-plane]
     environment:
       POSTGRES_DB: ${CONTROL_DB_NAME:-agentops}

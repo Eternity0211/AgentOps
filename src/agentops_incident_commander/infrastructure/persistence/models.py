@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from pgvector.sqlalchemy import VECTOR
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
@@ -171,3 +172,41 @@ class AlertRow(Base):
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     dimensions: Mapped[list[dict[str, str]]] = mapped_column(JSONB, nullable=False)
+
+
+class IncidentMemoryEmbeddingRow(Base):
+    """Versioned vector index metadata pointing back to an authoritative closed Incident."""
+
+    __tablename__ = "incident_memory_embeddings"
+    __table_args__ = (
+        CheckConstraint("length(source_content_hash) = 64", name="ck_embeddings_source_hash"),
+        CheckConstraint("dimensions > 0 AND dimensions <= 16000", name="ck_embeddings_dimensions"),
+        CheckConstraint(
+            "vector_dims(embedding) = dimensions", name="ck_embeddings_vector_dimensions"
+        ),
+        UniqueConstraint(
+            "incident_id",
+            "provider",
+            "model",
+            "model_version",
+            "content_schema_version",
+            "normalization_version",
+            name="uq_embeddings_versioned_source",
+        ),
+        Index("ix_embeddings_incident_id", "incident_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    incident_id: Mapped[str] = mapped_column(
+        String(128), ForeignKey("incidents.id", ondelete="RESTRICT"), nullable=False
+    )
+    source_content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    provider: Mapped[str] = mapped_column(String(128), nullable=False)
+    model: Mapped[str] = mapped_column(String(128), nullable=False)
+    model_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    dimensions: Mapped[int] = mapped_column(Integer, nullable=False)
+    content_schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    normalization_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(VECTOR(), nullable=False)
+    reindex_required: Mapped[bool] = mapped_column(nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

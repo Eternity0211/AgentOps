@@ -125,6 +125,7 @@ def test_validation_reports_service_and_topology_violations(
     services = invalid["services"]
     assert isinstance(services, dict)
     control = services["control-postgres"]
+    assert control["image"] == "pgvector/pgvector:0.8.6-pg18"
     assert isinstance(control, dict)
     control.update(
         {

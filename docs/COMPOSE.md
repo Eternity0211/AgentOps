@@ -19,6 +19,10 @@ Each application role also receives an explicit service version and unique deplo
 
 Each current container has an explicit profile, image version, health check, read-only root filesystem, init process, `no-new-privileges`, named or temporary writable storage, and limits of `0.50` CPU, `512 MiB` memory, and 200 processes. Redis additionally limits its dataset to `192 MiB`. These are local-lab bounds, not capacity claims.
 
+The control-plane database uses `pgvector/pgvector:0.8.6-pg18`, while the diagnosed simulator keeps
+the plain PostgreSQL 18.6 image. This exposes the `vector` extension only where historical Incident
+memory metadata belongs and does not add vector capabilities to the diagnosed application.
+
 PostgreSQL 18 stores clusters beneath a major-version-specific subdirectory. Both PostgreSQL named volumes therefore mount at `/var/lib/postgresql` rather than the pre-18 `/var/lib/postgresql/data` path; the static contract locks this layout so a future edit cannot reintroduce the startup refusal.
 
 ## Secret setup

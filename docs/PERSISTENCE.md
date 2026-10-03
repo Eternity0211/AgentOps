@@ -41,7 +41,7 @@ domain contract.
 
 ## Reproducible verification
 
-Testcontainers starts the same `postgres:18.6-alpine` major image used by Compose. The integration
+Testcontainers starts the same `pgvector/pgvector:0.8.6-pg18` image used by the control plane. The integration
 suite verifies `upgrade -> downgrade -> upgrade`, required tables, Incident load/change/conflict,
 immediate and deferred cancellation persistence, and concurrent Alert ingestion from sixteen
 independent transactions followed by a replay storm. Unit tests retain fail-closed coverage for
@@ -49,5 +49,15 @@ defensive paths that valid foreign keys and locks should make unreachable.
 
 The test suite uses the ignored repository-local `.pytest-runtime/` directory because elevated
 Docker access on Windows cannot reliably access the normal per-user pytest temporary root. This is
-test isolation only; no runtime data is committed. pgvector, the audit ledger, outbox, workflow
-checkpoints, and job queue are separate remaining Phase 2 batches.
+test isolation only; no runtime data is committed. The audit ledger, outbox, workflow checkpoints,
+and job queue are separate remaining Phase 2 batches.
+
+## Versioned embedding metadata
+
+Revision `20261003_0002` enables the `vector` extension and adds
+`incident_memory_embeddings`. Each row points to an authoritative Incident and retains its source
+content SHA-256, provider, model and model version, content schema version, normalization version,
+declared dimensions, creation time, and explicit reindex flag. A database check requires
+`vector_dims(embedding)` to equal the declared positive dimension, and a versioned-source unique
+key prevents ambiguous duplicates. No similarity-search API, embedding generation, or claim that
+historical memory is current evidence is enabled in this Phase 2 storage batch.

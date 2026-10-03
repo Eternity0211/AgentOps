@@ -19,6 +19,7 @@ dependencies = [
     "opentelemetry-api>=1.45,<1.46",
     "opentelemetry-exporter-otlp-proto-http>=1.45,<1.46",
     "opentelemetry-sdk>=1.45,<1.46",
+    "pgvector>=0.5,<0.6",
     "redis>=8.1,<8.2",
     "sqlalchemy[asyncio]>=2.1.2,<2.2",
     "uvicorn>=0.54,<0.55",
@@ -68,9 +69,6 @@ testpaths = ["tests"]
 addopts = [
     "--strict-config",
     "--strict-markers",
-    "--basetemp=.pytest-runtime",
-    "-p",
-    "no:cacheprovider",
     "--cov=agentops_incident_commander",
     "--cov-branch",
     "--cov-report=term-missing:skip-covered",

@@ -7,18 +7,23 @@ The Phase 2 control plane has two explicit installed entry points:
 
 Both require `AGENTOPS_DATABASE_URL` using the `postgresql+asyncpg` driver. The API additionally
 accepts bounded `AGENTOPS_API_HOST` and `AGENTOPS_API_PORT` settings. The worker requires a stable
-opaque `AGENTOPS_WORKER_ID` and accepts a bounded `AGENTOPS_WORKER_POLL_SECONDS` interval. Missing,
-malformed, or out-of-range values fail before either process begins serving. Error messages name
-the setting but never echo its value, so a credential-bearing database URL is not disclosed.
+opaque `AGENTOPS_WORKER_ID`, poll interval, concurrency limit, and shutdown grace period through
+`AGENTOPS_WORKER_POLL_SECONDS`, `AGENTOPS_WORKER_CONCURRENCY`, and
+`AGENTOPS_WORKER_SHUTDOWN_GRACE_SECONDS`. Missing, malformed, or out-of-range values fail before
+either process begins serving. Error messages name the setting but never echo its value, so a
+credential-bearing database URL is not disclosed.
 
 The API lifespan starts no background worker and has no worker route. The worker module imports no
-FastAPI or Uvicorn surface and handles a cooperative stop event between bounded polls. Its current
-default poller intentionally performs no work: the PostgreSQL JobLease repository now provides
-claiming, heartbeat, retry, stale-lease recovery, and terminal failure routing, while wiring it into
-bounded worker concurrency, graceful shutdown, and cancellation remains the next Phase 2 batch.
-This composition milestone proves ownership and deployment boundaries without claiming that the
-worker runtime already executes workflow jobs.
+FastAPI or Uvicorn surface. Its default source intentionally yields no work until workflow handlers
+exist. The worker requests no more jobs than its available concurrency capacity and rejects a
+source that violates that limit. Every work item provides a persisted-cancellation probe: the
+runtime checks it before execution and passes it into the handler for safe-boundary checks.
+SIGINT/SIGTERM request cooperative shutdown; the worker stops claiming, waits through its bounded
+grace period, then cancels overdue local tasks without acknowledging their database lease.
+PostgreSQL stale-lease recovery can therefore safely reassign them. This does not claim that
+workflow handlers already exist.
 
 Tests verify independent settings, fail-closed startup, the API health contract, absence of worker
-routes/tasks, the HTTP-free worker source, bounded polling and cooperative shutdown, both CLI
+routes/tasks, the HTTP-free worker source, concurrency saturation, cancellation before and during
+work, capacity-contract violation, cooperative signal shutdown, grace-period expiry, both CLI
 entry points, and keyboard interruption.

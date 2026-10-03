@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import signal
 from collections.abc import Coroutine
 from typing import Any
 
@@ -41,6 +42,8 @@ def test_worker_settings_load_typed_values() -> None:
 
     assert settings.worker_id == "worker-1"
     assert settings.poll_interval_seconds == 0.25
+    assert settings.max_concurrency == 4
+    assert settings.shutdown_grace_seconds == 30
 
 
 @pytest.mark.parametrize(
@@ -84,6 +87,24 @@ def test_worker_settings_load_typed_values() -> None:
                 "AGENTOPS_WORKER_POLL_SECONDS": "61",
             },
             "between 0.05 and 60",
+        ),
+        (
+            config.WorkerSettings.load,
+            {
+                "AGENTOPS_DATABASE_URL": DATABASE_URL,
+                "AGENTOPS_WORKER_ID": "worker-1",
+                "AGENTOPS_WORKER_CONCURRENCY": "65",
+            },
+            "between 1 and 64",
+        ),
+        (
+            config.WorkerSettings.load,
+            {
+                "AGENTOPS_DATABASE_URL": DATABASE_URL,
+                "AGENTOPS_WORKER_ID": "worker-1",
+                "AGENTOPS_WORKER_SHUTDOWN_GRACE_SECONDS": "0",
+            },
+            "between 0.1 and 300",
         ),
     ],
 )
@@ -133,13 +154,19 @@ async def test_worker_polls_and_stops_without_http() -> None:
     stop = asyncio.Event()
     calls = 0
 
-    async def poll() -> None:
+    async def cancelled() -> bool:
+        return False
+
+    async def execute(_: worker.CancellationProbe) -> None:
         nonlocal calls
         calls += 1
         if calls == 2:
             stop.set()
 
-    await worker.WorkerService(settings, poll).run(stop)
+    async def source(_: int) -> tuple[worker.WorkItem, ...]:
+        return (worker.WorkItem(cancelled, execute),)
+
+    await worker.WorkerService(settings, source).run(stop)
 
     assert calls == 2
     assert "fastapi" not in inspect.getsource(worker)
@@ -148,11 +175,175 @@ async def test_worker_polls_and_stops_without_http() -> None:
 @pytest.mark.anyio
 async def test_worker_default_poller_and_pre_stopped_service_exit() -> None:
     settings = config.WorkerSettings(DATABASE_URL, "worker-1", 0.05)
-    await worker._no_work_yet()
+    assert await worker._no_work_yet(1) == ()
     stop = asyncio.Event()
     stop.set()
 
     await worker.serve(settings, stop)
+
+
+@pytest.mark.anyio
+async def test_worker_enforces_concurrency_and_checks_cancellation() -> None:
+    settings = config.WorkerSettings(DATABASE_URL, "worker-1", 0.05, 3, 1)
+    stop = asyncio.Event()
+    running = 0
+    maximum = 0
+    cancelled_handler_calls = 0
+    supplied = False
+
+    async def not_cancelled() -> bool:
+        return False
+
+    async def already_cancelled() -> bool:
+        return True
+
+    async def execute(_: worker.CancellationProbe) -> None:
+        nonlocal running, maximum
+        running += 1
+        maximum = max(maximum, running)
+        if maximum == 2:
+            stop.set()
+        await asyncio.sleep(0)
+        running -= 1
+
+    async def must_not_execute(_: worker.CancellationProbe) -> None:
+        nonlocal cancelled_handler_calls
+        cancelled_handler_calls += 1
+
+    async def source(capacity: int) -> tuple[worker.WorkItem, ...]:
+        nonlocal supplied
+        assert capacity == 3
+        if supplied:
+            return ()
+        supplied = True
+        return (
+            worker.WorkItem(not_cancelled, execute),
+            worker.WorkItem(not_cancelled, execute),
+            worker.WorkItem(already_cancelled, must_not_execute),
+        )
+
+    await worker.WorkerService(settings, source).run(stop)
+    assert maximum == 2
+    assert cancelled_handler_calls == 0
+
+
+@pytest.mark.anyio
+async def test_worker_does_not_claim_while_at_capacity() -> None:
+    settings = config.WorkerSettings(DATABASE_URL, "worker-1", 0.05, 1, 1)
+    stop = asyncio.Event()
+    source_calls = 0
+
+    async def cancelled() -> bool:
+        return False
+
+    async def execute(_: worker.CancellationProbe) -> None:
+        await asyncio.sleep(0.12)
+        stop.set()
+
+    async def source(_: int) -> tuple[worker.WorkItem, ...]:
+        nonlocal source_calls
+        source_calls += 1
+        return (worker.WorkItem(cancelled, execute),)
+
+    await worker.WorkerService(settings, source).run(stop)
+    assert source_calls == 1
+
+
+@pytest.mark.anyio
+async def test_worker_rejects_source_capacity_violation() -> None:
+    settings = config.WorkerSettings(DATABASE_URL, "worker-1", 0.05, 1, 1)
+
+    async def cancelled() -> bool:
+        return False
+
+    async def execute(_: worker.CancellationProbe) -> None:
+        return None
+
+    async def source(_: int) -> tuple[worker.WorkItem, ...]:
+        item = worker.WorkItem(cancelled, execute)
+        return (item, item)
+
+    with pytest.raises(RuntimeError, match="exceeded requested capacity"):
+        await worker.WorkerService(settings, source).run(asyncio.Event())
+
+
+@pytest.mark.anyio
+async def test_worker_cancels_overdue_work_after_grace_period() -> None:
+    settings = config.WorkerSettings(DATABASE_URL, "worker-1", 0.05, 1, 0.1)
+    stop = asyncio.Event()
+    was_cancelled = asyncio.Event()
+
+    async def cancelled() -> bool:
+        return False
+
+    async def execute(_: worker.CancellationProbe) -> None:
+        try:
+            await asyncio.Event().wait()
+        finally:
+            was_cancelled.set()
+
+    async def source(_: int) -> tuple[worker.WorkItem, ...]:
+        stop.set()
+        return (worker.WorkItem(cancelled, execute),)
+
+    await worker.WorkerService(settings, source).run(stop)
+    assert was_cancelled.is_set()
+
+
+@pytest.mark.anyio
+async def test_work_handler_can_recheck_cancellation_at_safe_boundary() -> None:
+    settings = config.WorkerSettings(DATABASE_URL, "worker-1", 0.05, 1, 1)
+    stop = asyncio.Event()
+    checks = 0
+    observed: list[bool] = []
+
+    async def cancellation_requested() -> bool:
+        nonlocal checks
+        checks += 1
+        return checks > 1
+
+    async def execute(probe: worker.CancellationProbe) -> None:
+        observed.append(await probe())
+        stop.set()
+
+    async def source(_: int) -> tuple[worker.WorkItem, ...]:
+        return (worker.WorkItem(cancellation_requested, execute),)
+
+    await worker.WorkerService(settings, source).run(stop)
+    assert observed == [True]
+
+
+@pytest.mark.anyio
+async def test_process_signals_request_cooperative_shutdown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = config.WorkerSettings(DATABASE_URL, "worker-1", 0.05)
+    handlers: dict[object, object] = {}
+    restored: list[tuple[object, object]] = []
+
+    monkeypatch.setattr(
+        "agentops_incident_commander.apps.worker.signal.getsignal",
+        lambda item: f"previous-{item}",
+    )
+
+    def install(item: object, handler: object) -> None:
+        if callable(handler):
+            handlers[item] = handler
+        else:
+            restored.append((item, handler))
+
+    async def fake_serve(_: config.WorkerSettings, stop: asyncio.Event) -> None:
+        handler = handlers[signal.SIGTERM]
+        assert callable(handler)
+        handler(signal.SIGTERM, None)
+        await asyncio.sleep(0)
+        assert stop.is_set()
+
+    monkeypatch.setattr("agentops_incident_commander.apps.worker.signal.signal", install)
+    monkeypatch.setattr(worker, "serve", fake_serve)
+    await worker._run_process(settings)
+
+    assert len(restored) == 2
 
 
 def test_worker_main_owns_async_lifecycle(monkeypatch: pytest.MonkeyPatch) -> None:

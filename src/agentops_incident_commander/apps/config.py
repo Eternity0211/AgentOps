@@ -24,14 +24,33 @@ def _database_url(environment: Mapping[str, str]) -> str:
     return value
 
 
-def _integer(environment: Mapping[str, str], name: str, default: int) -> int:
+def _integer(
+    environment: Mapping[str, str],
+    name: str,
+    default: int,
+    minimum: int = 1,
+    maximum: int = 65_535,
+) -> int:
     raw = environment.get(name, str(default))
     try:
         value = int(raw)
     except ValueError as exc:
         raise ConfigurationError(f"{name} must be an integer") from exc
-    if not 1 <= value <= 65_535:
-        raise ConfigurationError(f"{name} must be between 1 and 65535")
+    if not minimum <= value <= maximum:
+        raise ConfigurationError(f"{name} must be between {minimum} and {maximum}")
+    return value
+
+
+def _bounded_float(
+    environment: Mapping[str, str], name: str, default: float, minimum: float, maximum: float
+) -> float:
+    raw = environment.get(name, str(default))
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise ConfigurationError(f"{name} must be numeric") from exc
+    if not minimum <= value <= maximum:
+        raise ConfigurationError(f"{name} must be between {minimum} and {maximum}")
     return value
 
 
@@ -59,18 +78,19 @@ class WorkerSettings:
     database_url: str
     worker_id: str
     poll_interval_seconds: float
+    max_concurrency: int = 4
+    shutdown_grace_seconds: float = 30.0
 
     @classmethod
     def load(cls, environment: Mapping[str, str]) -> WorkerSettings:
-        raw_interval = environment.get("AGENTOPS_WORKER_POLL_SECONDS", "1")
-        try:
-            interval = float(raw_interval)
-        except ValueError as exc:
-            raise ConfigurationError("AGENTOPS_WORKER_POLL_SECONDS must be numeric") from exc
-        if not 0.05 <= interval <= 60:
-            raise ConfigurationError("AGENTOPS_WORKER_POLL_SECONDS must be between 0.05 and 60")
         return cls(
             database_url=_database_url(environment),
             worker_id=_required(environment, "AGENTOPS_WORKER_ID"),
-            poll_interval_seconds=interval,
+            poll_interval_seconds=_bounded_float(
+                environment, "AGENTOPS_WORKER_POLL_SECONDS", 1, 0.05, 60
+            ),
+            max_concurrency=_integer(environment, "AGENTOPS_WORKER_CONCURRENCY", 4, maximum=64),
+            shutdown_grace_seconds=_bounded_float(
+                environment, "AGENTOPS_WORKER_SHUTDOWN_GRACE_SECONDS", 30, 0.1, 300
+            ),
         )

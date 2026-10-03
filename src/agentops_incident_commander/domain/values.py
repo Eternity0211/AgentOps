@@ -66,6 +66,11 @@ class AuditEventId(OpaqueIdentifier):
 
 
 @dataclass(frozen=True, slots=True)
+class OutboxEventId(OpaqueIdentifier):
+    """Stable identity of one cross-process event intent."""
+
+
+@dataclass(frozen=True, slots=True)
 class Sha256Digest:
     """Validated lowercase SHA-256 digest used instead of sensitive payloads."""
 

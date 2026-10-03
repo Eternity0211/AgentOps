@@ -74,7 +74,7 @@ Exit: Compose starts cleanly, each fault reproduces and resets, telemetry is que
 - [x] Implement SQLAlchemy models/repositories and initial Alembic migrations for operational aggregates.
 - [x] Enable PostgreSQL pgvector extension and versioned embedding metadata.
 - [x] Implement append-only AuditEvent model with correlation/causation IDs and restricted mutation path.
-- [ ] Implement transactional outbox where cross-process event intent is required.
+- [x] Implement transactional outbox where cross-process event intent is required.
 - [ ] Separate FastAPI API and worker process composition.
 - [ ] Implement PostgreSQL job claim/lease/heartbeat/retry/dead-letter-or-human-handoff behavior using transactional locking.
 - [ ] Add worker concurrency limits, graceful shutdown, stale-lease recovery, and cancellation checks.

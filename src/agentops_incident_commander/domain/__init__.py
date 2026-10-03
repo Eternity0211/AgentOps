@@ -20,6 +20,7 @@ from .errors import (
     NaiveDateTimeError,
     NonMonotonicTimeError,
     OptimisticVersionError,
+    OutboxLeaseError,
 )
 from .incidents import (
     ALLOWED_TRANSITIONS,
@@ -36,6 +37,7 @@ from .incidents import (
     IncidentState,
     IncidentTransition,
 )
+from .outbox import OutboxClaim, OutboxEvent, OutboxPayload
 from .values import (
     ActorId,
     AggregateVersion,
@@ -47,6 +49,7 @@ from .values import (
     EventReason,
     IncidentId,
     OpaqueIdentifier,
+    OutboxEventId,
     Sha256Digest,
     TenantId,
     as_utc,
@@ -94,6 +97,11 @@ __all__ = [
     "NonMonotonicTimeError",
     "OpaqueIdentifier",
     "OptimisticVersionError",
+    "OutboxClaim",
+    "OutboxEvent",
+    "OutboxEventId",
+    "OutboxLeaseError",
+    "OutboxPayload",
     "Sha256Digest",
     "StoredAuditEvent",
     "TenantId",

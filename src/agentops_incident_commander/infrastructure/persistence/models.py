@@ -61,6 +61,73 @@ class AuditEventRow(Base):
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class OutboxEventRow(Base):
+    """Transactional event intent with bounded delivery lease state."""
+
+    __tablename__ = "outbox_events"
+    __table_args__ = (
+        CheckConstraint("aggregate_version >= 1", name="ck_outbox_aggregate_version"),
+        CheckConstraint("max_attempts >= 1", name="ck_outbox_max_attempts"),
+        CheckConstraint(
+            "attempt_count >= 0 AND attempt_count <= max_attempts",
+            name="ck_outbox_attempt_count",
+        ),
+        CheckConstraint("payload_hash ~ '^[0-9a-f]{64}$'", name="ck_outbox_payload_hash"),
+        CheckConstraint("available_at >= occurred_at", name="ck_outbox_time_order"),
+        CheckConstraint(
+            "(lease_owner IS NULL) = (lease_expires_at IS NULL)",
+            name="ck_outbox_lease_pair",
+        ),
+        CheckConstraint(
+            "published_at IS NULL OR "
+            "(lease_owner IS NULL AND lease_expires_at IS NULL AND dead_lettered_at IS NULL)",
+            name="ck_outbox_published_state",
+        ),
+        CheckConstraint(
+            "dead_lettered_at IS NULL OR "
+            "(published_at IS NULL AND lease_owner IS NULL AND lease_expires_at IS NULL "
+            "AND attempt_count = max_attempts)",
+            name="ck_outbox_dead_letter_state",
+        ),
+        UniqueConstraint(
+            "aggregate_type",
+            "aggregate_id",
+            "aggregate_version",
+            "topic",
+            name="uq_outbox_aggregate_intent",
+        ),
+        Index(
+            "ix_outbox_dispatch",
+            "published_at",
+            "dead_lettered_at",
+            "available_at",
+            "sequence",
+        ),
+        Index("ix_outbox_lease_expiry", "lease_expires_at"),
+    )
+
+    sequence: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    topic: Mapped[str] = mapped_column(String(128), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    aggregate_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    aggregate_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    aggregate_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    correlation_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    causation_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    payload: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    max_attempts: Mapped[int] = mapped_column(Integer, nullable=False)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    lease_owner: Mapped[str | None] = mapped_column(String(128))
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    dead_lettered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(String(512))
+
+
 class IncidentRow(Base):
     """Mutable Incident aggregate guarded by an optimistic version."""
 

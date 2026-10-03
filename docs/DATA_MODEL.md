@@ -34,7 +34,7 @@ This is the conceptual model. SQLAlchemy/Alembic implementation must preserve th
 | IncidentMemory | Closed-incident summary with source links, embedding/model version, outcome confidence; reference-only. |
 | JobLease | job type/payload reference, state, priority, available time, lease owner/expiry/heartbeat, attempts. |
 | WorkflowCheckpoint | LangGraph checkpoint, schema/graph versions, thread/run IDs, created time and integrity metadata. |
-| OutboxEvent | transactional event intent and publication status for reliable asynchronous processing. |
+| OutboxEvent | Stable/global sequence, topic/schema version, aggregate identity/version, bounded canonical payload/hash, correlation/causation, availability, publication lease/attempts, retry/dead-letter status. It is committed with aggregate state and is distinct from the general JobLease queue. |
 
 ## Storage rules
 

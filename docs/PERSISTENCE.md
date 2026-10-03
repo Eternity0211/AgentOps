@@ -49,7 +49,7 @@ defensive paths that valid foreign keys and locks should make unreachable.
 
 The test suite uses an ignored repository-local `.pytest-runtime-*` directory because elevated
 Docker access on Windows cannot reliably access the normal per-user pytest temporary root. This is
-test isolation only; no runtime data is committed. The outbox, workflow checkpoints, and job queue
+test isolation only; no runtime data is committed. Workflow checkpoints and the general job queue
 are separate remaining Phase 2 batches.
 
 ## Versioned embedding metadata
@@ -78,3 +78,21 @@ the typed domain path. Integration tests prove migration round trips, ordered re
 concurrent inserts with unique increasing sequences, direct raw mutation refusal, and invalid raw
 hash refusal. Stronger integrity mechanisms such as hash chaining or external anchoring remain an
 explicit later threat/deployment decision rather than an unverified current claim.
+
+## Transactional outbox
+
+Revision `20261003_0004` adds `outbox_events` for cross-process event intent. Producers stage an
+event through the same SQLAlchemy session and transaction as aggregate state; rollback removes
+both. Each event has a stable ID, globally ordered sequence, topic and payload schema versions,
+aggregate identity/version, correlation/causation IDs, UTC occurrence/availability times, bounded
+canonical JSON payload, and SHA-256 integrity digest. A database unique key on aggregate type, ID,
+version, and topic prevents a retry with a new message ID from duplicating the same intent.
+
+Dispatchers claim ordered batches with `SELECT ... FOR UPDATE SKIP LOCKED`. A claim records its
+worker, UTC expiry, and bounded attempt number. Only the owner of a live lease can mark publication
+or failure; expired claims are safely reclaimable. Failures become available at an explicit retry
+time and are dead-lettered after their per-event maximum attempt count. Integration tests cover
+transaction rollback, duplicate intent, disjoint concurrent claims, stale-worker takeover,
+foreign acknowledgement refusal, successful publication, delayed retry, and retry exhaustion.
+This is not the general workflow job queue: job priority, heartbeat, cancellation, and human
+handoff remain in their dedicated Phase 2 batch.

@@ -41,7 +41,12 @@ from agentops_incident_commander.domain import (
     IncidentSeverity,
     IncidentState,
     InvalidDomainValueError,
+    OpaqueIdentifier,
     OptimisticVersionError,
+    OutboxEvent,
+    OutboxEventId,
+    OutboxLeaseError,
+    OutboxPayload,
     Sha256Digest,
     TenantId,
 )
@@ -55,6 +60,8 @@ from agentops_incident_commander.infrastructure.persistence import (
     IncidentMemoryEmbeddingRow,
     IncidentRepository,
     IncidentTransitionRow,
+    OutboxEventRow,
+    OutboxRepository,
 )
 
 NOW = datetime(2026, 10, 3, 8, 0, tzinfo=UTC)
@@ -94,7 +101,7 @@ async def engine(migrated_url: str) -> AsyncIterator[AsyncEngine]:
         await connection.execute(
             text(
                 "TRUNCATE alerts, alert_groups, incident_cancellation_requests, "
-                "incident_transitions, incidents RESTART IDENTITY CASCADE"
+                "incident_transitions, outbox_events, incidents RESTART IDENTITY CASCADE"
             )
         )
     await value.dispose()
@@ -145,6 +152,29 @@ def audit_event(event_id: str, correlation_id: str = "audit-correlation") -> Aud
     )
 
 
+def outbox_event(
+    event_id: str,
+    *,
+    aggregate_id: str | None = None,
+    aggregate_version: int = 1,
+    max_attempts: int = 3,
+) -> OutboxEvent:
+    return OutboxEvent(
+        id=OutboxEventId(event_id),
+        topic="incident.transitioned",
+        schema_version="incident/v1",
+        aggregate_type="incident.record",
+        aggregate_id=IncidentId(aggregate_id or f"incident-{event_id}"),
+        aggregate_version=aggregate_version,
+        correlation_id=CorrelationId(f"correlation-{event_id}"),
+        causation_id=CausationId(f"command-{event_id}"),
+        payload=OutboxPayload.from_mapping({"event_id": event_id}),
+        occurred_at=NOW,
+        available_at=NOW,
+        max_attempts=max_attempts,
+    )
+
+
 @pytest.mark.anyio
 async def test_migration_created_expected_tables_and_constraints(engine: AsyncEngine) -> None:
     """The upgraded schema contains all initial operational tables."""
@@ -168,6 +198,7 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "incident_transitions",
         "incident_cancellation_requests",
         "incident_memory_embeddings",
+        "outbox_events",
     } <= names
     async with engine.connect() as connection:
         assert await connection.scalar(
@@ -264,6 +295,164 @@ async def test_audit_database_constraints_reject_invalid_raw_hash(engine: AsyncE
         )
         with pytest.raises(IntegrityError, match="ck_audit_request_hash"):
             await session.flush()
+
+
+@pytest.mark.anyio
+async def test_outbox_and_aggregate_commit_or_rollback_together(engine: AsyncEngine) -> None:
+    """Aggregate state never commits without its required cross-process event intent."""
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    incident = Incident.open(IncidentId("incident-atomic"), IncidentSeverity.SEV2, opened_at=NOW)
+
+    with pytest.raises(RuntimeError, match="abort transaction"):
+        async with sessions.begin() as session:
+            await IncidentRepository(session).add(incident)
+            await OutboxRepository(session).enqueue(
+                outbox_event("outbox-rollback", aggregate_id=incident.id.value)
+            )
+            raise RuntimeError("abort transaction")
+
+    async with sessions() as session:
+        assert await IncidentRepository(session).get(incident.id) is None
+        assert await session.scalar(select(func.count()).select_from(OutboxEventRow)) == 0
+
+    async with sessions.begin() as session:
+        await IncidentRepository(session).add(incident)
+        sequence = await OutboxRepository(session).enqueue(
+            outbox_event("outbox-commit", aggregate_id=incident.id.value)
+        )
+    assert sequence > 0
+
+
+@pytest.mark.anyio
+async def test_outbox_rejects_duplicate_aggregate_intent(engine: AsyncEngine) -> None:
+    """A retry with a new message ID cannot duplicate the same aggregate event intent."""
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        await OutboxRepository(session).enqueue(
+            outbox_event("outbox-original", aggregate_id="incident-dedupe", aggregate_version=7)
+        )
+
+    with pytest.raises(IntegrityError, match="uq_outbox_aggregate_intent"):
+        async with sessions.begin() as session:
+            await OutboxRepository(session).enqueue(
+                outbox_event("outbox-retry", aggregate_id="incident-dedupe", aggregate_version=7)
+            )
+
+
+@pytest.mark.anyio
+async def test_outbox_concurrent_claims_are_disjoint(engine: AsyncEngine) -> None:
+    """SKIP LOCKED assigns each available event to at most one concurrent dispatcher."""
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        repository = OutboxRepository(session)
+        for index in range(16):
+            await repository.enqueue(outbox_event(f"outbox-concurrent-{index}"))
+
+    async def claim(worker: str) -> tuple[OutboxEventId, ...]:
+        async with sessions.begin() as session:
+            claimed = await OutboxRepository(session).claim(
+                OpaqueIdentifier(worker), now=NOW, lease_duration=timedelta(minutes=1), limit=10
+            )
+            return tuple(item.event.id for item in claimed)
+
+    first, second = await asyncio.gather(claim("worker-1"), claim("worker-2"))
+    assert len(first) + len(second) == 16
+    assert set(first).isdisjoint(second)
+
+
+@pytest.mark.anyio
+async def test_outbox_reclaims_stale_lease_and_publishes_once(engine: AsyncEngine) -> None:
+    """A crashed worker's expired lease is reclaimed and only its successor can acknowledge."""
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    event = outbox_event("outbox-stale")
+    async with sessions.begin() as session:
+        await OutboxRepository(session).enqueue(event)
+        first = await OutboxRepository(session).claim(
+            OpaqueIdentifier("worker-old"),
+            now=NOW,
+            lease_duration=timedelta(minutes=1),
+            limit=1,
+        )
+    assert first[0].attempt == 1
+
+    takeover_time = NOW + timedelta(minutes=2)
+    async with sessions.begin() as session:
+        second = await OutboxRepository(session).claim(
+            OpaqueIdentifier("worker-new"),
+            now=takeover_time,
+            lease_duration=timedelta(minutes=1),
+            limit=1,
+        )
+    assert second[0].attempt == 2
+
+    async with sessions.begin() as session:
+        with pytest.raises(OutboxLeaseError, match="no active lease"):
+            await OutboxRepository(session).mark_published(
+                event.id, OpaqueIdentifier("worker-old"), published_at=takeover_time
+            )
+        await OutboxRepository(session).mark_published(
+            event.id,
+            OpaqueIdentifier("worker-new"),
+            published_at=takeover_time + timedelta(seconds=1),
+        )
+
+    async with sessions.begin() as session:
+        assert not await OutboxRepository(session).claim(
+            OpaqueIdentifier("worker-third"),
+            now=takeover_time + timedelta(minutes=2),
+            lease_duration=timedelta(minutes=1),
+            limit=1,
+        )
+
+
+@pytest.mark.anyio
+async def test_outbox_failure_retries_then_dead_letters(engine: AsyncEngine) -> None:
+    """Failures are delayed and bounded; exhaustion stops automatic publication attempts."""
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    event = outbox_event("outbox-failure", max_attempts=2)
+    worker = OpaqueIdentifier("worker-failure")
+    async with sessions.begin() as session:
+        repository = OutboxRepository(session)
+        await repository.enqueue(event)
+        await repository.claim(worker, now=NOW, lease_duration=timedelta(minutes=1), limit=1)
+        await repository.mark_failed(
+            event.id,
+            worker,
+            failed_at=NOW + timedelta(seconds=1),
+            retry_at=NOW + timedelta(minutes=2),
+            error=" broker unavailable ",
+        )
+
+    async with sessions.begin() as session:
+        repository = OutboxRepository(session)
+        assert not await repository.claim(
+            worker,
+            now=NOW + timedelta(minutes=1),
+            lease_duration=timedelta(minutes=1),
+            limit=1,
+        )
+        retry = await repository.claim(
+            worker,
+            now=NOW + timedelta(minutes=2),
+            lease_duration=timedelta(minutes=1),
+            limit=1,
+        )
+        assert retry[0].attempt == 2
+        await repository.mark_failed(
+            event.id,
+            worker,
+            failed_at=NOW + timedelta(minutes=2, seconds=1),
+            retry_at=NOW + timedelta(minutes=4),
+            error="still unavailable",
+        )
+
+    async with sessions() as session:
+        row = await session.scalar(
+            select(OutboxEventRow).where(OutboxEventRow.id == event.id.value)
+        )
+        assert row is not None
+        assert row.dead_lettered_at == NOW + timedelta(minutes=2, seconds=1)
+        assert row.last_error == "still unavailable"
 
 
 @pytest.mark.anyio

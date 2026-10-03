@@ -29,3 +29,7 @@ class OptimisticVersionError(DomainError):
 
 class NonMonotonicTimeError(DomainError):
     """An Incident event predates the aggregate's latest event."""
+
+
+class OutboxLeaseError(DomainError):
+    """An outbox acknowledgement came from a missing, stale, or foreign lease."""

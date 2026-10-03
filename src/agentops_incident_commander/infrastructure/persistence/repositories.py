@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any, cast
 
-from sqlalchemy import CursorResult, select, text, update
+from sqlalchemy import CursorResult, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentops_incident_commander.domain import (
@@ -32,9 +32,15 @@ from agentops_incident_commander.domain import (
     InvalidDomainValueError,
     OpaqueIdentifier,
     OptimisticVersionError,
+    OutboxClaim,
+    OutboxEvent,
+    OutboxEventId,
+    OutboxLeaseError,
+    OutboxPayload,
     Sha256Digest,
     StoredAuditEvent,
     TenantId,
+    as_utc,
     select_alert_group,
 )
 
@@ -45,7 +51,165 @@ from .models import (
     IncidentCancellationRequestRow,
     IncidentRow,
     IncidentTransitionRow,
+    OutboxEventRow,
 )
+
+
+def _outbox_event_from_row(row: OutboxEventRow) -> OutboxEvent:
+    payload = OutboxPayload.from_mapping(row.payload)
+    if payload.sha256.value != row.payload_hash:
+        raise InvalidDomainValueError("outbox payload hash does not match stored payload")
+    return OutboxEvent(
+        id=OutboxEventId(row.id),
+        topic=row.topic,
+        schema_version=row.schema_version,
+        aggregate_type=row.aggregate_type,
+        aggregate_id=OpaqueIdentifier(row.aggregate_id),
+        aggregate_version=row.aggregate_version,
+        correlation_id=CorrelationId(row.correlation_id),
+        causation_id=CausationId(row.causation_id),
+        payload=payload,
+        occurred_at=row.occurred_at,
+        available_at=row.available_at,
+        max_attempts=row.max_attempts,
+    )
+
+
+class OutboxRepository:
+    """Stage event intent transactionally and coordinate reliable publication."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def enqueue(self, event: OutboxEvent) -> int:
+        """Stage one idempotent event intent in the caller-owned transaction."""
+        row = OutboxEventRow(
+            id=event.id.value,
+            topic=event.topic,
+            schema_version=event.schema_version,
+            aggregate_type=event.aggregate_type,
+            aggregate_id=event.aggregate_id.value,
+            aggregate_version=event.aggregate_version,
+            correlation_id=event.correlation_id.value,
+            causation_id=event.causation_id.value,
+            payload=event.payload.as_mapping(),
+            payload_hash=event.payload.sha256.value,
+            occurred_at=event.occurred_at,
+            available_at=event.available_at,
+            max_attempts=event.max_attempts,
+            attempt_count=0,
+        )
+        self._session.add(row)
+        await self._session.flush()
+        return row.sequence
+
+    async def claim(
+        self,
+        worker_id: OpaqueIdentifier,
+        *,
+        now: datetime,
+        lease_duration: timedelta,
+        limit: int,
+    ) -> tuple[OutboxClaim, ...]:
+        """Claim available intents with SKIP LOCKED and reclaim expired leases."""
+        current = as_utc(now)
+        if lease_duration <= timedelta(0):
+            raise InvalidDomainValueError("outbox lease duration must be positive")
+        if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 100:
+            raise InvalidDomainValueError("outbox claim limit must be between 1 and 100")
+        rows = (
+            await self._session.scalars(
+                select(OutboxEventRow)
+                .where(
+                    OutboxEventRow.published_at.is_(None),
+                    OutboxEventRow.dead_lettered_at.is_(None),
+                    OutboxEventRow.available_at <= current,
+                    OutboxEventRow.attempt_count < OutboxEventRow.max_attempts,
+                    or_(
+                        OutboxEventRow.lease_expires_at.is_(None),
+                        OutboxEventRow.lease_expires_at <= current,
+                    ),
+                )
+                .order_by(OutboxEventRow.sequence)
+                .limit(limit)
+                .with_for_update(skip_locked=True)
+            )
+        ).all()
+        lease_expires_at = current + lease_duration
+        claims: list[OutboxClaim] = []
+        for row in rows:
+            row.attempt_count += 1
+            row.lease_owner = worker_id.value
+            row.lease_expires_at = lease_expires_at
+            claims.append(
+                OutboxClaim(
+                    sequence=row.sequence,
+                    event=_outbox_event_from_row(row),
+                    attempt=row.attempt_count,
+                    worker_id=worker_id,
+                    lease_expires_at=lease_expires_at,
+                )
+            )
+        await self._session.flush()
+        return tuple(claims)
+
+    async def mark_published(
+        self, event_id: OutboxEventId, worker_id: OpaqueIdentifier, *, published_at: datetime
+    ) -> None:
+        """Acknowledge publication only while the caller owns an active lease."""
+        completed_at = as_utc(published_at)
+        row = await self._locked_owned_row(event_id, worker_id, completed_at)
+        row.published_at = completed_at
+        row.lease_owner = None
+        row.lease_expires_at = None
+        row.last_error = None
+        await self._session.flush()
+
+    async def mark_failed(
+        self,
+        event_id: OutboxEventId,
+        worker_id: OpaqueIdentifier,
+        *,
+        failed_at: datetime,
+        retry_at: datetime,
+        error: str,
+    ) -> None:
+        """Release a failed attempt for retry or dead-letter it at its bounded limit."""
+        failure_time = as_utc(failed_at)
+        next_attempt = as_utc(retry_at)
+        if next_attempt < failure_time:
+            raise InvalidDomainValueError("outbox retry cannot predate failure")
+        bounded_error = error.strip()
+        if (
+            not bounded_error
+            or len(bounded_error) > 512
+            or any(ord(character) < 32 for character in bounded_error)
+        ):
+            raise InvalidDomainValueError("outbox failure must be bounded printable text")
+        row = await self._locked_owned_row(event_id, worker_id, failure_time)
+        row.lease_owner = None
+        row.lease_expires_at = None
+        row.last_error = bounded_error
+        if row.attempt_count >= row.max_attempts:
+            row.dead_lettered_at = failure_time
+        else:
+            row.available_at = next_attempt
+        await self._session.flush()
+
+    async def _locked_owned_row(
+        self, event_id: OutboxEventId, worker_id: OpaqueIdentifier, at: datetime
+    ) -> OutboxEventRow:
+        row = await self._session.scalar(
+            select(OutboxEventRow).where(OutboxEventRow.id == event_id.value).with_for_update()
+        )
+        if (
+            row is None
+            or row.lease_owner != worker_id.value
+            or row.lease_expires_at is None
+            or row.lease_expires_at <= at
+        ):
+            raise OutboxLeaseError("outbox event has no active lease owned by this worker")
+        return row
 
 
 def _audit_from_row(row: AuditEventRow) -> StoredAuditEvent:

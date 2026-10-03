@@ -9,9 +9,16 @@ from .models import (
     IncidentMemoryEmbeddingRow,
     IncidentRow,
     IncidentTransitionRow,
+    JobRow,
     OutboxEventRow,
 )
-from .repositories import AlertRepository, AuditRepository, IncidentRepository, OutboxRepository
+from .repositories import (
+    AlertRepository,
+    AuditRepository,
+    IncidentRepository,
+    JobRepository,
+    OutboxRepository,
+)
 
 __all__ = [
     "AlertGroupRow",
@@ -25,6 +32,8 @@ __all__ = [
     "IncidentRepository",
     "IncidentRow",
     "IncidentTransitionRow",
+    "JobRepository",
+    "JobRow",
     "OutboxEventRow",
     "OutboxRepository",
 ]

@@ -71,6 +71,11 @@ class OutboxEventId(OpaqueIdentifier):
 
 
 @dataclass(frozen=True, slots=True)
+class JobId(OpaqueIdentifier):
+    """Stable identity of one durable worker job."""
+
+
+@dataclass(frozen=True, slots=True)
 class Sha256Digest:
     """Validated lowercase SHA-256 digest used instead of sensitive payloads."""
 

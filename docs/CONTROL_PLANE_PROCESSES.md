@@ -13,10 +13,11 @@ the setting but never echo its value, so a credential-bearing database URL is no
 
 The API lifespan starts no background worker and has no worker route. The worker module imports no
 FastAPI or Uvicorn surface and handles a cooperative stop event between bounded polls. Its current
-default poller intentionally performs no work: PostgreSQL JobLease claiming, heartbeat, retry,
-stale-lease recovery, concurrency limits, and cancellation arrive in the next dedicated Phase 2
-batches. This composition milestone proves ownership and deployment boundaries without claiming
-that the workflow queue already exists.
+default poller intentionally performs no work: the PostgreSQL JobLease repository now provides
+claiming, heartbeat, retry, stale-lease recovery, and terminal failure routing, while wiring it into
+bounded worker concurrency, graceful shutdown, and cancellation remains the next Phase 2 batch.
+This composition milestone proves ownership and deployment boundaries without claiming that the
+worker runtime already executes workflow jobs.
 
 Tests verify independent settings, fail-closed startup, the API health contract, absence of worker
 routes/tasks, the HTTP-free worker source, bounded polling and cooperative shutdown, both CLI

@@ -128,6 +128,63 @@ class OutboxEventRow(Base):
     last_error: Mapped[str | None] = mapped_column(String(512))
 
 
+class JobRow(Base):
+    """Durable worker job with an exclusive expiring lease."""
+
+    __tablename__ = "jobs"
+    __table_args__ = (
+        CheckConstraint("priority BETWEEN 0 AND 100", name="ck_jobs_priority"),
+        CheckConstraint("max_attempts >= 1", name="ck_jobs_max_attempts"),
+        CheckConstraint(
+            "attempt_count >= 0 AND attempt_count <= max_attempts",
+            name="ck_jobs_attempt_count",
+        ),
+        CheckConstraint("available_at >= created_at", name="ck_jobs_time_order"),
+        CheckConstraint(
+            "(status = 'LEASED' AND lease_owner IS NOT NULL AND leased_at IS NOT NULL "
+            "AND heartbeat_at IS NOT NULL AND lease_expires_at IS NOT NULL) OR "
+            "(status <> 'LEASED' AND lease_owner IS NULL AND leased_at IS NULL "
+            "AND heartbeat_at IS NULL AND lease_expires_at IS NULL)",
+            name="ck_jobs_lease_state",
+        ),
+        CheckConstraint(
+            "(status IN ('COMPLETED', 'DEAD_LETTER', 'NEEDS_HUMAN')) = (terminal_at IS NOT NULL)",
+            name="ck_jobs_terminal_state",
+        ),
+        CheckConstraint(
+            "status IN ('PENDING', 'LEASED', 'COMPLETED', 'DEAD_LETTER', 'NEEDS_HUMAN')",
+            name="ck_jobs_status",
+        ),
+        CheckConstraint(
+            "failure_route IN ('DEAD_LETTER', 'NEEDS_HUMAN')",
+            name="ck_jobs_failure_route",
+        ),
+        Index("ix_jobs_claim", "status", "available_at", "priority", "sequence"),
+        Index("ix_jobs_lease_expiry", "lease_expires_at"),
+    )
+
+    sequence: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    type: Mapped[str] = mapped_column(String(128), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload_ref: Mapped[str] = mapped_column(String(128), nullable=False)
+    correlation_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    causation_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    priority: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    max_attempts: Mapped[int] = mapped_column(Integer, nullable=False)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    failure_route: Mapped[str] = mapped_column(String(32), nullable=False)
+    lease_owner: Mapped[str | None] = mapped_column(String(128))
+    leased_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    terminal_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(String(512))
+
+
 class IncidentRow(Base):
     """Mutable Incident aggregate guarded by an optimistic version."""
 

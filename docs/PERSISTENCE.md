@@ -49,8 +49,7 @@ defensive paths that valid foreign keys and locks should make unreachable.
 
 The test suite uses an ignored repository-local `.pytest-runtime-*` directory because elevated
 Docker access on Windows cannot reliably access the normal per-user pytest temporary root. This is
-test isolation only; no runtime data is committed. Workflow checkpoints and the general job queue
-are separate remaining Phase 2 batches.
+test isolation only; no runtime data is committed. Workflow checkpoints remain a later phase.
 
 ## Versioned embedding metadata
 
@@ -96,3 +95,20 @@ transaction rollback, duplicate intent, disjoint concurrent claims, stale-worker
 foreign acknowledgement refusal, successful publication, delayed retry, and retry exhaustion.
 This is not the general workflow job queue: job priority, heartbeat, cancellation, and human
 handoff remain in their dedicated Phase 2 batch.
+
+## Durable worker jobs
+
+Revision `20261003_0005` adds `jobs`, a PostgreSQL queue distinct from outbox publication. Each job
+has a typed ID, dotted type, payload schema and durable payload reference, correlation/causation,
+bounded priority, UTC availability, maximum attempts, and an explicit exhaustion route to either
+`DEAD_LETTER` or `NEEDS_HUMAN`. Database checks tie `LEASED` strictly to complete lease metadata
+and terminal statuses strictly to a terminal timestamp.
+
+Workers claim priority-ordered jobs with `SELECT ... FOR UPDATE SKIP LOCKED`. Claims record owner,
+attempt, lease start, heartbeat, and expiry. Heartbeat, completion, and failure reject missing,
+foreign, or expired leases. Retry releases a job until its attempt budget is exhausted. A crashed
+worker's expired lease is reclaimed when budget remains; a final expired attempt is deterministically
+routed to its configured terminal state so no job remains stranded. Tests cover concurrent disjoint
+claims, duplicate enqueue, heartbeat renewal, foreign-worker refusal, delayed retry, explicit human
+handoff, both stale-final routes, and stale-worker takeover. Worker concurrency limits, graceful
+shutdown integration, and cancellation checks remain the next separate TODO batch.

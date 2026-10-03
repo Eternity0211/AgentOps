@@ -16,6 +16,7 @@ from agentops_incident_commander.domain import (
     AlertId,
     IncidentSeverity,
     InvalidDomainValueError,
+    JobId,
     OpaqueIdentifier,
     OptimisticVersionError,
     OutboxEventId,
@@ -24,6 +25,8 @@ from agentops_incident_commander.domain import (
 from agentops_incident_commander.infrastructure.persistence import (
     AlertGroupRow,
     AlertRepository,
+    JobRepository,
+    JobRow,
     OutboxEventRow,
     OutboxRepository,
     repositories,
@@ -161,6 +164,83 @@ async def test_outbox_failure_rejects_unsafe_error_text(error: str) -> None:
     with pytest.raises(InvalidDomainValueError, match="bounded printable"):
         await repository.mark_failed(
             OutboxEventId("outbox-1"),
+            OpaqueIdentifier("worker-1"),
+            failed_at=NOW,
+            retry_at=NOW,
+            error=error,
+        )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("duration", [timedelta(0), timedelta(seconds=-1)])
+async def test_job_claim_rejects_nonpositive_lease(duration: timedelta) -> None:
+    with pytest.raises(InvalidDomainValueError, match="duration must be positive"):
+        await JobRepository(AsyncMock()).claim(
+            OpaqueIdentifier("worker-1"), now=NOW, lease_duration=duration, limit=1
+        )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("limit", [0, 101, True, 1.5])
+async def test_job_claim_rejects_invalid_limit(limit: object) -> None:
+    with pytest.raises(InvalidDomainValueError, match="between 1 and 100"):
+        await JobRepository(AsyncMock()).claim(
+            OpaqueIdentifier("worker-1"),
+            now=NOW,
+            lease_duration=timedelta(seconds=1),
+            limit=limit,  # type: ignore[arg-type]
+        )
+
+
+@pytest.mark.anyio
+async def test_job_heartbeat_rejects_nonpositive_duration() -> None:
+    with pytest.raises(InvalidDomainValueError, match="duration must be positive"):
+        await JobRepository(AsyncMock()).heartbeat(
+            JobId("job-1"),
+            OpaqueIdentifier("worker-1"),
+            now=NOW,
+            lease_duration=timedelta(0),
+        )
+
+
+@pytest.mark.anyio
+async def test_job_heartbeat_rejects_time_regression() -> None:
+    session = AsyncMock()
+    session.scalar.return_value = JobRow(
+        id="job-1",
+        status="LEASED",
+        lease_owner="worker-1",
+        heartbeat_at=NOW,
+        lease_expires_at=NOW + timedelta(minutes=1),
+    )
+
+    with pytest.raises(InvalidDomainValueError, match="cannot move backward"):
+        await JobRepository(session).heartbeat(
+            JobId("job-1"),
+            OpaqueIdentifier("worker-1"),
+            now=NOW - timedelta(seconds=1),
+            lease_duration=timedelta(minutes=1),
+        )
+
+
+@pytest.mark.anyio
+async def test_job_failure_rejects_retry_before_failure() -> None:
+    with pytest.raises(InvalidDomainValueError, match="cannot predate"):
+        await JobRepository(AsyncMock()).fail(
+            JobId("job-1"),
+            OpaqueIdentifier("worker-1"),
+            failed_at=NOW,
+            retry_at=NOW - timedelta(seconds=1),
+            error="failure",
+        )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("error", ["", "x" * 513, "line\nbreak"])
+async def test_job_failure_rejects_unsafe_error_text(error: str) -> None:
+    with pytest.raises(InvalidDomainValueError, match="bounded printable"):
+        await JobRepository(AsyncMock()).fail(
+            JobId("job-1"),
             OpaqueIdentifier("worker-1"),
             failed_at=NOW,
             retry_at=NOW,

@@ -76,7 +76,7 @@ Exit: Compose starts cleanly, each fault reproduces and resets, telemetry is que
 - [x] Implement append-only AuditEvent model with correlation/causation IDs and restricted mutation path.
 - [x] Implement transactional outbox where cross-process event intent is required.
 - [x] Separate FastAPI API and worker process composition.
-- [ ] Implement PostgreSQL job claim/lease/heartbeat/retry/dead-letter-or-human-handoff behavior using transactional locking.
+- [x] Implement PostgreSQL job claim/lease/heartbeat/retry/dead-letter-or-human-handoff behavior using transactional locking.
 - [ ] Add worker concurrency limits, graceful shutdown, stale-lease recovery, and cancellation checks.
 - [ ] Add authentication principal abstraction and RBAC roles Viewer, Operator, Approver, Admin.
 - [ ] Implement versioned `/api/v1` incident, timeline, control, and audit endpoints with pagination, idempotency, and authorization.

@@ -30,6 +30,12 @@ from agentops_incident_commander.domain import (
     IncidentSeverity,
     IncidentState,
     InvalidDomainValueError,
+    Job,
+    JobFailureRoute,
+    JobId,
+    JobLease,
+    JobLeaseError,
+    JobStatus,
     OpaqueIdentifier,
     OptimisticVersionError,
     OutboxClaim,
@@ -51,8 +57,222 @@ from .models import (
     IncidentCancellationRequestRow,
     IncidentRow,
     IncidentTransitionRow,
+    JobRow,
     OutboxEventRow,
 )
+
+
+def _job_from_row(row: JobRow) -> Job:
+    return Job(
+        id=JobId(row.id),
+        type=row.type,
+        schema_version=row.schema_version,
+        payload_ref=OpaqueIdentifier(row.payload_ref),
+        correlation_id=CorrelationId(row.correlation_id),
+        causation_id=CausationId(row.causation_id),
+        priority=row.priority,
+        created_at=row.created_at,
+        available_at=row.available_at,
+        max_attempts=row.max_attempts,
+        failure_route=JobFailureRoute(row.failure_route),
+    )
+
+
+class JobRepository:
+    """Coordinate bounded durable jobs through PostgreSQL row leases."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def enqueue(self, job: Job) -> int:
+        row = JobRow(
+            id=job.id.value,
+            type=job.type,
+            schema_version=job.schema_version,
+            payload_ref=job.payload_ref.value,
+            correlation_id=job.correlation_id.value,
+            causation_id=job.causation_id.value,
+            priority=job.priority,
+            status=JobStatus.PENDING.value,
+            created_at=job.created_at,
+            available_at=job.available_at,
+            max_attempts=job.max_attempts,
+            attempt_count=0,
+            failure_route=job.failure_route.value,
+        )
+        self._session.add(row)
+        await self._session.flush()
+        return row.sequence
+
+    async def claim(
+        self,
+        worker_id: OpaqueIdentifier,
+        *,
+        now: datetime,
+        lease_duration: timedelta,
+        limit: int,
+    ) -> tuple[JobLease, ...]:
+        current = as_utc(now)
+        if lease_duration <= timedelta(0):
+            raise InvalidDomainValueError("job lease duration must be positive")
+        if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 100:
+            raise InvalidDomainValueError("job claim limit must be between 1 and 100")
+        await self._route_exhausted_stale_leases(current)
+        rows = (
+            await self._session.scalars(
+                select(JobRow)
+                .where(
+                    JobRow.available_at <= current,
+                    JobRow.attempt_count < JobRow.max_attempts,
+                    or_(
+                        JobRow.status == JobStatus.PENDING.value,
+                        (JobRow.status == JobStatus.LEASED.value)
+                        & (JobRow.lease_expires_at <= current),
+                    ),
+                )
+                .order_by(JobRow.priority.desc(), JobRow.sequence)
+                .limit(limit)
+                .with_for_update(skip_locked=True)
+            )
+        ).all()
+        expires_at = current + lease_duration
+        leases: list[JobLease] = []
+        for row in rows:
+            row.status = JobStatus.LEASED.value
+            row.attempt_count += 1
+            row.lease_owner = worker_id.value
+            row.leased_at = current
+            row.heartbeat_at = current
+            row.lease_expires_at = expires_at
+            leases.append(
+                JobLease(
+                    job=_job_from_row(row),
+                    attempt=row.attempt_count,
+                    worker_id=worker_id,
+                    leased_at=current,
+                    heartbeat_at=current,
+                    expires_at=expires_at,
+                )
+            )
+        await self._session.flush()
+        return tuple(leases)
+
+    async def heartbeat(
+        self,
+        job_id: JobId,
+        worker_id: OpaqueIdentifier,
+        *,
+        now: datetime,
+        lease_duration: timedelta,
+    ) -> JobLease:
+        current = as_utc(now)
+        if lease_duration <= timedelta(0):
+            raise InvalidDomainValueError("job heartbeat duration must be positive")
+        row = await self._owned_job(job_id, worker_id, current)
+        if row.heartbeat_at is None or current < row.heartbeat_at:
+            raise InvalidDomainValueError("job heartbeat cannot move backward")
+        row.heartbeat_at = current
+        row.lease_expires_at = current + lease_duration
+        await self._session.flush()
+        return JobLease(
+            job=_job_from_row(row),
+            attempt=row.attempt_count,
+            worker_id=worker_id,
+            leased_at=cast(datetime, row.leased_at),
+            heartbeat_at=current,
+            expires_at=row.lease_expires_at,
+        )
+
+    async def complete(
+        self, job_id: JobId, worker_id: OpaqueIdentifier, *, completed_at: datetime
+    ) -> None:
+        current = as_utc(completed_at)
+        row = await self._owned_job(job_id, worker_id, current)
+        self._terminalize(row, JobStatus.COMPLETED, current)
+        await self._session.flush()
+
+    async def fail(
+        self,
+        job_id: JobId,
+        worker_id: OpaqueIdentifier,
+        *,
+        failed_at: datetime,
+        retry_at: datetime,
+        error: str,
+    ) -> JobStatus:
+        current = as_utc(failed_at)
+        next_attempt = as_utc(retry_at)
+        if next_attempt < current:
+            raise InvalidDomainValueError("job retry cannot predate failure")
+        bounded_error = error.strip()
+        if (
+            not bounded_error
+            or len(bounded_error) > 512
+            or any(ord(character) < 32 for character in bounded_error)
+        ):
+            raise InvalidDomainValueError("job failure must be bounded printable text")
+        row = await self._owned_job(job_id, worker_id, current)
+        row.last_error = bounded_error
+        if row.attempt_count >= row.max_attempts:
+            status = JobStatus(row.failure_route)
+            self._terminalize(row, status, current)
+        else:
+            status = JobStatus.PENDING
+            row.status = status.value
+            row.available_at = next_attempt
+            self._clear_lease(row)
+        await self._session.flush()
+        return status
+
+    async def _route_exhausted_stale_leases(self, current: datetime) -> None:
+        for route in JobFailureRoute:
+            await self._session.execute(
+                update(JobRow)
+                .where(
+                    JobRow.status == JobStatus.LEASED.value,
+                    JobRow.lease_expires_at <= current,
+                    JobRow.attempt_count >= JobRow.max_attempts,
+                    JobRow.failure_route == route.value,
+                )
+                .values(
+                    status=route.value,
+                    terminal_at=current,
+                    lease_owner=None,
+                    leased_at=None,
+                    heartbeat_at=None,
+                    lease_expires_at=None,
+                    last_error="lease expired after final attempt",
+                )
+            )
+
+    async def _owned_job(
+        self, job_id: JobId, worker_id: OpaqueIdentifier, current: datetime
+    ) -> JobRow:
+        row = await self._session.scalar(
+            select(JobRow).where(JobRow.id == job_id.value).with_for_update()
+        )
+        if (
+            row is None
+            or row.status != JobStatus.LEASED.value
+            or row.lease_owner != worker_id.value
+            or row.lease_expires_at is None
+            or row.lease_expires_at <= current
+        ):
+            raise JobLeaseError("job has no active lease owned by this worker")
+        return row
+
+    @staticmethod
+    def _clear_lease(row: JobRow) -> None:
+        row.lease_owner = None
+        row.leased_at = None
+        row.heartbeat_at = None
+        row.lease_expires_at = None
+
+    @classmethod
+    def _terminalize(cls, row: JobRow, status: JobStatus, current: datetime) -> None:
+        row.status = status.value
+        row.terminal_at = current
+        cls._clear_lease(row)
 
 
 def _outbox_event_from_row(row: OutboxEventRow) -> OutboxEvent:

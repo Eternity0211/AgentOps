@@ -41,6 +41,11 @@ from agentops_incident_commander.domain import (
     IncidentSeverity,
     IncidentState,
     InvalidDomainValueError,
+    Job,
+    JobFailureRoute,
+    JobId,
+    JobLeaseError,
+    JobStatus,
     OpaqueIdentifier,
     OptimisticVersionError,
     OutboxEvent,
@@ -60,6 +65,8 @@ from agentops_incident_commander.infrastructure.persistence import (
     IncidentMemoryEmbeddingRow,
     IncidentRepository,
     IncidentTransitionRow,
+    JobRepository,
+    JobRow,
     OutboxEventRow,
     OutboxRepository,
 )
@@ -101,7 +108,7 @@ async def engine(migrated_url: str) -> AsyncIterator[AsyncEngine]:
         await connection.execute(
             text(
                 "TRUNCATE alerts, alert_groups, incident_cancellation_requests, "
-                "incident_transitions, outbox_events, incidents RESTART IDENTITY CASCADE"
+                "incident_transitions, outbox_events, jobs, incidents RESTART IDENTITY CASCADE"
             )
         )
     await value.dispose()
@@ -175,6 +182,28 @@ def outbox_event(
     )
 
 
+def job(
+    job_id: str,
+    *,
+    priority: int = 50,
+    max_attempts: int = 3,
+    failure_route: JobFailureRoute = JobFailureRoute.DEAD_LETTER,
+) -> Job:
+    return Job(
+        id=JobId(job_id),
+        type="workflow.investigate",
+        schema_version="workflow/v1",
+        payload_ref=OpaqueIdentifier(f"payload-{job_id}"),
+        correlation_id=CorrelationId(f"correlation-{job_id}"),
+        causation_id=CausationId(f"command-{job_id}"),
+        priority=priority,
+        created_at=NOW,
+        available_at=NOW,
+        max_attempts=max_attempts,
+        failure_route=failure_route,
+    )
+
+
 @pytest.mark.anyio
 async def test_migration_created_expected_tables_and_constraints(engine: AsyncEngine) -> None:
     """The upgraded schema contains all initial operational tables."""
@@ -198,6 +227,7 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "incident_transitions",
         "incident_cancellation_requests",
         "incident_memory_embeddings",
+        "jobs",
         "outbox_events",
     } <= names
     async with engine.connect() as connection:
@@ -453,6 +483,178 @@ async def test_outbox_failure_retries_then_dead_letters(engine: AsyncEngine) -> 
         assert row is not None
         assert row.dead_lettered_at == NOW + timedelta(minutes=2, seconds=1)
         assert row.last_error == "still unavailable"
+
+
+@pytest.mark.anyio
+async def test_job_claims_are_priority_ordered_and_concurrently_disjoint(
+    engine: AsyncEngine,
+) -> None:
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        repository = JobRepository(session)
+        for index in range(16):
+            await repository.enqueue(job(f"job-concurrent-{index}", priority=index))
+
+    async def claim(worker_id: str) -> tuple[JobId, ...]:
+        async with sessions.begin() as session:
+            leases = await JobRepository(session).claim(
+                OpaqueIdentifier(worker_id),
+                now=NOW,
+                lease_duration=timedelta(minutes=1),
+                limit=10,
+            )
+            return tuple(lease.job.id for lease in leases)
+
+    first, second = await asyncio.gather(claim("worker-a"), claim("worker-b"))
+    assert len(first) + len(second) == 16
+    assert set(first).isdisjoint(second)
+
+
+@pytest.mark.anyio
+async def test_job_heartbeat_completion_and_foreign_worker_refusal(engine: AsyncEngine) -> None:
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    item = job("job-complete")
+    owner = OpaqueIdentifier("worker-owner")
+    async with sessions.begin() as session:
+        repository = JobRepository(session)
+        await repository.enqueue(item)
+        lease = (
+            await repository.claim(owner, now=NOW, lease_duration=timedelta(minutes=1), limit=1)
+        )[0]
+        assert lease.attempt == 1
+        renewed = await repository.heartbeat(
+            item.id,
+            owner,
+            now=NOW + timedelta(seconds=30),
+            lease_duration=timedelta(minutes=1),
+        )
+        assert renewed.expires_at == NOW + timedelta(minutes=1, seconds=30)
+        with pytest.raises(JobLeaseError, match="no active lease"):
+            await repository.complete(
+                item.id,
+                OpaqueIdentifier("worker-foreign"),
+                completed_at=NOW + timedelta(seconds=31),
+            )
+        await repository.complete(item.id, owner, completed_at=NOW + timedelta(seconds=31))
+
+    async with sessions() as session:
+        row = await session.scalar(select(JobRow).where(JobRow.id == item.id.value))
+        assert row is not None
+        assert row.status == JobStatus.COMPLETED.value
+
+
+@pytest.mark.anyio
+async def test_job_duplicate_id_is_rejected_and_stale_lease_is_reclaimed(
+    engine: AsyncEngine,
+) -> None:
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    item = job("job-reclaim", max_attempts=2)
+    async with sessions.begin() as session:
+        repository = JobRepository(session)
+        await repository.enqueue(item)
+        await repository.claim(
+            OpaqueIdentifier("worker-crashed"),
+            now=NOW,
+            lease_duration=timedelta(minutes=1),
+            limit=1,
+        )
+
+    with pytest.raises(IntegrityError, match="jobs_id_key"):
+        async with sessions.begin() as session:
+            await JobRepository(session).enqueue(item)
+
+    async with sessions.begin() as session:
+        reclaimed = await JobRepository(session).claim(
+            OpaqueIdentifier("worker-recovery"),
+            now=NOW + timedelta(minutes=2),
+            lease_duration=timedelta(minutes=1),
+            limit=1,
+        )
+        assert reclaimed[0].attempt == 2
+        assert reclaimed[0].worker_id == OpaqueIdentifier("worker-recovery")
+
+
+@pytest.mark.anyio
+async def test_job_failure_retries_then_routes_to_human(engine: AsyncEngine) -> None:
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    item = job("job-human", max_attempts=2, failure_route=JobFailureRoute.NEEDS_HUMAN)
+    owner = OpaqueIdentifier("worker-human")
+    async with sessions.begin() as session:
+        repository = JobRepository(session)
+        await repository.enqueue(item)
+        await repository.claim(owner, now=NOW, lease_duration=timedelta(minutes=1), limit=1)
+        assert (
+            await repository.fail(
+                item.id,
+                owner,
+                failed_at=NOW + timedelta(seconds=1),
+                retry_at=NOW + timedelta(minutes=2),
+                error="transient",
+            )
+            is JobStatus.PENDING
+        )
+
+    async with sessions.begin() as session:
+        repository = JobRepository(session)
+        assert not await repository.claim(
+            owner,
+            now=NOW + timedelta(minutes=1),
+            lease_duration=timedelta(minutes=1),
+            limit=1,
+        )
+        await repository.claim(
+            owner,
+            now=NOW + timedelta(minutes=2),
+            lease_duration=timedelta(minutes=1),
+            limit=1,
+        )
+        assert (
+            await repository.fail(
+                item.id,
+                owner,
+                failed_at=NOW + timedelta(minutes=2, seconds=1),
+                retry_at=NOW + timedelta(minutes=3),
+                error="exhausted",
+            )
+            is JobStatus.NEEDS_HUMAN
+        )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("route", "expected"),
+    [
+        (JobFailureRoute.DEAD_LETTER, JobStatus.DEAD_LETTER),
+        (JobFailureRoute.NEEDS_HUMAN, JobStatus.NEEDS_HUMAN),
+    ],
+)
+async def test_job_expired_final_lease_routes_terminally(
+    engine: AsyncEngine, route: JobFailureRoute, expected: JobStatus
+) -> None:
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    item = job(f"job-stale-{route.value.lower()}", max_attempts=1, failure_route=route)
+    async with sessions.begin() as session:
+        repository = JobRepository(session)
+        await repository.enqueue(item)
+        await repository.claim(
+            OpaqueIdentifier("worker-crashed"),
+            now=NOW,
+            lease_duration=timedelta(minutes=1),
+            limit=1,
+        )
+
+    async with sessions.begin() as session:
+        assert not await JobRepository(session).claim(
+            OpaqueIdentifier("worker-recovery"),
+            now=NOW + timedelta(minutes=2),
+            lease_duration=timedelta(minutes=1),
+            limit=1,
+        )
+    async with sessions() as session:
+        row = await session.scalar(select(JobRow).where(JobRow.id == item.id.value))
+        assert row is not None
+        assert row.status == expected.value
+        assert row.last_error == "lease expired after final attempt"
 
 
 @pytest.mark.anyio

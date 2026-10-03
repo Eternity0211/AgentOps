@@ -17,6 +17,7 @@ from .errors import (
     InvalidDomainValueError,
     InvalidIdentifierError,
     InvalidIncidentTransitionError,
+    JobLeaseError,
     NaiveDateTimeError,
     NonMonotonicTimeError,
     OptimisticVersionError,
@@ -37,6 +38,7 @@ from .incidents import (
     IncidentState,
     IncidentTransition,
 )
+from .jobs import Job, JobFailureRoute, JobLease, JobStatus
 from .outbox import OutboxClaim, OutboxEvent, OutboxPayload
 from .values import (
     ActorId,
@@ -48,6 +50,7 @@ from .values import (
     CorrelationId,
     EventReason,
     IncidentId,
+    JobId,
     OpaqueIdentifier,
     OutboxEventId,
     Sha256Digest,
@@ -93,6 +96,12 @@ __all__ = [
     "InvalidDomainValueError",
     "InvalidIdentifierError",
     "InvalidIncidentTransitionError",
+    "Job",
+    "JobFailureRoute",
+    "JobId",
+    "JobLease",
+    "JobLeaseError",
+    "JobStatus",
     "NaiveDateTimeError",
     "NonMonotonicTimeError",
     "OpaqueIdentifier",

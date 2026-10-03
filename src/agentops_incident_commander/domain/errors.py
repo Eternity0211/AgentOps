@@ -33,3 +33,7 @@ class NonMonotonicTimeError(DomainError):
 
 class OutboxLeaseError(DomainError):
     """An outbox acknowledgement came from a missing, stale, or foreign lease."""
+
+
+class JobLeaseError(DomainError):
+    """A job command came from a missing, stale, or foreign lease."""

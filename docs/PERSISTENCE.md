@@ -8,8 +8,8 @@ domain objects and adds database constraints, transactions, locks, and optimisti
 
 Revision `20261003_0001` creates five tables:
 
-- `incidents` holds severity, lifecycle state, optimistic version, UTC lifecycle timestamps, and
-  deferred cancellation time;
+- `incidents` holds tenant ownership, severity, lifecycle state, optimistic version, UTC lifecycle
+  timestamps, and deferred cancellation time;
 - `incident_transitions` is append-only state-change history with actor, reason,
   correlation/causation IDs, prior/new state and consecutive versions;
 - `incident_cancellation_requests` records both immediate and deferred requests independently of
@@ -113,3 +113,16 @@ claims, duplicate enqueue, heartbeat renewal, foreign-worker refusal, delayed re
 handoff, both stale-final routes, and stale-worker takeover. The worker runtime applies bounded
 concurrency, cooperative shutdown, and persisted cancellation probes as documented in
 `CONTROL_PLANE_PROCESSES.md`.
+
+## Tenant ownership and API idempotency
+
+Revision `20261003_0006` adds non-null Tenant IDs and tenant-first indexes to Incidents and audit
+events, plus the `idempotency_records` table. Existing records are backfilled from an unambiguous
+Alert-group association where available; all other legacy rows move to the isolated
+`legacy-unassigned` tenant rather than becoming visible to an active tenant by inference.
+
+An idempotency row is unique by tenant, actor, operation/Incident, and caller key. It stores the
+canonical request hash and the completed status/body with UTC timestamps. The API creates or locks
+this row in the same transaction as the Incident update, lifecycle records, and audit append.
+Concurrent identical requests therefore produce one mutation and a durable replay; a changed
+payload under the same scope is rejected. See `API_V1.md` for the exposed contract.

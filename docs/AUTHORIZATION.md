@@ -20,5 +20,6 @@ an Approver in the same tenant whose Actor ID differs from the proposer; role un
 that separation-of-duties check.
 
 Tests exhaust the role map and prove rejection of anonymous, roleless, underprivileged, cross-tenant,
-self-approval, wrong-role approval, and cross-tenant approval requests. These domain contracts are
-the authority used by future API authentication adapters and endpoint dependencies.
+self-approval, wrong-role approval, and cross-tenant approval requests. The `/api/v1` endpoint
+dependencies now enforce these contracts; the deployment-owned authentication adapter remains
+future work, and its absence fails closed rather than trusting caller-supplied identity headers.

@@ -437,6 +437,7 @@ def _audit_from_row(row: AuditEventRow) -> StoredAuditEvent:
         sequence=row.sequence,
         event=AuditEvent(
             id=AuditEventId(row.id),
+            tenant_id=TenantId(row.tenant_id),
             type=row.event_type,
             event_version=row.event_version,
             payload_schema_version=row.payload_schema_version,
@@ -461,6 +462,7 @@ class AuditRepository:
         """Append one immutable event and return its global database sequence."""
         row = AuditEventRow(
             id=event.id.value,
+            tenant_id=event.tenant_id.value,
             event_type=event.type,
             event_version=event.event_version,
             payload_schema_version=event.payload_schema_version,
@@ -492,6 +494,7 @@ class AuditRepository:
 def _incident_from_row(row: IncidentRow) -> Incident:
     return Incident(
         id=IncidentId(row.id),
+        tenant_id=TenantId(row.tenant_id),
         severity=IncidentSeverity(row.severity),
         opened_at=row.opened_at,
         updated_at=row.updated_at,
@@ -514,6 +517,7 @@ class IncidentRepository:
         self._session.add(
             IncidentRow(
                 id=incident.id.value,
+                tenant_id=incident.tenant_id.value,
                 severity=incident.severity.value,
                 state=incident.state.value,
                 version=incident.version.value,
@@ -529,6 +533,16 @@ class IncidentRepository:
     async def get(self, incident_id: IncidentId) -> Incident | None:
         """Load and validate one aggregate."""
         row = await self._session.get(IncidentRow, incident_id.value)
+        return None if row is None else _incident_from_row(row)
+
+    async def get_for_tenant(self, incident_id: IncidentId, tenant_id: TenantId) -> Incident | None:
+        """Load one aggregate only when it belongs to the authenticated tenant."""
+        row = await self._session.scalar(
+            select(IncidentRow).where(
+                IncidentRow.id == incident_id.value,
+                IncidentRow.tenant_id == tenant_id.value,
+            )
+        )
         return None if row is None else _incident_from_row(row)
 
     async def apply(self, change: IncidentChange) -> None:
@@ -547,6 +561,7 @@ class IncidentRepository:
                 update(IncidentRow)
                 .where(
                     IncidentRow.id == incident.id.value,
+                    IncidentRow.tenant_id == incident.tenant_id.value,
                     IncidentRow.version == prior_version.value,
                 )
                 .values(

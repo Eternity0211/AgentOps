@@ -43,11 +43,13 @@ class AuditEventRow(Base):
             name="ck_audit_result_hash",
         ),
         Index("ix_audit_correlation_sequence", "correlation_id", "sequence"),
+        Index("ix_audit_tenant_sequence", "tenant_id", "sequence"),
         Index("ix_audit_target_sequence", "target_type", "target_id", "sequence"),
     )
 
     sequence: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     id: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
     event_type: Mapped[str] = mapped_column(String(128), nullable=False)
     event_version: Mapped[int] = mapped_column(Integer, nullable=False)
     payload_schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -198,6 +200,7 @@ class IncidentRow(Base):
             "(state = 'CLOSED') = (closed_at IS NOT NULL)",
             name="ck_incidents_closed_timestamp",
         ),
+        Index("ix_incidents_tenant_opened", "tenant_id", "opened_at", "id"),
         CheckConstraint(
             "(state = 'CANCELLED') = (cancelled_at IS NOT NULL)",
             name="ck_incidents_cancelled_timestamp",
@@ -205,6 +208,7 @@ class IncidentRow(Base):
     )
 
     id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
     severity: Mapped[str] = mapped_column(String(4), nullable=False)
     state: Mapped[str] = mapped_column(String(32), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -213,6 +217,48 @@ class IncidentRow(Base):
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cancellation_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class IdempotencyRecordRow(Base):
+    """Durable result cache for one tenant/actor/control-command identity."""
+
+    __tablename__ = "idempotency_records"
+    __table_args__ = (
+        CheckConstraint("request_hash ~ '^[0-9a-f]{64}$'", name="ck_idempotency_request_hash"),
+        CheckConstraint(
+            "response_status IS NULL OR response_status BETWEEN 200 AND 599",
+            name="ck_idempotency_response_status",
+        ),
+        CheckConstraint(
+            "(response_status IS NULL AND response_body IS NULL AND completed_at IS NULL) OR "
+            "(response_status IS NOT NULL AND response_body IS NOT NULL "
+            "AND completed_at IS NOT NULL)",
+            name="ck_idempotency_completion_state",
+        ),
+        CheckConstraint(
+            "completed_at IS NULL OR completed_at >= created_at",
+            name="ck_idempotency_time_order",
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "actor_id",
+            "operation",
+            "idempotency_key",
+            name="uq_idempotency_command",
+        ),
+        Index("ix_idempotency_created", "created_at"),
+    )
+
+    sequence: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    actor_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    operation: Mapped[str] = mapped_column(String(256), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    response_status: Mapped[int | None] = mapped_column(Integer)
+    response_body: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class IncidentTransitionRow(Base):

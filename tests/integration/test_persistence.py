@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 from collections.abc import AsyncIterator, Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from itertools import count, pairwise
@@ -10,6 +12,8 @@ from itertools import count, pairwise
 import pytest
 from alembic import command
 from alembic.config import Config
+from fastapi import FastAPI, Request
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import (
@@ -20,6 +24,8 @@ from sqlalchemy.ext.asyncio import (
 )
 from testcontainers.community.postgres import PostgresContainer
 
+from agentops_incident_commander.apps.api import create_app
+from agentops_incident_commander.apps.config import ApiSettings
 from agentops_incident_commander.domain import (
     ActorId,
     AggregateVersion,
@@ -52,6 +58,8 @@ from agentops_incident_commander.domain import (
     OutboxEventId,
     OutboxLeaseError,
     OutboxPayload,
+    Principal,
+    Role,
     Sha256Digest,
     TenantId,
 )
@@ -61,6 +69,7 @@ from agentops_incident_commander.infrastructure.persistence import (
     AlertRow,
     AuditEventRow,
     AuditRepository,
+    IdempotencyRecordRow,
     IncidentCancellationRequestRow,
     IncidentMemoryEmbeddingRow,
     IncidentRepository,
@@ -108,7 +117,8 @@ async def engine(migrated_url: str) -> AsyncIterator[AsyncEngine]:
         await connection.execute(
             text(
                 "TRUNCATE alerts, alert_groups, incident_cancellation_requests, "
-                "incident_transitions, outbox_events, jobs, incidents RESTART IDENTITY CASCADE"
+                "incident_transitions, idempotency_records, outbox_events, jobs, "
+                "incidents RESTART IDENTITY CASCADE"
             )
         )
     await value.dispose()
@@ -146,6 +156,7 @@ def group_ids() -> Callable[[], AlertGroupId]:
 def audit_event(event_id: str, correlation_id: str = "audit-correlation") -> AuditEvent:
     return AuditEvent(
         id=AuditEventId(event_id),
+        tenant_id=TenantId("tenant-1"),
         type="incident.transitioned",
         event_version=1,
         payload_schema_version="incident/v1",
@@ -204,6 +215,59 @@ def job(
     )
 
 
+def api_app(
+    engine: AsyncEngine,
+    principal: Principal | None,
+    *,
+    now: datetime = NOW + timedelta(hours=1),
+    audit_id: str = "api-audit-1",
+) -> FastAPI:
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    audit_ids = count(1)
+
+    async def resolve(_: Request) -> Principal | None:
+        return principal
+
+    return create_app(
+        ApiSettings("postgresql+asyncpg://unused:unused@localhost/unused", "127.0.0.1", 8000),
+        session_factory=sessions,
+        principal_resolver=resolve,
+        clock=lambda: now,
+        id_factory=lambda: f"{audit_id}-{next(audit_ids)}",
+    )
+
+
+def principal(
+    *,
+    tenant: str = "tenant-api",
+    actor: str = "operator-api",
+    roles: frozenset[Role] = frozenset({Role.OPERATOR}),
+) -> Principal:
+    return Principal(ActorId(actor), TenantId(tenant), roles)
+
+
+async def add_incident(
+    engine: AsyncEngine,
+    incident_id: str,
+    *,
+    tenant: str = "tenant-api",
+    state: IncidentState = IncidentState.TRIAGED,
+    opened_at: datetime = NOW,
+) -> Incident:
+    item = Incident(
+        id=IncidentId(incident_id),
+        tenant_id=TenantId(tenant),
+        severity=IncidentSeverity.SEV2,
+        opened_at=opened_at,
+        updated_at=opened_at,
+        state=state,
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        await IncidentRepository(session).add(item)
+    return item
+
+
 @pytest.mark.anyio
 async def test_migration_created_expected_tables_and_constraints(engine: AsyncEngine) -> None:
     """The upgraded schema contains all initial operational tables."""
@@ -227,6 +291,7 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "incident_transitions",
         "incident_cancellation_requests",
         "incident_memory_embeddings",
+        "idempotency_records",
         "jobs",
         "outbox_events",
     } <= names
@@ -234,6 +299,306 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         assert await connection.scalar(
             text("SELECT extversion FROM pg_extension WHERE extname='vector'")
         )
+
+
+@pytest.mark.anyio
+async def test_api_fails_closed_without_identity_and_denies_viewer_control(
+    engine: AsyncEngine,
+) -> None:
+    item = await add_incident(engine, "incident-auth")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    unauthenticated = create_app(
+        ApiSettings("postgresql+asyncpg://unused:unused@localhost/unused", "127.0.0.1", 8000),
+        session_factory=sessions,
+    )
+    async with AsyncClient(
+        transport=ASGITransport(app=unauthenticated), base_url="http://test"
+    ) as client:
+        response = await client.get("/api/v1/incidents")
+    assert response.status_code == 401
+
+    viewer_app = api_app(engine, principal(roles=frozenset({Role.VIEWER})))
+    async with AsyncClient(
+        transport=ASGITransport(app=viewer_app), base_url="http://test"
+    ) as client:
+        response = await client.post(
+            f"/api/v1/incidents/{item.id.value}/controls/start-investigation",
+            headers={"Idempotency-Key": "viewer-denied"},
+            json={
+                "expected_version": 1,
+                "reason": "not permitted",
+                "correlation_id": "correlation-viewer",
+                "causation_id": "command-viewer",
+            },
+        )
+    assert response.status_code == 403
+    assert response.json() == {"detail": "principal lacks permission investigation:start"}
+
+
+@pytest.mark.anyio
+async def test_incident_read_endpoints_are_tenant_scoped_and_cursor_paginated(
+    engine: AsyncEngine,
+) -> None:
+    first = await add_incident(engine, "incident-page-a", opened_at=NOW + timedelta(minutes=2))
+    second = await add_incident(engine, "incident-page-b", opened_at=NOW + timedelta(minutes=1))
+    await add_incident(engine, "incident-foreign", tenant="tenant-foreign")
+    app = api_app(engine, principal(roles=frozenset({Role.VIEWER})))
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        page_one = await client.get("/api/v1/incidents", params={"limit": 1})
+        cursor = page_one.json()["next_cursor"]
+        page_two = await client.get("/api/v1/incidents", params={"limit": 1, "cursor": cursor})
+        own = await client.get(f"/api/v1/incidents/{second.id.value}")
+        foreign = await client.get("/api/v1/incidents/incident-foreign")
+        malformed = await client.get("/api/v1/incidents", params={"cursor": "%%%"})
+        wrong_shape = await client.get("/api/v1/incidents", params={"cursor": "WzFd"})
+        wrong_types = await client.get("/api/v1/incidents", params={"cursor": "WzEsMl0"})
+        bad_time = await client.get(
+            "/api/v1/incidents", params={"cursor": "WyJub3QtYS10aW1lIiwiaWQiXQ"}
+        )
+
+    assert page_one.status_code == page_two.status_code == 200
+    assert page_one.json()["items"][0]["id"] == first.id.value
+    assert page_two.json()["items"][0]["id"] == second.id.value
+    assert page_two.json()["next_cursor"] is None
+    assert own.status_code == 200
+    assert foreign.status_code == 404
+    assert {
+        malformed.status_code,
+        wrong_shape.status_code,
+        wrong_types.status_code,
+        bad_time.status_code,
+    } == {400}
+
+
+@pytest.mark.anyio
+async def test_timeline_paginates_transition_and_cancellation_records_without_skips(
+    engine: AsyncEngine,
+) -> None:
+    opened = await add_incident(engine, "incident-timeline", state=IncidentState.DETECTED)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        repository = IncidentRepository(session)
+        triaged = opened.transition(
+            IncidentState.TRIAGED,
+            expected_version=AggregateVersion(1),
+            metadata=metadata(),
+        )
+        await repository.apply(triaged)
+        cancelled = triaged.incident.request_cancellation(
+            expected_version=AggregateVersion(2), metadata=metadata(2)
+        )
+        await repository.apply(cancelled)
+
+    app = api_app(engine, principal(roles=frozenset({Role.VIEWER})))
+    kinds: list[str] = []
+    cursor: str | None = None
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        while True:
+            params: dict[str, str | int] = {"limit": 1}
+            if cursor is not None:
+                params["cursor"] = cursor
+            response = await client.get(
+                "/api/v1/incidents/incident-timeline/timeline", params=params
+            )
+            assert response.status_code == 200
+            kinds.append(response.json()["items"][0]["kind"])
+            cursor = response.json()["next_cursor"]
+            if cursor is None:
+                break
+        missing = await client.get("/api/v1/incidents/missing/timeline")
+        bad_cursor = await client.get(
+            "/api/v1/incidents/incident-timeline/timeline", params={"cursor": "WzEsMl0"}
+        )
+
+    assert kinds == ["transition", "cancellation_request", "transition"]
+    assert missing.status_code == 404
+    assert bad_cursor.status_code == 400
+
+
+@pytest.mark.anyio
+async def test_control_commands_are_atomic_audited_and_idempotent(engine: AsyncEngine) -> None:
+    await add_incident(engine, "incident-control")
+    operator = principal()
+    app = api_app(engine, operator)
+    command_body = {
+        "expected_version": 1,
+        "reason": "begin bounded diagnosis",
+        "correlation_id": "correlation-control",
+        "causation_id": "command-control",
+    }
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        first = await client.post(
+            "/api/v1/incidents/incident-control/controls/start-investigation",
+            headers={"Idempotency-Key": "control-key"},
+            json=command_body,
+        )
+        replay = await client.post(
+            "/api/v1/incidents/incident-control/controls/start-investigation",
+            headers={"Idempotency-Key": "control-key"},
+            json=command_body,
+        )
+        conflict = await client.post(
+            "/api/v1/incidents/incident-control/controls/start-investigation",
+            headers={"Idempotency-Key": "control-key"},
+            json={**command_body, "reason": "different command"},
+        )
+
+    assert first.status_code == replay.status_code == 200
+    assert first.headers["Idempotency-Replayed"] == "false"
+    assert replay.headers["Idempotency-Replayed"] == "true"
+    assert first.json() == replay.json()
+    assert first.json()["incident"]["state"] == IncidentState.INVESTIGATING.value
+    assert conflict.status_code == 409
+
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions() as session:
+        assert await session.scalar(select(func.count()).select_from(IdempotencyRecordRow)) == 1
+        assert await session.scalar(select(func.count()).select_from(IncidentTransitionRow)) == 1
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(AuditEventRow)
+                .where(AuditEventRow.tenant_id == operator.tenant_id.value)
+            )
+            == 1
+        )
+
+
+@pytest.mark.anyio
+async def test_cancel_control_and_audit_pages_are_tenant_scoped(engine: AsyncEngine) -> None:
+    await add_incident(
+        engine,
+        "incident-cancel",
+        tenant="tenant-cancel-owner",
+        state=IncidentState.DETECTED,
+    )
+    await add_incident(
+        engine,
+        "incident-cancel-two",
+        tenant="tenant-cancel-owner",
+        state=IncidentState.DETECTED,
+    )
+    operator = principal(tenant="tenant-cancel", actor="operator-cancel")
+    # The incident belongs to another tenant, proving a cross-tenant 404 first.
+    foreign_app = api_app(engine, operator, audit_id="api-audit-foreign")
+    body = {
+        "expected_version": 1,
+        "reason": "stop investigation",
+        "correlation_id": "correlation-cancel",
+        "causation_id": "command-cancel",
+    }
+    async with AsyncClient(
+        transport=ASGITransport(app=foreign_app), base_url="http://test"
+    ) as client:
+        hidden = await client.post(
+            "/api/v1/incidents/incident-cancel/controls/cancel",
+            headers={"Idempotency-Key": "cancel-hidden"},
+            json=body,
+        )
+    assert hidden.status_code == 404
+
+    owner = principal(tenant="tenant-cancel-owner")
+    app = api_app(engine, owner, audit_id="api-audit-cancel")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        cancelled = await client.post(
+            "/api/v1/incidents/incident-cancel/controls/cancel",
+            headers={"Idempotency-Key": "cancel-owner"},
+            json=body,
+        )
+        cancelled_two = await client.post(
+            "/api/v1/incidents/incident-cancel-two/controls/cancel",
+            headers={"Idempotency-Key": "cancel-owner-two"},
+            json={
+                **body,
+                "correlation_id": "correlation-cancel-two",
+                "causation_id": "command-cancel-two",
+            },
+        )
+        audit_first = await client.get("/api/v1/audit", params={"limit": 1})
+        audit_second = await client.get(
+            "/api/v1/audit",
+            params={"limit": 100, "after_sequence": audit_first.json()["next_after_sequence"]},
+        )
+
+    assert cancelled.status_code == 200
+    assert cancelled_two.status_code == 200
+    assert cancelled.json()["cancellation_disposition"] == "CANCELLED"
+    assert cancelled.json()["incident"]["state"] == IncidentState.CANCELLED.value
+    assert audit_first.status_code == audit_second.status_code == 200
+    assert {item["target_id"] for item in audit_second.json()["items"]} == {"incident-cancel-two"}
+
+
+@pytest.mark.anyio
+async def test_control_conflicts_invalid_values_and_incomplete_replay_fail_closed(
+    engine: AsyncEngine,
+) -> None:
+    await add_incident(engine, "incident-detected", state=IncidentState.DETECTED)
+    await add_incident(engine, "incident-stale")
+    app = api_app(engine, principal(), audit_id="api-audit-errors")
+    base = {
+        "expected_version": 1,
+        "reason": "controlled action",
+        "correlation_id": "correlation-errors",
+        "causation_id": "command-errors",
+    }
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        illegal = await client.post(
+            "/api/v1/incidents/incident-detected/controls/start-investigation",
+            headers={"Idempotency-Key": "illegal-state"},
+            json=base,
+        )
+        stale = await client.post(
+            "/api/v1/incidents/incident-stale/controls/start-investigation",
+            headers={"Idempotency-Key": "stale-version"},
+            json={**base, "expected_version": 2},
+        )
+        invalid_id = await client.post(
+            "/api/v1/incidents/bad%20id/controls/cancel",
+            headers={"Idempotency-Key": "invalid-id"},
+            json=base,
+        )
+        invalid_header = await client.post(
+            "/api/v1/incidents/incident-stale/controls/cancel",
+            headers={"Idempotency-Key": "bad key"},
+            json=base,
+        )
+
+    assert illegal.status_code == stale.status_code == 409
+    assert invalid_id.status_code == 422
+    assert invalid_header.status_code == 422
+
+    request_hash = hashlib.sha256(
+        json.dumps(
+            {
+                "operation": "cancel",
+                "incident_id": "incident-stale",
+                "command": base,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        session.add(
+            IdempotencyRecordRow(
+                tenant_id="tenant-api",
+                actor_id="operator-api",
+                operation="incident:cancel:incident-stale",
+                idempotency_key="incomplete",
+                request_hash=request_hash,
+                created_at=NOW,
+            )
+        )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        with pytest.raises(RuntimeError, match="has no response"):
+            await client.post(
+                "/api/v1/incidents/incident-stale/controls/cancel",
+                headers={"Idempotency-Key": "incomplete"},
+                json=base,
+            )
 
 
 @pytest.mark.anyio
@@ -310,6 +675,7 @@ async def test_audit_database_constraints_reject_invalid_raw_hash(engine: AsyncE
         session.add(
             AuditEventRow(
                 id="audit-invalid-hash",
+                tenant_id="tenant-1",
                 event_type="incident.transitioned",
                 event_version=1,
                 payload_schema_version="incident/v1",
@@ -331,7 +697,12 @@ async def test_audit_database_constraints_reject_invalid_raw_hash(engine: AsyncE
 async def test_outbox_and_aggregate_commit_or_rollback_together(engine: AsyncEngine) -> None:
     """Aggregate state never commits without its required cross-process event intent."""
     sessions = async_sessionmaker(engine, expire_on_commit=False)
-    incident = Incident.open(IncidentId("incident-atomic"), IncidentSeverity.SEV2, opened_at=NOW)
+    incident = Incident.open(
+        IncidentId("incident-atomic"),
+        TenantId("tenant-1"),
+        IncidentSeverity.SEV2,
+        opened_at=NOW,
+    )
 
     with pytest.raises(RuntimeError, match="abort transaction"):
         async with sessions.begin() as session:
@@ -663,7 +1034,9 @@ async def test_incident_repository_persists_transitions_cancellation_and_conflic
 ) -> None:
     """Aggregate changes and records commit together while stale writers fail."""
     sessions = async_sessionmaker(engine, expire_on_commit=False)
-    opened = Incident.open(IncidentId("incident-1"), IncidentSeverity.SEV2, opened_at=NOW)
+    opened = Incident.open(
+        IncidentId("incident-1"), TenantId("tenant-1"), IncidentSeverity.SEV2, opened_at=NOW
+    )
     async with sessions.begin() as session:
         await IncidentRepository(session).add(opened)
 
@@ -714,7 +1087,12 @@ async def test_incident_repository_persists_transitions_cancellation_and_conflic
 async def test_incident_repository_rejects_change_without_record(engine: AsyncEngine) -> None:
     """Persistence cannot mutate an aggregate without an auditable domain record."""
     sessions = async_sessionmaker(engine, expire_on_commit=False)
-    incident = Incident.open(IncidentId("incident-empty"), IncidentSeverity.SEV4, opened_at=NOW)
+    incident = Incident.open(
+        IncidentId("incident-empty"),
+        TenantId("tenant-1"),
+        IncidentSeverity.SEV4,
+        opened_at=NOW,
+    )
     async with sessions.begin() as session:
         await IncidentRepository(session).add(incident)
     async with sessions() as session:
@@ -728,6 +1106,7 @@ async def test_incident_repository_persists_deferred_cancellation(engine: AsyncE
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     executing = Incident(
         id=IncidentId("incident-executing"),
+        tenant_id=TenantId("tenant-1"),
         severity=IncidentSeverity.SEV1,
         opened_at=NOW,
         updated_at=NOW,
@@ -826,7 +1205,12 @@ async def test_embedding_metadata_retains_versions_and_enforces_vector_dimension
 ) -> None:
     """Embedding rows remain reproducible to source/model/schema and reject shape drift."""
     sessions = async_sessionmaker(engine, expire_on_commit=False)
-    incident = Incident.open(IncidentId("incident-memory"), IncidentSeverity.SEV3, opened_at=NOW)
+    incident = Incident.open(
+        IncidentId("incident-memory"),
+        TenantId("tenant-1"),
+        IncidentSeverity.SEV3,
+        opened_at=NOW,
+    )
     async with sessions.begin() as session:
         await IncidentRepository(session).add(incident)
         session.add(

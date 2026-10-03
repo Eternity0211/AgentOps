@@ -14,6 +14,7 @@ from .values import (
     CorrelationId,
     OpaqueIdentifier,
     Sha256Digest,
+    TenantId,
     as_utc,
 )
 
@@ -38,6 +39,7 @@ class AuditEvent:
     """Immutable audit event staged for database sequence assignment."""
 
     id: AuditEventId
+    tenant_id: TenantId
     type: str
     event_version: int
     payload_schema_version: str

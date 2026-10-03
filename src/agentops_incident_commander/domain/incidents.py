@@ -21,6 +21,7 @@ from .values import (
     CorrelationId,
     EventReason,
     IncidentId,
+    TenantId,
     as_utc,
 )
 
@@ -206,6 +207,7 @@ class Incident:
     """Immutable Incident aggregate with optimistic versioning."""
 
     id: IncidentId
+    tenant_id: TenantId
     severity: IncidentSeverity
     opened_at: datetime
     updated_at: datetime
@@ -238,11 +240,22 @@ class Incident:
 
     @classmethod
     def open(
-        cls, incident_id: IncidentId, severity: IncidentSeverity, *, opened_at: datetime
+        cls,
+        incident_id: IncidentId,
+        tenant_id: TenantId,
+        severity: IncidentSeverity,
+        *,
+        opened_at: datetime,
     ) -> Incident:
         """Create a new DETECTED Incident at optimistic version one."""
         timestamp = as_utc(opened_at)
-        return cls(id=incident_id, severity=severity, opened_at=timestamp, updated_at=timestamp)
+        return cls(
+            id=incident_id,
+            tenant_id=tenant_id,
+            severity=severity,
+            opened_at=timestamp,
+            updated_at=timestamp,
+        )
 
     def transition(
         self,

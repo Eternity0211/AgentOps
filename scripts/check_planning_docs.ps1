@@ -35,8 +35,13 @@ foreach ($relativePath in $requiredFiles) {
     }
 }
 
-$markdownFiles = Get-ChildItem -Path . -Recurse -File -Filter '*.md' |
-    Where-Object { $_.FullName -notmatch '[\\/](?:\.git|\.venv|\.python|\.uv-cache)[\\/]' }
+$markdownPaths = & git ls-files --cached --others --exclude-standard -- '*.md'
+if ($LASTEXITCODE -ne 0) {
+    throw 'git ls-files failed while discovering Markdown files.'
+}
+$markdownFiles = $markdownPaths | ForEach-Object {
+    Get-Item -LiteralPath (Join-Path $repositoryRoot $_)
+}
 
 $localLinkPattern = [regex]'\[[^\]]+\]\((?!https?://|mailto:|#)([^)#]+)(?:#[^)]+)?\)'
 $fencePattern = [regex]'(?m)^```'

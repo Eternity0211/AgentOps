@@ -18,12 +18,14 @@ from agentops_incident_commander.domain import (
     NaiveDateTimeError,
     Sha256Digest,
     StoredAuditEvent,
+    TenantId,
 )
 
 
 def audit_event(**overrides: object) -> AuditEvent:
     values: dict[str, object] = {
         "id": AuditEventId("audit-1"),
+        "tenant_id": TenantId("tenant-1"),
         "type": "incident.opened",
         "event_version": 1,
         "payload_schema_version": "incident/v1",

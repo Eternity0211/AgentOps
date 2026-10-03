@@ -6,7 +6,7 @@ provider code.
 
 ## Value objects and time
 
-Incident, Alert, actor, correlation, and causation identifiers are distinct immutable runtime
+Incident, Tenant, Alert, actor, correlation, and causation identifiers are distinct immutable runtime
 types. Their values are opaque: the domain accepts UUID/ULID-style values and other conservative
 identifiers of 1–128 characters, but does not infer ordering or authority from their text. Values
 must start with an alphanumeric character and may then contain alphanumerics, `.`, `_`, `:`, or
@@ -21,9 +21,9 @@ Domain timestamps must be timezone-aware. Aware inputs are normalized to UTC, wh
 are rejected. Incident event times cannot precede the latest aggregate event. Event reasons are
 trimmed, single-line, and limited to 512 characters.
 
-Incident severity is the closed vocabulary `SEV1`, `SEV2`, `SEV3`, and `SEV4`. Authentication
-roles remain a separate Phase 2 principal/RBAC task and are deliberately not implied by the actor
-identifier.
+Incident severity is the closed vocabulary `SEV1`, `SEV2`, `SEV3`, and `SEV4`. Every Incident has
+an explicit Tenant ID used by repository and API authorization. Authentication roles are never
+implied by the actor identifier.
 
 ## Incident lifecycle
 
@@ -82,9 +82,7 @@ group with the same fingerprint. If out-of-order observations overlap more than 
 stable nearest-time, first-seen, then group-ID tie breaker selects one group. Triage emits one of
 `OPEN_GROUP`, `MERGE_GROUP`, or `DUPLICATE` together with the complete resulting group.
 
-The current reference coordinator provides a lock-protected atomic critical section for one
-process. Concurrency tests prove that simultaneous unique deliveries produce one group without
-lost updates and a replay storm remains one occurrence. The upcoming PostgreSQL repository batch
-must replace that critical section with a unique-key/row-lock transaction while preserving the
-same fingerprint, time-window, idempotency, severity, and optimistic-version rules; this batch
-does not claim cross-process durability.
+The reference in-memory coordinator provides a lock-protected atomic critical section for one
+process. The PostgreSQL repository additionally uses a fingerprint-scoped advisory lock and row
+locks while preserving the same domain selection rules. Concurrency tests prove that simultaneous
+unique deliveries produce one group without lost updates and a replay storm remains one occurrence.

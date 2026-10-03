@@ -27,6 +27,7 @@ from agentops_incident_commander.domain import (
     NaiveDateTimeError,
     NonMonotonicTimeError,
     OptimisticVersionError,
+    TenantId,
 )
 
 OPENED_AT = datetime(2026, 10, 2, 8, 0, tzinfo=UTC)
@@ -108,6 +109,7 @@ def incident_in(state: IncidentState, *, updated_at: datetime = OPENED_AT) -> In
     """Build a valid aggregate at any state for transition-table tests."""
     return Incident(
         id=IncidentId("incident-1"),
+        tenant_id=TenantId("tenant-1"),
         severity=IncidentSeverity.SEV2,
         opened_at=OPENED_AT,
         updated_at=updated_at,
@@ -204,7 +206,9 @@ def test_open_creates_a_detected_version_one_incident_and_normalizes_time() -> N
     """New aggregate state and time representation are deterministic."""
     local_time = datetime(2026, 10, 2, 16, 0, tzinfo=timezone(timedelta(hours=8)))
 
-    incident = Incident.open(IncidentId("incident-1"), IncidentSeverity.SEV1, opened_at=local_time)
+    incident = Incident.open(
+        IncidentId("incident-1"), TenantId("tenant-1"), IncidentSeverity.SEV1, opened_at=local_time
+    )
 
     assert incident.state is IncidentState.DETECTED
     assert incident.version == AggregateVersion.initial()
@@ -388,6 +392,7 @@ def test_direct_construction_rejects_inconsistent_time_and_terminal_fields(
     """Repository hydration cannot create internally inconsistent aggregates."""
     defaults: dict[str, object] = {
         "id": IncidentId("incident-1"),
+        "tenant_id": TenantId("tenant-1"),
         "severity": IncidentSeverity.SEV3,
         "opened_at": OPENED_AT,
         "updated_at": EVENT_AT,
@@ -403,6 +408,7 @@ def test_direct_construction_normalizes_optional_timestamps() -> None:
     local = datetime(2026, 10, 2, 16, 1, tzinfo=timezone(timedelta(hours=8)))
     incident = Incident(
         id=IncidentId("incident-1"),
+        tenant_id=TenantId("tenant-1"),
         severity=IncidentSeverity.SEV4,
         opened_at=OPENED_AT,
         updated_at=local,

@@ -78,7 +78,7 @@ Exit: Compose starts cleanly, each fault reproduces and resets, telemetry is que
 - [x] Separate FastAPI API and worker process composition.
 - [x] Implement PostgreSQL job claim/lease/heartbeat/retry/dead-letter-or-human-handoff behavior using transactional locking.
 - [x] Add worker concurrency limits, graceful shutdown, stale-lease recovery, and cancellation checks.
-- [ ] Add authentication principal abstraction and RBAC roles Viewer, Operator, Approver, Admin.
+- [x] Add authentication principal abstraction and RBAC roles Viewer, Operator, Approver, Admin.
 - [ ] Implement versioned `/api/v1` incident, timeline, control, and audit endpoints with pagination, idempotency, and authorization.
 - [ ] Add OpenAPI contract snapshots and API error/idempotency conventions.
 

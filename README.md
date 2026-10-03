@@ -2,7 +2,7 @@
 
 AgentOps Incident Commander is an evidence-driven platform for diagnosing microservice incidents and performing controlled recovery. It combines metrics, logs, traces, topology, and deployment history; a constrained Diagnosis Agent builds verifiable root-cause hypotheses; a constrained Remediation Agent proposes recovery only after a deterministic evidence gate passes. Deterministic policy, approval, execution, health verification, and failure routing retain authority over every state change.
 
-> Status: Phase 1 is complete and Phase 2 is in progress. The reproducible simulator and live local Compose verification remain documented in the versioned [Phase 1 verification record](docs/PHASE_1_VERIFICATION.md). Phase 2 now includes the framework-free [typed domain model](docs/DOMAIN_MODEL.md), complete Incident lifecycle, deterministic Alert triage, a [PostgreSQL/pgvector persistence foundation](docs/PERSISTENCE.md) with append-only audit, transactional outbox, and durable JobLease queue, plus separate [API/worker process composition](docs/CONTROL_PLANE_PROCESSES.md) with bounded concurrency, shutdown, and cancellation controls; authentication, RBAC, and business APIs remain open and no production-scale or reliability claim is implied.
+> Status: Phase 1 is complete and Phase 2 is in progress. The reproducible simulator and live local Compose verification remain documented in the versioned [Phase 1 verification record](docs/PHASE_1_VERIFICATION.md). Phase 2 now includes the framework-free [typed domain model](docs/DOMAIN_MODEL.md), complete Incident lifecycle, deterministic Alert triage, a [PostgreSQL/pgvector persistence foundation](docs/PERSISTENCE.md) with append-only audit, transactional outbox, and durable JobLease queue, separate [API/worker process composition](docs/CONTROL_PLANE_PROCESSES.md) with bounded runtime controls, and tenant-scoped [authentication/RBAC contracts](docs/AUTHORIZATION.md); authentication adapters and business APIs remain open and no production-scale or reliability claim is implied.
 
 ## Why this project exists
 
@@ -145,6 +145,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Data model](docs/DATA_MODEL.md)
 - [Operational persistence foundation](docs/PERSISTENCE.md)
 - [Control-plane API and worker processes](docs/CONTROL_PLANE_PROCESSES.md)
+- [Authentication principal and RBAC](docs/AUTHORIZATION.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)

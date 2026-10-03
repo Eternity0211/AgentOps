@@ -12,7 +12,18 @@ from .alerts import (
     select_alert_group,
 )
 from .audit import AuditEvent, AuditTarget, StoredAuditEvent
+from .auth import (
+    ROLE_PERMISSIONS,
+    Permission,
+    Principal,
+    Role,
+    require_authenticated,
+    require_independent_approver,
+    require_permission,
+)
 from .errors import (
+    AuthenticationError,
+    AuthorizationError,
     DomainError,
     InvalidDomainValueError,
     InvalidIdentifierError,
@@ -65,6 +76,7 @@ __all__ = [
     "DEFERRED_CANCELLATION_STATES",
     "DURABLE_WAIT_STATES",
     "FINGERPRINT_SCHEMA_VERSION",
+    "ROLE_PERMISSIONS",
     "TERMINAL_STATES",
     "ActorId",
     "AggregateVersion",
@@ -80,6 +92,8 @@ __all__ = [
     "AuditEvent",
     "AuditEventId",
     "AuditTarget",
+    "AuthenticationError",
+    "AuthorizationError",
     "CancellationDisposition",
     "CausationId",
     "CorrelationId",
@@ -111,10 +125,16 @@ __all__ = [
     "OutboxEventId",
     "OutboxLeaseError",
     "OutboxPayload",
+    "Permission",
+    "Principal",
+    "Role",
     "Sha256Digest",
     "StoredAuditEvent",
     "TenantId",
     "as_utc",
+    "require_authenticated",
+    "require_independent_approver",
+    "require_permission",
     "select_alert_group",
     "utc_now",
 ]

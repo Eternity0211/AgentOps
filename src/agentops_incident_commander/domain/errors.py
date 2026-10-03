@@ -37,3 +37,11 @@ class OutboxLeaseError(DomainError):
 
 class JobLeaseError(DomainError):
     """A job command came from a missing, stale, or foreign lease."""
+
+
+class AuthenticationError(DomainError):
+    """A request has no validated principal."""
+
+
+class AuthorizationError(DomainError):
+    """A validated principal is not permitted to perform an operation."""

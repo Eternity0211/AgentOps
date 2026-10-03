@@ -26,6 +26,11 @@ Alembic accepts only an explicit `sqlalchemy.url` or `AGENTOPS_DATABASE_URL`; it
 credential or unsafe local password. The async environment uses a disposable `NullPool` connection
 and preserves existing application loggers when loading Alembic logging configuration.
 
+Revision `20261003_0007` adds immutable `evidence` rows. A composite foreign key binds each row to
+the owning Incident and tenant, Artifact references are unique, and checks enforce source/trust/
+injection vocabularies, SHA-256 form, quality bounds, and observation/collection/expiry ordering.
+The repository validates the external Artifact identity, ownership, and digest before insertion.
+
 ## Repository concurrency
 
 `IncidentRepository` updates with `WHERE id = ... AND version = ...`. A zero-row update raises the

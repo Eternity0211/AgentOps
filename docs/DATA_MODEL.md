@@ -48,6 +48,9 @@ This is the conceptual model. SQLAlchemy/Alembic implementation must preserve th
 - Artifact locators are server-generated rather than client paths. Retrieval revalidates tenant,
   Incident ownership, permission, expiry, byte size, and content hash. The development backend and
   adapter boundary are specified in [Immutable Artifact Storage](ARTIFACT_STORAGE.md).
+- Evidence is immutable and tenant/Incident scoped; exact query parameters, observation/collection
+  time, Artifact hash binding, quality reasons, provenance, trust, injection status, schema version,
+  and expiry follow the [Evidence model](EVIDENCE_MODEL.md).
 
 ## State ownership and liveness invariants
 

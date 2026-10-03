@@ -10,6 +10,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -18,10 +19,18 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from agentops_incident_commander.domain import IncidentState
+from agentops_incident_commander.domain import (
+    EvidenceSourceType,
+    IncidentState,
+    PromptInjectionStatus,
+    TrustClassification,
+)
 
 _STATES = ", ".join(f"'{state.value}'" for state in IncidentState)
 _SEVERITIES = "'SEV1', 'SEV2', 'SEV3', 'SEV4'"
+_EVIDENCE_SOURCES = ", ".join(f"'{value.value}'" for value in EvidenceSourceType)
+_EVIDENCE_TRUST = ", ".join(f"'{value.value}'" for value in TrustClassification)
+_INJECTION_STATES = ", ".join(f"'{value.value}'" for value in PromptInjectionStatus)
 
 
 class Base(DeclarativeBase):
@@ -194,6 +203,7 @@ class IncidentRow(Base):
     __table_args__ = (
         CheckConstraint(f"severity IN ({_SEVERITIES})", name="ck_incidents_severity"),
         CheckConstraint(f"state IN ({_STATES})", name="ck_incidents_state"),
+        UniqueConstraint("id", "tenant_id", name="uq_incidents_id_tenant"),
         CheckConstraint("version >= 1", name="ck_incidents_version_positive"),
         CheckConstraint("updated_at >= opened_at", name="ck_incidents_time_order"),
         CheckConstraint(
@@ -217,6 +227,63 @@ class IncidentRow(Base):
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cancellation_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class EvidenceRow(Base):
+    """Immutable incident-owned Evidence metadata resolving an external Artifact."""
+
+    __tablename__ = "evidence"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["incident_id", "tenant_id"],
+            ["incidents.id", "incidents.tenant_id"],
+            ondelete="RESTRICT",
+            name="fk_evidence_incident_tenant",
+        ),
+        CheckConstraint(f"source_type IN ({_EVIDENCE_SOURCES})", name="ck_evidence_source"),
+        CheckConstraint(f"trust IN ({_EVIDENCE_TRUST})", name="ck_evidence_trust"),
+        CheckConstraint(
+            f"prompt_injection_status IN ({_INJECTION_STATES})",
+            name="ck_evidence_injection_status",
+        ),
+        CheckConstraint("content_hash ~ '^[0-9a-f]{64}$'", name="ck_evidence_content_hash"),
+        CheckConstraint(
+            "quality_score_basis_points BETWEEN 0 AND 10000", name="ck_evidence_quality"
+        ),
+        CheckConstraint("observed_to >= observed_from", name="ck_evidence_observation_order"),
+        CheckConstraint("collected_at >= observed_to", name="ck_evidence_collection_order"),
+        CheckConstraint("expires_at > collected_at", name="ck_evidence_expiry_order"),
+        UniqueConstraint("artifact_id", name="uq_evidence_artifact"),
+        Index("ix_evidence_incident_collected", "tenant_id", "incident_id", "collected_at"),
+        Index("ix_evidence_expiry", "expires_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    incident_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_instance: Mapped[str] = mapped_column(String(128), nullable=False)
+    tool_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    tool_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    tool_schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    normalized_query: Mapped[dict[str, str]] = mapped_column(JSONB, nullable=False)
+    observed_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    observed_to: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    collected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    artifact_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    parser_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    normalizer_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    quality_score_basis_points: Mapped[int] = mapped_column(Integer, nullable=False)
+    quality_reasons: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    tool_call_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    workflow_run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    redaction_transform_id: Mapped[str | None] = mapped_column(String(128))
+    parent_evidence_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    trust: Mapped[str] = mapped_column(String(32), nullable=False)
+    prompt_injection_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
 class IdempotencyRecordRow(Base):

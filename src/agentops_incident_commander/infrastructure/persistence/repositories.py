@@ -19,11 +19,18 @@ from agentops_incident_commander.domain import (
     AlertId,
     AlertTriageAction,
     AlertTriageDecision,
+    Artifact,
+    ArtifactId,
     AuditEvent,
     AuditEventId,
     AuditTarget,
     CausationId,
     CorrelationId,
+    Evidence,
+    EvidenceId,
+    EvidenceLineage,
+    EvidenceQuality,
+    EvidenceSourceType,
     Incident,
     IncidentChange,
     IncidentId,
@@ -36,6 +43,7 @@ from agentops_incident_commander.domain import (
     JobLease,
     JobLeaseError,
     JobStatus,
+    NormalizedQuery,
     OpaqueIdentifier,
     OptimisticVersionError,
     OutboxClaim,
@@ -43,9 +51,15 @@ from agentops_incident_commander.domain import (
     OutboxEventId,
     OutboxLeaseError,
     OutboxPayload,
+    PromptInjectionStatus,
+    QueryParameter,
+    RedactionTransformId,
     Sha256Digest,
     StoredAuditEvent,
     TenantId,
+    ToolCallId,
+    TrustClassification,
+    WorkflowRunId,
     as_utc,
     select_alert_group,
 )
@@ -54,12 +68,108 @@ from .models import (
     AlertGroupRow,
     AlertRow,
     AuditEventRow,
+    EvidenceRow,
     IncidentCancellationRequestRow,
     IncidentRow,
     IncidentTransitionRow,
     JobRow,
     OutboxEventRow,
 )
+
+
+def _evidence_from_row(row: EvidenceRow) -> Evidence:
+    return Evidence(
+        id=EvidenceId(row.id),
+        tenant_id=TenantId(row.tenant_id),
+        incident_id=IncidentId(row.incident_id),
+        source_type=EvidenceSourceType(row.source_type),
+        source_instance=row.source_instance,
+        tool_name=row.tool_name,
+        tool_version=row.tool_version,
+        tool_schema_version=row.tool_schema_version,
+        normalized_query=NormalizedQuery(
+            tuple(QueryParameter(name, value) for name, value in row.normalized_query.items())
+        ),
+        observed_from=row.observed_from,
+        observed_to=row.observed_to,
+        collected_at=row.collected_at,
+        artifact_id=ArtifactId(row.artifact_id),
+        content_hash=Sha256Digest(row.content_hash),
+        parser_version=row.parser_version,
+        normalizer_version=row.normalizer_version,
+        quality=EvidenceQuality(row.quality_score_basis_points, tuple(row.quality_reasons)),
+        lineage=EvidenceLineage(
+            ToolCallId(row.tool_call_id),
+            WorkflowRunId(row.workflow_run_id),
+            (
+                RedactionTransformId(row.redaction_transform_id)
+                if row.redaction_transform_id is not None
+                else None
+            ),
+            tuple(EvidenceId(value) for value in row.parent_evidence_ids),
+        ),
+        trust=TrustClassification(row.trust),
+        prompt_injection_status=PromptInjectionStatus(row.prompt_injection_status),
+        expires_at=row.expires_at,
+        schema_version=row.schema_version,
+    )
+
+
+class EvidenceRepository:
+    """Persist immutable Evidence after resolving its exact Artifact binding."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, evidence: Evidence, artifact: Artifact) -> None:
+        evidence.verify_artifact(artifact)
+        self._session.add(
+            EvidenceRow(
+                id=evidence.id.value,
+                tenant_id=evidence.tenant_id.value,
+                incident_id=evidence.incident_id.value,
+                source_type=evidence.source_type.value,
+                source_instance=evidence.source_instance,
+                tool_name=evidence.tool_name,
+                tool_version=evidence.tool_version,
+                tool_schema_version=evidence.tool_schema_version,
+                normalized_query=evidence.normalized_query.as_dict(),
+                observed_from=evidence.observed_from,
+                observed_to=evidence.observed_to,
+                collected_at=evidence.collected_at,
+                artifact_id=evidence.artifact_id.value,
+                content_hash=evidence.content_hash.value,
+                parser_version=evidence.parser_version,
+                normalizer_version=evidence.normalizer_version,
+                quality_score_basis_points=evidence.quality.score_basis_points,
+                quality_reasons=list(evidence.quality.reasons),
+                tool_call_id=evidence.lineage.tool_call_id.value,
+                workflow_run_id=evidence.lineage.workflow_run_id.value,
+                redaction_transform_id=(
+                    evidence.lineage.redaction_transform_id.value
+                    if evidence.lineage.redaction_transform_id is not None
+                    else None
+                ),
+                parent_evidence_ids=[value.value for value in evidence.lineage.parent_evidence_ids],
+                trust=evidence.trust.value,
+                prompt_injection_status=evidence.prompt_injection_status.value,
+                expires_at=evidence.expires_at,
+                schema_version=evidence.schema_version,
+            )
+        )
+        await self._session.flush()
+
+    async def get(
+        self, evidence_id: EvidenceId, *, tenant_id: TenantId, incident_id: IncidentId
+    ) -> Evidence | None:
+        row = await self._session.scalar(
+            select(EvidenceRow).where(
+                EvidenceRow.id == evidence_id.value,
+                EvidenceRow.tenant_id == tenant_id.value,
+                EvidenceRow.incident_id == incident_id.value,
+            )
+        )
+        return _evidence_from_row(row) if row is not None else None
 
 
 def _job_from_row(row: JobRow) -> Job:

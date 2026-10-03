@@ -81,6 +81,26 @@ class ArtifactId(OpaqueIdentifier):
 
 
 @dataclass(frozen=True, slots=True)
+class EvidenceId(OpaqueIdentifier):
+    """Immutable identity of one normalized Evidence record."""
+
+
+@dataclass(frozen=True, slots=True)
+class ToolCallId(OpaqueIdentifier):
+    """Identity of the Tool Gateway call that produced an observation."""
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowRunId(OpaqueIdentifier):
+    """Identity of the workflow run that requested an observation."""
+
+
+@dataclass(frozen=True, slots=True)
+class RedactionTransformId(OpaqueIdentifier):
+    """Identity of the redaction transform applied before persistence."""
+
+
+@dataclass(frozen=True, slots=True)
 class Sha256Digest:
     """Validated lowercase SHA-256 digest used instead of sensitive payloads."""
 

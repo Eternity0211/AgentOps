@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import json
 from collections.abc import AsyncIterator, Callable, Iterator
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from itertools import count, pairwise
 
@@ -34,6 +35,8 @@ from agentops_incident_commander.domain import (
     AlertGroupId,
     AlertId,
     AlertTriageAction,
+    Artifact,
+    ArtifactId,
     AuditEvent,
     AuditEventId,
     AuditTarget,
@@ -41,6 +44,11 @@ from agentops_incident_commander.domain import (
     CorrelationId,
     EventMetadata,
     EventReason,
+    Evidence,
+    EvidenceId,
+    EvidenceLineage,
+    EvidenceQuality,
+    EvidenceSourceType,
     Incident,
     IncidentChange,
     IncidentId,
@@ -52,6 +60,7 @@ from agentops_incident_commander.domain import (
     JobId,
     JobLeaseError,
     JobStatus,
+    NormalizedQuery,
     OpaqueIdentifier,
     OptimisticVersionError,
     OutboxEvent,
@@ -59,9 +68,17 @@ from agentops_incident_commander.domain import (
     OutboxLeaseError,
     OutboxPayload,
     Principal,
+    PromptInjectionStatus,
+    QueryParameter,
+    RedactionStatus,
+    RedactionTransformId,
+    RetentionClass,
     Role,
     Sha256Digest,
     TenantId,
+    ToolCallId,
+    TrustClassification,
+    WorkflowRunId,
 )
 from agentops_incident_commander.infrastructure.persistence import (
     AlertGroupRow,
@@ -69,6 +86,8 @@ from agentops_incident_commander.infrastructure.persistence import (
     AlertRow,
     AuditEventRow,
     AuditRepository,
+    EvidenceRepository,
+    EvidenceRow,
     IdempotencyRecordRow,
     IncidentCancellationRequestRow,
     IncidentMemoryEmbeddingRow,
@@ -117,7 +136,7 @@ async def engine(migrated_url: str) -> AsyncIterator[AsyncEngine]:
         await connection.execute(
             text(
                 "TRUNCATE alerts, alert_groups, incident_cancellation_requests, "
-                "incident_transitions, idempotency_records, outbox_events, jobs, "
+                "incident_transitions, evidence, idempotency_records, outbox_events, jobs, "
                 "incidents RESTART IDENTITY CASCADE"
             )
         )
@@ -287,6 +306,7 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "alerts",
         "alert_groups",
         "audit_events",
+        "evidence",
         "incidents",
         "incident_transitions",
         "incident_cancellation_requests",
@@ -1265,3 +1285,99 @@ async def test_embedding_metadata_retains_versions_and_enforces_vector_dimension
         )
         with pytest.raises(IntegrityError, match="ck_embeddings_vector_dimensions"):
             await session.flush()
+
+
+def evidence_artifact(*, tenant: str = "tenant-1", incident: str = "incident-evidence") -> Artifact:
+    return Artifact(
+        id=ArtifactId("artifact-evidence"),
+        tenant_id=TenantId(tenant),
+        incident_id=IncidentId(incident),
+        locator="local-artifact:v1:artifact-evidence",
+        media_type="application/json",
+        content_schema_version="1.0.0",
+        content_hash=Sha256Digest(hashlib.sha256(b"evidence").hexdigest()),
+        size_bytes=8,
+        retention_class=RetentionClass.INCIDENT,
+        created_at=NOW,
+        expires_at=NOW + timedelta(days=30),
+        redaction_status=RedactionStatus.REDACTED,
+        encrypted=False,
+    )
+
+
+def evidence_record(*, tenant: str = "tenant-1", incident: str = "incident-evidence") -> Evidence:
+    stored_artifact = evidence_artifact(tenant=tenant, incident=incident)
+    return Evidence(
+        id=EvidenceId("evidence-1"),
+        tenant_id=TenantId(tenant),
+        incident_id=IncidentId(incident),
+        source_type=EvidenceSourceType.LOG,
+        source_instance="loki-primary",
+        tool_name="query_logs",
+        tool_version="1.0.0",
+        tool_schema_version="1.0.0",
+        normalized_query=NormalizedQuery((QueryParameter("service", "order"),)),
+        observed_from=NOW,
+        observed_to=NOW + timedelta(minutes=1),
+        collected_at=NOW + timedelta(minutes=2),
+        artifact_id=stored_artifact.id,
+        content_hash=stored_artifact.content_hash,
+        parser_version="1.0.0",
+        normalizer_version="1.0.0",
+        quality=EvidenceQuality(9000, ("complete-window",)),
+        lineage=EvidenceLineage(
+            ToolCallId("tool-call-1"),
+            WorkflowRunId("workflow-1"),
+            RedactionTransformId("redaction-1"),
+        ),
+        trust=TrustClassification.DIRECT_OBSERVATION,
+        prompt_injection_status=PromptInjectionStatus.NONE,
+        expires_at=NOW + timedelta(days=7),
+    )
+
+
+@pytest.mark.anyio
+async def test_evidence_repository_round_trip_is_incident_and_tenant_scoped(
+    engine: AsyncEngine,
+) -> None:
+    await add_incident(engine, "incident-evidence", tenant="tenant-1")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    value = evidence_record()
+    async with sessions.begin() as session:
+        await EvidenceRepository(session).add(value, evidence_artifact())
+
+    async with sessions() as session:
+        repository = EvidenceRepository(session)
+        assert (
+            await repository.get(value.id, tenant_id=value.tenant_id, incident_id=value.incident_id)
+            == value
+        )
+        assert (
+            await repository.get(
+                value.id, tenant_id=TenantId("tenant-2"), incident_id=value.incident_id
+            )
+            is None
+        )
+        assert await session.scalar(select(func.count()).select_from(EvidenceRow)) == 1
+
+
+@pytest.mark.anyio
+async def test_database_rejects_cross_tenant_evidence_and_duplicate_artifact(
+    engine: AsyncEngine,
+) -> None:
+    await add_incident(engine, "incident-evidence", tenant="tenant-1")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    cross_tenant = evidence_record(tenant="tenant-2")
+    async with sessions.begin() as session:
+        with pytest.raises(IntegrityError, match="fk_evidence_incident_tenant"):
+            await EvidenceRepository(session).add(
+                cross_tenant, evidence_artifact(tenant="tenant-2")
+            )
+
+    value = evidence_record()
+    async with sessions.begin() as session:
+        await EvidenceRepository(session).add(value, evidence_artifact())
+    duplicate = replace(value, id=EvidenceId("evidence-2"))
+    async with sessions.begin() as session:
+        with pytest.raises(IntegrityError, match="uq_evidence_artifact"):
+            await EvidenceRepository(session).add(duplicate, evidence_artifact())

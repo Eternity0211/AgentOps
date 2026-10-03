@@ -33,6 +33,7 @@ Artifact roots or runtime inputs.
 
 ## Current boundary
 
-This batch intentionally does not add Evidence records, collectors, retention deletion jobs, or
-HTTP endpoints. Those remain separate Phase 3 batches. Expiry blocks payload retrieval but does
-not silently remove immutable metadata or audit-integrity references.
+Evidence records are now defined separately in the [immutable Evidence model](EVIDENCE_MODEL.md).
+Collectors, retention deletion jobs, normalization policy, and HTTP endpoints remain separate
+Phase 3 batches. Expiry blocks payload retrieval but does not silently remove immutable metadata
+or audit-integrity references.

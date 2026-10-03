@@ -2,7 +2,7 @@
 
 Checkboxes are completion claims. Check an item only when its acceptance criteria and listed verification pass. Record measured results in committed reports; do not invent numbers.
 
-> Implementation status: **approved**. Phase 0 and Phase 1 exit checks pass; Phase 2 is in progress.
+> Implementation status: **approved**. Phase 0, Phase 1, and Phase 2 exit checks pass; Phase 3 is in progress.
 
 ## Execution protocol and dependency order
 
@@ -87,7 +87,7 @@ Exit: migrations apply/rollback in test, API and workers run separately, state/R
 ## Phase 3 — Evidence Store, artifacts, collectors, and Context Builder
 
 - [x] Implement immutable Artifact storage interface, local development backend, hashes, size/type/version, retention metadata, and safe retrieval authorization.
-- [ ] Implement Evidence schema with ID, incident ownership, source, normalized query, time range, content hash, Artifact, lineage, version, quality, trust, and expiry.
+- [x] Implement Evidence schema with ID, incident ownership, source, normalized query, time range, content hash, Artifact, lineage, version, quality, trust, and expiry.
 - [ ] Implement evidence normalization, provenance, content verification, quality reasons, and expiration evaluation.
 - [ ] Implement deterministic collectors/adapters for metrics, logs, traces, deployments, and topology; keep them non-agent components.
 - [ ] Implement log error-pattern clustering/deduplication with raw Artifact links.

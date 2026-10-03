@@ -11,6 +11,14 @@ from .alerts import (
     AlertTriageDecision,
     select_alert_group,
 )
+from .artifacts import (
+    ARTIFACT_METADATA_SCHEMA_VERSION,
+    Artifact,
+    ArtifactContent,
+    ArtifactStorage,
+    RedactionStatus,
+    RetentionClass,
+)
 from .audit import AuditEvent, AuditTarget, StoredAuditEvent
 from .auth import (
     ROLE_PERMISSIONS,
@@ -22,6 +30,11 @@ from .auth import (
     require_permission,
 )
 from .errors import (
+    ArtifactAlreadyExistsError,
+    ArtifactError,
+    ArtifactExpiredError,
+    ArtifactIntegrityError,
+    ArtifactNotFoundError,
     AuthenticationError,
     AuthorizationError,
     DomainError,
@@ -56,6 +69,7 @@ from .values import (
     AggregateVersion,
     AlertGroupId,
     AlertId,
+    ArtifactId,
     AuditEventId,
     CausationId,
     CorrelationId,
@@ -72,6 +86,7 @@ from .values import (
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
+    "ARTIFACT_METADATA_SCHEMA_VERSION",
     "CANCELLABLE_STATES",
     "DEFERRED_CANCELLATION_STATES",
     "DURABLE_WAIT_STATES",
@@ -89,6 +104,15 @@ __all__ = [
     "AlertId",
     "AlertTriageAction",
     "AlertTriageDecision",
+    "Artifact",
+    "ArtifactAlreadyExistsError",
+    "ArtifactContent",
+    "ArtifactError",
+    "ArtifactExpiredError",
+    "ArtifactId",
+    "ArtifactIntegrityError",
+    "ArtifactNotFoundError",
+    "ArtifactStorage",
     "AuditEvent",
     "AuditEventId",
     "AuditTarget",
@@ -127,6 +151,8 @@ __all__ = [
     "OutboxPayload",
     "Permission",
     "Principal",
+    "RedactionStatus",
+    "RetentionClass",
     "Role",
     "Sha256Digest",
     "StoredAuditEvent",

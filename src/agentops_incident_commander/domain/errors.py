@@ -45,3 +45,23 @@ class AuthenticationError(DomainError):
 
 class AuthorizationError(DomainError):
     """A validated principal is not permitted to perform an operation."""
+
+
+class ArtifactError(DomainError):
+    """Base class for an Artifact contract or storage failure."""
+
+
+class ArtifactAlreadyExistsError(ArtifactError):
+    """An immutable Artifact identity was already assigned."""
+
+
+class ArtifactNotFoundError(ArtifactError):
+    """An Artifact identity cannot be resolved by the configured store."""
+
+
+class ArtifactExpiredError(ArtifactError):
+    """Artifact content is no longer retrievable under its retention policy."""
+
+
+class ArtifactIntegrityError(ArtifactError):
+    """Stored Artifact bytes or metadata do not match their immutable digest."""

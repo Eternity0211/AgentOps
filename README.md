@@ -2,7 +2,7 @@
 
 AgentOps Incident Commander is an evidence-driven platform for diagnosing microservice incidents and performing controlled recovery. It combines metrics, logs, traces, topology, and deployment history; a constrained Diagnosis Agent builds verifiable root-cause hypotheses; a constrained Remediation Agent proposes recovery only after a deterministic evidence gate passes. Deterministic policy, approval, execution, health verification, and failure routing retain authority over every state change.
 
-> Status: Phase 1 is complete and Phase 2 is in progress. The reproducible simulator and live local Compose verification remain documented in the versioned [Phase 1 verification record](docs/PHASE_1_VERIFICATION.md). Phase 2 now includes the framework-free [typed domain model](docs/DOMAIN_MODEL.md), complete Incident lifecycle, deterministic Alert triage, a [PostgreSQL/pgvector persistence foundation](docs/PERSISTENCE.md) with append-only audit, transactional outbox, durable JobLease queue, tenant ownership, and command idempotency, separate [API/worker process composition](docs/CONTROL_PLANE_PROCESSES.md) with bounded runtime controls, tenant-scoped [authentication/RBAC contracts](docs/AUTHORIZATION.md), and a fail-closed [versioned business API](docs/API_V1.md) with a committed OpenAPI snapshot and stable problem-detail conventions. A production authentication adapter remains open; no production-scale or reliability claim is implied.
+> Status: Phase 1 and Phase 2 are complete, and Phase 3 is in progress. The reproducible simulator and live local Compose verification remain documented in the versioned [Phase 1 verification record](docs/PHASE_1_VERIFICATION.md). The control plane includes the framework-free [typed domain model](docs/DOMAIN_MODEL.md), complete Incident lifecycle, deterministic Alert triage, a [PostgreSQL/pgvector persistence foundation](docs/PERSISTENCE.md) with append-only audit, transactional outbox, durable JobLease queue, tenant ownership, and command idempotency, separate [API/worker process composition](docs/CONTROL_PLANE_PROCESSES.md) with bounded runtime controls, tenant-scoped [authentication/RBAC contracts](docs/AUTHORIZATION.md), and a fail-closed [versioned business API](docs/API_V1.md) with a committed OpenAPI snapshot and stable problem-detail conventions. Phase 3 now includes the first [immutable Artifact storage](docs/ARTIFACT_STORAGE.md) port and local development backend. A production authentication adapter and production Artifact backend remain open; no production-scale or reliability claim is implied.
 
 ## Why this project exists
 
@@ -147,6 +147,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Control-plane API and worker processes](docs/CONTROL_PLANE_PROCESSES.md)
 - [Authentication principal and RBAC](docs/AUTHORIZATION.md)
 - [Versioned control-plane API](docs/API_V1.md)
+- [Immutable Artifact storage](docs/ARTIFACT_STORAGE.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)

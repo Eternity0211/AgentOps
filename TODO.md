@@ -86,7 +86,7 @@ Exit: migrations apply/rollback in test, API and workers run separately, state/R
 
 ## Phase 3 — Evidence Store, artifacts, collectors, and Context Builder
 
-- [ ] Implement immutable Artifact storage interface, local development backend, hashes, size/type/version, retention metadata, and safe retrieval authorization.
+- [x] Implement immutable Artifact storage interface, local development backend, hashes, size/type/version, retention metadata, and safe retrieval authorization.
 - [ ] Implement Evidence schema with ID, incident ownership, source, normalized query, time range, content hash, Artifact, lineage, version, quality, trust, and expiry.
 - [ ] Implement evidence normalization, provenance, content verification, quality reasons, and expiration evaluation.
 - [ ] Implement deterministic collectors/adapters for metrics, logs, traces, deployments, and topology; keep them non-agent components.

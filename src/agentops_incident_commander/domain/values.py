@@ -76,6 +76,11 @@ class JobId(OpaqueIdentifier):
 
 
 @dataclass(frozen=True, slots=True)
+class ArtifactId(OpaqueIdentifier):
+    """Immutable identity of one stored Artifact."""
+
+
+@dataclass(frozen=True, slots=True)
 class Sha256Digest:
     """Validated lowercase SHA-256 digest used instead of sensitive payloads."""
 

@@ -45,6 +45,9 @@ This is the conceptual model. SQLAlchemy/Alembic implementation must preserve th
 - Audit rows are append-only to the application role; corrections are compensating events.
 - Embeddings retain source/version metadata and never erase the authoritative textual reference.
 - Retention and expiry do not silently delete audit integrity metadata.
+- Artifact locators are server-generated rather than client paths. Retrieval revalidates tenant,
+  Incident ownership, permission, expiry, byte size, and content hash. The development backend and
+  adapter boundary are specified in [Immutable Artifact Storage](ARTIFACT_STORAGE.md).
 
 ## State ownership and liveness invariants
 

@@ -65,3 +65,15 @@ class ArtifactExpiredError(ArtifactError):
 
 class ArtifactIntegrityError(ArtifactError):
     """Stored Artifact bytes or metadata do not match their immutable digest."""
+
+
+class ToolRegistryError(DomainError):
+    """A versioned ToolDefinition could not be resolved safely."""
+
+
+class ToolNotFoundError(ToolRegistryError):
+    """The exact server-owned tool name/version is not registered."""
+
+
+class ToolVersionDisabledError(ToolRegistryError):
+    """The exact registered tool version is outside the enabled range."""

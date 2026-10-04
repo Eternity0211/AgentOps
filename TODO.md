@@ -104,7 +104,7 @@ Exit: known telemetry fixtures produce stable normalized evidence and safe budge
 
 ## Phase 4 — Versioned Tool Gateway and read-only investigation
 
-- [ ] Define ToolDefinition registry: semantic/schema version, input/output schemas, read/write class, risk, RBAC, timeout, bounded retry, idempotency, audit.
+- [x] Define ToolDefinition registry: semantic/schema version, input/output schemas, read/write class, risk, RBAC, timeout, bounded retry, idempotency, audit.
 - [ ] Implement Tool Gateway validation, authorization, dispatch, timeout, retry classification, result limits, and audit events.
 - [ ] Implement `query_metrics` adapter and contracts.
 - [ ] Implement `query_logs` adapter and contracts.

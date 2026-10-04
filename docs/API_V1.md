@@ -1,6 +1,6 @@
 # Versioned control-plane API
 
-Phase 2 exposes the first business contracts under `/api/v1`. The API process remains separate
+The control plane exposes versioned business contracts under `/api/v1`. The API process remains separate
 from workers and never performs investigation or recovery work inline. It accepts only typed
 lifecycle controls and persists their domain records, audit event, and idempotency result in one
 PostgreSQL transaction.
@@ -24,6 +24,9 @@ receive operator authority.
 | `GET /api/v1/incidents` | List tenant incidents in stable newest-first order | `incident:read` |
 | `GET /api/v1/incidents/{incident_id}` | Read one tenant incident | `incident:read` |
 | `GET /api/v1/incidents/{incident_id}/timeline` | Read lifecycle transitions and cancellation requests | `incident:read` |
+| `GET /api/v1/incidents/{incident_id}/evidence` | List incident-owned Evidence metadata | `evidence:read` |
+| `GET /api/v1/incidents/{incident_id}/evidence/{evidence_id}` | Read one Evidence metadata record | `evidence:read` |
+| `GET /api/v1/incidents/{incident_id}/evidence/{evidence_id}/artifact` | Retrieve verified immutable Artifact bytes | `evidence:read` |
 | `POST /api/v1/incidents/{incident_id}/controls/start-investigation` | Apply `TRIAGED -> INVESTIGATING` | `investigation:start` |
 | `POST /api/v1/incidents/{incident_id}/controls/cancel` | Apply immediate or safe-boundary deferred cancellation | `investigation:cancel` |
 | `GET /api/v1/audit` | Read the tenant audit sequence | `audit:read` |
@@ -32,6 +35,19 @@ Incident and timeline lists use opaque cursors; callers must not construct or in
 Audit pagination uses the append-only global sequence as `after_sequence`. Page size is bounded to
 1–100. All orders have deterministic tie breakers, so concurrent inserts do not reorder already
 returned records.
+
+Evidence lists use the same opaque newest-first cursor convention, ordered by collection time and
+Evidence ID. Metadata includes source/query provenance, observation and collection ranges, quality
+reasons, lineage, trust and injection classifications, expiry, and the immutable Artifact binding;
+it never exposes a storage locator. The `expired` field is evaluated using the server clock.
+
+Artifact retrieval first resolves Evidence through the authenticated tenant and requested Incident.
+The configured storage adapter then independently authorizes the read, enforces retention expiry,
+and verifies the content hash and size. The API rechecks Artifact ID, tenant, Incident, and hash
+against Evidence before returning bytes. Responses are `private, no-store` and expose only safe
+identity, hash, schema-version, and redaction headers. Missing and cross-tenant records are `404`,
+expired content is `410`, integrity or binding failures are `409`, and an unconfigured Artifact
+backend fails closed with `503`.
 
 ## Control idempotency
 
@@ -67,6 +83,7 @@ names; any schema drift fails tests and requires an intentional snapshot review.
 
 PostgreSQL integration tests exercise migration round trips, anonymous and underprivileged
 requests, tenant hiding, stable pagination, successful controls, duplicate replay, changed-payload
-conflict, optimistic/state conflicts, cancellation, and transactional audit/idempotency counts.
+conflict, optimistic/state conflicts, cancellation, transactional audit/idempotency counts, and
+tenant-scoped Evidence metadata plus authorized, hash-bound Artifact retrieval.
 Framework-level contract tests cover defensive return and cursor branches that the Windows
 coverage tracer cannot observe after SQLAlchemy's async greenlet bridge.

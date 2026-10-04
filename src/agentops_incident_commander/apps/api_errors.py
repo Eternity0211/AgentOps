@@ -161,6 +161,11 @@ def install_error_handlers(app: FastAPI) -> None:
             status.HTTP_404_NOT_FOUND: ("RESOURCE_NOT_FOUND", "Resource not found"),
             status.HTTP_405_METHOD_NOT_ALLOWED: ("METHOD_NOT_ALLOWED", "Method not allowed"),
             status.HTTP_409_CONFLICT: ("CONFLICT", "Conflict"),
+            status.HTTP_410_GONE: ("RESOURCE_EXPIRED", "Resource expired"),
+            status.HTTP_503_SERVICE_UNAVAILABLE: (
+                "SERVICE_UNAVAILABLE",
+                "Service unavailable",
+            ),
         }
         code, title = mapping.get(exc.status_code, ("HTTP_ERROR", "HTTP request failed"))
         detail = exc.detail if isinstance(exc.detail, str) else title
@@ -193,7 +198,9 @@ def common_error_responses() -> dict[int | str, dict[str, Any]]:
             403: "The principal lacks permission",
             404: "The tenant-scoped resource was not found",
             409: "State, version, or idempotency conflict",
+            410: "The requested content has expired",
             422: "Request or domain validation failed",
             500: "An unexpected internal error occurred",
+            503: "A required service is unavailable",
         }.items()
     }

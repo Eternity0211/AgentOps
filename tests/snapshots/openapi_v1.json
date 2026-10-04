@@ -1,9 +1,12 @@
 {
-  "sha256": "75b14b44247dd68d07d47a54bac9a1163f0b8276b2d63dd1cf9adffc32bcc557",
+  "sha256": "3225e048f1f610da3d81adc67a9ace9c0cf732c2bf12bd57b45a7becd74debf3",
   "paths": {
     "/api/v1/audit": ["get"],
     "/api/v1/incidents": ["get"],
     "/api/v1/incidents/{incident_id}": ["get"],
+    "/api/v1/incidents/{incident_id}/evidence": ["get"],
+    "/api/v1/incidents/{incident_id}/evidence/{evidence_id}": ["get"],
+    "/api/v1/incidents/{incident_id}/evidence/{evidence_id}/artifact": ["get"],
     "/api/v1/incidents/{incident_id}/controls/cancel": ["post"],
     "/api/v1/incidents/{incident_id}/controls/start-investigation": ["post"],
     "/api/v1/incidents/{incident_id}/timeline": ["get"]
@@ -13,6 +16,8 @@
     "AuditPage",
     "ControlRequest",
     "ControlResult",
+    "EvidencePage",
+    "EvidenceView",
     "IncidentPage",
     "IncidentView",
     "InvalidParameter",

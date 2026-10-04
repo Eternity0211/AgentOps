@@ -12,7 +12,7 @@ from fastapi import FastAPI, Request, Response
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from starlette.middleware.base import RequestResponseEndpoint
 
-from agentops_incident_commander.domain import OpaqueIdentifier, utc_now
+from agentops_incident_commander.domain import ArtifactStorage, OpaqueIdentifier, utc_now
 
 from .api_contracts import install_openapi_contract
 from .api_errors import REQUEST_ID_HEADER, install_error_handlers
@@ -36,6 +36,7 @@ def create_app(
     clock: Clock | None = None,
     id_factory: IdFactory | None = None,
     request_id_factory: IdFactory | None = None,
+    artifact_storage: ArtifactStorage | None = None,
 ) -> FastAPI:
     """Create the HTTP process without starting worker tasks in its lifespan."""
     engine = None
@@ -74,6 +75,7 @@ def create_app(
             principal_resolver=principal_resolver or deny_unconfigured_authentication,
             clock=clock or utc_now,
             id_factory=id_factory or new_identifier,
+            artifact_storage=artifact_storage,
         )
     )
     install_openapi_contract(app)

@@ -22,12 +22,23 @@ from agentops_incident_commander.apps.api_v1 import (
 from agentops_incident_commander.apps.config import ApiSettings
 from agentops_incident_commander.domain import (
     ActorId,
+    Artifact,
+    ArtifactContent,
+    ArtifactExpiredError,
+    ArtifactId,
+    ArtifactIntegrityError,
+    ArtifactNotFoundError,
+    IncidentId,
     Principal,
+    RedactionStatus,
+    RetentionClass,
     Role,
+    Sha256Digest,
     TenantId,
 )
 from agentops_incident_commander.infrastructure.persistence.models import (
     AuditEventRow,
+    EvidenceRow,
     IdempotencyRecordRow,
     IncidentCancellationRequestRow,
     IncidentRow,
@@ -112,18 +123,250 @@ def row(
     )
 
 
-def endpoint(path: str, method: str, *, audit_ids: list[str] | None = None) -> Any:
+def evidence_row(
+    evidence_id: str = "evidence-a",
+    *,
+    incident_id: str = "incident-a",
+    artifact_id: str = "artifact-a",
+    content_hash: str = "a" * 64,
+    expires_at: datetime = NOW + timedelta(days=1),
+) -> EvidenceRow:
+    return EvidenceRow(
+        id=evidence_id,
+        tenant_id="tenant-api",
+        incident_id=incident_id,
+        source_type="LOG",
+        source_instance="loki-primary",
+        tool_name="query_logs",
+        tool_version="1.0.0",
+        tool_schema_version="1.0.0",
+        normalized_query={"service": "orders"},
+        observed_from=NOW - timedelta(minutes=2),
+        observed_to=NOW - timedelta(minutes=1),
+        collected_at=NOW,
+        artifact_id=artifact_id,
+        content_hash=content_hash,
+        parser_version="1.0.0",
+        normalizer_version="1.0.0",
+        quality_score_basis_points=9000,
+        quality_reasons=["complete-window"],
+        tool_call_id="tool-call-a",
+        workflow_run_id="workflow-a",
+        redaction_transform_id="redaction-a",
+        parent_evidence_ids=[],
+        trust="DIRECT_OBSERVATION",
+        prompt_injection_status="NONE",
+        expires_at=expires_at,
+        schema_version="1.0.0",
+    )
+
+
+def artifact(
+    *,
+    artifact_id: str = "artifact-a",
+    incident_id: str = "incident-a",
+    tenant_id: str = "tenant-api",
+    content_hash: str = "a" * 64,
+) -> Artifact:
+    return Artifact(
+        id=ArtifactId(artifact_id),
+        tenant_id=TenantId(tenant_id),
+        incident_id=IncidentId(incident_id),
+        locator=f"local-artifact:v1:{artifact_id}",
+        media_type="application/json",
+        content_schema_version="1.0.0",
+        content_hash=Sha256Digest(content_hash),
+        size_bytes=2,
+        retention_class=RetentionClass.INCIDENT,
+        created_at=NOW,
+        expires_at=NOW + timedelta(days=1),
+        redaction_status=RedactionStatus.REDACTED,
+        encrypted=False,
+    )
+
+
+class FakeArtifactStorage:
+    def __init__(self, result: ArtifactContent | Exception) -> None:
+        self.result = result
+
+    def store(self, metadata: Artifact, content: bytes) -> Artifact:
+        return metadata
+
+    def retrieve(self, *_: object, **__: object) -> ArtifactContent:
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+
+def endpoint(
+    path: str,
+    method: str,
+    *,
+    audit_ids: list[str] | None = None,
+    artifact_storage: FakeArtifactStorage | None = None,
+) -> Any:
     ids = iter(audit_ids or ["audit-default"])
     router = build_api_v1_router(
         cast(SessionFactory, lambda: None),
         clock=lambda: NOW + timedelta(minutes=1),
         id_factory=lambda: next(ids),
+        artifact_storage=artifact_storage,
     )
     return next(
         route.endpoint
         for route in router.routes
         if isinstance(route, APIRoute) and route.path == path and method in (route.methods or set())
     )
+
+
+@pytest.mark.anyio
+async def test_evidence_routes_are_scoped_paginated_and_report_expiry() -> None:
+    list_route = endpoint("/api/v1/incidents/{incident_id}/evidence", "GET")
+    first = evidence_row("evidence-b")
+    second = evidence_row("evidence-a", expires_at=NOW)
+    page = await list_route(
+        incident_id="incident-a",
+        session=FakeSession(scalar_values=["incident-a"], scalar_lists=[[first, second]]),
+        principal=VIEWER,
+        limit=1,
+        cursor=None,
+    )
+    assert [item.id for item in page.items] == ["evidence-b"]
+    assert page.items[0].normalized_query == {"service": "orders"}
+    assert page.next_cursor is not None
+
+    final = await list_route(
+        incident_id="incident-a",
+        session=FakeSession(scalar_values=["incident-a"], scalar_lists=[[second]]),
+        principal=VIEWER,
+        limit=50,
+        cursor=page.next_cursor,
+    )
+    assert final.items[0].expired is True
+    assert final.next_cursor is None
+
+    with pytest.raises(HTTPException) as missing_incident:
+        await list_route(
+            incident_id="missing",
+            session=FakeSession(scalar_values=[None]),
+            principal=VIEWER,
+            limit=50,
+            cursor=None,
+        )
+    assert missing_incident.value.status_code == 404
+
+    for invalid_cursor in ("WzEsMl0", "WyJub3QtYS10aW1lIiwiaWQiXQ"):
+        with pytest.raises(HTTPException) as invalid:
+            await list_route(
+                incident_id="incident-a",
+                session=FakeSession(scalar_values=["incident-a"]),
+                principal=VIEWER,
+                limit=50,
+                cursor=invalid_cursor,
+            )
+        assert invalid.value.status_code == 400
+
+    detail_route = endpoint("/api/v1/incidents/{incident_id}/evidence/{evidence_id}", "GET")
+    detail = await detail_route(
+        incident_id="incident-a",
+        evidence_id="evidence-a",
+        session=FakeSession(scalar_values=[first]),
+        principal=VIEWER,
+    )
+    assert detail.artifact_id == "artifact-a"
+    assert detail.expired is False
+    with pytest.raises(HTTPException) as missing_evidence:
+        await detail_route(
+            incident_id="incident-a",
+            evidence_id="missing",
+            session=FakeSession(scalar_values=[None]),
+            principal=VIEWER,
+        )
+    assert missing_evidence.value.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_artifact_route_verifies_binding_and_maps_storage_failures() -> None:
+    content = ArtifactContent(artifact(), b"{}")
+    route = endpoint(
+        "/api/v1/incidents/{incident_id}/evidence/{evidence_id}/artifact",
+        "GET",
+        artifact_storage=FakeArtifactStorage(content),
+    )
+    response = await route(
+        incident_id="incident-a",
+        evidence_id="evidence-a",
+        session=FakeSession(scalar_values=[evidence_row()]),
+        principal=VIEWER,
+    )
+    assert response.body == b"{}"
+    assert response.media_type == "application/json"
+    assert response.headers["x-artifact-id"] == "artifact-a"
+    assert response.headers["cache-control"] == "private, no-store"
+
+    failure_cases = [
+        (ArtifactNotFoundError("missing"), HTTPException, 404),
+        (ArtifactExpiredError("expired"), ApiProblem, 410),
+        (ArtifactIntegrityError("corrupt"), ApiProblem, 409),
+    ]
+    for storage_error, error_type, expected_status in failure_cases:
+        failing = endpoint(
+            "/api/v1/incidents/{incident_id}/evidence/{evidence_id}/artifact",
+            "GET",
+            artifact_storage=FakeArtifactStorage(storage_error),
+        )
+        with pytest.raises(error_type) as raised:
+            await failing(
+                incident_id="incident-a",
+                evidence_id="evidence-a",
+                session=FakeSession(scalar_values=[evidence_row()]),
+                principal=VIEWER,
+            )
+        assert cast(HTTPException | ApiProblem, raised.value).status_code == expected_status
+
+
+@pytest.mark.anyio
+async def test_artifact_route_fails_closed_for_expiry_configuration_and_binding() -> None:
+    path = "/api/v1/incidents/{incident_id}/evidence/{evidence_id}/artifact"
+    unconfigured = endpoint(path, "GET")
+    with pytest.raises(ApiProblem) as unavailable:
+        await unconfigured(
+            incident_id="incident-a",
+            evidence_id="evidence-a",
+            session=FakeSession(scalar_values=[evidence_row()]),
+            principal=VIEWER,
+        )
+    assert unavailable.value.status_code == 503
+
+    with pytest.raises(ApiProblem) as expired:
+        await unconfigured(
+            incident_id="incident-a",
+            evidence_id="evidence-a",
+            session=FakeSession(scalar_values=[evidence_row(expires_at=NOW)]),
+            principal=VIEWER,
+        )
+    assert expired.value.status_code == 410
+
+    mismatches = [
+        artifact(artifact_id="artifact-other"),
+        artifact(tenant_id="tenant-other"),
+        artifact(incident_id="incident-other"),
+        artifact(content_hash="b" * 64),
+    ]
+    for wrong in mismatches:
+        mismatch = endpoint(
+            path,
+            "GET",
+            artifact_storage=FakeArtifactStorage(ArtifactContent(wrong, b"{}")),
+        )
+        with pytest.raises(ApiProblem) as rejected:
+            await mismatch(
+                incident_id="incident-a",
+                evidence_id="evidence-a",
+                session=FakeSession(scalar_values=[evidence_row()]),
+                principal=VIEWER,
+            )
+        assert rejected.value.status_code == 409
 
 
 def command() -> ControlRequest:

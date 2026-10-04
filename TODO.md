@@ -2,7 +2,7 @@
 
 Checkboxes are completion claims. Check an item only when its acceptance criteria and listed verification pass. Record measured results in committed reports; do not invent numbers.
 
-> Implementation status: **approved**. Phase 0, Phase 1, and Phase 2 exit checks pass; Phase 3 is in progress.
+> Implementation status: **approved**. Phase 0 through Phase 3 exit checks pass; Phase 4 is in progress.
 
 ## Execution protocol and dependency order
 
@@ -98,7 +98,7 @@ Exit: migrations apply/rollback in test, API and workers run separately, state/R
 - [x] Implement untrusted telemetry/prompt-injection detection, delimiting, and quarantine.
 - [x] Implement token-budgeted Context Builder with provenance labels, deterministic truncation, and recorded omissions.
 - [x] Ensure raw telemetry is not embedded unbounded in LangGraph state or model prompts.
-- [ ] Add Evidence/Artifact API and authorization tests.
+- [x] Add Evidence/Artifact API and authorization tests.
 
 Exit: known telemetry fixtures produce stable normalized evidence and safe budgeted contexts with resolvable source artifacts.
 

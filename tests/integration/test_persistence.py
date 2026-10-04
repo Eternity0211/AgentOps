@@ -9,6 +9,7 @@ from collections.abc import AsyncIterator, Callable, Iterator
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from itertools import count, pairwise
+from pathlib import Path
 
 import pytest
 from alembic import command
@@ -37,6 +38,7 @@ from agentops_incident_commander.domain import (
     AlertTriageAction,
     Artifact,
     ArtifactId,
+    ArtifactStorage,
     AuditEvent,
     AuditEventId,
     AuditTarget,
@@ -80,6 +82,7 @@ from agentops_incident_commander.domain import (
     TrustClassification,
     WorkflowRunId,
 )
+from agentops_incident_commander.infrastructure.artifacts import LocalArtifactStorage
 from agentops_incident_commander.infrastructure.persistence import (
     AlertGroupRow,
     AlertRepository,
@@ -240,6 +243,7 @@ def api_app(
     *,
     now: datetime = NOW + timedelta(hours=1),
     audit_id: str = "api-audit-1",
+    artifact_storage: ArtifactStorage | None = None,
 ) -> FastAPI:
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     audit_ids = count(1)
@@ -253,6 +257,7 @@ def api_app(
         principal_resolver=resolve,
         clock=lambda: now,
         id_factory=lambda: f"{audit_id}-{next(audit_ids)}",
+        artifact_storage=artifact_storage,
     )
 
 
@@ -393,6 +398,64 @@ async def test_incident_read_endpoints_are_tenant_scoped_and_cursor_paginated(
         wrong_types.status_code,
         bad_time.status_code,
     } == {400}
+
+
+@pytest.mark.anyio
+async def test_evidence_api_resolves_authorized_artifacts_without_tenant_disclosure(
+    engine: AsyncEngine, tmp_path: Path
+) -> None:
+    await add_incident(engine, "incident-evidence", tenant="tenant-1")
+    item = evidence_record()
+    metadata = evidence_artifact()
+    storage = LocalArtifactStorage(tmp_path / "artifacts")
+    storage.store(metadata, b"evidence")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        await EvidenceRepository(session).add(item, metadata)
+
+    viewer = principal(tenant="tenant-1", roles=frozenset({Role.VIEWER}))
+    app = api_app(engine, viewer, artifact_storage=storage)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        listed = await client.get("/api/v1/incidents/incident-evidence/evidence")
+        detail = await client.get("/api/v1/incidents/incident-evidence/evidence/evidence-1")
+        content = await client.get(
+            "/api/v1/incidents/incident-evidence/evidence/evidence-1/artifact"
+        )
+        wrong_incident = await client.get("/api/v1/incidents/another-incident/evidence/evidence-1")
+
+    assert listed.status_code == detail.status_code == content.status_code == 200
+    assert listed.json()["items"][0]["id"] == "evidence-1"
+    assert listed.json()["items"][0]["expired"] is False
+    assert detail.json()["content_hash"] == metadata.content_hash.value
+    assert content.content == b"evidence"
+    assert content.headers["x-content-sha256"] == metadata.content_hash.value
+    assert content.headers["cache-control"] == "private, no-store"
+    assert wrong_incident.status_code == 404
+
+    foreign_app = api_app(engine, principal(tenant="tenant-foreign"), artifact_storage=storage)
+    async with AsyncClient(
+        transport=ASGITransport(app=foreign_app), base_url="http://test"
+    ) as client:
+        foreign_list = await client.get("/api/v1/incidents/incident-evidence/evidence")
+        foreign_detail = await client.get("/api/v1/incidents/incident-evidence/evidence/evidence-1")
+    assert foreign_list.status_code == foreign_detail.status_code == 404
+
+    unavailable_app = api_app(engine, viewer)
+    missing_app = api_app(
+        engine, viewer, artifact_storage=LocalArtifactStorage(tmp_path / "empty-artifacts")
+    )
+    artifact_path = "/api/v1/incidents/incident-evidence/evidence/evidence-1/artifact"
+    async with AsyncClient(
+        transport=ASGITransport(app=unavailable_app), base_url="http://test"
+    ) as client:
+        unavailable = await client.get(artifact_path)
+    async with AsyncClient(
+        transport=ASGITransport(app=missing_app), base_url="http://test"
+    ) as client:
+        missing = await client.get(artifact_path)
+    assert unavailable.status_code == 503
+    assert unavailable.json()["code"] == "ARTIFACT_STORAGE_UNAVAILABLE"
+    assert missing.status_code == 404
 
 
 @pytest.mark.anyio

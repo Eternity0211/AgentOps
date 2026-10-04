@@ -17,6 +17,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from agentops_incident_commander.domain import (
     ActorId,
     AggregateVersion,
+    ArtifactExpiredError,
+    ArtifactId,
+    ArtifactIntegrityError,
+    ArtifactNotFoundError,
+    ArtifactStorage,
     AuditEvent,
     AuditEventId,
     AuditTarget,
@@ -37,6 +42,7 @@ from agentops_incident_commander.domain import (
 )
 from agentops_incident_commander.infrastructure.persistence.models import (
     AuditEventRow,
+    EvidenceRow,
     IdempotencyRecordRow,
     IncidentCancellationRequestRow,
     IncidentRow,
@@ -73,6 +79,40 @@ class IncidentView(ApiModel):
 
 class IncidentPage(ApiModel):
     items: list[IncidentView]
+    next_cursor: str | None
+
+
+class EvidenceView(ApiModel):
+    id: str
+    incident_id: str
+    source_type: str
+    source_instance: str
+    tool_name: str
+    tool_version: str
+    tool_schema_version: str
+    normalized_query: dict[str, str]
+    observed_from: datetime
+    observed_to: datetime
+    collected_at: datetime
+    artifact_id: str
+    content_hash: str
+    parser_version: str
+    normalizer_version: str
+    quality_score_basis_points: int
+    quality_reasons: list[str]
+    tool_call_id: str
+    workflow_run_id: str
+    redaction_transform_id: str | None
+    parent_evidence_ids: list[str]
+    trust: str
+    prompt_injection_status: str
+    expires_at: datetime
+    expired: bool
+    schema_version: str
+
+
+class EvidencePage(ApiModel):
+    items: list[EvidenceView]
     next_cursor: str | None
 
 
@@ -159,6 +199,37 @@ def _incident_view(row: IncidentRow) -> IncidentView:
     )
 
 
+def _evidence_view(row: EvidenceRow, *, at: datetime) -> EvidenceView:
+    return EvidenceView(
+        id=row.id,
+        incident_id=row.incident_id,
+        source_type=row.source_type,
+        source_instance=row.source_instance,
+        tool_name=row.tool_name,
+        tool_version=row.tool_version,
+        tool_schema_version=row.tool_schema_version,
+        normalized_query=row.normalized_query,
+        observed_from=row.observed_from,
+        observed_to=row.observed_to,
+        collected_at=row.collected_at,
+        artifact_id=row.artifact_id,
+        content_hash=row.content_hash,
+        parser_version=row.parser_version,
+        normalizer_version=row.normalizer_version,
+        quality_score_basis_points=row.quality_score_basis_points,
+        quality_reasons=row.quality_reasons,
+        tool_call_id=row.tool_call_id,
+        workflow_run_id=row.workflow_run_id,
+        redaction_transform_id=row.redaction_transform_id,
+        parent_evidence_ids=row.parent_evidence_ids,
+        trust=row.trust,
+        prompt_injection_status=row.prompt_injection_status,
+        expires_at=row.expires_at,
+        expired=as_utc(at) >= as_utc(row.expires_at),
+        schema_version=row.schema_version,
+    )
+
+
 def _canonical_hash(value: object) -> str:
     encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), default=str).encode()
     return hashlib.sha256(encoded).hexdigest()
@@ -183,6 +254,7 @@ def build_api_v1_router(
     principal_resolver: PrincipalResolver = deny_unconfigured_authentication,
     clock: Clock = utc_now,
     id_factory: IdFactory = new_identifier,
+    artifact_storage: ArtifactStorage | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/v1", responses=common_error_responses())
 
@@ -267,6 +339,164 @@ def build_api_v1_router(
         if row is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "incident not found")
         return _incident_view(row)
+
+    @router.get("/incidents/{incident_id}/evidence", response_model=EvidencePage)
+    async def list_evidence(
+        incident_id: str,
+        session: Session,
+        principal: Authenticated,
+        limit: PageLimit = 50,
+        cursor: str | None = None,
+    ) -> EvidencePage:
+        _authorized(principal, Permission.EVIDENCE_READ)
+        owned = await session.scalar(
+            select(IncidentRow.id).where(
+                IncidentRow.id == incident_id,
+                IncidentRow.tenant_id == principal.tenant_id.value,
+            )
+        )
+        if owned is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "incident not found")
+        statement = select(EvidenceRow).where(
+            EvidenceRow.tenant_id == principal.tenant_id.value,
+            EvidenceRow.incident_id == incident_id,
+        )
+        if cursor is not None:
+            collected_raw, evidence_id = _decode_cursor(cursor, expected_parts=2)
+            if not isinstance(collected_raw, str) or not isinstance(evidence_id, str):
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid pagination cursor")
+            try:
+                collected_at = as_utc(datetime.fromisoformat(collected_raw))
+            except ValueError as exc:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST, "invalid pagination cursor"
+                ) from exc
+            statement = statement.where(
+                or_(
+                    EvidenceRow.collected_at < collected_at,
+                    and_(EvidenceRow.collected_at == collected_at, EvidenceRow.id < evidence_id),
+                )
+            )
+        rows = (
+            await session.scalars(
+                statement.order_by(EvidenceRow.collected_at.desc(), EvidenceRow.id.desc()).limit(
+                    limit + 1
+                )
+            )
+        ).all()
+        visible = rows[:limit]
+        next_cursor = None
+        if len(rows) > limit:
+            last = visible[-1]
+            next_cursor = _encode_cursor([last.collected_at.isoformat(), last.id])
+        now = clock()
+        return EvidencePage(
+            items=[_evidence_view(row, at=now) for row in visible], next_cursor=next_cursor
+        )
+
+    async def scoped_evidence(
+        *, incident_id: str, evidence_id: str, session: AsyncSession, principal: Principal
+    ) -> EvidenceRow:
+        _authorized(principal, Permission.EVIDENCE_READ)
+        row = await session.scalar(
+            select(EvidenceRow).where(
+                EvidenceRow.id == evidence_id,
+                EvidenceRow.tenant_id == principal.tenant_id.value,
+                EvidenceRow.incident_id == incident_id,
+            )
+        )
+        if row is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "evidence not found")
+        return row
+
+    @router.get("/incidents/{incident_id}/evidence/{evidence_id}", response_model=EvidenceView)
+    async def get_evidence(
+        incident_id: str, evidence_id: str, session: Session, principal: Authenticated
+    ) -> EvidenceView:
+        row = await scoped_evidence(
+            incident_id=incident_id,
+            evidence_id=evidence_id,
+            session=session,
+            principal=principal,
+        )
+        return _evidence_view(row, at=clock())
+
+    @router.get(
+        "/incidents/{incident_id}/evidence/{evidence_id}/artifact",
+        response_class=Response,
+    )
+    async def get_evidence_artifact(
+        incident_id: str, evidence_id: str, session: Session, principal: Authenticated
+    ) -> Response:
+        row = await scoped_evidence(
+            incident_id=incident_id,
+            evidence_id=evidence_id,
+            session=session,
+            principal=principal,
+        )
+        now = clock()
+        if as_utc(now) >= as_utc(row.expires_at):
+            raise problem(
+                status.HTTP_410_GONE,
+                "EVIDENCE_EXPIRED",
+                "Evidence expired",
+                "evidence content is no longer available",
+            )
+        if artifact_storage is None:
+            raise problem(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                "ARTIFACT_STORAGE_UNAVAILABLE",
+                "Artifact storage unavailable",
+                "artifact content retrieval is not configured",
+            )
+        try:
+            content = artifact_storage.retrieve(
+                ArtifactId(row.artifact_id),
+                incident_id=IncidentId(incident_id),
+                principal=principal,
+                at=now,
+            )
+        except ArtifactNotFoundError as exc:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "artifact not found") from exc
+        except ArtifactExpiredError as exc:
+            raise problem(
+                status.HTTP_410_GONE,
+                "ARTIFACT_EXPIRED",
+                "Artifact expired",
+                "artifact content is no longer available",
+            ) from exc
+        except ArtifactIntegrityError as exc:
+            raise problem(
+                status.HTTP_409_CONFLICT,
+                "ARTIFACT_INTEGRITY_FAILED",
+                "Artifact integrity failed",
+                "artifact content could not be verified",
+            ) from exc
+        artifact = content.artifact
+        if (
+            artifact.id.value != row.artifact_id
+            or artifact.tenant_id != principal.tenant_id
+            or artifact.incident_id.value != incident_id
+            or artifact.content_hash.value != row.content_hash
+        ):
+            raise problem(
+                status.HTTP_409_CONFLICT,
+                "ARTIFACT_BINDING_MISMATCH",
+                "Artifact binding mismatch",
+                "artifact metadata does not match the evidence record",
+            )
+        return Response(
+            content=content.content,
+            media_type=artifact.media_type,
+            headers={
+                "Cache-Control": "private, no-store",
+                "ETag": f'"sha256:{artifact.content_hash.value}"',
+                "X-Artifact-ID": artifact.id.value,
+                "X-Content-SHA256": artifact.content_hash.value,
+                "X-Content-Schema-Version": artifact.content_schema_version,
+                "X-Redaction-Status": artifact.redaction_status.value,
+            },
+        )
 
     @router.get("/incidents/{incident_id}/timeline", response_model=TimelinePage)
     async def get_timeline(

@@ -56,6 +56,21 @@ when at least one replacement occurs, otherwise `NOT_REQUIRED`. Seeded-canary te
 field, inline credential, token, assignment, and private-key values appear in neither redacted
 content nor lineage representations.
 
+## Untrusted telemetry screening and quarantine
+
+Log and trace text is always classified as untrusted data. A bounded deterministic screen applies
+Unicode compatibility normalization, removes zero-width separators, normalizes whitespace, and
+detects explicit instruction override, role impersonation, tool invocation, policy bypass, and
+secret-exfiltration phrases. This classification does not interpret or execute the text and does
+not grant authority based on its contents.
+
+Normal content is serialized as a JSON string inside a fixed `UNTRUSTED_TELEMETRY_DATA` boundary;
+angle brackets are Unicode-escaped so payload text cannot close the boundary. Suspected content is
+never returned as model-ready text. Quarantine retains only the source Artifact ID, SHA-256 hash,
+UTF-8 length, deterministic reason codes, and `QUARANTINED` status, leaving the raw value solely in
+its access-controlled Artifact. Only `SUSPECTED` content with consistent metadata may transition
+to quarantine; normal Evidence construction already rejects unquarantined suspected content.
+
 Artifact and Evidence records are built together from one typed request. Their tenant, Incident,
 Artifact ID, digest, collection time, versions, and lineage cannot drift. Evidence cannot outlive
 its Artifact. Suspected prompt injection cannot enter normal Evidence construction until it is

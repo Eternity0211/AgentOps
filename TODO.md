@@ -95,7 +95,7 @@ Exit: migrations apply/rollback in test, API and workers run separately, state/R
 - [x] Implement trace critical-path/error summaries with trace/span references.
 - [x] Implement deployment change summaries correlated to incident windows.
 - [x] Implement sensitive-data redaction with transformation lineage and seeded-secret tests.
-- [ ] Implement untrusted telemetry/prompt-injection detection, delimiting, and quarantine.
+- [x] Implement untrusted telemetry/prompt-injection detection, delimiting, and quarantine.
 - [ ] Implement token-budgeted Context Builder with provenance labels, deterministic truncation, and recorded omissions.
 - [ ] Ensure raw telemetry is not embedded unbounded in LangGraph state or model prompts.
 - [ ] Add Evidence/Artifact API and authorization tests.

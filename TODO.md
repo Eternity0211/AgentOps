@@ -112,7 +112,7 @@ Exit: known telemetry fixtures produce stable normalized evidence and safe budge
 - [x] Implement `query_deployments` adapter and contracts.
 - [x] Implement `get_service_topology` adapter and contracts.
 - [x] Register the versioned `search_similar_incidents` contract with historical-reference labeling and a typed disabled/empty result until Phase 7 enables the memory backend.
-- [ ] Prevent raw URLs, arbitrary paths/commands, unknown tool versions, and write calls from diagnosis.
+- [x] Prevent raw URLs, arbitrary paths/commands, unknown tool versions, and write calls from diagnosis.
 - [ ] Add schema compatibility, timeout, bounded retry, permission, payload-limit, injection, and audit tests.
 
 Exit: five live observability/topology/deployment tools and the disabled-memory `search_similar_incidents` contract return versioned, incident-scoped results through the gateway, including negative/security paths.

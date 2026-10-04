@@ -24,6 +24,7 @@ from agentops_incident_commander.domain import (
     RetryableToolError,
     SemanticVersion,
     Sha256Digest,
+    ToolAccessClass,
     ToolCallId,
     ToolDefinition,
     ToolRegistry,
@@ -53,6 +54,11 @@ _ALLOWED_SCHEMA_KEYS = frozenset(
     }
 )
 _JSON_TYPES = frozenset({"array", "boolean", "integer", "null", "number", "object", "string"})
+_RAW_URL = re.compile(r"^[a-z][a-z0-9+.-]*://", re.IGNORECASE)
+_ABSOLUTE_PATH = re.compile(r"^(?:[a-z]:[\\/]|/)", re.IGNORECASE)
+_SHELL_COMMAND = re.compile(
+    r"^(?:bash|sh|zsh|cmd(?:\.exe)?|powershell(?:\.exe)?|pwsh)(?:\s|$)", re.IGNORECASE
+)
 
 
 class ToolGatewayError(RuntimeError):
@@ -354,6 +360,32 @@ def _matches_json_type(expected: str, value: object) -> bool:
     return isinstance(value, str)
 
 
+def _validate_diagnosis_arguments(value: object, *, path: str = "$") -> None:
+    if isinstance(value, dict):
+        for name, child in value.items():
+            _validate_diagnosis_arguments(child, path=f"{path}.{name}")
+        return
+    if isinstance(value, list):
+        for index, child in enumerate(value):
+            _validate_diagnosis_arguments(child, path=f"{path}[{index}]")
+        return
+    if not isinstance(value, str):
+        return
+    normalized = value.strip()
+    if (
+        _RAW_URL.match(normalized)
+        or _ABSOLUTE_PATH.match(normalized)
+        or "../" in normalized
+        or "..\\" in normalized
+        or _SHELL_COMMAND.match(normalized)
+        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+    ):
+        raise ToolPayloadValidationError(
+            "DIAGNOSIS_UNSAFE_ARGUMENT",
+            f"{path} contains a URL, path, command, or control character",
+        )
+
+
 class ToolGateway:
     """Execute only exact registered adapters behind deterministic controls."""
 
@@ -383,10 +415,24 @@ class ToolGateway:
         self._audit_id_factory = audit_id_factory
         self._sleeper = sleeper
 
+    def diagnosis_catalog(self) -> tuple[ToolDefinition, ...]:
+        return self._registry.catalog(access_class=ToolAccessClass.READ)
+
     async def invoke(self, call: ToolCallRequest) -> ToolCallResult:
+        return await self._invoke(call, diagnosis=False)
+
+    async def invoke_diagnosis(self, call: ToolCallRequest) -> ToolCallResult:
+        return await self._invoke(call, diagnosis=True)
+
+    async def _invoke(self, call: ToolCallRequest, *, diagnosis: bool) -> ToolCallResult:
         request_hash = call.request_hash
         try:
             definition = self._registry.resolve(call.tool_name, call.tool_version)
+            if diagnosis and definition.access_class is not ToolAccessClass.READ:
+                raise ToolPayloadValidationError(
+                    "DIAGNOSIS_WRITE_TOOL_FORBIDDEN",
+                    "diagnosis can invoke read-only tools only",
+                )
             require_permission(
                 call.principal,
                 definition.required_permission,
@@ -397,6 +443,8 @@ class ToolGateway:
                     "INPUT_LIMIT_EXCEEDED", "tool input exceeds its registered byte limit"
                 )
             _validate_payload(definition.input_schema.as_dict(), call.arguments())
+            if diagnosis:
+                _validate_diagnosis_arguments(call.arguments())
         except Exception as exc:
             await self._audit(
                 call,

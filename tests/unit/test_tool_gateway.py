@@ -21,6 +21,7 @@ from agentops_incident_commander.application.tool_gateway import (
     ToolResultLimitError,
     ToolSchemaConfigurationError,
     _check_schema,
+    _validate_diagnosis_arguments,
     _validate_payload,
 )
 from agentops_incident_commander.domain import (
@@ -41,6 +42,7 @@ from agentops_incident_commander.domain import (
     ToolCallId,
     ToolDefinition,
     ToolIdempotency,
+    ToolNotFoundError,
     ToolRegistry,
     ToolRetryPolicy,
     ToolRisk,
@@ -206,6 +208,10 @@ def test_tool_call_request_is_canonical_detached_and_hashed() -> None:
         request({"bad": {1}})
 
 
+def test_diagnosis_argument_guard_accepts_nested_safe_json_values() -> None:
+    _validate_diagnosis_arguments({"nested": ["safe", 1, True, None]})
+
+
 @pytest.mark.anyio
 async def test_gateway_dispatches_valid_call_and_audits_hashes() -> None:
     definition = tool_definition()
@@ -281,6 +287,99 @@ async def test_gateway_audits_unknown_disabled_permission_and_invalid_input() ->
         assert [event.type for event in writer.events] == ["tool.call_rejected"]
         assert writer.events[0].result_hash is not None
     assert adapter.contexts == []
+
+
+@pytest.mark.anyio
+async def test_diagnosis_catalog_and_invocation_forbid_write_tools_with_audit() -> None:
+    read = tool_definition()
+    write = replace(
+        tool_definition(version=V2),
+        access_class=ToolAccessClass.WRITE,
+        idempotency=ToolIdempotency.REQUIRED_RESULT_REPLAY,
+    )
+    registry = ToolRegistry((read, write))
+    adapter = SequenceAdapter([{"items": []}])
+    audit = FakeAuditWriter()
+    tool_gateway = ToolGateway(
+        registry,
+        {read.identity: adapter, write.identity: adapter},
+        audit,
+        clock=lambda: NOW,
+        audit_id_factory=lambda: "audit-diagnosis",
+    )
+    assert tool_gateway.diagnosis_catalog() == (read,)
+    with pytest.raises(ToolPayloadValidationError) as raised:
+        await tool_gateway.invoke_diagnosis(request(version=V2))
+    assert raised.value.code == "DIAGNOSIS_WRITE_TOOL_FORBIDDEN"
+    assert [event.type for event in audit.events] == ["tool.call_rejected"]
+    assert adapter.contexts == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "unsafe",
+    [
+        "HTTPS://observability.example/query",
+        "C:\\system\\config",
+        "/var/run/service",
+        "../private/data",
+        "..\\private\\data",
+        "bash -c whoami",
+        "cmd.exe /c dir",
+        "line\ncommand",
+    ],
+)
+async def test_diagnosis_invocation_rejects_nested_urls_paths_commands_and_controls(
+    unsafe: str,
+) -> None:
+    schema = ToolSchema.from_mapping(
+        V1,
+        {
+            "additionalProperties": False,
+            "properties": {
+                "nested": {
+                    "additionalProperties": False,
+                    "properties": {
+                        "values": {
+                            "items": {"maxLength": 200, "type": "string"},
+                            "maxItems": 2,
+                            "type": "array",
+                        }
+                    },
+                    "required": ["values"],
+                    "type": "object",
+                }
+            },
+            "required": ["nested"],
+            "type": "object",
+        },
+    )
+    definition = replace(tool_definition(), input_schema=schema)
+    adapter = SequenceAdapter([{"items": []}])
+    audit = FakeAuditWriter()
+    call = request({"nested": {"values": ["safe", unsafe]}})
+    with pytest.raises(ToolPayloadValidationError) as raised:
+        await gateway(definition, adapter, audit).invoke_diagnosis(call)
+    assert raised.value.code == "DIAGNOSIS_UNSAFE_ARGUMENT"
+    assert [event.type for event in audit.events] == ["tool.call_rejected"]
+    assert adapter.contexts == []
+
+
+@pytest.mark.anyio
+async def test_diagnosis_invocation_accepts_safe_read_call_and_audits_unknown_version() -> None:
+    definition = tool_definition()
+    adapter = SequenceAdapter([{"items": []}])
+    audit = FakeAuditWriter()
+    tool_gateway = gateway(definition, adapter, audit)
+    result = await tool_gateway.invoke_diagnosis(request())
+    assert result.result() == {"items": []}
+    with pytest.raises(ToolNotFoundError):
+        await tool_gateway.invoke_diagnosis(request(version=V2))
+    assert [event.type for event in audit.events] == [
+        "tool.call_started",
+        "tool.call_succeeded",
+        "tool.call_rejected",
+    ]
 
 
 @pytest.mark.anyio

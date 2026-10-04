@@ -112,6 +112,13 @@ and has no query text, URL, path, selector, or backend port. Its deterministic a
 returns `enabled: false`, a stable disabled reason, `historical_reference_only: true`, and an empty
 result list. The future enabled adapter must retain historical-reference labeling so retrieved
 incidents can never satisfy current-incident Evidence Gate facts.
+
+Diagnosis uses a dedicated gateway entry point and catalog. The catalog exposes enabled `READ`
+definitions only. Invocation resolves the exact version again, rejects every `WRITE` definition,
+and recursively rejects raw URL schemes, absolute or parent-traversal paths, common shell-launch
+forms, and control characters before adapter dispatch. These refusals use the normal
+`tool.call_rejected` hash-only audit path; unknown and disabled versions remain fail-closed registry
+errors with the same rejection audit behavior.
 Diagnosis-only catalog enforcement and the explicit raw URL/path/command deny rules are still open
 and will be completed before agent workflows can invoke the gateway.
 
@@ -142,3 +149,5 @@ environment substitution, unknown edge endpoints, disconnected graphs, and exces
 The disabled similar-incidents suite covers exact metadata, strict rejection of query/target
 fields and invalid limits, stable empty results across calls, historical-reference labeling, and
 adapter-side limit revalidation without any memory-backend access.
+Diagnosis-boundary tests prove write definitions remain hidden and non-invocable, nested unsafe
+strings never reach adapters, safe read calls still dispatch, and unknown versions remain audited.

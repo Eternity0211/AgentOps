@@ -42,6 +42,8 @@ GET_SERVICE_TOPOLOGY_VERSION = SemanticVersion("1.0.0")
 MAX_TOPOLOGY_NODES = 100
 MAX_TOPOLOGY_EDGES = 500
 MAX_TOPOLOGY_DEPTH = 5
+SEARCH_SIMILAR_INCIDENTS_VERSION = SemanticVersion("1.0.0")
+MAX_SIMILAR_INCIDENT_RESULTS = 20
 
 
 class MetricName(StrEnum):
@@ -1355,4 +1357,110 @@ class GetServiceTopologyAdapter:
             },
             "schema_version": GET_SERVICE_TOPOLOGY_VERSION.value,
             "source": "service-catalog",
+        }
+
+
+def search_similar_incidents_definition() -> ToolDefinition:
+    input_schema = ToolSchema.from_mapping(
+        SEARCH_SIMILAR_INCIDENTS_VERSION,
+        {
+            "additionalProperties": False,
+            "properties": {
+                "max_results": {
+                    "maximum": MAX_SIMILAR_INCIDENT_RESULTS,
+                    "minimum": 1,
+                    "type": "integer",
+                }
+            },
+            "required": ["max_results"],
+            "type": "object",
+        },
+    )
+    output_schema = ToolSchema.from_mapping(
+        SEARCH_SIMILAR_INCIDENTS_VERSION,
+        {
+            "additionalProperties": False,
+            "properties": {
+                "disabled_reason": {
+                    "const": "MEMORY_BACKEND_DISABLED_UNTIL_PHASE_7",
+                    "type": "string",
+                },
+                "enabled": {"const": False, "type": "boolean"},
+                "historical_reference_only": {"const": True, "type": "boolean"},
+                "query": {
+                    "additionalProperties": False,
+                    "properties": input_schema.as_dict()["properties"],
+                    "required": input_schema.as_dict()["required"],
+                    "type": "object",
+                },
+                "results": {
+                    "items": {
+                        "additionalProperties": False,
+                        "properties": {
+                            "historical_reference_only": {"const": True, "type": "boolean"},
+                            "incident_id": {"type": "string"},
+                            "similarity": {
+                                "maximum": 1.0,
+                                "minimum": 0.0,
+                                "type": "number",
+                            },
+                        },
+                        "required": [
+                            "historical_reference_only",
+                            "incident_id",
+                            "similarity",
+                        ],
+                        "type": "object",
+                    },
+                    "maxItems": MAX_SIMILAR_INCIDENT_RESULTS,
+                    "type": "array",
+                },
+                "schema_version": {"const": "1.0.0", "type": "string"},
+                "source": {"const": "incident-memory", "type": "string"},
+            },
+            "required": [
+                "disabled_reason",
+                "enabled",
+                "historical_reference_only",
+                "query",
+                "results",
+                "schema_version",
+                "source",
+            ],
+            "type": "object",
+        },
+    )
+    return ToolDefinition(
+        name="search_similar_incidents",
+        semantic_version=SEARCH_SIMILAR_INCIDENTS_VERSION,
+        input_schema=input_schema,
+        output_schema=output_schema,
+        access_class=ToolAccessClass.READ,
+        risk=ToolRisk.LOW,
+        required_permission=Permission.EVIDENCE_READ,
+        timeout_ms=1_000,
+        retry_policy=ToolRetryPolicy(1, 0, 0, frozenset()),
+        idempotency=ToolIdempotency.NOT_APPLICABLE,
+        audit=ToolAuditPolicy("tool.call", SEARCH_SIMILAR_INCIDENTS_VERSION),
+        max_input_bytes=512,
+        max_result_bytes=64 * 1024,
+    )
+
+
+class SearchSimilarIncidentsDisabledAdapter:
+    async def invoke(
+        self, context: ToolAdapterContext, arguments: Mapping[str, Any]
+    ) -> Mapping[str, Any]:
+        del context
+        max_results = int(arguments["max_results"])
+        if not 1 <= max_results <= MAX_SIMILAR_INCIDENT_RESULTS:
+            raise InvalidDomainValueError("similar incident result limit is outside bounds")
+        return {
+            "disabled_reason": "MEMORY_BACKEND_DISABLED_UNTIL_PHASE_7",
+            "enabled": False,
+            "historical_reference_only": True,
+            "query": {"max_results": max_results},
+            "results": [],
+            "schema_version": SEARCH_SIMILAR_INCIDENTS_VERSION.value,
+            "source": "incident-memory",
         }

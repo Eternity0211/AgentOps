@@ -106,8 +106,12 @@ edges. The adapter requires canonical ordering, unique service identities and ed
 environment scope, closed non-self edge references, root presence, graph connectivity, and
 reachability within the requested depth before returning a versioned service-catalog document.
 
-The disabled-memory `search_similar_incidents` definition remains the final planned read-tool
-contract batch before diagnosis catalog hardening.
+The `search_similar_incidents` v1 definition is registered in an explicitly disabled form until
+Phase 7 supplies the confirmed-incident memory projection. It accepts only a bounded result count
+and has no query text, URL, path, selector, or backend port. Its deterministic adapter always
+returns `enabled: false`, a stable disabled reason, `historical_reference_only: true`, and an empty
+result list. The future enabled adapter must retain historical-reference labeling so retrieved
+incidents can never satisfy current-incident Evidence Gate facts.
 Diagnosis-only catalog enforcement and the explicit raw URL/path/command deny rules are still open
 and will be completed before agent workflows can invoke the gateway.
 
@@ -135,3 +139,6 @@ out-of-window or out-of-order records, duplicate identities/timestamps, and back
 The topology adapter suite covers raw-query and target rejection, typed node/edge bounds, canonical
 output, depth bounds, ordering and duplicate failures, service identity collisions, missing roots,
 environment substitution, unknown edge endpoints, disconnected graphs, and excessive depth.
+The disabled similar-incidents suite covers exact metadata, strict rejection of query/target
+fields and invalid limits, stable empty results across calls, historical-reference labeling, and
+adapter-side limit revalidation without any memory-backend access.

@@ -23,6 +23,9 @@ Schemas must be strict root objects with `additionalProperties: false`. Required
 declared properties. Schema documents are canonicalized before registration, so the fingerprint is
 stable and callers cannot mutate the registered document through a retained dictionary reference.
 Pre-release/build version syntax is intentionally excluded until compatibility rules require it.
+Direct schema compatibility is deliberately conservative: only identical canonical fingerprints
+within the same schema major version are compatible. Any constraint or field change therefore
+requires explicit version/migration handling rather than an unsafe inferred compatibility claim.
 
 ## Registry selection
 
@@ -151,3 +154,6 @@ fields and invalid limits, stable empty results across calls, historical-referen
 adapter-side limit revalidation without any memory-backend access.
 Diagnosis-boundary tests prove write definitions remain hidden and non-invocable, nested unsafe
 strings never reach adapters, safe read calls still dispatch, and unknown versions remain audited.
+The completed Phase 4 matrix additionally covers conservative schema compatibility, timeout and
+retry exhaustion, permission denial, input/output byte ceilings, malformed and adversarial
+payloads, exact version resolution, and hash-only rejection/success/failure audit events.

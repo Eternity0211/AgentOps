@@ -136,6 +136,28 @@ def test_tool_schema_is_canonical_strict_bounded_and_copy_safe() -> None:
             ToolSchema.from_mapping(V1, unsupported)
 
 
+def test_tool_schema_compatibility_is_conservative_and_fingerprint_based() -> None:
+    original = schema(V1)
+    unchanged_minor = schema(SemanticVersion("1.1.0"))
+    changed = ToolSchema.from_mapping(
+        SemanticVersion("1.1.0"),
+        {
+            "additionalProperties": False,
+            "properties": {
+                "incident_id": {"type": "string"},
+                "limit": {"minimum": 1, "type": "integer"},
+            },
+            "required": ["incident_id", "limit"],
+            "type": "object",
+        },
+    )
+    unchanged_major = schema(SemanticVersion("2.0.0"))
+    assert unchanged_minor.is_compatible_with(original)
+    assert not changed.is_compatible_with(original)
+    assert not unchanged_major.is_compatible_with(original)
+    assert not original.is_compatible_with(cast(Any, "not-a-schema"))
+
+
 def test_retry_policy_is_finite_typed_and_classified() -> None:
     policy = ToolRetryPolicy(
         3,

@@ -121,6 +121,15 @@ class ToolSchema:
     def content_hash(self) -> str:
         return hashlib.sha256(self.canonical_json.encode("utf-8")).hexdigest()
 
+    def is_compatible_with(self, previous: object) -> bool:
+        """Conservatively allow direct reuse only for an unchanged same-major schema."""
+        if not isinstance(previous, ToolSchema):
+            return False
+        return (
+            self.version.parts[0] == previous.version.parts[0]
+            and self.content_hash == previous.content_hash
+        )
+
 
 class ToolAccessClass(StrEnum):
     READ = "READ"

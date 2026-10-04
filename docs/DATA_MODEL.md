@@ -29,7 +29,7 @@ This is the conceptual model. SQLAlchemy/Alembic implementation must preserve th
 
 | Entity | Purpose |
 | --- | --- |
-| ToolDefinition | Exact semantic version; immutable strict input/output schema versions and hashes; read/write class; risk; RBAC permission; bounded timeout, result size, attempts and classified retries; idempotency; required request/result-hash audit contract; deployment-owned enabled range. |
+| ToolDefinition | Exact semantic version; immutable strict input/output schema versions and hashes; read/write class; risk; RBAC permission; bounded timeout, input/result size, attempts and classified retries; idempotency; required request/result-hash audit contract; deployment-owned enabled range. |
 | PromptDefinition | Prompt ID/semantic version, content fingerprint, model settings, schema compatibility, status and rollback link. |
 | IncidentMemory | Closed-incident summary with source links, embedding/model version, outcome confidence; reference-only. |
 | JobLease | Typed job/schema and payload reference, correlation/causation, state, bounded priority/attempts, available time, lease owner/start/expiry/heartbeat, retry error, and explicit dead-letter or human-handoff exhaustion route. |

@@ -12,8 +12,8 @@ Every exact tool release declares:
 - canonical, size-bounded input and output JSON Schemas, each with its own semantic version and
   immutable SHA-256 fingerprint;
 - `READ` or `WRITE` access class, risk tier, and required RBAC permission;
-- a positive timeout no greater than five minutes and a result-size ceiling no greater than the
-  Artifact limit;
+- a positive timeout no greater than five minutes and input/result-size ceilings no greater than
+  the Artifact limit;
 - one to five total attempts, bounded backoff, and explicit retryable-error classifications;
 - idempotency behavior; reads use `NOT_APPLICABLE`, while every write requires durable result
   replay;
@@ -38,16 +38,46 @@ filtered by read/write class. Diagnosis will later receive only the read catalog
 workflow batches must still revalidate access class, RBAC, schema, incident scope, timeout, retry,
 payload limits, and audit on every invocation.
 
+## Deterministic invocation pipeline
+
+`ToolGateway` accepts a canonical immutable call containing the exact tool version, Incident and
+workflow IDs, authenticated principal, correlation/causation IDs, and a detached JSON argument
+object. It then executes this fixed sequence:
+
+1. Resolve the exact enabled definition; no latest-version fallback exists.
+2. Enforce the definition's RBAC permission and input byte ceiling.
+3. Validate arguments against the supported strict JSON Schema subset.
+4. Append a request-hash-only `tool.call_started` audit event before dispatch.
+5. Invoke only the exact server-registered adapter under its per-attempt timeout.
+6. Retry only explicitly classified failures that the definition allows, using bounded exponential
+   backoff and the total-attempt ceiling.
+7. Canonicalize and validate the output, then enforce the result byte ceiling.
+8. Append a success or failure audit event containing request/result or request/error hashes.
+
+Unknown, disabled, unauthorized, malformed, and oversized inputs emit `tool.call_rejected` without
+dispatch. Cancellation, timeout, classified dependency failure, unexpected adapter failure,
+malformed output, and oversized output emit `tool.call_failed`. Audit persistence is fail-closed:
+an unavailable writer prevents dispatch rather than silently producing an unaudited call. Audit
+events contain hashes and identifiers, never arguments, results, exception messages, or telemetry.
+
+The built-in validator intentionally supports a bounded JSON Schema subset: strict objects,
+required fields, scalar types, finite numeric bounds, string length/pattern, enum/const, and bounded
+arrays with recursively validated items. Unsupported keywords or excessive nesting fail gateway
+construction. Enabled definitions and adapter registrations must match exactly at startup.
+
 ## Current boundary
 
-This batch defines metadata and selection only. It does not yet dispatch adapters, accept model
-tool calls, perform retries, or register the six planned read contracts. Those capabilities remain
-separate TODO batches so dispatch cannot exist before its validation, authorization, limits, and
-audit controls.
+The gateway core now validates, authorizes, dispatches, times out, retries, limits, and audits calls.
+The six planned read tool definitions and their concrete adapters remain separate TODO batches.
+Diagnosis-only catalog enforcement and the explicit raw URL/path/command deny rules are also still
+open and will be completed before agent workflows can invoke the gateway.
 
 ## Verification
 
 Unit tests cover semantic ordering, canonical schema immutability/fingerprints, malformed and
 oversized schemas, bounded timeout/result/retry settings, retry classifications, read/write
 idempotency invariants, mandatory hash-only audit metadata, duplicate/unknown/disabled versions,
-enablement configuration errors, and deterministic catalog filtering.
+enablement configuration errors, deterministic catalog filtering, every supported schema
+constraint, authorization/rejection, dispatch, timeout, classified retry/backoff, cancellation,
+unexpected failure, output validation, result limits, and audit failure. A PostgreSQL integration
+test proves started/succeeded events persist through the append-only `AuditRepository`.

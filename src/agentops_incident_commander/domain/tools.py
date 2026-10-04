@@ -219,6 +219,7 @@ class ToolDefinition:
     retry_policy: ToolRetryPolicy
     idempotency: ToolIdempotency
     audit: ToolAuditPolicy
+    max_input_bytes: int
     max_result_bytes: int
 
     def __post_init__(self) -> None:
@@ -239,6 +240,7 @@ class ToolDefinition:
             raise InvalidDomainValueError("tool definition contains invalid typed metadata")
         for name, value, maximum in (
             ("timeout", self.timeout_ms, MAX_TOOL_TIMEOUT_MS),
+            ("input byte limit", self.max_input_bytes, MAX_TOOL_RESULT_BYTES),
             ("result byte limit", self.max_result_bytes, MAX_TOOL_RESULT_BYTES),
         ):
             if not isinstance(value, int) or isinstance(value, bool):

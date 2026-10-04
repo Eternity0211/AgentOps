@@ -5,11 +5,12 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator, Mapping
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from itertools import count, pairwise
 from pathlib import Path
+from typing import Any
 
 import pytest
 from alembic import command
@@ -26,6 +27,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from testcontainers.community.postgres import PostgresContainer
 
+from agentops_incident_commander.application import ToolAdapterContext, ToolCallRequest, ToolGateway
 from agentops_incident_commander.apps.api import create_app
 from agentops_incident_commander.apps.config import ApiSettings
 from agentops_incident_commander.domain import (
@@ -69,6 +71,7 @@ from agentops_incident_commander.domain import (
     OutboxEventId,
     OutboxLeaseError,
     OutboxPayload,
+    Permission,
     Principal,
     PromptInjectionStatus,
     QueryParameter,
@@ -76,9 +79,18 @@ from agentops_incident_commander.domain import (
     RedactionTransformId,
     RetentionClass,
     Role,
+    SemanticVersion,
     Sha256Digest,
     TenantId,
+    ToolAccessClass,
+    ToolAuditPolicy,
     ToolCallId,
+    ToolDefinition,
+    ToolIdempotency,
+    ToolRegistry,
+    ToolRetryPolicy,
+    ToolRisk,
+    ToolSchema,
     TrustClassification,
     WorkflowRunId,
 )
@@ -456,6 +468,92 @@ async def test_evidence_api_resolves_authorized_artifacts_without_tenant_disclos
     assert unavailable.status_code == 503
     assert unavailable.json()["code"] == "ARTIFACT_STORAGE_UNAVAILABLE"
     assert missing.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_tool_gateway_persists_started_and_succeeded_audit_events(
+    engine: AsyncEngine,
+) -> None:
+    version = SemanticVersion("1.0.0")
+    input_schema = ToolSchema.from_mapping(
+        version,
+        {
+            "additionalProperties": False,
+            "properties": {"service": {"type": "string"}},
+            "required": ["service"],
+            "type": "object",
+        },
+    )
+    output_schema = ToolSchema.from_mapping(
+        version,
+        {
+            "additionalProperties": False,
+            "properties": {"count": {"minimum": 0, "type": "integer"}},
+            "required": ["count"],
+            "type": "object",
+        },
+    )
+    definition = ToolDefinition(
+        name="query_logs",
+        semantic_version=version,
+        input_schema=input_schema,
+        output_schema=output_schema,
+        access_class=ToolAccessClass.READ,
+        risk=ToolRisk.LOW,
+        required_permission=Permission.EVIDENCE_READ,
+        timeout_ms=1000,
+        retry_policy=ToolRetryPolicy(1, 0, 0, frozenset()),
+        idempotency=ToolIdempotency.NOT_APPLICABLE,
+        audit=ToolAuditPolicy("tool.call", version),
+        max_input_bytes=1024,
+        max_result_bytes=1024,
+    )
+
+    class Adapter:
+        async def invoke(
+            self, context: ToolAdapterContext, arguments: Mapping[str, Any]
+        ) -> Mapping[str, Any]:
+            assert context.incident_id == IncidentId("incident-tool")
+            assert arguments == {"service": "orders"}
+            return {"count": 2}
+
+    actor = principal(tenant="tenant-tool-gateway", roles=frozenset({Role.VIEWER}))
+    call = ToolCallRequest.from_mapping(
+        call_id=ToolCallId("tool-call-integration"),
+        tool_name="query_logs",
+        tool_version=version,
+        incident_id=IncidentId("incident-tool"),
+        workflow_run_id=WorkflowRunId("workflow-tool"),
+        principal=actor,
+        correlation_id=CorrelationId("correlation-tool"),
+        causation_id=CausationId("cause-tool"),
+        arguments={"service": "orders"},
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    audit_ids = count(1)
+    async with sessions.begin() as session:
+        result = await ToolGateway(
+            ToolRegistry((definition,)),
+            {definition.identity: Adapter()},
+            AuditRepository(session),
+            clock=lambda: NOW,
+            audit_id_factory=lambda: f"audit-tool-{next(audit_ids)}",
+        ).invoke(call)
+    assert result.result() == {"count": 2}
+
+    async with sessions() as session:
+        rows = (
+            await session.scalars(
+                select(AuditEventRow)
+                .where(AuditEventRow.correlation_id == "correlation-tool")
+                .order_by(AuditEventRow.sequence)
+            )
+        ).all()
+    assert [row.event_type for row in rows] == ["tool.call_started", "tool.call_succeeded"]
+    assert rows[0].request_hash == call.request_hash.value
+    assert rows[0].result_hash is None
+    assert rows[1].result_hash == result.content_hash.value
+    assert {row.tenant_id for row in rows} == {"tenant-tool-gateway"}
 
 
 @pytest.mark.anyio

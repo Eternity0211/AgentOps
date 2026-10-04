@@ -69,7 +69,8 @@ def definition(
         idempotency=(
             ToolIdempotency.REQUIRED_RESULT_REPLAY if write else ToolIdempotency.NOT_APPLICABLE
         ),
-        audit=ToolAuditPolicy("tool.call_completed", V1),
+        audit=ToolAuditPolicy("tool.call", V1),
+        max_input_bytes=2048,
         max_result_bytes=4096,
     )
 
@@ -204,13 +205,19 @@ def test_audit_and_tool_definition_enforce_safe_metadata() -> None:
             replace(read, name=name)
     for field, value in (
         ("timeout_ms", True),
+        ("max_input_bytes", True),
         ("max_result_bytes", True),
         ("timeout_ms", 0),
         ("timeout_ms", MAX_TOOL_TIMEOUT_MS + 1),
+        ("max_input_bytes", 0),
+        ("max_input_bytes", MAX_TOOL_RESULT_BYTES + 1),
         ("max_result_bytes", 0),
         ("max_result_bytes", MAX_TOOL_RESULT_BYTES + 1),
     ):
-        with pytest.raises(InvalidDomainValueError, match=r"tool (timeout|result byte limit)"):
+        with pytest.raises(
+            InvalidDomainValueError,
+            match=r"tool (timeout|input byte limit|result byte limit)",
+        ):
             replace(read, **cast(Any, {field: value}))
     with pytest.raises(InvalidDomainValueError, match="read tools"):
         replace(read, idempotency=ToolIdempotency.REQUIRED_RESULT_REPLAY)

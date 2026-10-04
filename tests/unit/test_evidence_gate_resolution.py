@@ -213,6 +213,50 @@ async def test_resolver_rejects_missing_or_hash_invalid_artifacts(
     assert result.reasons[0].code is EvidenceGateReasonCode.ARTIFACT_UNRESOLVABLE
 
 
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("scenario", "expected"),
+    [
+        ("fabricated-reference", EvidenceGateReasonCode.EVIDENCE_NOT_FOUND),
+        ("altered-artifact", EvidenceGateReasonCode.ARTIFACT_UNRESOLVABLE),
+    ],
+)
+async def test_fabricated_or_altered_evidence_cannot_pass_with_maximum_confidence(
+    scenario: str,
+    expected: EvidenceGateReasonCode,
+) -> None:
+    cited = evidence("evidence-adversarial")
+    claim = RootCauseEvidenceClaim(
+        INCIDENT,
+        "candidate-adversarial",
+        (cited.id,),
+        model_confidence_basis_points=10_000,
+    )
+    reader = Reader({} if scenario == "fabricated-reference" else {cited.id: cited})
+    storage = Storage(
+        {}
+        if scenario == "fabricated-reference"
+        else {cited.artifact_id: ArtifactContent(artifact(cited), b"altered")}
+    )
+    resolution = await resolve_gate_evidence_references(
+        claim,
+        tenant_id=TENANT,
+        principal=PRINCIPAL,
+        reader=reader,
+        artifact_storage=storage,
+        at=NOW,
+    )
+    decision = evaluate_evidence_gate(
+        claim,
+        resolution,
+        rules=EvidenceGateRules(minimum_independent_sources=1),
+        at=NOW,
+    )
+    assert decision.outcome is EvidenceGateOutcome.FAIL
+    assert decision.reasons[0].code is expected
+    assert decision.model_confidence_basis_points == 10_000
+
+
 def test_characteristics_accept_fresh_quality_independent_direct_sources() -> None:
     first = evidence("evidence-1")
     second = evidence(
@@ -366,3 +410,65 @@ def test_gate_fingerprint_is_canonical_and_captures_confidence_metadata() -> Non
     assert repeated.input_fingerprint == low.input_fingerprint
     assert high.outcome == low.outcome == EvidenceGateOutcome.PASS
     assert high.input_fingerprint != low.input_fingerprint
+
+
+@pytest.mark.parametrize(
+    ("scenario", "expected"),
+    [
+        ("stale", EvidenceGateReasonCode.EVIDENCE_STALE),
+        ("low-quality", EvidenceGateReasonCode.QUALITY_BELOW_FLOOR),
+        ("correlated-sources", EvidenceGateReasonCode.INSUFFICIENT_INDEPENDENT_SOURCES),
+        ("unresolved-counter", EvidenceGateReasonCode.UNRESOLVED_COUNTER_EVIDENCE),
+        ("declared-missing", EvidenceGateReasonCode.MISSING_EVIDENCE_DECLARED),
+    ],
+)
+def test_adversarial_gate_matrix_fails_closed(
+    scenario: str,
+    expected: EvidenceGateReasonCode,
+) -> None:
+    first = evidence("evidence-1")
+    second = evidence(
+        "evidence-2",
+        source_type=EvidenceSourceType.METRIC,
+        source_instance="prometheus-primary",
+    )
+    counter_ids: tuple[EvidenceId, ...] = ()
+    missing: tuple[str, ...] = ()
+    values: tuple[Evidence, ...] = (first, second)
+    if scenario == "stale":
+        first = evidence(
+            "evidence-1",
+            observed_from=NOW - timedelta(hours=3),
+            observed_to=NOW - timedelta(hours=2),
+            collected_at=NOW - timedelta(hours=1, minutes=59),
+        )
+        values = (first, second)
+    elif scenario == "low-quality":
+        first = evidence("evidence-1", quality=EvidenceQuality(1_000, ("source-available",)))
+        values = (first, second)
+    elif scenario == "correlated-sources":
+        second = evidence("evidence-2")
+        values = (first, second)
+    elif scenario == "unresolved-counter":
+        counter = evidence("evidence-3")
+        counter_ids = (counter.id,)
+        values = (first, second, counter)
+    else:
+        missing = ("Need a deployment marker",)
+    claim = RootCauseEvidenceClaim(
+        INCIDENT,
+        "candidate-adversarial",
+        (first.id, second.id),
+        counter_ids,
+        missing,
+        model_confidence_basis_points=10_000,
+    )
+    decision = evaluate_evidence_gate(
+        claim,
+        EvidenceReferenceResolution(values, ()),
+        rules=EvidenceGateRules(),
+        at=NOW,
+    )
+    assert decision.outcome is EvidenceGateOutcome.FAIL
+    assert tuple(reason.code for reason in decision.reasons) == (expected,)
+    assert decision.model_confidence_basis_points == 10_000

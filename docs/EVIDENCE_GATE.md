@@ -63,3 +63,6 @@ Decision tests cover unresolved counter-evidence, declared missing evidence, con
 flags, canonical fingerprints, and both confidence extremes without changing deterministic outcomes.
 PostgreSQL integration tests cover migration round trips, persisted input/decision reconstruction,
 idempotent replay, audit binding, conflict rejection, and tenant/Incident scoping.
+The Phase 5 adversarial matrix proves that fabricated references, missing or altered Artifacts,
+stale or low-quality observations, correlated sources, declared missing evidence, and unresolved
+counter-evidence all fail closed even when model confidence is at its maximum value.

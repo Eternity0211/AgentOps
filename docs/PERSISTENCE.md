@@ -31,6 +31,13 @@ the owning Incident and tenant, Artifact references are unique, and checks enfor
 injection vocabularies, SHA-256 form, quality bounds, and observation/collection/expiry ordering.
 The repository validates the external Artifact identity, ownership, and digest before insertion.
 
+Revision `20261004_0008` adds `evidence_gate_decisions`. Each tenant/Incident-scoped row stores the
+canonical non-secret input snapshot, rules/schema versions, typed outcome and reasons, evaluated
+Evidence IDs, model-confidence metadata, evaluation time, and SHA-256 input fingerprint. The
+repository treats the tenant/Incident/candidate/fingerprint tuple as an idempotent identity and
+rejects conflicting replay. Its insert and the hash-bound `evidence.gate_decided` audit event share
+the caller transaction, so neither can commit alone.
+
 ## Repository concurrency
 
 `IncidentRepository` updates with `WHERE id = ... AND version = ...`. A zero-row update raises the

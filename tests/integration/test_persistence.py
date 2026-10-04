@@ -10,7 +10,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from itertools import count, pairwise
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from alembic import command
@@ -27,7 +27,14 @@ from sqlalchemy.ext.asyncio import (
 )
 from testcontainers.community.postgres import PostgresContainer
 
-from agentops_incident_commander.application import ToolAdapterContext, ToolCallRequest, ToolGateway
+from agentops_incident_commander.application import (
+    EvidenceReferenceResolution,
+    ToolAdapterContext,
+    ToolCallRequest,
+    ToolGateway,
+    evaluate_evidence_gate,
+    evidence_gate_decision_fingerprint,
+)
 from agentops_incident_commander.apps.api import create_app
 from agentops_incident_commander.apps.config import ApiSettings
 from agentops_incident_commander.domain import (
@@ -49,6 +56,11 @@ from agentops_incident_commander.domain import (
     EventMetadata,
     EventReason,
     Evidence,
+    EvidenceGateDecision,
+    EvidenceGateOutcome,
+    EvidenceGateReason,
+    EvidenceGateReasonCode,
+    EvidenceGateRules,
     EvidenceId,
     EvidenceLineage,
     EvidenceQuality,
@@ -79,6 +91,7 @@ from agentops_incident_commander.domain import (
     RedactionTransformId,
     RetentionClass,
     Role,
+    RootCauseEvidenceClaim,
     SemanticVersion,
     Sha256Digest,
     TenantId,
@@ -101,6 +114,8 @@ from agentops_incident_commander.infrastructure.persistence import (
     AlertRow,
     AuditEventRow,
     AuditRepository,
+    EvidenceGateDecisionRow,
+    EvidenceGateRepository,
     EvidenceRepository,
     EvidenceRow,
     IdempotencyRecordRow,
@@ -152,7 +167,7 @@ async def engine(migrated_url: str) -> AsyncIterator[AsyncEngine]:
             text(
                 "TRUNCATE alerts, alert_groups, incident_cancellation_requests, "
                 "incident_transitions, evidence, idempotency_records, outbox_events, jobs, "
-                "incidents RESTART IDENTITY CASCADE"
+                "evidence_gate_decisions, incidents RESTART IDENTITY CASCADE"
             )
         )
     await value.dispose()
@@ -324,6 +339,7 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "alert_groups",
         "audit_events",
         "evidence",
+        "evidence_gate_decisions",
         "incidents",
         "incident_transitions",
         "incident_cancellation_requests",
@@ -1542,3 +1558,225 @@ async def test_database_rejects_cross_tenant_evidence_and_duplicate_artifact(
     async with sessions.begin() as session:
         with pytest.raises(IntegrityError, match="uq_evidence_artifact"):
             await EvidenceRepository(session).add(duplicate, evidence_artifact())
+
+
+def gate_evaluation() -> tuple[
+    RootCauseEvidenceClaim,
+    tuple[Evidence, ...],
+    EvidenceGateRules,
+    EvidenceGateDecision,
+]:
+    first = replace(
+        evidence_record(incident="incident-gate-storage"),
+        quality=EvidenceQuality(9_000, ("source-available",)),
+    )
+    second = replace(
+        first,
+        id=EvidenceId("evidence-2"),
+        source_type=EvidenceSourceType.METRIC,
+        source_instance="prometheus-primary",
+        artifact_id=ArtifactId("artifact-evidence-2"),
+        lineage=EvidenceLineage(ToolCallId("tool-call-2"), WorkflowRunId("workflow-1"), None),
+    )
+    claim = RootCauseEvidenceClaim(
+        first.incident_id,
+        "candidate-database-pool",
+        (first.id, second.id),
+        missing_evidence=("Need a deployment marker",),
+        model_confidence_basis_points=9_500,
+    )
+    rules = EvidenceGateRules()
+    evaluated_at = NOW + timedelta(minutes=3)
+    decision = evaluate_evidence_gate(
+        claim,
+        EvidenceReferenceResolution((first, second), ()),
+        rules=rules,
+        at=evaluated_at,
+    )
+    return claim, (first, second), rules, decision
+
+
+def gate_audit(
+    event_id: str, decision: EvidenceGateDecision, *, tenant: str = "tenant-1"
+) -> AuditEvent:
+    return AuditEvent(
+        id=AuditEventId(event_id),
+        tenant_id=TenantId(tenant),
+        type="evidence.gate_decided",
+        event_version=1,
+        payload_schema_version="evidence_gate/v1",
+        actor_id=ActorId("worker-gate"),
+        correlation_id=CorrelationId("correlation-gate"),
+        causation_id=CausationId("diagnosis-run-gate"),
+        target=AuditTarget(
+            "evidence.gate_decision", OpaqueIdentifier(decision.input_fingerprint.value)
+        ),
+        occurred_at=decision.evaluated_at,
+        request_hash=decision.input_fingerprint,
+        result_hash=evidence_gate_decision_fingerprint(decision),
+    )
+
+
+@pytest.mark.anyio
+async def test_evidence_gate_repository_persists_replays_and_scopes_decision(
+    engine: AsyncEngine,
+) -> None:
+    await add_incident(engine, "incident-gate-storage", tenant="tenant-1")
+    claim, evidence, rules, decision = gate_evaluation()
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        stored = await EvidenceGateRepository(session).record(
+            tenant_id=TenantId("tenant-1"),
+            claim=claim,
+            evidence=evidence,
+            rules=rules,
+            decision=decision,
+            audit_event=gate_audit("audit-gate-1", decision),
+        )
+    assert stored == decision
+    assert stored.outcome is EvidenceGateOutcome.FAIL
+    assert stored.reasons[0].code is EvidenceGateReasonCode.MISSING_EVIDENCE_DECLARED
+
+    async with sessions.begin() as session:
+        replayed = await EvidenceGateRepository(session).record(
+            tenant_id=TenantId("tenant-1"),
+            claim=claim,
+            evidence=tuple(reversed(evidence)),
+            rules=rules,
+            decision=decision,
+            audit_event=gate_audit("audit-gate-replay", decision),
+        )
+    assert replayed == decision
+
+    async with sessions() as session:
+        repository = EvidenceGateRepository(session)
+        assert (
+            await repository.get(
+                tenant_id=TenantId("tenant-1"),
+                incident_id=claim.incident_id,
+                candidate_id=claim.candidate_id,
+                input_fingerprint=decision.input_fingerprint,
+            )
+            == decision
+        )
+        assert (
+            await repository.get(
+                tenant_id=TenantId("tenant-2"),
+                incident_id=claim.incident_id,
+                candidate_id=claim.candidate_id,
+                input_fingerprint=decision.input_fingerprint,
+            )
+            is None
+        )
+        row = await session.scalar(select(EvidenceGateDecisionRow))
+        assert row is not None
+        snapshot_rules = cast(dict[str, object], row.input_snapshot["rules"])
+        assert snapshot_rules["version"] == rules.version
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(AuditEventRow)
+                .where(AuditEventRow.event_type == "evidence.gate_decided")
+            )
+            == 1
+        )
+
+
+@pytest.mark.anyio
+async def test_evidence_gate_repository_rejects_conflict_scope_and_unbound_audit(
+    engine: AsyncEngine,
+) -> None:
+    await add_incident(engine, "incident-gate-storage", tenant="tenant-1")
+    claim, evidence, rules, decision = gate_evaluation()
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        repository = EvidenceGateRepository(session)
+        await repository.record(
+            tenant_id=TenantId("tenant-1"),
+            claim=claim,
+            evidence=evidence,
+            rules=rules,
+            decision=decision,
+            audit_event=gate_audit("audit-gate-2", decision),
+        )
+
+    conflicting = replace(
+        decision,
+        reasons=(
+            EvidenceGateReason(
+                EvidenceGateReasonCode.EVIDENCE_STALE,
+                "Conflicting stored result.",
+                (evidence[0].id,),
+            ),
+        ),
+    )
+    async with sessions.begin() as session:
+        with pytest.raises(InvalidDomainValueError, match="conflicts with storage"):
+            await EvidenceGateRepository(session).record(
+                tenant_id=TenantId("tenant-1"),
+                claim=claim,
+                evidence=evidence,
+                rules=rules,
+                decision=conflicting,
+                audit_event=gate_audit("audit-gate-conflict", conflicting),
+            )
+
+    async with sessions.begin() as session:
+        with pytest.raises(InvalidDomainValueError, match="input snapshot"):
+            await EvidenceGateRepository(session).record(
+                tenant_id=TenantId("tenant-1"),
+                claim=claim,
+                evidence=(replace(evidence[0], tenant_id=TenantId("tenant-2")), evidence[1]),
+                rules=rules,
+                decision=decision,
+                audit_event=gate_audit("audit-gate-scope", decision),
+            )
+
+    async with sessions.begin() as session:
+        mismatched = replace(decision, rules_version="2.0.0")
+        with pytest.raises(InvalidDomainValueError, match="input snapshot"):
+            await EvidenceGateRepository(session).record(
+                tenant_id=TenantId("tenant-1"),
+                claim=claim,
+                evidence=evidence,
+                rules=rules,
+                decision=mismatched,
+                audit_event=gate_audit("audit-gate-mismatch", mismatched),
+            )
+
+    async with sessions.begin() as session:
+        with pytest.raises(InvalidDomainValueError, match="audit event"):
+            await EvidenceGateRepository(session).record(
+                tenant_id=TenantId("tenant-1"),
+                claim=claim,
+                evidence=evidence,
+                rules=rules,
+                decision=decision,
+                audit_event=gate_audit("audit-gate-unbound", decision, tenant="tenant-2"),
+            )
+
+
+@pytest.mark.anyio
+async def test_evidence_gate_decision_and_audit_commit_or_rollback_together(
+    engine: AsyncEngine,
+) -> None:
+    await add_incident(engine, "incident-gate-storage", tenant="tenant-1")
+    claim, evidence, rules, decision = gate_evaluation()
+    duplicate_audit = gate_audit("audit-gate-atomic", decision)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        await AuditRepository(session).append(duplicate_audit)
+
+    with pytest.raises(IntegrityError):
+        async with sessions.begin() as session:
+            await EvidenceGateRepository(session).record(
+                tenant_id=TenantId("tenant-1"),
+                claim=claim,
+                evidence=evidence,
+                rules=rules,
+                decision=decision,
+                audit_event=duplicate_audit,
+            )
+
+    async with sessions() as session:
+        assert await session.scalar(select(func.count()).select_from(EvidenceGateDecisionRow)) == 0

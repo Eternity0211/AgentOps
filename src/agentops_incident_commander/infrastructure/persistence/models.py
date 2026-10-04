@@ -20,6 +20,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from agentops_incident_commander.domain import (
+    EvidenceGateOutcome,
     EvidenceSourceType,
     IncidentState,
     PromptInjectionStatus,
@@ -31,6 +32,7 @@ _SEVERITIES = "'SEV1', 'SEV2', 'SEV3', 'SEV4'"
 _EVIDENCE_SOURCES = ", ".join(f"'{value.value}'" for value in EvidenceSourceType)
 _EVIDENCE_TRUST = ", ".join(f"'{value.value}'" for value in TrustClassification)
 _INJECTION_STATES = ", ".join(f"'{value.value}'" for value in PromptInjectionStatus)
+_GATE_OUTCOMES = ", ".join(f"'{value.value}'" for value in EvidenceGateOutcome)
 
 
 class Base(DeclarativeBase):
@@ -283,6 +285,72 @@ class EvidenceRow(Base):
     trust: Mapped[str] = mapped_column(String(32), nullable=False)
     prompt_injection_status: Mapped[str] = mapped_column(String(32), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class EvidenceGateDecisionRow(Base):
+    """Immutable, reproducible Evidence Gate input and decision snapshot."""
+
+    __tablename__ = "evidence_gate_decisions"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["incident_id", "tenant_id"],
+            ["incidents.id", "incidents.tenant_id"],
+            ondelete="CASCADE",
+            name="fk_gate_decisions_incident_tenant",
+        ),
+        CheckConstraint(f"outcome IN ({_GATE_OUTCOMES})", name="ck_gate_decisions_outcome"),
+        CheckConstraint(
+            "input_fingerprint ~ '^[0-9a-f]{64}$'",
+            name="ck_gate_decisions_input_fingerprint",
+        ),
+        CheckConstraint(
+            "model_confidence_basis_points IS NULL OR "
+            "model_confidence_basis_points BETWEEN 0 AND 10000",
+            name="ck_gate_decisions_confidence",
+        ),
+        CheckConstraint(
+            "jsonb_typeof(reasons) = 'array' AND "
+            "((outcome = 'PASS' AND jsonb_array_length(reasons) = 0) OR "
+            "(outcome = 'FAIL' AND jsonb_array_length(reasons) > 0))",
+            name="ck_gate_decisions_reasons",
+        ),
+        CheckConstraint(
+            "jsonb_typeof(evaluated_evidence_ids) = 'array'",
+            name="ck_gate_decisions_evidence_ids",
+        ),
+        CheckConstraint(
+            "jsonb_typeof(input_snapshot) = 'object'",
+            name="ck_gate_decisions_input_snapshot",
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "incident_id",
+            "candidate_id",
+            "input_fingerprint",
+            name="uq_gate_decisions_input",
+        ),
+        Index(
+            "ix_gate_decisions_incident_time",
+            "tenant_id",
+            "incident_id",
+            "evaluated_at",
+            "sequence",
+        ),
+    )
+
+    sequence: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    incident_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    candidate_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(8), nullable=False)
+    reasons: Mapped[list[dict[str, object]]] = mapped_column(JSONB, nullable=False)
+    evaluated_evidence_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    rules_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    input_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    input_snapshot: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    model_confidence_basis_points: Mapped[int | None] = mapped_column(Integer)
     schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
 
 

@@ -86,7 +86,7 @@ def evaluate_evidence_gate(
         reasons=tuple(reasons),
         evaluated_evidence_ids=tuple(item.id for item in resolution.verified_evidence),
         rules_version=rules.version,
-        input_fingerprint=_gate_input_fingerprint(
+        input_fingerprint=evidence_gate_input_fingerprint(
             claim,
             resolution.verified_evidence,
             rules=rules,
@@ -97,29 +97,16 @@ def evaluate_evidence_gate(
     )
 
 
-def _gate_input_fingerprint(
+def evidence_gate_input_snapshot(
     claim: RootCauseEvidenceClaim,
     evidence: tuple[Evidence, ...],
     *,
     rules: EvidenceGateRules,
     evaluated_at: datetime,
-) -> Sha256Digest:
-    evidence_snapshot = [
-        {
-            "content_hash": item.content_hash.value,
-            "expires_at": item.expires_at.isoformat(),
-            "id": item.id.value,
-            "observed_from": item.observed_from.isoformat(),
-            "observed_to": item.observed_to.isoformat(),
-            "quality_reasons": list(item.quality.reasons),
-            "quality_score_basis_points": item.quality.score_basis_points,
-            "source_instance": item.source_instance,
-            "source_type": item.source_type.value,
-            "trust": item.trust.value,
-        }
-        for item in sorted(evidence, key=lambda value: value.id.value)
-    ]
-    document = {
+) -> dict[str, object]:
+    """Return the canonical, non-secret inputs needed to reproduce a gate decision."""
+    current = as_utc(evaluated_at)
+    return {
         "claim": {
             "candidate_id": claim.candidate_id,
             "counter_evidence_ids": [item.value for item in claim.counter_evidence_ids],
@@ -129,8 +116,22 @@ def _gate_input_fingerprint(
             "model_confidence_basis_points": claim.model_confidence_basis_points,
             "supporting_evidence_ids": [item.value for item in claim.supporting_evidence_ids],
         },
-        "evaluated_at": evaluated_at.isoformat(),
-        "evidence": evidence_snapshot,
+        "evaluated_at": current.isoformat(),
+        "evidence": [
+            {
+                "content_hash": item.content_hash.value,
+                "expires_at": item.expires_at.isoformat(),
+                "id": item.id.value,
+                "observed_from": item.observed_from.isoformat(),
+                "observed_to": item.observed_to.isoformat(),
+                "quality_reasons": list(item.quality.reasons),
+                "quality_score_basis_points": item.quality.score_basis_points,
+                "source_instance": item.source_instance,
+                "source_type": item.source_type.value,
+                "trust": item.trust.value,
+            }
+            for item in sorted(evidence, key=lambda value: value.id.value)
+        ],
         "rules": {
             "fail_on_declared_missing_evidence": rules.fail_on_declared_missing_evidence,
             "maximum_evidence_age_seconds": int(rules.maximum_evidence_age.total_seconds()),
@@ -141,6 +142,49 @@ def _gate_input_fingerprint(
             "version": rules.version,
         },
     }
+
+
+def evidence_gate_decision_fingerprint(decision: EvidenceGateDecision) -> Sha256Digest:
+    """Hash the complete immutable decision for audit result binding."""
+    document = {
+        "candidate_id": decision.candidate_id,
+        "evaluated_at": decision.evaluated_at.isoformat(),
+        "evaluated_evidence_ids": [item.value for item in decision.evaluated_evidence_ids],
+        "incident_id": decision.incident_id.value,
+        "input_fingerprint": decision.input_fingerprint.value,
+        "model_confidence_basis_points": decision.model_confidence_basis_points,
+        "outcome": decision.outcome.value,
+        "reasons": [
+            {
+                "code": reason.code.value,
+                "detail": reason.detail,
+                "evidence_ids": [item.value for item in reason.evidence_ids],
+            }
+            for reason in decision.reasons
+        ],
+        "rules_version": decision.rules_version,
+        "schema_version": decision.schema_version,
+    }
+    return _canonical_sha256(document)
+
+
+def evidence_gate_input_fingerprint(
+    claim: RootCauseEvidenceClaim,
+    evidence: tuple[Evidence, ...],
+    *,
+    rules: EvidenceGateRules,
+    evaluated_at: datetime,
+) -> Sha256Digest:
+    document = evidence_gate_input_snapshot(
+        claim,
+        evidence,
+        rules=rules,
+        evaluated_at=evaluated_at,
+    )
+    return _canonical_sha256(document)
+
+
+def _canonical_sha256(document: object) -> Sha256Digest:
     canonical = json.dumps(document, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
     return Sha256Digest(hashlib.sha256(canonical.encode("utf-8")).hexdigest())
 

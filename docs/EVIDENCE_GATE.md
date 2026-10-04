@@ -43,6 +43,12 @@ The resulting decision records model confidence and includes it in the reproduci
 but confidence is never consulted when selecting `PASS` or `FAIL`: a complete zero-confidence claim
 can pass, while an incomplete maximum-confidence claim fails.
 
+`EvidenceGateRepository` stores the canonical input snapshot and immutable typed decision under the
+owning tenant and Incident. The input fingerprint provides idempotent replay and conflict detection;
+the same transaction appends an `evidence.gate_decided` audit event whose request and result hashes
+bind the input snapshot and complete decision. Reads require tenant, Incident, candidate, and
+fingerprint together, preventing cross-Incident substitution.
+
 ## Verification
 
 Unit tests cover every field bound, semantic/schema versions, canonical ID ordering, duplicates,
@@ -55,3 +61,5 @@ Characteristic tests cover fresh independent sources, future/stale/expired obser
 quality, unavailable sources, derived-source non-counting, and duplicate or uncited inputs.
 Decision tests cover unresolved counter-evidence, declared missing evidence, configurable rule
 flags, canonical fingerprints, and both confidence extremes without changing deterministic outcomes.
+PostgreSQL integration tests cover migration round trips, persisted input/decision reconstruction,
+idempotent replay, audit binding, conflict rejection, and tenant/Incident scoping.

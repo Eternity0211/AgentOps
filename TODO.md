@@ -126,7 +126,7 @@ Exit: five live observability/topology/deployment tools and the disabled-memory 
 - [x] Evaluate independent-source requirements without double-counting derived evidence.
 - [x] Require explicit treatment of material counter-evidence and missing evidence.
 - [x] Keep model confidence as non-authoritative metadata.
-- [ ] Persist gate inputs, rules version, decision, and audit trace.
+- [x] Persist gate inputs, rules version, decision, and audit trace.
 - [ ] Add fabricated, missing, altered, stale, low-quality, correlated-source, and unresolved-counter-evidence tests.
 
 Exit: only candidates satisfying deterministic rules pass; false citations and confidence-only claims always fail.

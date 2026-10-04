@@ -9,6 +9,11 @@ from typing import Any, cast
 from sqlalchemy import CursorResult, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from agentops_incident_commander.application import (
+    evidence_gate_decision_fingerprint,
+    evidence_gate_input_fingerprint,
+    evidence_gate_input_snapshot,
+)
 from agentops_incident_commander.domain import (
     ActorId,
     AggregateVersion,
@@ -27,6 +32,11 @@ from agentops_incident_commander.domain import (
     CausationId,
     CorrelationId,
     Evidence,
+    EvidenceGateDecision,
+    EvidenceGateOutcome,
+    EvidenceGateReason,
+    EvidenceGateReasonCode,
+    EvidenceGateRules,
     EvidenceId,
     EvidenceLineage,
     EvidenceQuality,
@@ -54,6 +64,7 @@ from agentops_incident_commander.domain import (
     PromptInjectionStatus,
     QueryParameter,
     RedactionTransformId,
+    RootCauseEvidenceClaim,
     Sha256Digest,
     StoredAuditEvent,
     TenantId,
@@ -68,6 +79,7 @@ from .models import (
     AlertGroupRow,
     AlertRow,
     AuditEventRow,
+    EvidenceGateDecisionRow,
     EvidenceRow,
     IncidentCancellationRequestRow,
     IncidentRow,
@@ -599,6 +611,169 @@ class AuditRepository:
             )
         ).all()
         return tuple(_audit_from_row(row) for row in rows)
+
+
+def _gate_decision_from_row(row: EvidenceGateDecisionRow) -> EvidenceGateDecision:
+    reasons = tuple(
+        EvidenceGateReason(
+            EvidenceGateReasonCode(cast(str, value["code"])),
+            cast(str, value["detail"]),
+            tuple(EvidenceId(item) for item in cast(list[str], value["evidence_ids"])),
+        )
+        for value in row.reasons
+    )
+    return EvidenceGateDecision(
+        incident_id=IncidentId(row.incident_id),
+        candidate_id=row.candidate_id,
+        outcome=EvidenceGateOutcome(row.outcome),
+        reasons=reasons,
+        evaluated_evidence_ids=tuple(EvidenceId(value) for value in row.evaluated_evidence_ids),
+        rules_version=row.rules_version,
+        input_fingerprint=Sha256Digest(row.input_fingerprint),
+        evaluated_at=row.evaluated_at,
+        model_confidence_basis_points=row.model_confidence_basis_points,
+        schema_version=row.schema_version,
+    )
+
+
+class EvidenceGateRepository:
+    """Persist one immutable decision and its audit binding in the caller transaction."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def record(
+        self,
+        *,
+        tenant_id: TenantId,
+        claim: RootCauseEvidenceClaim,
+        evidence: tuple[Evidence, ...],
+        rules: EvidenceGateRules,
+        decision: EvidenceGateDecision,
+        audit_event: AuditEvent,
+    ) -> EvidenceGateDecision:
+        snapshot = evidence_gate_input_snapshot(
+            claim,
+            evidence,
+            rules=rules,
+            evaluated_at=decision.evaluated_at,
+        )
+        expected_input = evidence_gate_input_fingerprint(
+            claim,
+            evidence,
+            rules=rules,
+            evaluated_at=decision.evaluated_at,
+        )
+        expected_result = evidence_gate_decision_fingerprint(decision)
+        evidence_ids = tuple(sorted((item.id for item in evidence), key=lambda item: item.value))
+        if any(
+            (item.tenant_id, item.incident_id) != (tenant_id, claim.incident_id)
+            for item in evidence
+        ):
+            raise InvalidDomainValueError(
+                "Evidence Gate decision does not match its input snapshot"
+            )
+        decision_binding = (
+            decision.incident_id,
+            decision.candidate_id,
+            decision.rules_version,
+            decision.model_confidence_basis_points,
+            decision.evaluated_evidence_ids,
+            decision.input_fingerprint,
+        )
+        expected_decision_binding = (
+            claim.incident_id,
+            claim.candidate_id,
+            rules.version,
+            claim.model_confidence_basis_points,
+            evidence_ids,
+            expected_input,
+        )
+        if decision_binding != expected_decision_binding:
+            raise InvalidDomainValueError(
+                "Evidence Gate decision does not match its input snapshot"
+            )
+        audit_binding = (
+            audit_event.tenant_id,
+            audit_event.type,
+            audit_event.payload_schema_version,
+            audit_event.target.type,
+            audit_event.target.id.value,
+            audit_event.request_hash,
+            audit_event.result_hash,
+            audit_event.occurred_at,
+        )
+        expected_audit_binding = (
+            tenant_id,
+            "evidence.gate_decided",
+            "evidence_gate/v1",
+            "evidence.gate_decision",
+            decision.input_fingerprint.value,
+            expected_input,
+            expected_result,
+            decision.evaluated_at,
+        )
+        if audit_binding != expected_audit_binding:
+            raise InvalidDomainValueError("Evidence Gate audit event does not bind the decision")
+        existing = await self._session.scalar(
+            select(EvidenceGateDecisionRow).where(
+                EvidenceGateDecisionRow.tenant_id == tenant_id.value,
+                EvidenceGateDecisionRow.incident_id == decision.incident_id.value,
+                EvidenceGateDecisionRow.candidate_id == decision.candidate_id,
+                EvidenceGateDecisionRow.input_fingerprint == decision.input_fingerprint.value,
+            )
+        )
+        if existing is not None:
+            stored = _gate_decision_from_row(existing)
+            if stored != decision or existing.input_snapshot != snapshot:
+                raise InvalidDomainValueError(
+                    "Evidence Gate input fingerprint conflicts with storage"
+                )
+            return stored
+        self._session.add(
+            EvidenceGateDecisionRow(
+                tenant_id=tenant_id.value,
+                incident_id=decision.incident_id.value,
+                candidate_id=decision.candidate_id,
+                outcome=decision.outcome.value,
+                reasons=[
+                    {
+                        "code": reason.code.value,
+                        "detail": reason.detail,
+                        "evidence_ids": [item.value for item in reason.evidence_ids],
+                    }
+                    for reason in decision.reasons
+                ],
+                evaluated_evidence_ids=[item.value for item in decision.evaluated_evidence_ids],
+                rules_version=decision.rules_version,
+                input_fingerprint=decision.input_fingerprint.value,
+                input_snapshot=snapshot,
+                evaluated_at=decision.evaluated_at,
+                model_confidence_basis_points=decision.model_confidence_basis_points,
+                schema_version=decision.schema_version,
+            )
+        )
+        await self._session.flush()
+        await AuditRepository(self._session).append(audit_event)
+        return decision
+
+    async def get(
+        self,
+        *,
+        tenant_id: TenantId,
+        incident_id: IncidentId,
+        candidate_id: str,
+        input_fingerprint: Sha256Digest,
+    ) -> EvidenceGateDecision | None:
+        row = await self._session.scalar(
+            select(EvidenceGateDecisionRow).where(
+                EvidenceGateDecisionRow.tenant_id == tenant_id.value,
+                EvidenceGateDecisionRow.incident_id == incident_id.value,
+                EvidenceGateDecisionRow.candidate_id == candidate_id,
+                EvidenceGateDecisionRow.input_fingerprint == input_fingerprint.value,
+            )
+        )
+        return _gate_decision_from_row(row) if row is not None else None
 
 
 def _incident_from_row(row: IncidentRow) -> Incident:

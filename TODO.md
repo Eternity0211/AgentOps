@@ -107,7 +107,7 @@ Exit: known telemetry fixtures produce stable normalized evidence and safe budge
 - [x] Define ToolDefinition registry: semantic/schema version, input/output schemas, read/write class, risk, RBAC, timeout, bounded retry, idempotency, audit.
 - [x] Implement Tool Gateway validation, authorization, dispatch, timeout, retry classification, result limits, and audit events.
 - [x] Implement `query_metrics` adapter and contracts.
-- [ ] Implement `query_logs` adapter and contracts.
+- [x] Implement `query_logs` adapter and contracts.
 - [ ] Implement `query_traces` adapter and contracts.
 - [ ] Implement `query_deployments` adapter and contracts.
 - [ ] Implement `get_service_topology` adapter and contracts.

@@ -76,7 +76,15 @@ that every returned sample uses the requested metric, lies in the requested wind
 exactly the requested service/environment scope. Results are capped at 1,000 samples and preserve
 window-completeness and dropped-record counts in a versioned Prometheus result document.
 
-The remaining five planned read tool definitions and adapters remain separate TODO batches.
+The `query_logs` v1 contract follows the same server-owned boundary. It accepts only a bounded
+service/environment scope, UTC window, severity threshold, short literal match text, and result
+limit. It never accepts LogQL, a URL, path, or credential. The window is capped at one hour and a
+result at 500 records. A deployment injects the read-only `LogsBackend` port. The adapter rejects
+out-of-window, out-of-order, below-threshold, over-limit, or scope-substituted records before it
+returns a versioned Loki document; log messages remain untrusted data for the later Evidence
+redaction and prompt-injection quarantine pipeline.
+
+The remaining four planned read tool definitions and adapters remain separate TODO batches.
 Diagnosis-only catalog enforcement and the explicit raw URL/path/command deny rules are still open
 and will be completed before agent workflows can invoke the gateway.
 
@@ -92,3 +100,6 @@ test proves started/succeeded events persist through the append-only `AuditRepos
 The metrics adapter suite additionally covers its exact registry metadata, backend result bounds,
 canonical success response, invalid/oversized windows, metric substitution, out-of-window samples,
 and missing or additional scope labels.
+The logs adapter suite covers strict metadata and raw-query rejection, typed backend bounds,
+canonical success output, invalid windows/control characters, result-limit enforcement, severity,
+time ordering, and exact service/environment scope.

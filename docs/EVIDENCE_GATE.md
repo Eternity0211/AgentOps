@@ -21,10 +21,15 @@ persistence and audit.
 
 ## Current boundary
 
-This batch defines the immutable rule, claim, reason, and decision schemas. Subsequent Phase 5
-batches will resolve Evidence and Artifact records, evaluate ownership/freshness/quality/source
-independence/counter-evidence, persist the full input snapshot and decision, and emit audit events.
-No passing decision is produced by this contract alone.
+`resolve_gate_evidence_references` now reads every supporting and counter-evidence ID through a
+tenant/Incident-scoped port, then independently rechecks the returned Evidence ID, tenant, and
+Incident. It retrieves the bound Artifact with the authenticated principal and verifies metadata,
+content hash, and byte size. Missing IDs, ownership substitution, and absent or altered Artifacts
+produce typed failure reasons and are excluded from the verified set.
+
+Subsequent Phase 5 batches will evaluate freshness, quality, source independence, and
+counter-evidence, then persist the full input snapshot/decision and emit audit events. No passing
+decision is produced by reference resolution alone.
 
 ## Verification
 
@@ -32,3 +37,5 @@ Unit tests cover every field bound, semantic/schema versions, canonical ID order
 support/counter overlap, missing-evidence bounds, outcome/reason consistency, duplicate reasons,
 UTC normalization, fingerprints, and confidence values at both extremes without granting them
 decision authority.
+Application tests cover complete support/counter resolution, scoped reader calls, missing IDs,
+cross-Incident/ID substitution, missing Artifacts, and content-hash alteration.

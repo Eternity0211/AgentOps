@@ -120,8 +120,8 @@ Exit: five live observability/topology/deployment tools and the disabled-memory 
 ## Phase 5 — Deterministic Evidence Gate
 
 - [x] Define versioned gate rules and typed decision/reason schema.
-- [ ] Validate every cited Evidence ID exists and content hash resolves.
-- [ ] Validate incident ownership and prevent cross-incident evidence substitution.
+- [x] Validate every cited Evidence ID exists and content hash resolves.
+- [x] Validate incident ownership and prevent cross-incident evidence substitution.
 - [ ] Validate time relevance, freshness, expiry, quality floor, and source availability.
 - [ ] Evaluate independent-source requirements without double-counting derived evidence.
 - [ ] Require explicit treatment of material counter-evidence and missing evidence.

@@ -39,6 +39,23 @@ depth and node limits, rejects non-finite numbers, unsupported values, and inval
 then emits canonical sorted UTF-8 JSON. Identical logical input therefore produces identical bytes
 and SHA-256 content hashes independent of input key order.
 
+## Sensitive-data redaction and lineage
+
+Before persistence or model access, the deterministic redactor walks bounded JSON-compatible
+content while preserving its structure. It replaces values under known sensitive fields and
+recognizes private-key blocks, authorization credentials, common token prefixes, and explicit
+secret assignments inside free text. Object paths use escaped JSON Pointer notation. Oversized
+text, excessive depth/node counts, non-finite numbers, invalid keys, and non-JSON values fail
+closed.
+
+Every replacement records a Redaction Transform ID, path, stable occurrence, rule, marker, and an
+HMAC-SHA256 of the removed value. The HMAC requires a server-held key of at least 32 bytes; the key
+and plaintext are never retained in the result, so lineage can correlate deterministic
+transformations without becoming a low-entropy secret oracle. A result is marked `REDACTED` only
+when at least one replacement occurs, otherwise `NOT_REQUIRED`. Seeded-canary tests assert that
+field, inline credential, token, assignment, and private-key values appear in neither redacted
+content nor lineage representations.
+
 Artifact and Evidence records are built together from one typed request. Their tenant, Incident,
 Artifact ID, digest, collection time, versions, and lineage cannot drift. Evidence cannot outlive
 its Artifact. Suspected prompt injection cannot enter normal Evidence construction until it is

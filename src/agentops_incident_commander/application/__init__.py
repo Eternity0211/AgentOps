@@ -10,6 +10,7 @@ from .evidence_gate import (
     evidence_gate_input_snapshot,
     resolve_gate_evidence_references,
 )
+from .prompt_registry import PromptLifecycleChange, PromptLifecycleManager, PromptLifecycleStore
 from .tool_gateway import (
     AuditWriter,
     ToolAdapter,
@@ -28,6 +29,9 @@ __all__ = [
     "AuditWriter",
     "EvidenceReader",
     "EvidenceReferenceResolution",
+    "PromptLifecycleChange",
+    "PromptLifecycleManager",
+    "PromptLifecycleStore",
     "ToolAdapter",
     "ToolAdapterContext",
     "ToolAdapterFailure",

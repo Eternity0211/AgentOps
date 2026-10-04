@@ -26,6 +26,7 @@ MAX_PROMPT_OUTPUT_TOKENS = 32_768
 MAX_PROMPT_TEMPERATURE_BASIS_POINTS = 20_000
 MAX_PROMPT_SEED = 2**31 - 1
 MIN_PROMPT_SEED = -(2**31)
+MAX_PROMPT_REGRESSION_FIXTURES = 128
 
 _MODEL_COMPONENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
 
@@ -127,6 +128,48 @@ class PromptVersionReference:
             self.version, SemanticVersion
         ):
             raise InvalidDomainValueError("Prompt version reference is invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class PromptRegressionFixtureResult:
+    fixture_id: str
+    passed: bool
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.fixture_id, str)
+            or _MODEL_COMPONENT.fullmatch(self.fixture_id) is None
+        ):
+            raise InvalidDomainValueError("Prompt regression fixture ID is invalid")
+        if not isinstance(self.passed, bool):
+            raise InvalidDomainValueError("Prompt regression fixture result must be boolean")
+
+
+@dataclass(frozen=True, slots=True)
+class PromptRegressionEvaluation:
+    prompt: PromptVersionReference
+    suite_version: SemanticVersion
+    results: tuple[PromptRegressionFixtureResult, ...]
+    evaluated_at: datetime
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.prompt, PromptVersionReference) or not isinstance(
+            self.suite_version, SemanticVersion
+        ):
+            raise InvalidDomainValueError("Prompt regression evaluation identity is invalid")
+        if (
+            not isinstance(self.results, tuple)
+            or not self.results
+            or len(self.results) > MAX_PROMPT_REGRESSION_FIXTURES
+            or any(not isinstance(item, PromptRegressionFixtureResult) for item in self.results)
+            or len({item.fixture_id for item in self.results}) != len(self.results)
+        ):
+            raise InvalidDomainValueError("Prompt regression results must be unique and bounded")
+        object.__setattr__(self, "evaluated_at", as_utc(self.evaluated_at))
+
+    @property
+    def passed(self) -> bool:
+        return all(item.passed for item in self.results)
 
 
 @dataclass(frozen=True, slots=True)

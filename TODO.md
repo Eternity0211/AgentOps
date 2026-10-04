@@ -135,6 +135,8 @@ Exit: only candidates satisfying deterministic rules pass; false citations and c
 
 - [x] Define Prompt Registry with Prompt ID, semantic version, immutable content fingerprint, model parameters, schema compatibility, trace links, lifecycle status, and rollback predecessor.
 - [ ] Implement prompt draft/evaluate/promote/rollback lifecycle with RBAC, immutable versions, audit, and a minimal regression-fixture gate.
+  - [x] Implement framework-independent RBAC lifecycle orchestration, regression gating, immutable copy-based rollback, and hash-bound audit contracts.
+  - [ ] Add the PostgreSQL lifecycle store so Prompt versions, status transitions, regression results, and audit commit atomically.
 - [ ] Trace the exact prompt/model/settings/token/cost metadata for every model call without leaking sensitive content.
 - [ ] Define versioned Pydantic graph state and migration/compatibility strategy.
 - [ ] Implement Diagnosis Agent structured schemas for bounded plan, candidates, support, counter-evidence, missing evidence, and uncertainty.

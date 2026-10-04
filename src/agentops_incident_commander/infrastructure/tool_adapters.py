@@ -31,6 +31,10 @@ MAX_METRIC_QUERY_WINDOW = timedelta(hours=6)
 QUERY_LOGS_VERSION = SemanticVersion("1.0.0")
 MAX_LOG_QUERY_WINDOW = timedelta(hours=1)
 MAX_LOG_QUERY_RECORDS = 500
+QUERY_TRACES_VERSION = SemanticVersion("1.0.0")
+MAX_TRACE_QUERY_WINDOW = timedelta(hours=1)
+MAX_TRACE_QUERY_TRACES = 100
+MAX_TRACE_QUERY_SPANS = 1_000
 
 
 class MetricName(StrEnum):
@@ -46,6 +50,18 @@ class LogSeverity(StrEnum):
     WARN = "WARN"
     ERROR = "ERROR"
     CRITICAL = "CRITICAL"
+
+
+class TraceStatus(StrEnum):
+    UNSET = "UNSET"
+    OK = "OK"
+    ERROR = "ERROR"
+
+
+class TraceStatusFilter(StrEnum):
+    ANY = "ANY"
+    OK = "OK"
+    ERROR = "ERROR"
 
 
 _LOG_SEVERITY_ORDER = {severity: index for index, severity in enumerate(LogSeverity)}
@@ -155,6 +171,84 @@ class LogBackendResult:
 
 class LogsBackend(Protocol):
     async def query_range(self, query: LogQuery) -> LogBackendResult: ...
+
+
+@dataclass(frozen=True, slots=True)
+class TraceQuery:
+    service: str
+    environment: str
+    start: str
+    end: str
+    status: TraceStatusFilter
+    max_traces: int
+
+
+@dataclass(frozen=True, slots=True)
+class TraceBackendSpan:
+    trace_id: str
+    span_id: str
+    parent_span_id: str | None
+    service: str
+    environment: str
+    operation: str
+    started_at: datetime
+    ended_at: datetime
+    status: TraceStatus
+
+    def __post_init__(self) -> None:
+        for field, maximum in (
+            ("trace_id", 128),
+            ("span_id", 128),
+            ("service", 128),
+            ("environment", 32),
+            ("operation", 256),
+        ):
+            value = getattr(self, field)
+            if (
+                not isinstance(value, str)
+                or not value.strip()
+                or len(value) > maximum
+                or "\x00" in value
+            ):
+                raise InvalidDomainValueError(f"trace backend {field} is invalid")
+        if self.parent_span_id is not None and (
+            not isinstance(self.parent_span_id, str)
+            or not self.parent_span_id.strip()
+            or len(self.parent_span_id) > 128
+            or "\x00" in self.parent_span_id
+        ):
+            raise InvalidDomainValueError("trace backend parent span ID is invalid")
+        started_at = as_utc(self.started_at)
+        ended_at = as_utc(self.ended_at)
+        if ended_at < started_at:
+            raise InvalidDomainValueError("trace backend span time range is reversed")
+        if not isinstance(self.status, TraceStatus):
+            raise InvalidDomainValueError("trace backend status is invalid")
+        object.__setattr__(self, "started_at", started_at)
+        object.__setattr__(self, "ended_at", ended_at)
+
+
+@dataclass(frozen=True, slots=True)
+class TraceBackendResult:
+    spans: tuple[TraceBackendSpan, ...]
+    complete_window: bool
+    records_dropped: int = 0
+
+    def __post_init__(self) -> None:
+        if len(self.spans) > MAX_TRACE_QUERY_SPANS:
+            raise InvalidDomainValueError("trace backend result exceeds the span limit")
+        if not isinstance(self.complete_window, bool):
+            raise InvalidDomainValueError("trace backend completeness must be boolean")
+        if (
+            not isinstance(self.records_dropped, int)
+            or isinstance(self.records_dropped, bool)
+            or self.records_dropped < 0
+        ):
+            raise InvalidDomainValueError("trace backend dropped count is invalid")
+
+
+class TracesBackend(Protocol):
+    async def query_range(self, query: TraceQuery) -> TraceBackendResult: ...
 
 
 def query_metrics_definition() -> ToolDefinition:
@@ -530,4 +624,232 @@ class QueryLogsAdapter:
             "records_dropped": result.records_dropped,
             "schema_version": QUERY_LOGS_VERSION.value,
             "source": "loki",
+        }
+
+
+def query_traces_definition() -> ToolDefinition:
+    input_schema = ToolSchema.from_mapping(
+        QUERY_TRACES_VERSION,
+        {
+            "additionalProperties": False,
+            "properties": {
+                "end": {"maxLength": 40, "minLength": 20, "type": "string"},
+                "environment": {"enum": ["production", "staging"], "type": "string"},
+                "max_traces": {
+                    "maximum": MAX_TRACE_QUERY_TRACES,
+                    "minimum": 1,
+                    "type": "integer",
+                },
+                "service": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "[a-z][a-z0-9-]*",
+                    "type": "string",
+                },
+                "start": {"maxLength": 40, "minLength": 20, "type": "string"},
+                "status": {
+                    "enum": [item.value for item in TraceStatusFilter],
+                    "type": "string",
+                },
+            },
+            "required": ["end", "environment", "max_traces", "service", "start", "status"],
+            "type": "object",
+        },
+    )
+    output_schema = ToolSchema.from_mapping(
+        QUERY_TRACES_VERSION,
+        {
+            "additionalProperties": False,
+            "properties": {
+                "complete_window": {"type": "boolean"},
+                "query": {
+                    "additionalProperties": False,
+                    "properties": input_schema.as_dict()["properties"],
+                    "required": input_schema.as_dict()["required"],
+                    "type": "object",
+                },
+                "records_dropped": {"minimum": 0, "type": "integer"},
+                "schema_version": {"const": "1.0.0", "type": "string"},
+                "source": {"const": "tempo", "type": "string"},
+                "spans": {
+                    "items": {
+                        "additionalProperties": False,
+                        "properties": {
+                            "ended_at": {"type": "string"},
+                            "environment": {"type": "string"},
+                            "operation": {"maxLength": 256, "minLength": 1, "type": "string"},
+                            "parent_span_id": {
+                                "maxLength": 128,
+                                "minLength": 1,
+                                "type": "string",
+                            },
+                            "service": {"type": "string"},
+                            "span_id": {"maxLength": 128, "minLength": 1, "type": "string"},
+                            "started_at": {"type": "string"},
+                            "status": {
+                                "enum": [item.value for item in TraceStatus],
+                                "type": "string",
+                            },
+                            "trace_id": {"maxLength": 128, "minLength": 1, "type": "string"},
+                        },
+                        "required": [
+                            "ended_at",
+                            "environment",
+                            "operation",
+                            "service",
+                            "span_id",
+                            "started_at",
+                            "status",
+                            "trace_id",
+                        ],
+                        "type": "object",
+                    },
+                    "maxItems": MAX_TRACE_QUERY_SPANS,
+                    "type": "array",
+                },
+                "trace_count": {
+                    "maximum": MAX_TRACE_QUERY_TRACES,
+                    "minimum": 0,
+                    "type": "integer",
+                },
+            },
+            "required": [
+                "complete_window",
+                "query",
+                "records_dropped",
+                "schema_version",
+                "source",
+                "spans",
+                "trace_count",
+            ],
+            "type": "object",
+        },
+    )
+    return ToolDefinition(
+        name="query_traces",
+        semantic_version=QUERY_TRACES_VERSION,
+        input_schema=input_schema,
+        output_schema=output_schema,
+        access_class=ToolAccessClass.READ,
+        risk=ToolRisk.LOW,
+        required_permission=Permission.EVIDENCE_READ,
+        timeout_ms=15_000,
+        retry_policy=ToolRetryPolicy(
+            3,
+            100,
+            1_000,
+            frozenset(
+                {
+                    RetryableToolError.CONNECTION,
+                    RetryableToolError.RATE_LIMIT,
+                    RetryableToolError.TIMEOUT,
+                }
+            ),
+        ),
+        idempotency=ToolIdempotency.NOT_APPLICABLE,
+        audit=ToolAuditPolicy("tool.call", QUERY_TRACES_VERSION),
+        max_input_bytes=2_048,
+        max_result_bytes=8 * 1024 * 1024,
+    )
+
+
+class QueryTracesAdapter:
+    def __init__(self, backend: TracesBackend) -> None:
+        self._backend = backend
+
+    async def invoke(
+        self, context: ToolAdapterContext, arguments: Mapping[str, Any]
+    ) -> Mapping[str, Any]:
+        del context
+        try:
+            start = as_utc(datetime.fromisoformat(str(arguments["start"])))
+            end = as_utc(datetime.fromisoformat(str(arguments["end"])))
+            status = TraceStatusFilter(arguments["status"])
+        except (KeyError, ValueError) as exc:
+            raise InvalidDomainValueError(
+                "trace query values must use the versioned contract"
+            ) from exc
+        if end <= start or end - start > MAX_TRACE_QUERY_WINDOW:
+            raise InvalidDomainValueError("trace query window is invalid or too large")
+        max_traces = int(arguments["max_traces"])
+        if not 1 <= max_traces <= MAX_TRACE_QUERY_TRACES:
+            raise InvalidDomainValueError("trace query count is outside the bounded range")
+        query = TraceQuery(
+            service=str(arguments["service"]),
+            environment=str(arguments["environment"]),
+            start=start.isoformat(),
+            end=end.isoformat(),
+            status=status,
+            max_traces=max_traces,
+        )
+        result = await self._backend.query_range(query)
+        by_trace: dict[str, dict[str, TraceBackendSpan]] = {}
+        previous_key: tuple[str, datetime, str] | None = None
+        for span in result.spans:
+            if not start <= span.started_at <= span.ended_at <= end:
+                raise InvalidDomainValueError("trace backend returned an out-of-window span")
+            if span.environment != query.environment:
+                raise InvalidDomainValueError("trace backend returned a mismatched environment")
+            key = (span.trace_id, span.started_at, span.span_id)
+            if previous_key is not None and key < previous_key:
+                raise InvalidDomainValueError(
+                    "trace backend spans are not deterministically ordered"
+                )
+            previous_key = key
+            trace = by_trace.setdefault(span.trace_id, {})
+            if span.span_id in trace:
+                raise InvalidDomainValueError("trace backend returned a duplicate span ID")
+            trace[span.span_id] = span
+        if len(by_trace) > max_traces:
+            raise InvalidDomainValueError("trace backend exceeded the requested trace count")
+        for spans in by_trace.values():
+            roots = [span for span in spans.values() if span.parent_span_id is None]
+            if len(roots) != 1:
+                raise InvalidDomainValueError("trace backend must return one root per trace")
+            if query.service not in {span.service for span in spans.values()}:
+                raise InvalidDomainValueError("trace backend omitted the requested service scope")
+            if query.status is not TraceStatusFilter.ANY and not any(
+                span.status.value == query.status.value for span in spans.values()
+            ):
+                raise InvalidDomainValueError(
+                    "trace backend returned a trace outside status filter"
+                )
+            for span in spans.values():
+                if span.parent_span_id is None:
+                    continue
+                parent = spans.get(span.parent_span_id)
+                if parent is None:
+                    raise InvalidDomainValueError("trace backend parent span is missing")
+                if span.started_at < parent.started_at or span.ended_at > parent.ended_at:
+                    raise InvalidDomainValueError("trace backend child is outside its parent")
+        output_spans: list[dict[str, Any]] = []
+        for span in result.spans:
+            item: dict[str, Any] = {
+                "ended_at": span.ended_at.isoformat(),
+                "environment": span.environment,
+                "operation": span.operation,
+                "service": span.service,
+                "span_id": span.span_id,
+                "started_at": span.started_at.isoformat(),
+                "status": span.status.value,
+                "trace_id": span.trace_id,
+            }
+            if span.parent_span_id is not None:
+                item["parent_span_id"] = span.parent_span_id
+            output_spans.append(item)
+        return {
+            "complete_window": result.complete_window,
+            "query": {
+                "end": query.end,
+                "environment": query.environment,
+                "max_traces": query.max_traces,
+                "service": query.service,
+                "start": query.start,
+                "status": query.status.value,
+            },
+            "records_dropped": result.records_dropped,
+            "schema_version": QUERY_TRACES_VERSION.value,
+            "source": "tempo",
+            "spans": output_spans,
+            "trace_count": len(by_trace),
         }

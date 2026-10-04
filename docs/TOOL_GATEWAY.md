@@ -84,7 +84,15 @@ out-of-window, out-of-order, below-threshold, over-limit, or scope-substituted r
 returns a versioned Loki document; log messages remain untrusted data for the later Evidence
 redaction and prompt-injection quarantine pipeline.
 
-The remaining four planned read tool definitions and adapters remain separate TODO batches.
+The `query_traces` v1 contract accepts only service/environment scope, a UTC window, a fixed status
+filter, and a bounded trace count. It rejects TraceQL, arbitrary attributes, URLs, paths, and
+credentials. The window is capped at one hour, the result at 100 traces and 1,000 spans, and a
+deployment injects the read-only `TracesBackend` port. The adapter validates deterministic ordering,
+unique span IDs, one root per trace, closed parent references, parent/child time containment, the
+requested service membership, environment scope, and status filter before returning a versioned
+Tempo document.
+
+The remaining three planned read tool definitions and adapters remain separate TODO batches.
 Diagnosis-only catalog enforcement and the explicit raw URL/path/command deny rules are still open
 and will be completed before agent workflows can invoke the gateway.
 
@@ -103,3 +111,6 @@ and missing or additional scope labels.
 The logs adapter suite covers strict metadata and raw-query rejection, typed backend bounds,
 canonical success output, invalid windows/control characters, result-limit enforcement, severity,
 time ordering, and exact service/environment scope.
+The traces adapter suite covers raw-query and target rejection, typed span/result bounds, canonical
+output, invalid windows and counts, environment substitution, duplicate and out-of-order spans,
+trace-count limits, root/parent integrity, parent time containment, and service/status scope.

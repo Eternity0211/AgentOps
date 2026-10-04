@@ -108,7 +108,7 @@ Exit: known telemetry fixtures produce stable normalized evidence and safe budge
 - [x] Implement Tool Gateway validation, authorization, dispatch, timeout, retry classification, result limits, and audit events.
 - [x] Implement `query_metrics` adapter and contracts.
 - [x] Implement `query_logs` adapter and contracts.
-- [ ] Implement `query_traces` adapter and contracts.
+- [x] Implement `query_traces` adapter and contracts.
 - [ ] Implement `query_deployments` adapter and contracts.
 - [ ] Implement `get_service_topology` adapter and contracts.
 - [ ] Register the versioned `search_similar_incidents` contract with historical-reference labeling and a typed disabled/empty result until Phase 7 enables the memory backend.

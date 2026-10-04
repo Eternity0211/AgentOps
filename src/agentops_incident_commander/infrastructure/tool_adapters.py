@@ -35,6 +35,9 @@ QUERY_TRACES_VERSION = SemanticVersion("1.0.0")
 MAX_TRACE_QUERY_WINDOW = timedelta(hours=1)
 MAX_TRACE_QUERY_TRACES = 100
 MAX_TRACE_QUERY_SPANS = 1_000
+QUERY_DEPLOYMENTS_VERSION = SemanticVersion("1.0.0")
+MAX_DEPLOYMENT_QUERY_WINDOW = timedelta(days=30)
+MAX_DEPLOYMENT_QUERY_RECORDS = 500
 
 
 class MetricName(StrEnum):
@@ -249,6 +252,65 @@ class TraceBackendResult:
 
 class TracesBackend(Protocol):
     async def query_range(self, query: TraceQuery) -> TraceBackendResult: ...
+
+
+@dataclass(frozen=True, slots=True)
+class DeploymentQuery:
+    service: str
+    environment: str
+    start: str
+    end: str
+    limit: int
+
+
+@dataclass(frozen=True, slots=True)
+class DeploymentBackendRecord:
+    deployment_id: str
+    service: str
+    environment: str
+    version: str
+    occurred_at: datetime
+
+    def __post_init__(self) -> None:
+        for field, maximum in (
+            ("deployment_id", 128),
+            ("service", 128),
+            ("environment", 32),
+            ("version", 256),
+        ):
+            value = getattr(self, field)
+            if (
+                not isinstance(value, str)
+                or not value.strip()
+                or len(value) > maximum
+                or "\x00" in value
+                or any(ord(character) < 32 or ord(character) == 127 for character in value)
+            ):
+                raise InvalidDomainValueError(f"deployment backend {field} is invalid")
+        object.__setattr__(self, "occurred_at", as_utc(self.occurred_at))
+
+
+@dataclass(frozen=True, slots=True)
+class DeploymentBackendResult:
+    records: tuple[DeploymentBackendRecord, ...]
+    complete_window: bool
+    records_dropped: int = 0
+
+    def __post_init__(self) -> None:
+        if len(self.records) > MAX_DEPLOYMENT_QUERY_RECORDS:
+            raise InvalidDomainValueError("deployment backend result exceeds the record limit")
+        if not isinstance(self.complete_window, bool):
+            raise InvalidDomainValueError("deployment backend completeness must be boolean")
+        if (
+            not isinstance(self.records_dropped, int)
+            or isinstance(self.records_dropped, bool)
+            or self.records_dropped < 0
+        ):
+            raise InvalidDomainValueError("deployment backend dropped count is invalid")
+
+
+class DeploymentsBackend(Protocol):
+    async def query_range(self, query: DeploymentQuery) -> DeploymentBackendResult: ...
 
 
 def query_metrics_definition() -> ToolDefinition:
@@ -852,4 +914,185 @@ class QueryTracesAdapter:
             "source": "tempo",
             "spans": output_spans,
             "trace_count": len(by_trace),
+        }
+
+
+def query_deployments_definition() -> ToolDefinition:
+    input_schema = ToolSchema.from_mapping(
+        QUERY_DEPLOYMENTS_VERSION,
+        {
+            "additionalProperties": False,
+            "properties": {
+                "end": {"maxLength": 40, "minLength": 20, "type": "string"},
+                "environment": {"enum": ["production", "staging"], "type": "string"},
+                "limit": {
+                    "maximum": MAX_DEPLOYMENT_QUERY_RECORDS,
+                    "minimum": 1,
+                    "type": "integer",
+                },
+                "service": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "[a-z][a-z0-9-]*",
+                    "type": "string",
+                },
+                "start": {"maxLength": 40, "minLength": 20, "type": "string"},
+            },
+            "required": ["end", "environment", "limit", "service", "start"],
+            "type": "object",
+        },
+    )
+    output_schema = ToolSchema.from_mapping(
+        QUERY_DEPLOYMENTS_VERSION,
+        {
+            "additionalProperties": False,
+            "properties": {
+                "complete_window": {"type": "boolean"},
+                "query": {
+                    "additionalProperties": False,
+                    "properties": input_schema.as_dict()["properties"],
+                    "required": input_schema.as_dict()["required"],
+                    "type": "object",
+                },
+                "records": {
+                    "items": {
+                        "additionalProperties": False,
+                        "properties": {
+                            "deployment_id": {
+                                "maxLength": 128,
+                                "minLength": 1,
+                                "type": "string",
+                            },
+                            "environment": {"type": "string"},
+                            "occurred_at": {"type": "string"},
+                            "service": {"type": "string"},
+                            "version": {"maxLength": 256, "minLength": 1, "type": "string"},
+                        },
+                        "required": [
+                            "deployment_id",
+                            "environment",
+                            "occurred_at",
+                            "service",
+                            "version",
+                        ],
+                        "type": "object",
+                    },
+                    "maxItems": MAX_DEPLOYMENT_QUERY_RECORDS,
+                    "type": "array",
+                },
+                "records_dropped": {"minimum": 0, "type": "integer"},
+                "schema_version": {"const": "1.0.0", "type": "string"},
+                "source": {"const": "deployment-registry", "type": "string"},
+            },
+            "required": [
+                "complete_window",
+                "query",
+                "records",
+                "records_dropped",
+                "schema_version",
+                "source",
+            ],
+            "type": "object",
+        },
+    )
+    return ToolDefinition(
+        name="query_deployments",
+        semantic_version=QUERY_DEPLOYMENTS_VERSION,
+        input_schema=input_schema,
+        output_schema=output_schema,
+        access_class=ToolAccessClass.READ,
+        risk=ToolRisk.LOW,
+        required_permission=Permission.EVIDENCE_READ,
+        timeout_ms=10_000,
+        retry_policy=ToolRetryPolicy(
+            3,
+            100,
+            1_000,
+            frozenset(
+                {
+                    RetryableToolError.CONNECTION,
+                    RetryableToolError.RATE_LIMIT,
+                    RetryableToolError.TIMEOUT,
+                }
+            ),
+        ),
+        idempotency=ToolIdempotency.NOT_APPLICABLE,
+        audit=ToolAuditPolicy("tool.call", QUERY_DEPLOYMENTS_VERSION),
+        max_input_bytes=2_048,
+        max_result_bytes=2 * 1024 * 1024,
+    )
+
+
+class QueryDeploymentsAdapter:
+    def __init__(self, backend: DeploymentsBackend) -> None:
+        self._backend = backend
+
+    async def invoke(
+        self, context: ToolAdapterContext, arguments: Mapping[str, Any]
+    ) -> Mapping[str, Any]:
+        del context
+        try:
+            start = as_utc(datetime.fromisoformat(str(arguments["start"])))
+            end = as_utc(datetime.fromisoformat(str(arguments["end"])))
+        except (KeyError, ValueError) as exc:
+            raise InvalidDomainValueError(
+                "deployment query timestamps must be ISO-8601 UTC"
+            ) from exc
+        if end <= start or end - start > MAX_DEPLOYMENT_QUERY_WINDOW:
+            raise InvalidDomainValueError("deployment query window is invalid or too large")
+        limit = int(arguments["limit"])
+        if not 1 <= limit <= MAX_DEPLOYMENT_QUERY_RECORDS:
+            raise InvalidDomainValueError("deployment query limit is outside the bounded range")
+        query = DeploymentQuery(
+            service=str(arguments["service"]),
+            environment=str(arguments["environment"]),
+            start=start.isoformat(),
+            end=end.isoformat(),
+            limit=limit,
+        )
+        result = await self._backend.query_range(query)
+        if len(result.records) > limit:
+            raise InvalidDomainValueError("deployment backend exceeded the requested limit")
+        seen_ids: set[str] = set()
+        seen_times: set[datetime] = set()
+        previous_time: datetime | None = None
+        records: list[dict[str, Any]] = []
+        for record in result.records:
+            if record.service != query.service or record.environment != query.environment:
+                raise InvalidDomainValueError("deployment backend returned mismatched scope")
+            if not start <= record.occurred_at <= end:
+                raise InvalidDomainValueError("deployment backend returned an out-of-window record")
+            if previous_time is not None and record.occurred_at < previous_time:
+                raise InvalidDomainValueError("deployment backend records are not time ordered")
+            previous_time = record.occurred_at
+            if record.deployment_id in seen_ids:
+                raise InvalidDomainValueError(
+                    "deployment backend returned a duplicate deployment ID"
+                )
+            if record.occurred_at in seen_times:
+                raise InvalidDomainValueError("deployment backend returned a duplicate timestamp")
+            seen_ids.add(record.deployment_id)
+            seen_times.add(record.occurred_at)
+            records.append(
+                {
+                    "deployment_id": record.deployment_id,
+                    "environment": record.environment,
+                    "occurred_at": record.occurred_at.isoformat(),
+                    "service": record.service,
+                    "version": record.version,
+                }
+            )
+        return {
+            "complete_window": result.complete_window,
+            "query": {
+                "end": query.end,
+                "environment": query.environment,
+                "limit": query.limit,
+                "service": query.service,
+                "start": query.start,
+            },
+            "records": records,
+            "records_dropped": result.records_dropped,
+            "schema_version": QUERY_DEPLOYMENTS_VERSION.value,
+            "source": "deployment-registry",
         }

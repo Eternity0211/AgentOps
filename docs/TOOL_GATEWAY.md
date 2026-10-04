@@ -92,7 +92,14 @@ unique span IDs, one root per trace, closed parent references, parent/child time
 requested service membership, environment scope, and status filter before returning a versioned
 Tempo document.
 
-The remaining three planned read tool definitions and adapters remain separate TODO batches.
+The `query_deployments` v1 contract accepts only service/environment scope, a UTC window, and a
+bounded result limit. It rejects free-form queries, URLs, paths, commands, and credentials. The
+window is capped at 30 days and the result at 500 deployment records. A deployment injects the
+read-only `DeploymentsBackend` port. The adapter verifies exact scope, inclusive window membership,
+chronological ordering, unique deployment IDs, and unique deployment timestamps before returning a
+versioned deployment-registry document.
+
+The remaining two planned read tool definitions and adapters remain separate TODO batches.
 Diagnosis-only catalog enforcement and the explicit raw URL/path/command deny rules are still open
 and will be completed before agent workflows can invoke the gateway.
 
@@ -114,3 +121,6 @@ time ordering, and exact service/environment scope.
 The traces adapter suite covers raw-query and target rejection, typed span/result bounds, canonical
 output, invalid windows and counts, environment substitution, duplicate and out-of-order spans,
 trace-count limits, root/parent integrity, parent time containment, and service/status scope.
+The deployments adapter suite covers raw-query and target rejection, typed record/result bounds,
+canonical and empty output, invalid windows and limits, service/environment substitution,
+out-of-window or out-of-order records, duplicate identities/timestamps, and backend over-return.

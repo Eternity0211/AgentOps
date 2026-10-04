@@ -77,3 +77,11 @@ class ToolNotFoundError(ToolRegistryError):
 
 class ToolVersionDisabledError(ToolRegistryError):
     """The exact registered tool version is outside the enabled range."""
+
+
+class PromptRegistryError(DomainError):
+    """A versioned Prompt definition could not be configured or resolved safely."""
+
+
+class PromptNotFoundError(PromptRegistryError):
+    """A requested Prompt identity/version or active version is unavailable."""

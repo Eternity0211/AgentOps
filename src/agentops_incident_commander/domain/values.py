@@ -86,6 +86,11 @@ class EvidenceId(OpaqueIdentifier):
 
 
 @dataclass(frozen=True, slots=True)
+class PromptId(OpaqueIdentifier):
+    """Stable identity of one versioned Prompt family."""
+
+
+@dataclass(frozen=True, slots=True)
 class ToolCallId(OpaqueIdentifier):
     """Identity of the Tool Gateway call that produced an observation."""
 

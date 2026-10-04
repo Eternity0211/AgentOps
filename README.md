@@ -152,6 +152,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Deterministic Evidence collectors](docs/COLLECTORS.md)
 - [Versioned Tool Gateway contracts](docs/TOOL_GATEWAY.md)
 - [Deterministic Evidence Gate](docs/EVIDENCE_GATE.md)
+- [Versioned Prompt Registry](docs/PROMPT_REGISTRY.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)

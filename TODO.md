@@ -133,7 +133,7 @@ Exit: only candidates satisfying deterministic rules pass; false citations and c
 
 ## Phase 6 — Prompt Registry, Diagnosis Agent, and durable LangGraph investigation
 
-- [ ] Define Prompt Registry with Prompt ID, semantic version, immutable content fingerprint, model parameters, schema compatibility, trace links, lifecycle status, and rollback predecessor.
+- [x] Define Prompt Registry with Prompt ID, semantic version, immutable content fingerprint, model parameters, schema compatibility, trace links, lifecycle status, and rollback predecessor.
 - [ ] Implement prompt draft/evaluate/promote/rollback lifecycle with RBAC, immutable versions, audit, and a minimal regression-fixture gate.
 - [ ] Trace the exact prompt/model/settings/token/cost metadata for every model call without leaking sensitive content.
 - [ ] Define versioned Pydantic graph state and migration/compatibility strategy.

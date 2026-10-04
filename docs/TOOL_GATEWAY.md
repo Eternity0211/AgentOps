@@ -68,9 +68,17 @@ construction. Enabled definitions and adapter registrations must match exactly a
 ## Current boundary
 
 The gateway core now validates, authorizes, dispatches, times out, retries, limits, and audits calls.
-The six planned read tool definitions and their concrete adapters remain separate TODO batches.
-Diagnosis-only catalog enforcement and the explicit raw URL/path/command deny rules are also still
-open and will be completed before agent workflows can invoke the gateway.
+The `query_metrics` v1 contract and adapter are now registered in code. It accepts only a fixed
+metric enum, bounded service identifier, production/staging environment, UTC query window, and
+1–300 second step; it never accepts PromQL, a URL, path, or credential. The query window is capped
+at six hours. A deployment injects the read-only `MetricsBackend` port, while the adapter verifies
+that every returned sample uses the requested metric, lies in the requested window, and carries
+exactly the requested service/environment scope. Results are capped at 1,000 samples and preserve
+window-completeness and dropped-record counts in a versioned Prometheus result document.
+
+The remaining five planned read tool definitions and adapters remain separate TODO batches.
+Diagnosis-only catalog enforcement and the explicit raw URL/path/command deny rules are still open
+and will be completed before agent workflows can invoke the gateway.
 
 ## Verification
 
@@ -81,3 +89,6 @@ enablement configuration errors, deterministic catalog filtering, every supporte
 constraint, authorization/rejection, dispatch, timeout, classified retry/backoff, cancellation,
 unexpected failure, output validation, result limits, and audit failure. A PostgreSQL integration
 test proves started/succeeded events persist through the append-only `AuditRepository`.
+The metrics adapter suite additionally covers its exact registry metadata, backend result bounds,
+canonical success response, invalid/oversized windows, metric substitution, out-of-window samples,
+and missing or additional scope labels.

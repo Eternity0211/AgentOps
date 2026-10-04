@@ -46,6 +46,21 @@ inferring from a single endpoint. A zero baseline has no meaningful percentage c
 field is `null`; its direction is determined only by the signed absolute change. Both current and
 baseline Artifact IDs remain available to resolve the raw samples.
 
+## Trace critical-path and error summaries
+
+Trace summaries accept one bounded trace tree and retain each span's Artifact ID, raw record index,
+trace ID, and span ID. The deterministic validator requires exactly one root, unique span IDs and
+raw positions, resolvable parents, and child time ranges contained by their parents. It rejects
+mixed traces, self-parenting, missing parents, disconnected cycles, reversed times, and oversized
+inputs before producing a summary.
+
+The critical path is the root-to-leaf chain with the greatest cumulative span duration. Equal
+paths use span IDs as a stable tie-breaker. The schema-versioned result records trace boundaries,
+root duration, span and error counts, participating services, critical-path duration and segments,
+all error segments, whether the critical path contains an error, and every source Artifact ID.
+Each returned segment preserves service, operation, status, duration, parent ID, and its resolvable
+raw reference; the summary does not replace or hide the immutable trace Artifact.
+
 ## Integration boundary
 
 These adapters transform already retrieved typed results. Phase 4 Tool Gateway adapters will own

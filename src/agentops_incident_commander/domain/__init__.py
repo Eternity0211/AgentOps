@@ -110,6 +110,15 @@ from .metric_trends import (
     summarize_metric_trend,
 )
 from .outbox import OutboxClaim, OutboxEvent, OutboxPayload
+from .trace_summaries import (
+    MAX_TRACE_SPANS,
+    TRACE_SUMMARY_SCHEMA_VERSION,
+    TracePathSegment,
+    TraceSpanObservation,
+    TraceSpanReference,
+    TraceSummary,
+    summarize_trace,
+)
 from .values import (
     ActorId,
     AggregateVersion,
@@ -148,10 +157,12 @@ __all__ = [
     "MAX_METRIC_POINTS",
     "MAX_NORMALIZATION_DEPTH",
     "MAX_NORMALIZATION_NODES",
+    "MAX_TRACE_SPANS",
     "METRIC_TREND_SCHEMA_VERSION",
     "NORMALIZED_PAYLOAD_SCHEMA_VERSION",
     "ROLE_PERMISSIONS",
     "TERMINAL_STATES",
+    "TRACE_SUMMARY_SCHEMA_VERSION",
     "ActorId",
     "AggregateVersion",
     "Alert",
@@ -240,6 +251,10 @@ __all__ = [
     "StoredAuditEvent",
     "TenantId",
     "ToolCallId",
+    "TracePathSegment",
+    "TraceSpanObservation",
+    "TraceSpanReference",
+    "TraceSummary",
     "TrustClassification",
     "WorkflowRunId",
     "as_utc",
@@ -253,6 +268,7 @@ __all__ = [
     "resolve_and_validate_evidence",
     "select_alert_group",
     "summarize_metric_trend",
+    "summarize_trace",
     "utc_now",
     "validate_evidence_content",
 ]

@@ -99,7 +99,15 @@ read-only `DeploymentsBackend` port. The adapter verifies exact scope, inclusive
 chronological ordering, unique deployment IDs, and unique deployment timestamps before returning a
 versioned deployment-registry document.
 
-The remaining two planned read tool definitions and adapters remain separate TODO batches.
+The `get_service_topology` v1 contract accepts only a root service, environment, and depth capped at
+five. It rejects graph/query languages, selectors, URLs, paths, commands, and credentials. A
+deployment injects the read-only `TopologyBackend` port, with results capped at 100 nodes and 500
+edges. The adapter requires canonical ordering, unique service identities and edges, exact
+environment scope, closed non-self edge references, root presence, graph connectivity, and
+reachability within the requested depth before returning a versioned service-catalog document.
+
+The disabled-memory `search_similar_incidents` definition remains the final planned read-tool
+contract batch before diagnosis catalog hardening.
 Diagnosis-only catalog enforcement and the explicit raw URL/path/command deny rules are still open
 and will be completed before agent workflows can invoke the gateway.
 
@@ -124,3 +132,6 @@ trace-count limits, root/parent integrity, parent time containment, and service/
 The deployments adapter suite covers raw-query and target rejection, typed record/result bounds,
 canonical and empty output, invalid windows and limits, service/environment substitution,
 out-of-window or out-of-order records, duplicate identities/timestamps, and backend over-return.
+The topology adapter suite covers raw-query and target rejection, typed node/edge bounds, canonical
+output, depth bounds, ordering and duplicate failures, service identity collisions, missing roots,
+environment substitution, unknown edge endpoints, disconnected graphs, and excessive depth.

@@ -38,6 +38,10 @@ MAX_TRACE_QUERY_SPANS = 1_000
 QUERY_DEPLOYMENTS_VERSION = SemanticVersion("1.0.0")
 MAX_DEPLOYMENT_QUERY_WINDOW = timedelta(days=30)
 MAX_DEPLOYMENT_QUERY_RECORDS = 500
+GET_SERVICE_TOPOLOGY_VERSION = SemanticVersion("1.0.0")
+MAX_TOPOLOGY_NODES = 100
+MAX_TOPOLOGY_EDGES = 500
+MAX_TOPOLOGY_DEPTH = 5
 
 
 class MetricName(StrEnum):
@@ -65,6 +69,22 @@ class TraceStatusFilter(StrEnum):
     ANY = "ANY"
     OK = "OK"
     ERROR = "ERROR"
+
+
+class TopologyNodeKind(StrEnum):
+    SERVICE = "SERVICE"
+    GATEWAY = "GATEWAY"
+    DATABASE = "DATABASE"
+    CACHE = "CACHE"
+    EXTERNAL = "EXTERNAL"
+
+
+class TopologyRelation(StrEnum):
+    ROUTES = "ROUTES"
+    CALLS = "CALLS"
+    READS = "READS"
+    WRITES = "WRITES"
+    DEPENDS_ON = "DEPENDS_ON"
 
 
 _LOG_SEVERITY_ORDER = {severity: index for index, severity in enumerate(LogSeverity)}
@@ -311,6 +331,71 @@ class DeploymentBackendResult:
 
 class DeploymentsBackend(Protocol):
     async def query_range(self, query: DeploymentQuery) -> DeploymentBackendResult: ...
+
+
+@dataclass(frozen=True, slots=True)
+class TopologyQuery:
+    root_service: str
+    environment: str
+    max_depth: int
+
+
+@dataclass(frozen=True, slots=True, order=True)
+class TopologyBackendNode:
+    service: str
+    environment: str
+    kind: TopologyNodeKind
+
+    def __post_init__(self) -> None:
+        for field, maximum in (("service", 128), ("environment", 32)):
+            value = getattr(self, field)
+            if (
+                not isinstance(value, str)
+                or not value.strip()
+                or len(value) > maximum
+                or "\x00" in value
+            ):
+                raise InvalidDomainValueError(f"topology backend {field} is invalid")
+        if not isinstance(self.kind, TopologyNodeKind):
+            raise InvalidDomainValueError("topology backend node kind is invalid")
+
+
+@dataclass(frozen=True, slots=True, order=True)
+class TopologyBackendEdge:
+    source: str
+    target: str
+    relation: TopologyRelation
+
+    def __post_init__(self) -> None:
+        for field in ("source", "target"):
+            value = getattr(self, field)
+            if (
+                not isinstance(value, str)
+                or not value.strip()
+                or len(value) > 128
+                or "\x00" in value
+            ):
+                raise InvalidDomainValueError(f"topology backend edge {field} is invalid")
+        if self.source == self.target:
+            raise InvalidDomainValueError("topology backend self edges are not allowed")
+        if not isinstance(self.relation, TopologyRelation):
+            raise InvalidDomainValueError("topology backend relation is invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class TopologyBackendResult:
+    nodes: tuple[TopologyBackendNode, ...]
+    edges: tuple[TopologyBackendEdge, ...]
+
+    def __post_init__(self) -> None:
+        if len(self.nodes) > MAX_TOPOLOGY_NODES:
+            raise InvalidDomainValueError("topology backend node limit exceeded")
+        if len(self.edges) > MAX_TOPOLOGY_EDGES:
+            raise InvalidDomainValueError("topology backend edge limit exceeded")
+
+
+class TopologyBackend(Protocol):
+    async def get_topology(self, query: TopologyQuery) -> TopologyBackendResult: ...
 
 
 def query_metrics_definition() -> ToolDefinition:
@@ -1095,4 +1180,179 @@ class QueryDeploymentsAdapter:
             "records_dropped": result.records_dropped,
             "schema_version": QUERY_DEPLOYMENTS_VERSION.value,
             "source": "deployment-registry",
+        }
+
+
+def get_service_topology_definition() -> ToolDefinition:
+    input_schema = ToolSchema.from_mapping(
+        GET_SERVICE_TOPOLOGY_VERSION,
+        {
+            "additionalProperties": False,
+            "properties": {
+                "environment": {"enum": ["production", "staging"], "type": "string"},
+                "max_depth": {
+                    "maximum": MAX_TOPOLOGY_DEPTH,
+                    "minimum": 1,
+                    "type": "integer",
+                },
+                "root_service": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "[a-z][a-z0-9-]*",
+                    "type": "string",
+                },
+            },
+            "required": ["environment", "max_depth", "root_service"],
+            "type": "object",
+        },
+    )
+    output_schema = ToolSchema.from_mapping(
+        GET_SERVICE_TOPOLOGY_VERSION,
+        {
+            "additionalProperties": False,
+            "properties": {
+                "edges": {
+                    "items": {
+                        "additionalProperties": False,
+                        "properties": {
+                            "relation": {
+                                "enum": [item.value for item in TopologyRelation],
+                                "type": "string",
+                            },
+                            "source": {"type": "string"},
+                            "target": {"type": "string"},
+                        },
+                        "required": ["relation", "source", "target"],
+                        "type": "object",
+                    },
+                    "maxItems": MAX_TOPOLOGY_EDGES,
+                    "type": "array",
+                },
+                "nodes": {
+                    "items": {
+                        "additionalProperties": False,
+                        "properties": {
+                            "environment": {"type": "string"},
+                            "kind": {
+                                "enum": [item.value for item in TopologyNodeKind],
+                                "type": "string",
+                            },
+                            "service": {"type": "string"},
+                        },
+                        "required": ["environment", "kind", "service"],
+                        "type": "object",
+                    },
+                    "maxItems": MAX_TOPOLOGY_NODES,
+                    "type": "array",
+                },
+                "query": {
+                    "additionalProperties": False,
+                    "properties": input_schema.as_dict()["properties"],
+                    "required": input_schema.as_dict()["required"],
+                    "type": "object",
+                },
+                "schema_version": {"const": "1.0.0", "type": "string"},
+                "source": {"const": "service-catalog", "type": "string"},
+            },
+            "required": ["edges", "nodes", "query", "schema_version", "source"],
+            "type": "object",
+        },
+    )
+    return ToolDefinition(
+        name="get_service_topology",
+        semantic_version=GET_SERVICE_TOPOLOGY_VERSION,
+        input_schema=input_schema,
+        output_schema=output_schema,
+        access_class=ToolAccessClass.READ,
+        risk=ToolRisk.LOW,
+        required_permission=Permission.EVIDENCE_READ,
+        timeout_ms=5_000,
+        retry_policy=ToolRetryPolicy(
+            3,
+            100,
+            1_000,
+            frozenset({RetryableToolError.CONNECTION, RetryableToolError.TIMEOUT}),
+        ),
+        idempotency=ToolIdempotency.NOT_APPLICABLE,
+        audit=ToolAuditPolicy("tool.call", GET_SERVICE_TOPOLOGY_VERSION),
+        max_input_bytes=1_024,
+        max_result_bytes=2 * 1024 * 1024,
+    )
+
+
+class GetServiceTopologyAdapter:
+    def __init__(self, backend: TopologyBackend) -> None:
+        self._backend = backend
+
+    async def invoke(
+        self, context: ToolAdapterContext, arguments: Mapping[str, Any]
+    ) -> Mapping[str, Any]:
+        del context
+        max_depth = int(arguments["max_depth"])
+        if not 1 <= max_depth <= MAX_TOPOLOGY_DEPTH:
+            raise InvalidDomainValueError("topology query depth is outside the bounded range")
+        query = TopologyQuery(
+            root_service=str(arguments["root_service"]),
+            environment=str(arguments["environment"]),
+            max_depth=max_depth,
+        )
+        result = await self._backend.get_topology(query)
+        if tuple(sorted(result.nodes)) != result.nodes:
+            raise InvalidDomainValueError("topology backend nodes are not ordered")
+        if tuple(sorted(result.edges)) != result.edges:
+            raise InvalidDomainValueError("topology backend edges are not ordered")
+        if len(set(result.nodes)) != len(result.nodes):
+            raise InvalidDomainValueError("topology backend returned duplicate nodes")
+        if len(set(result.edges)) != len(result.edges):
+            raise InvalidDomainValueError("topology backend returned duplicate edges")
+        by_service = {node.service: node for node in result.nodes}
+        if len(by_service) != len(result.nodes):
+            raise InvalidDomainValueError("topology backend service names must be unique")
+        root = by_service.get(query.root_service)
+        if root is None:
+            raise InvalidDomainValueError("topology backend omitted the root service")
+        if any(node.environment != query.environment for node in result.nodes):
+            raise InvalidDomainValueError("topology backend returned a mismatched environment")
+        adjacency: dict[str, set[str]] = {service: set() for service in by_service}
+        for edge in result.edges:
+            if edge.source not in by_service or edge.target not in by_service:
+                raise InvalidDomainValueError("topology backend edge references an unknown node")
+            adjacency[edge.source].add(edge.target)
+            adjacency[edge.target].add(edge.source)
+        distances = {root.service: 0}
+        frontier = [root.service]
+        while frontier:
+            service = frontier.pop(0)
+            for neighbour in sorted(adjacency[service]):
+                if neighbour not in distances:
+                    distances[neighbour] = distances[service] + 1
+                    frontier.append(neighbour)
+        if set(distances) != set(by_service):
+            raise InvalidDomainValueError("topology backend returned a disconnected graph")
+        if any(distance > max_depth for distance in distances.values()):
+            raise InvalidDomainValueError("topology backend exceeded the requested depth")
+        return {
+            "edges": [
+                {
+                    "relation": edge.relation.value,
+                    "source": edge.source,
+                    "target": edge.target,
+                }
+                for edge in result.edges
+            ],
+            "nodes": [
+                {
+                    "environment": node.environment,
+                    "kind": node.kind.value,
+                    "service": node.service,
+                }
+                for node in result.nodes
+            ],
+            "query": {
+                "environment": query.environment,
+                "max_depth": query.max_depth,
+                "root_service": query.root_service,
+            },
+            "schema_version": GET_SERVICE_TOPOLOGY_VERSION.value,
+            "source": "service-catalog",
         }

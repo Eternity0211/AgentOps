@@ -71,6 +71,21 @@ UTF-8 length, deterministic reason codes, and `QUARANTINED` status, leaving the 
 its access-controlled Artifact. Only `SUSPECTED` content with consistent metadata may transition
 to quarantine; normal Evidence construction already rejects unquarantined suspected content.
 
+## Budgeted Context Builder
+
+The deterministic Context Builder accepts at most 256 bounded derived summaries or quarantine
+metadata items; raw telemetry is not a representable content kind. Every candidate carries its
+Incident, Evidence, and Artifact IDs, source type, trust classification, content kind, and stable
+priority. Summary text is limited to 4,096 characters and receives a deterministic conservative
+UTF-8 token estimate, while actual provider token accounting remains a later model-call concern.
+
+Candidates must belong to one Incident and have unique keys and Evidence references. Selection is
+stable by priority, source type, Evidence ID, and key. Whole items are admitted only while both the
+token and item budgets permit; the builder never slices text into an unverifiable fragment. Every
+excluded candidate is recorded with its Evidence/Artifact provenance, estimated size, and either
+`TOKEN_BUDGET` or `ITEM_LIMIT`, making context loss explicit and reproducible. The resulting
+bounded object can enter future graph state or model prompts without embedding Artifact payloads.
+
 Artifact and Evidence records are built together from one typed request. Their tenant, Incident,
 Artifact ID, digest, collection time, versions, and lineage cannot drift. Evidence cannot outlive
 its Artifact. Suspected prompt injection cannot enter normal Evidence construction until it is

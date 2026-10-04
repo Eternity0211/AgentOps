@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
@@ -10,6 +12,8 @@ from agentops_incident_commander.domain import (
     ArtifactError,
     ArtifactStorage,
     Evidence,
+    EvidenceGateDecision,
+    EvidenceGateOutcome,
     EvidenceGateReason,
     EvidenceGateReasonCode,
     EvidenceGateRules,
@@ -18,6 +22,7 @@ from agentops_incident_commander.domain import (
     InvalidDomainValueError,
     Principal,
     RootCauseEvidenceClaim,
+    Sha256Digest,
     TenantId,
     TrustClassification,
     as_utc,
@@ -35,6 +40,109 @@ class EvidenceReader(Protocol):
 class EvidenceReferenceResolution:
     verified_evidence: tuple[Evidence, ...]
     reasons: tuple[EvidenceGateReason, ...]
+
+
+def evaluate_evidence_gate(
+    claim: RootCauseEvidenceClaim,
+    resolution: EvidenceReferenceResolution,
+    *,
+    rules: EvidenceGateRules,
+    at: datetime,
+) -> EvidenceGateDecision:
+    """Produce a deterministic decision from resolved evidence and versioned rules."""
+    current = as_utc(at)
+    reasons = [
+        *resolution.reasons,
+        *evaluate_evidence_characteristics(
+            claim,
+            resolution.verified_evidence,
+            rules=rules,
+            at=current,
+        ),
+    ]
+    if (
+        claim.counter_evidence_ids
+        and rules.require_counter_evidence_resolution
+        and not claim.counter_evidence_resolved
+    ):
+        reasons.append(
+            EvidenceGateReason(
+                EvidenceGateReasonCode.UNRESOLVED_COUNTER_EVIDENCE,
+                "Material counter-evidence has not been explicitly resolved.",
+                claim.counter_evidence_ids,
+            )
+        )
+    if claim.missing_evidence and rules.fail_on_declared_missing_evidence:
+        reasons.append(
+            EvidenceGateReason(
+                EvidenceGateReasonCode.MISSING_EVIDENCE_DECLARED,
+                "The candidate declares evidence still required for a safe conclusion.",
+            )
+        )
+    return EvidenceGateDecision(
+        incident_id=claim.incident_id,
+        candidate_id=claim.candidate_id,
+        outcome=EvidenceGateOutcome.FAIL if reasons else EvidenceGateOutcome.PASS,
+        reasons=tuple(reasons),
+        evaluated_evidence_ids=tuple(item.id for item in resolution.verified_evidence),
+        rules_version=rules.version,
+        input_fingerprint=_gate_input_fingerprint(
+            claim,
+            resolution.verified_evidence,
+            rules=rules,
+            evaluated_at=current,
+        ),
+        evaluated_at=current,
+        model_confidence_basis_points=claim.model_confidence_basis_points,
+    )
+
+
+def _gate_input_fingerprint(
+    claim: RootCauseEvidenceClaim,
+    evidence: tuple[Evidence, ...],
+    *,
+    rules: EvidenceGateRules,
+    evaluated_at: datetime,
+) -> Sha256Digest:
+    evidence_snapshot = [
+        {
+            "content_hash": item.content_hash.value,
+            "expires_at": item.expires_at.isoformat(),
+            "id": item.id.value,
+            "observed_from": item.observed_from.isoformat(),
+            "observed_to": item.observed_to.isoformat(),
+            "quality_reasons": list(item.quality.reasons),
+            "quality_score_basis_points": item.quality.score_basis_points,
+            "source_instance": item.source_instance,
+            "source_type": item.source_type.value,
+            "trust": item.trust.value,
+        }
+        for item in sorted(evidence, key=lambda value: value.id.value)
+    ]
+    document = {
+        "claim": {
+            "candidate_id": claim.candidate_id,
+            "counter_evidence_ids": [item.value for item in claim.counter_evidence_ids],
+            "counter_evidence_resolved": claim.counter_evidence_resolved,
+            "incident_id": claim.incident_id.value,
+            "missing_evidence": list(claim.missing_evidence),
+            "model_confidence_basis_points": claim.model_confidence_basis_points,
+            "supporting_evidence_ids": [item.value for item in claim.supporting_evidence_ids],
+        },
+        "evaluated_at": evaluated_at.isoformat(),
+        "evidence": evidence_snapshot,
+        "rules": {
+            "fail_on_declared_missing_evidence": rules.fail_on_declared_missing_evidence,
+            "maximum_evidence_age_seconds": int(rules.maximum_evidence_age.total_seconds()),
+            "minimum_independent_sources": rules.minimum_independent_sources,
+            "minimum_quality_basis_points": rules.minimum_quality_basis_points,
+            "require_counter_evidence_resolution": rules.require_counter_evidence_resolution,
+            "schema_version": rules.schema_version,
+            "version": rules.version,
+        },
+    }
+    canonical = json.dumps(document, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    return Sha256Digest(hashlib.sha256(canonical.encode("utf-8")).hexdigest())
 
 
 def evaluate_evidence_characteristics(

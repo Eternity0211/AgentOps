@@ -9,7 +9,9 @@ from typing import Any
 import pytest
 
 from agentops_incident_commander.application import (
+    EvidenceReferenceResolution,
     evaluate_evidence_characteristics,
+    evaluate_evidence_gate,
     resolve_gate_evidence_references,
 )
 from agentops_incident_commander.domain import (
@@ -19,6 +21,7 @@ from agentops_incident_commander.domain import (
     ArtifactId,
     ArtifactNotFoundError,
     Evidence,
+    EvidenceGateOutcome,
     EvidenceGateReasonCode,
     EvidenceGateRules,
     EvidenceId,
@@ -263,3 +266,103 @@ def test_characteristics_rejects_duplicate_or_uncited_evidence_inputs() -> None:
     for values in ((first, first), (first, evidence("evidence-2"))):
         with pytest.raises(InvalidDomainValueError, match="unique and cited"):
             evaluate_evidence_characteristics(narrowed, values, rules=EvidenceGateRules(), at=NOW)
+
+
+def test_gate_passes_complete_claim_regardless_of_low_model_confidence() -> None:
+    first = evidence("evidence-1")
+    second = evidence(
+        "evidence-2",
+        source_type=EvidenceSourceType.METRIC,
+        source_instance="prometheus-primary",
+    )
+    complete = RootCauseEvidenceClaim(
+        INCIDENT,
+        "candidate-1",
+        (first.id, second.id),
+        model_confidence_basis_points=0,
+    )
+    decision = evaluate_evidence_gate(
+        complete,
+        EvidenceReferenceResolution((first, second), ()),
+        rules=EvidenceGateRules(),
+        at=NOW,
+    )
+    assert decision.outcome is EvidenceGateOutcome.PASS
+    assert decision.reasons == ()
+    assert decision.model_confidence_basis_points == 0
+
+
+def test_gate_fails_unresolved_counter_and_missing_evidence_despite_high_confidence() -> None:
+    first = evidence("evidence-1")
+    second = evidence(
+        "evidence-2",
+        source_type=EvidenceSourceType.METRIC,
+        source_instance="prometheus-primary",
+    )
+    counter = evidence("evidence-3")
+    incomplete = RootCauseEvidenceClaim(
+        INCIDENT,
+        "candidate-1",
+        (first.id, second.id),
+        (counter.id,),
+        ("Need a deployment marker",),
+        model_confidence_basis_points=10_000,
+    )
+    decision = evaluate_evidence_gate(
+        incomplete,
+        EvidenceReferenceResolution((first, second, counter), ()),
+        rules=EvidenceGateRules(),
+        at=NOW,
+    )
+    assert decision.outcome is EvidenceGateOutcome.FAIL
+    assert [reason.code for reason in decision.reasons] == [
+        EvidenceGateReasonCode.UNRESOLVED_COUNTER_EVIDENCE,
+        EvidenceGateReasonCode.MISSING_EVIDENCE_DECLARED,
+    ]
+    assert decision.reasons[0].evidence_ids == (counter.id,)
+    assert decision.model_confidence_basis_points == 10_000
+
+
+def test_gate_rule_flags_can_accept_explicitly_tolerated_gaps() -> None:
+    first = evidence("evidence-1")
+    incomplete = RootCauseEvidenceClaim(
+        INCIDENT,
+        "candidate-1",
+        (first.id,),
+        (evidence("evidence-2").id,),
+        ("Optional comparison",),
+    )
+    permissive = EvidenceGateRules(
+        minimum_independent_sources=1,
+        require_counter_evidence_resolution=False,
+        fail_on_declared_missing_evidence=False,
+    )
+    decision = evaluate_evidence_gate(
+        incomplete,
+        EvidenceReferenceResolution((first,), ()),
+        rules=permissive,
+        at=NOW,
+    )
+    assert decision.outcome is EvidenceGateOutcome.PASS
+
+
+def test_gate_fingerprint_is_canonical_and_captures_confidence_metadata() -> None:
+    first = evidence("evidence-1")
+    base = RootCauseEvidenceClaim(
+        INCIDENT, "candidate-1", (first.id,), model_confidence_basis_points=1
+    )
+    rules = EvidenceGateRules(minimum_independent_sources=1)
+    resolution = EvidenceReferenceResolution((first,), ())
+    low = evaluate_evidence_gate(base, resolution, rules=rules, at=NOW)
+    repeated = evaluate_evidence_gate(base, resolution, rules=rules, at=NOW)
+    high = evaluate_evidence_gate(
+        RootCauseEvidenceClaim(
+            INCIDENT, "candidate-1", (first.id,), model_confidence_basis_points=10_000
+        ),
+        resolution,
+        rules=rules,
+        at=NOW,
+    )
+    assert repeated.input_fingerprint == low.input_fingerprint
+    assert high.outcome == low.outcome == EvidenceGateOutcome.PASS
+    assert high.input_fingerprint != low.input_fingerprint

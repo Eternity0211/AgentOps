@@ -37,6 +37,12 @@ quality below the configured basis-point floor, and records that do not explicit
 direct observations by source type plus source instance. Derived observations, historical
 references, and untrusted input never increase that count.
 
+`evaluate_evidence_gate` combines reference and characteristic failures with explicit completeness
+rules. Unresolved material counter-evidence and declared missing evidence fail closed by default.
+The resulting decision records model confidence and includes it in the reproducibility fingerprint,
+but confidence is never consulted when selecting `PASS` or `FAIL`: a complete zero-confidence claim
+can pass, while an incomplete maximum-confidence claim fails.
+
 ## Verification
 
 Unit tests cover every field bound, semantic/schema versions, canonical ID ordering, duplicates,
@@ -47,3 +53,5 @@ Application tests cover complete support/counter resolution, scoped reader calls
 cross-Incident/ID substitution, missing Artifacts, and content-hash alteration.
 Characteristic tests cover fresh independent sources, future/stale/expired observations, low
 quality, unavailable sources, derived-source non-counting, and duplicate or uncited inputs.
+Decision tests cover unresolved counter-evidence, declared missing evidence, configurable rule
+flags, canonical fingerprints, and both confidence extremes without changing deterministic outcomes.

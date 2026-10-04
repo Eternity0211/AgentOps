@@ -124,8 +124,8 @@ Exit: five live observability/topology/deployment tools and the disabled-memory 
 - [x] Validate incident ownership and prevent cross-incident evidence substitution.
 - [x] Validate time relevance, freshness, expiry, quality floor, and source availability.
 - [x] Evaluate independent-source requirements without double-counting derived evidence.
-- [ ] Require explicit treatment of material counter-evidence and missing evidence.
-- [ ] Keep model confidence as non-authoritative metadata.
+- [x] Require explicit treatment of material counter-evidence and missing evidence.
+- [x] Keep model confidence as non-authoritative metadata.
 - [ ] Persist gate inputs, rules version, decision, and audit trace.
 - [ ] Add fabricated, missing, altered, stale, low-quality, correlated-source, and unresolved-counter-evidence tests.
 

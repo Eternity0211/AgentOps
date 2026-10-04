@@ -4,6 +4,7 @@ from .evidence_gate import (
     EvidenceReader,
     EvidenceReferenceResolution,
     evaluate_evidence_characteristics,
+    evaluate_evidence_gate,
     resolve_gate_evidence_references,
 )
 from .tool_gateway import (
@@ -35,5 +36,6 @@ __all__ = [
     "ToolResultLimitError",
     "ToolSchemaConfigurationError",
     "evaluate_evidence_characteristics",
+    "evaluate_evidence_gate",
     "resolve_gate_evidence_references",
 ]

@@ -12,11 +12,15 @@ from agentops_incident_commander.domain import (
     Evidence,
     EvidenceGateReason,
     EvidenceGateReasonCode,
+    EvidenceGateRules,
     EvidenceId,
     IncidentId,
+    InvalidDomainValueError,
     Principal,
     RootCauseEvidenceClaim,
     TenantId,
+    TrustClassification,
+    as_utc,
     validate_evidence_content,
 )
 
@@ -31,6 +35,72 @@ class EvidenceReader(Protocol):
 class EvidenceReferenceResolution:
     verified_evidence: tuple[Evidence, ...]
     reasons: tuple[EvidenceGateReason, ...]
+
+
+def evaluate_evidence_characteristics(
+    claim: RootCauseEvidenceClaim,
+    evidence: tuple[Evidence, ...],
+    *,
+    rules: EvidenceGateRules,
+    at: datetime,
+) -> tuple[EvidenceGateReason, ...]:
+    """Evaluate time, expiry, quality, availability, and source independence."""
+    current = as_utc(at)
+    by_id = {item.id: item for item in evidence}
+    if len(by_id) != len(evidence) or not set(by_id) <= set(claim.all_evidence_ids):
+        raise InvalidDomainValueError("gate evidence must be unique and cited by the claim")
+    reasons: list[EvidenceGateReason] = []
+    for item in evidence:
+        if item.observed_to > current or current - item.observed_to > rules.maximum_evidence_age:
+            reasons.append(
+                EvidenceGateReason(
+                    EvidenceGateReasonCode.EVIDENCE_STALE,
+                    "Evidence observation is outside the configured relevance window.",
+                    (item.id,),
+                )
+            )
+        if item.is_expired(at=current):
+            reasons.append(
+                EvidenceGateReason(
+                    EvidenceGateReasonCode.EVIDENCE_EXPIRED,
+                    "Evidence expired before gate evaluation.",
+                    (item.id,),
+                )
+            )
+        if item.quality.score_basis_points < rules.minimum_quality_basis_points:
+            reasons.append(
+                EvidenceGateReason(
+                    EvidenceGateReasonCode.QUALITY_BELOW_FLOOR,
+                    "Evidence quality is below the configured floor.",
+                    (item.id,),
+                )
+            )
+        if (
+            "source-available" not in item.quality.reasons
+            or "source-unavailable" in item.quality.reasons
+        ):
+            reasons.append(
+                EvidenceGateReason(
+                    EvidenceGateReasonCode.SOURCE_UNAVAILABLE,
+                    "Evidence does not attest that its source was available.",
+                    (item.id,),
+                )
+            )
+    supporting = (by_id[item] for item in claim.supporting_evidence_ids if item in by_id)
+    independent = {
+        (item.source_type, item.source_instance)
+        for item in supporting
+        if item.trust is TrustClassification.DIRECT_OBSERVATION
+    }
+    if len(independent) < rules.minimum_independent_sources:
+        reasons.append(
+            EvidenceGateReason(
+                EvidenceGateReasonCode.INSUFFICIENT_INDEPENDENT_SOURCES,
+                "Supporting evidence does not meet the independent-source minimum.",
+                claim.supporting_evidence_ids,
+            )
+        )
+    return tuple(reasons)
 
 
 async def resolve_gate_evidence_references(

@@ -31,6 +31,12 @@ Subsequent Phase 5 batches will evaluate freshness, quality, source independence
 counter-evidence, then persist the full input snapshot/decision and emit audit events. No passing
 decision is produced by reference resolution alone.
 
+The characteristic evaluator now rejects future or stale observation windows, expired Evidence,
+quality below the configured basis-point floor, and records that do not explicitly attest
+`source-available`. Independent-source counting uses supporting evidence only and deduplicates
+direct observations by source type plus source instance. Derived observations, historical
+references, and untrusted input never increase that count.
+
 ## Verification
 
 Unit tests cover every field bound, semantic/schema versions, canonical ID ordering, duplicates,
@@ -39,3 +45,5 @@ UTC normalization, fingerprints, and confidence values at both extremes without 
 decision authority.
 Application tests cover complete support/counter resolution, scoped reader calls, missing IDs,
 cross-Incident/ID substitution, missing Artifacts, and content-hash alteration.
+Characteristic tests cover fresh independent sources, future/stale/expired observations, low
+quality, unavailable sources, derived-source non-counting, and duplicate or uncited inputs.

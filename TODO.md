@@ -122,8 +122,8 @@ Exit: five live observability/topology/deployment tools and the disabled-memory 
 - [x] Define versioned gate rules and typed decision/reason schema.
 - [x] Validate every cited Evidence ID exists and content hash resolves.
 - [x] Validate incident ownership and prevent cross-incident evidence substitution.
-- [ ] Validate time relevance, freshness, expiry, quality floor, and source availability.
-- [ ] Evaluate independent-source requirements without double-counting derived evidence.
+- [x] Validate time relevance, freshness, expiry, quality floor, and source availability.
+- [x] Evaluate independent-source requirements without double-counting derived evidence.
 - [ ] Require explicit treatment of material counter-evidence and missing evidence.
 - [ ] Keep model confidence as non-authoritative metadata.
 - [ ] Persist gate inputs, rules version, decision, and audit trace.

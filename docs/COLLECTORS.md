@@ -61,6 +61,20 @@ all error segments, whether the critical path contains an error, and every sourc
 Each returned segment preserves service, operation, status, duration, parent ID, and its resolvable
 raw reference; the summary does not replace or hide the immutable trace Artifact.
 
+## Deployment change summaries
+
+Deployment summaries correlate one bounded service/environment history with an explicit,
+timezone-aware Incident window. Records are normalized and ordered by occurrence time, while each
+keeps its immutable Artifact ID and raw record index. The inclusive window preserves changes that
+occur exactly at either boundary; the most recent earlier deployment is reported separately as
+the pre-window version.
+
+The schema-versioned result records the Incident ID, target service/environment, window bounds,
+previous deployment, ordered in-window changes, whether a change occurred, counts for examined,
+superseded pre-window, and ignored post-window records, plus every examined source Artifact ID.
+Empty history is valid and never invents a deployed version. Mixed targets, duplicate raw
+positions or timestamps, reversed windows, and oversized histories fail closed.
+
 ## Integration boundary
 
 These adapters transform already retrieved typed results. Phase 4 Tool Gateway adapters will own

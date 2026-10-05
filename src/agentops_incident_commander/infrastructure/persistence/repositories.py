@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime, timedelta
+from math import isclose
 from typing import Any, cast
 
 from sqlalchemy import CursorResult, or_, select, text, update
@@ -47,6 +48,11 @@ from agentops_incident_commander.domain import (
     Incident,
     IncidentChange,
     IncidentId,
+    IncidentMemoryConfirmationSource,
+    IncidentMemoryEmbedding,
+    IncidentMemoryId,
+    IncidentMemoryOutcome,
+    IncidentMemoryProjection,
     IncidentSeverity,
     IncidentState,
     InvalidDomainValueError,
@@ -102,6 +108,8 @@ from .models import (
     EvidenceGateDecisionRow,
     EvidenceRow,
     IncidentCancellationRequestRow,
+    IncidentMemoryEmbeddingRow,
+    IncidentMemoryProjectionRow,
     IncidentRow,
     IncidentTransitionRow,
     JobRow,
@@ -1331,6 +1339,186 @@ class IncidentRepository:
                 )
             )
         await self._session.flush()
+
+
+def _memory_projection_row(projection: IncidentMemoryProjection) -> IncidentMemoryProjectionRow:
+    return IncidentMemoryProjectionRow(
+        id=projection.id.value,
+        tenant_id=projection.tenant_id.value,
+        source_incident_id=projection.source_incident_id.value,
+        source_incident_version=projection.source_incident_version.value,
+        source_incident_state=projection.source_incident_state.value,
+        service=projection.service,
+        root_cause_summary=projection.root_cause_summary,
+        outcome=projection.outcome.value,
+        outcome_summary=projection.outcome_summary,
+        source_evidence_ids=[value.value for value in projection.source_evidence_ids],
+        diagnosis_report_fingerprint=projection.diagnosis_report_fingerprint.value,
+        evidence_gate_decision_fingerprint=projection.evidence_gate_decision_fingerprint.value,
+        confirmation_source=projection.confirmation_source.value,
+        confirmation_reference=projection.confirmation_reference.value,
+        recovery_action_reference=(
+            projection.recovery_action_reference.value
+            if projection.recovery_action_reference is not None
+            else None
+        ),
+        closed_at=projection.closed_at,
+        projected_at=projection.projected_at,
+        content_fingerprint=projection.content_fingerprint.value,
+        trust=projection.trust.value,
+        schema_version=projection.schema_version,
+    )
+
+
+def _memory_projection_from_row(row: IncidentMemoryProjectionRow) -> IncidentMemoryProjection:
+    return IncidentMemoryProjection(
+        id=IncidentMemoryId(row.id),
+        tenant_id=TenantId(row.tenant_id),
+        source_incident_id=IncidentId(row.source_incident_id),
+        source_incident_version=AggregateVersion(row.source_incident_version),
+        source_incident_state=IncidentState(row.source_incident_state),
+        service=row.service,
+        root_cause_summary=row.root_cause_summary,
+        outcome=IncidentMemoryOutcome(row.outcome),
+        outcome_summary=row.outcome_summary,
+        source_evidence_ids=tuple(EvidenceId(value) for value in row.source_evidence_ids),
+        diagnosis_report_fingerprint=Sha256Digest(row.diagnosis_report_fingerprint),
+        evidence_gate_decision_fingerprint=Sha256Digest(row.evidence_gate_decision_fingerprint),
+        confirmation_source=IncidentMemoryConfirmationSource(row.confirmation_source),
+        confirmation_reference=OpaqueIdentifier(row.confirmation_reference),
+        recovery_action_reference=(
+            OpaqueIdentifier(row.recovery_action_reference)
+            if row.recovery_action_reference is not None
+            else None
+        ),
+        closed_at=row.closed_at,
+        projected_at=row.projected_at,
+        content_fingerprint=Sha256Digest(row.content_fingerprint),
+        trust=TrustClassification(row.trust),
+        schema_version=row.schema_version,
+    )
+
+
+def _memory_embedding_from_row(
+    row: IncidentMemoryEmbeddingRow,
+    projection: IncidentMemoryProjection,
+) -> IncidentMemoryEmbedding:
+    return IncidentMemoryEmbedding(
+        id=OpaqueIdentifier(row.id),
+        tenant_id=projection.tenant_id,
+        memory_id=projection.id,
+        incident_id=projection.source_incident_id,
+        source_content_fingerprint=Sha256Digest(row.source_content_hash),
+        provider=row.provider,
+        model=row.model,
+        model_version=row.model_version,
+        content_schema_version=row.content_schema_version,
+        normalization_version=row.normalization_version,
+        vector=tuple(float(value) for value in row.embedding),
+        created_at=row.created_at,
+        reindex_required=row.reindex_required,
+    )
+
+
+class IncidentMemoryRepository:
+    """Atomically admit confirmed projections and versioned vector derivatives."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def store(
+        self,
+        projection: IncidentMemoryProjection,
+        embedding: IncidentMemoryEmbedding,
+    ) -> IncidentMemoryEmbedding:
+        if (
+            embedding.tenant_id != projection.tenant_id
+            or embedding.memory_id != projection.id
+            or embedding.incident_id != projection.source_incident_id
+            or embedding.source_content_fingerprint != projection.content_fingerprint
+            or embedding.content_schema_version != projection.schema_version
+            or embedding.reindex_required
+        ):
+            raise InvalidDomainValueError("embedding does not match its active memory projection")
+
+        incident = await self._session.scalar(
+            select(IncidentRow)
+            .where(
+                IncidentRow.id == projection.source_incident_id.value,
+                IncidentRow.tenant_id == projection.tenant_id.value,
+            )
+            .with_for_update()
+        )
+        if (
+            incident is None
+            or incident.state != IncidentState.CLOSED.value
+            or incident.version != projection.source_incident_version.value
+            or incident.closed_at != projection.closed_at
+        ):
+            raise InvalidDomainValueError("memory projection does not match a closed Incident")
+
+        projection_row = await self._session.scalar(
+            select(IncidentMemoryProjectionRow).where(
+                IncidentMemoryProjectionRow.source_incident_id
+                == projection.source_incident_id.value
+            )
+        )
+        if projection_row is None:
+            projection_row = _memory_projection_row(projection)
+            self._session.add(projection_row)
+            await self._session.flush()
+        elif _memory_projection_from_row(projection_row) != projection:
+            raise InvalidDomainValueError("Incident already has a different memory projection")
+
+        exact = await self._session.scalar(
+            select(IncidentMemoryEmbeddingRow).where(
+                IncidentMemoryEmbeddingRow.incident_id == embedding.incident_id.value,
+                IncidentMemoryEmbeddingRow.provider == embedding.provider,
+                IncidentMemoryEmbeddingRow.model == embedding.model,
+                IncidentMemoryEmbeddingRow.model_version == embedding.model_version,
+                IncidentMemoryEmbeddingRow.content_schema_version
+                == embedding.content_schema_version,
+                IncidentMemoryEmbeddingRow.normalization_version == embedding.normalization_version,
+            )
+        )
+        if exact is not None:
+            stored = _memory_embedding_from_row(exact, projection)
+            if (
+                stored.source_content_fingerprint != embedding.source_content_fingerprint
+                or stored.dimensions != embedding.dimensions
+                or any(
+                    not isclose(left, right, rel_tol=1e-6, abs_tol=1e-7)
+                    for left, right in zip(stored.vector, embedding.vector, strict=True)
+                )
+            ):
+                raise InvalidDomainValueError("embedding version identity is already bound")
+            return stored
+
+        await self._session.execute(
+            update(IncidentMemoryEmbeddingRow)
+            .where(
+                IncidentMemoryEmbeddingRow.incident_id == embedding.incident_id.value,
+                IncidentMemoryEmbeddingRow.reindex_required.is_(False),
+            )
+            .values(reindex_required=True)
+        )
+        row = IncidentMemoryEmbeddingRow(
+            id=embedding.id.value,
+            incident_id=embedding.incident_id.value,
+            source_content_hash=embedding.source_content_fingerprint.value,
+            provider=embedding.provider,
+            model=embedding.model,
+            model_version=embedding.model_version,
+            dimensions=embedding.dimensions,
+            content_schema_version=embedding.content_schema_version,
+            normalization_version=embedding.normalization_version,
+            embedding=list(embedding.vector),
+            reindex_required=False,
+            created_at=embedding.created_at,
+        )
+        self._session.add(row)
+        await self._session.flush()
+        return _memory_embedding_from_row(row, projection)
 
 
 def _alert_row(alert: Alert, group_id: AlertGroupId) -> AlertRow:

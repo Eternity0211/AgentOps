@@ -117,8 +117,17 @@ Revision `20261003_0002` enables the `vector` extension and adds
 content SHA-256, provider, model and model version, content schema version, normalization version,
 declared dimensions, creation time, and explicit reindex flag. A database check requires
 `vector_dims(embedding)` to equal the declared positive dimension, and a versioned-source unique
-key prevents ambiguous duplicates. No similarity-search API, embedding generation, or claim that
-historical memory is current evidence is enabled in this Phase 2 storage batch.
+key prevents ambiguous duplicates.
+
+Revision `20261005_0011` adds `incident_memory_projections` as the authoritative, tenant-bound
+closed-Incident source. The repository locks and revalidates the exact Incident state, version,
+owner, and closure time before transactionally admitting a projection and its vector. A database
+trigger requires every vector's Incident and source hash to resolve to that projection, including
+for writes outside the repository. Exact generation replay returns the stored row; generation with
+a new provider/model/model-version/schema/normalization identity marks prior vectors for the
+Incident `reindex_required` before inserting the replacement. The bundled deterministic generator
+supports mock-model and test operation without credentials. Similarity search is still disabled,
+and historical memory remains reference-only rather than current Evidence.
 
 ## Append-only audit ledger
 

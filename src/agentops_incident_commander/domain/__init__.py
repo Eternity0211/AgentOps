@@ -145,6 +145,10 @@ from .log_patterns import (
     cluster_log_errors,
     normalize_log_template,
 )
+from .memory_embeddings import (
+    MAX_EMBEDDING_DIMENSIONS,
+    IncidentMemoryEmbedding,
+)
 from .metric_trends import (
     MAX_METRIC_LABELS,
     MAX_METRIC_POINTS,
@@ -280,6 +284,7 @@ __all__ = [
     "MAX_CONTEXT_SUMMARY_CHARS",
     "MAX_CONTEXT_TOKENS",
     "MAX_DEPLOYMENT_CHANGES",
+    "MAX_EMBEDDING_DIMENSIONS",
     "MAX_GATE_EVIDENCE_REFERENCES",
     "MAX_GATE_MISSING_ITEMS",
     "MAX_INCIDENT_MEMORY_EVIDENCE",
@@ -376,6 +381,7 @@ __all__ = [
     "IncidentDeploymentWindow",
     "IncidentId",
     "IncidentMemoryConfirmationSource",
+    "IncidentMemoryEmbedding",
     "IncidentMemoryId",
     "IncidentMemoryOutcome",
     "IncidentMemoryProjection",

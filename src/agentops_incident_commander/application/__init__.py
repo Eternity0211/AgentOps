@@ -14,6 +14,11 @@ from .evidence_gate import (
     evidence_gate_input_snapshot,
     resolve_gate_evidence_references,
 )
+from .memory_indexing import (
+    IncidentMemoryEmbedder,
+    IncidentMemoryIndexer,
+    IncidentMemoryIndexStore,
+)
 from .model_tracing import (
     ModelCallTraceManager,
     ModelCallTraceStore,
@@ -52,6 +57,9 @@ __all__ = [
     "DiagnosisPromptStore",
     "EvidenceReader",
     "EvidenceReferenceResolution",
+    "IncidentMemoryEmbedder",
+    "IncidentMemoryIndexStore",
+    "IncidentMemoryIndexer",
     "ModelCallTraceManager",
     "ModelCallTraceStore",
     "PlanningBudgets",

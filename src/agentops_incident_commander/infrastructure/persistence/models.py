@@ -23,9 +23,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from agentops_incident_commander.domain import (
+    INCIDENT_MEMORY_SCHEMA_VERSION,
     MAX_PROMPT_CONTENT_BYTES,
     EvidenceGateOutcome,
     EvidenceSourceType,
+    IncidentMemoryConfirmationSource,
+    IncidentMemoryOutcome,
     IncidentState,
     ModelCallStatus,
     ModelCostSource,
@@ -47,6 +50,8 @@ _PROMPT_STATUSES = ", ".join(f"'{value.value}'" for value in PromptLifecycleStat
 _MODEL_CALL_STATUSES = ", ".join(f"'{value.value}'" for value in ModelCallStatus)
 _MODEL_COST_SOURCES = ", ".join(f"'{value.value}'" for value in ModelCostSource)
 _METERING_UNAVAILABLE = ", ".join(f"'{value.value}'" for value in ModelMeteringUnavailableReason)
+_MEMORY_OUTCOMES = ", ".join(f"'{value.value}'" for value in IncidentMemoryOutcome)
+_MEMORY_CONFIRMATIONS = ", ".join(f"'{value.value}'" for value in IncidentMemoryConfirmationSource)
 
 
 class Base(DeclarativeBase):
@@ -677,6 +682,82 @@ class AlertRow(Base):
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     dimensions: Mapped[list[dict[str, str]]] = mapped_column(JSONB, nullable=False)
+
+
+class IncidentMemoryProjectionRow(Base):
+    """Authoritative immutable projection admitted from one closed Incident."""
+
+    __tablename__ = "incident_memory_projections"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["source_incident_id", "tenant_id"],
+            ["incidents.id", "incidents.tenant_id"],
+            ondelete="RESTRICT",
+            name="fk_memory_projection_incident_tenant",
+        ),
+        CheckConstraint("source_incident_state = 'CLOSED'", name="ck_memory_projection_closed"),
+        CheckConstraint("source_incident_version >= 1", name="ck_memory_projection_version"),
+        CheckConstraint(f"outcome IN ({_MEMORY_OUTCOMES})", name="ck_memory_projection_outcome"),
+        CheckConstraint(
+            f"confirmation_source IN ({_MEMORY_CONFIRMATIONS})",
+            name="ck_memory_projection_confirmation",
+        ),
+        CheckConstraint(
+            "(outcome = 'RECOVERED') = (recovery_action_reference IS NOT NULL)",
+            name="ck_memory_projection_recovery_action",
+        ),
+        CheckConstraint("trust = 'HISTORICAL_REFERENCE'", name="ck_memory_projection_trust"),
+        CheckConstraint(
+            f"schema_version = '{INCIDENT_MEMORY_SCHEMA_VERSION}'",
+            name="ck_memory_projection_schema",
+        ),
+        CheckConstraint("projected_at >= closed_at", name="ck_memory_projection_time_order"),
+        CheckConstraint(
+            "content_fingerprint ~ '^[0-9a-f]{64}$'",
+            name="ck_memory_projection_content_hash",
+        ),
+        CheckConstraint(
+            "diagnosis_report_fingerprint ~ '^[0-9a-f]{64}$'",
+            name="ck_memory_projection_report_hash",
+        ),
+        CheckConstraint(
+            "evidence_gate_decision_fingerprint ~ '^[0-9a-f]{64}$'",
+            name="ck_memory_projection_gate_hash",
+        ),
+        CheckConstraint(
+            "jsonb_typeof(source_evidence_ids) = 'array' "
+            "AND jsonb_array_length(source_evidence_ids) BETWEEN 1 AND 64",
+            name="ck_memory_projection_evidence_count",
+        ),
+        UniqueConstraint("source_incident_id", name="uq_memory_projection_source_incident"),
+        UniqueConstraint(
+            "source_incident_id",
+            "content_fingerprint",
+            name="uq_memory_projection_source_content",
+        ),
+        Index("ix_memory_projection_tenant_service", "tenant_id", "service"),
+    )
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_incident_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_incident_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    source_incident_state: Mapped[str] = mapped_column(String(32), nullable=False)
+    service: Mapped[str] = mapped_column(String(128), nullable=False)
+    root_cause_summary: Mapped[str] = mapped_column(String(1024), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False)
+    outcome_summary: Mapped[str] = mapped_column(String(1024), nullable=False)
+    source_evidence_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    diagnosis_report_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    evidence_gate_decision_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    confirmation_source: Mapped[str] = mapped_column(String(32), nullable=False)
+    confirmation_reference: Mapped[str] = mapped_column(String(128), nullable=False)
+    recovery_action_reference: Mapped[str | None] = mapped_column(String(128))
+    closed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    projected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    content_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    trust: Mapped[str] = mapped_column(String(32), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
 class IncidentMemoryEmbeddingRow(Base):

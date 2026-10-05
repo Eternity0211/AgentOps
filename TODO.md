@@ -156,7 +156,7 @@ Exit: a worker can crash at each durable boundary and resume without evidence lo
 ## Phase 7 — Incident memory and similar-incident retrieval
 
 - [x] Define confirmed closed-incident memory projection with source/outcome/trust metadata.
-- [ ] Generate and store pgvector embeddings with embedding model/version and reindex support.
+- [x] Generate and store pgvector embeddings with embedding model/version and reindex support.
 - [ ] Implement scoped similar-incident retrieval with authorization, freshness, and leakage controls.
 - [ ] Implement and enable the `search_similar_incidents` Tool Gateway adapter against the confirmed-memory projection.
 - [ ] Ensure historical incidents are labeled reference-only and cannot satisfy current Evidence Gate facts.

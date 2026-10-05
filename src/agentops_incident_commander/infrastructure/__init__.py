@@ -15,6 +15,7 @@ from .diagnosis_runtime import (
     checkpoint_observation,
     compiled_diagnosis_runner,
 )
+from .memory_embeddings import DeterministicIncidentMemoryEmbedder
 from .mock_model import (
     MOCK_MODEL_VERSION,
     DeterministicDiagnosisMockModel,
@@ -31,6 +32,7 @@ __all__ = [
     "MOCK_MODEL_VERSION",
     "CheckpointExecutionStatus",
     "DeterministicDiagnosisMockModel",
+    "DeterministicIncidentMemoryEmbedder",
     "DiagnosisCheckpointIdentity",
     "DiagnosisCheckpointObservation",
     "DiagnosisRunOutcome",

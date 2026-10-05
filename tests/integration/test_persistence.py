@@ -72,6 +72,10 @@ from agentops_incident_commander.domain import (
     Incident,
     IncidentChange,
     IncidentId,
+    IncidentMemoryConfirmationSource,
+    IncidentMemoryId,
+    IncidentMemoryOutcome,
+    IncidentMemoryProjection,
     IncidentSeverity,
     IncidentState,
     InvalidDomainValueError,
@@ -128,6 +132,7 @@ from agentops_incident_commander.domain import (
     TrustClassification,
     WorkflowRunId,
 )
+from agentops_incident_commander.infrastructure import DeterministicIncidentMemoryEmbedder
 from agentops_incident_commander.infrastructure.artifacts import LocalArtifactStorage
 from agentops_incident_commander.infrastructure.persistence import (
     AlertGroupRow,
@@ -142,6 +147,8 @@ from agentops_incident_commander.infrastructure.persistence import (
     IdempotencyRecordRow,
     IncidentCancellationRequestRow,
     IncidentMemoryEmbeddingRow,
+    IncidentMemoryProjectionRow,
+    IncidentMemoryRepository,
     IncidentRepository,
     IncidentTransitionRow,
     JobRepository,
@@ -372,6 +379,7 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "incident_transitions",
         "incident_cancellation_requests",
         "incident_memory_embeddings",
+        "incident_memory_projections",
         "idempotency_records",
         "jobs",
         "model_call_traces",
@@ -1440,58 +1448,160 @@ async def test_alert_repository_rejects_invalid_window(engine: AsyncEngine) -> N
 async def test_embedding_metadata_retains_versions_and_enforces_vector_dimensions(
     engine: AsyncEngine,
 ) -> None:
-    """Embedding rows remain reproducible to source/model/schema and reject shape drift."""
+    """Confirmed projections bind vectors, replay idempotently, and mark old versions stale."""
     sessions = async_sessionmaker(engine, expire_on_commit=False)
-    incident = Incident.open(
-        IncidentId("incident-memory"),
-        TenantId("tenant-1"),
-        IncidentSeverity.SEV3,
+    closed_at = NOW + timedelta(hours=1)
+    incident = Incident(
+        id=IncidentId("incident-memory"),
+        tenant_id=TenantId("tenant-1"),
+        severity=IncidentSeverity.SEV3,
         opened_at=NOW,
+        updated_at=closed_at,
+        state=IncidentState.CLOSED,
+        version=AggregateVersion(5),
+        closed_at=closed_at,
+    )
+    projection = IncidentMemoryProjection.create(
+        memory_id=IncidentMemoryId("memory-1"),
+        incident=incident,
+        service="orders",
+        root_cause_summary="Connection pool exhausted after deployment.",
+        outcome=IncidentMemoryOutcome.RECOVERED,
+        outcome_summary="Rollback passed the stability window.",
+        source_evidence_ids=(EvidenceId("evidence-memory-1"),),
+        diagnosis_report_fingerprint=Sha256Digest("a" * 64),
+        evidence_gate_decision_fingerprint=Sha256Digest("b" * 64),
+        confirmation_source=IncidentMemoryConfirmationSource.DETERMINISTIC_VERIFIER,
+        confirmation_reference=OpaqueIdentifier("verification-memory-1"),
+        recovery_action_reference=OpaqueIdentifier("rollback-memory-1"),
+        projected_at=closed_at + timedelta(minutes=1),
     )
     async with sessions.begin() as session:
         await IncidentRepository(session).add(incident)
+        first = await DeterministicIncidentMemoryEmbedder(dimensions=3).generate(
+            projection,
+            embedding_id=OpaqueIdentifier("embedding-1"),
+            created_at=closed_at + timedelta(minutes=2),
+        )
+        stored = await IncidentMemoryRepository(session).store(projection, first)
+        assert stored.id == first.id
+
+    async with sessions.begin() as session:
+        replay = await DeterministicIncidentMemoryEmbedder(dimensions=3).generate(
+            projection,
+            embedding_id=OpaqueIdentifier("embedding-replay"),
+            created_at=closed_at + timedelta(minutes=3),
+        )
+        replayed = await IncidentMemoryRepository(session).store(projection, replay)
+        assert replayed.id == OpaqueIdentifier("embedding-1")
+
+        replacement = await DeterministicIncidentMemoryEmbedder(
+            dimensions=4, model_version="2.0.0"
+        ).generate(
+            projection,
+            embedding_id=OpaqueIdentifier("embedding-2"),
+            created_at=closed_at + timedelta(minutes=4),
+        )
+        await IncidentMemoryRepository(session).store(projection, replacement)
+
+    async with sessions() as session:
+        memory_row = await session.get(IncidentMemoryProjectionRow, "memory-1")
+        rows = (
+            await session.scalars(
+                select(IncidentMemoryEmbeddingRow).order_by(
+                    IncidentMemoryEmbeddingRow.model_version
+                )
+            )
+        ).all()
+        assert memory_row is not None
+        assert memory_row.tenant_id == "tenant-1"
+        assert memory_row.content_fingerprint == projection.content_fingerprint.value
+        assert [(row.model_version, row.reindex_required) for row in rows] == [
+            ("1.0.0", True),
+            ("2.0.0", False),
+        ]
+        assert rows[1].embedding == pytest.approx(list(replacement.vector))
+
+    async with sessions.begin() as session:
+        with pytest.raises(InvalidDomainValueError, match="active memory projection"):
+            await IncidentMemoryRepository(session).store(
+                projection,
+                replace(first, tenant_id=TenantId("tenant-other")),
+            )
+
+        missing_incident = replace(
+            incident,
+            id=IncidentId("incident-memory-missing"),
+            tenant_id=TenantId("tenant-missing"),
+        )
+        missing_projection = IncidentMemoryProjection.create(
+            memory_id=IncidentMemoryId("memory-missing"),
+            incident=missing_incident,
+            service="orders",
+            root_cause_summary="Confirmed but not persisted.",
+            outcome=IncidentMemoryOutcome.HUMAN_RESOLVED,
+            outcome_summary="Resolved by operator.",
+            source_evidence_ids=(EvidenceId("evidence-missing"),),
+            diagnosis_report_fingerprint=Sha256Digest("d" * 64),
+            evidence_gate_decision_fingerprint=Sha256Digest("e" * 64),
+            confirmation_source=IncidentMemoryConfirmationSource.HUMAN_REVIEW,
+            confirmation_reference=OpaqueIdentifier("review-missing"),
+            recovery_action_reference=None,
+            projected_at=closed_at + timedelta(minutes=1),
+        )
+        missing_embedding = await DeterministicIncidentMemoryEmbedder(dimensions=3).generate(
+            missing_projection,
+            embedding_id=OpaqueIdentifier("embedding-missing"),
+            created_at=closed_at + timedelta(minutes=2),
+        )
+        with pytest.raises(InvalidDomainValueError, match="closed Incident"):
+            await IncidentMemoryRepository(session).store(missing_projection, missing_embedding)
+
+        changed_projection = IncidentMemoryProjection.create(
+            memory_id=projection.id,
+            incident=incident,
+            service="orders",
+            root_cause_summary="A conflicting confirmed cause.",
+            outcome=IncidentMemoryOutcome.RECOVERED,
+            outcome_summary="Rollback passed the stability window.",
+            source_evidence_ids=(EvidenceId("evidence-memory-1"),),
+            diagnosis_report_fingerprint=Sha256Digest("a" * 64),
+            evidence_gate_decision_fingerprint=Sha256Digest("b" * 64),
+            confirmation_source=IncidentMemoryConfirmationSource.DETERMINISTIC_VERIFIER,
+            confirmation_reference=OpaqueIdentifier("verification-memory-1"),
+            recovery_action_reference=OpaqueIdentifier("rollback-memory-1"),
+            projected_at=closed_at + timedelta(minutes=1),
+        )
+        changed_embedding = await DeterministicIncidentMemoryEmbedder(dimensions=3).generate(
+            changed_projection,
+            embedding_id=OpaqueIdentifier("embedding-conflict"),
+            created_at=closed_at + timedelta(minutes=5),
+        )
+        with pytest.raises(InvalidDomainValueError, match="different memory projection"):
+            await IncidentMemoryRepository(session).store(changed_projection, changed_embedding)
+
+        rebound = replace(first, vector=(-first.vector[0], *first.vector[1:]))
+        with pytest.raises(InvalidDomainValueError, match="version identity"):
+            await IncidentMemoryRepository(session).store(projection, rebound)
+
+    async with sessions.begin() as session:
         session.add(
             IncidentMemoryEmbeddingRow(
-                id="embedding-1",
+                id="embedding-unbound",
                 incident_id=incident.id.value,
-                source_content_hash="a" * 64,
-                provider="mock",
+                source_content_hash="c" * 64,
+                provider="agentops-mock",
                 model="deterministic-embedding",
-                model_version="1.0.0",
+                model_version="3.0.0",
                 dimensions=3,
-                content_schema_version="incident-memory/v1",
-                normalization_version="l2/v1",
+                content_schema_version="1.0.0",
+                normalization_version="l2-v1",
                 embedding=[0.1, 0.2, 0.3],
                 reindex_required=False,
                 created_at=NOW,
             )
         )
-
-    async with sessions() as session:
-        row = await session.get(IncidentMemoryEmbeddingRow, "embedding-1")
-        assert row is not None
-        assert row.embedding == pytest.approx([0.1, 0.2, 0.3])
-        assert row.model_version == "1.0.0"
-        assert row.content_schema_version == "incident-memory/v1"
-
-    async with sessions.begin() as session:
-        session.add(
-            IncidentMemoryEmbeddingRow(
-                id="embedding-invalid",
-                incident_id=incident.id.value,
-                source_content_hash="b" * 64,
-                provider="mock",
-                model="deterministic-embedding",
-                model_version="2.0.0",
-                dimensions=3,
-                content_schema_version="incident-memory/v1",
-                normalization_version="l2/v1",
-                embedding=[0.1, 0.2],
-                reindex_required=True,
-                created_at=NOW,
-            )
-        )
-        with pytest.raises(IntegrityError, match="ck_embeddings_vector_dimensions"):
+        with pytest.raises(DBAPIError, match="authoritative memory projection"):
             await session.flush()
 
 

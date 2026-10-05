@@ -1,6 +1,6 @@
 # Confirmed Incident Memory
 
-Phase 7 begins with a framework-independent projection for historical Incident memory. It is an
+Phase 7 uses a framework-independent projection for historical Incident memory. It is an
 immutable advisory record, not Evidence for the current Incident and not a third decision agent.
 
 ## Admission boundary
@@ -8,8 +8,8 @@ immutable advisory record, not Evidence for the current Incident and not a third
 `IncidentMemoryProjection.create` accepts only an authoritative `Incident` whose state is `CLOSED`
 and whose closure time is present. Active, merely `RESOLVED`, cancelled, or otherwise non-closed
 Incidents fail closed. The projection retains the owning tenant, source Incident ID, exact aggregate
-version, `CLOSED` state, closure time, and projection time. A later persistence adapter must resolve
-and recheck those fields transactionally before storing the projection; callers cannot use this
+version, `CLOSED` state, closure time, and projection time. The PostgreSQL adapter resolves and
+rechecks those fields under a row lock before storing the projection; callers cannot use this
 contract to promote an arbitrary narrative into memory.
 
 Every projection also retains:
@@ -41,5 +41,21 @@ outcome combinations, exact size bounds, invalid text/service/time/reference typ
 resolved, cancelled, and closed Incident admission, historical-only trust, schema/fingerprint
 tampering, authority-metadata forgery, and immutability.
 
-Embedding generation, storage, versioned reindexing, scoped similarity search, and the enabled
-`search_similar_incidents` adapter remain separate Phase 7 batches.
+## Versioned embeddings and reindexing
+
+`IncidentMemoryIndexer` separates generation from persistence through typed ports. Mock-model mode
+uses a credential-free deterministic SHA-256 adapter that derives a bounded, L2-normalized vector
+from the projection fingerprint; it does not retain or call out with root-cause text. Every vector
+records provider, model, model version, dimensions, content schema, normalization version, source
+fingerprint, and UTC creation time.
+
+`IncidentMemoryRepository` resolves and locks the source Incident, verifies tenant, exact aggregate
+version, `CLOSED` state, and closure timestamp, and writes the authoritative projection and vector
+in one caller-owned transaction. A PostgreSQL trigger independently rejects direct vector inserts
+whose Incident and source hash do not resolve to that projection. Exact model-identity replay is
+idempotent. A new model or normalization identity inserts a new vector and explicitly marks prior
+vectors for that Incident `reindex_required`; version identities are never silently overwritten.
+
+These records remain `HISTORICAL_REFERENCE`. Similarity retrieval and the enabled
+`search_similar_incidents` adapter remain separate Phase 7 batches, so this change grants no search
+or Evidence Gate authority.

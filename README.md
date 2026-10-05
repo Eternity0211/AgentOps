@@ -24,7 +24,9 @@ disabled. Every Diagnosis node now resolves the exact tenant-scoped Prompt versi
 that it is the single active `DIAGNOSIS` registration before control handling or any node effect;
 unregistered, stale, non-active, wrong-purpose, or fingerprint-mismatched references fail closed.
 
-Phase 7 now starts with the immutable [confirmed Incident memory projection](docs/INCIDENT_MEMORY.md).
+Phase 7 now includes the immutable confirmed Incident-memory projection and its transactionally
+bound, versioned [pgvector index](docs/INCIDENT_MEMORY.md). Similarity retrieval remains disabled
+until its tenant and authorization boundary is implemented.
 Only authoritative closed Incidents can enter it; source Evidence, Diagnosis Report, Evidence Gate,
 confirmation, outcome, trust, and content fingerprint metadata remain bound. Its trust is always
 `HISTORICAL_REFERENCE`, so old incidents remain advisory and cannot satisfy current Evidence Gate

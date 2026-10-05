@@ -2,17 +2,23 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Any, Protocol
 
-from agentops_incident_commander.application import ToolAdapterContext
+from agentops_incident_commander.application import IncidentMemorySearchStore, ToolAdapterContext
 from agentops_incident_commander.domain import (
+    MAX_MEMORY_LOOKBACK,
+    MAX_SIMILAR_INCIDENT_RESULTS,
+    IncidentId,
+    IncidentMemorySearchQuery,
     Permission,
     RetryableToolError,
     SemanticVersion,
+    SimilarIncidentReference,
+    TenantId,
     ToolAccessClass,
     ToolAuditPolicy,
     ToolDefinition,
@@ -21,6 +27,7 @@ from agentops_incident_commander.domain import (
     ToolRisk,
     ToolSchema,
     as_utc,
+    utc_now,
 )
 from agentops_incident_commander.domain.errors import InvalidDomainValueError
 
@@ -42,8 +49,8 @@ GET_SERVICE_TOPOLOGY_VERSION = SemanticVersion("1.0.0")
 MAX_TOPOLOGY_NODES = 100
 MAX_TOPOLOGY_EDGES = 500
 MAX_TOPOLOGY_DEPTH = 5
-SEARCH_SIMILAR_INCIDENTS_VERSION = SemanticVersion("1.0.0")
-MAX_SIMILAR_INCIDENT_RESULTS = 20
+SEARCH_SIMILAR_INCIDENTS_DISABLED_VERSION = SemanticVersion("1.0.0")
+SEARCH_SIMILAR_INCIDENTS_VERSION = SemanticVersion("2.0.0")
 
 
 class MetricName(StrEnum):
@@ -1360,9 +1367,9 @@ class GetServiceTopologyAdapter:
         }
 
 
-def search_similar_incidents_definition() -> ToolDefinition:
-    input_schema = ToolSchema.from_mapping(
-        SEARCH_SIMILAR_INCIDENTS_VERSION,
+def _similar_incident_input_schema(version: SemanticVersion) -> ToolSchema:
+    return ToolSchema.from_mapping(
+        version,
         {
             "additionalProperties": False,
             "properties": {
@@ -1376,8 +1383,13 @@ def search_similar_incidents_definition() -> ToolDefinition:
             "type": "object",
         },
     )
+
+
+def search_similar_incidents_disabled_definition() -> ToolDefinition:
+    """Retain the immutable Phase 4 disabled v1 contract."""
+    input_schema = _similar_incident_input_schema(SEARCH_SIMILAR_INCIDENTS_DISABLED_VERSION)
     output_schema = ToolSchema.from_mapping(
-        SEARCH_SIMILAR_INCIDENTS_VERSION,
+        SEARCH_SIMILAR_INCIDENTS_DISABLED_VERSION,
         {
             "additionalProperties": False,
             "properties": {
@@ -1415,7 +1427,10 @@ def search_similar_incidents_definition() -> ToolDefinition:
                     "maxItems": MAX_SIMILAR_INCIDENT_RESULTS,
                     "type": "array",
                 },
-                "schema_version": {"const": "1.0.0", "type": "string"},
+                "schema_version": {
+                    "const": SEARCH_SIMILAR_INCIDENTS_DISABLED_VERSION.value,
+                    "type": "string",
+                },
                 "source": {"const": "incident-memory", "type": "string"},
             },
             "required": [
@@ -1430,9 +1445,86 @@ def search_similar_incidents_definition() -> ToolDefinition:
             "type": "object",
         },
     )
+    return _similar_incidents_definition(
+        version=SEARCH_SIMILAR_INCIDENTS_DISABLED_VERSION,
+        input_schema=input_schema,
+        output_schema=output_schema,
+    )
+
+
+def search_similar_incidents_definition() -> ToolDefinition:
+    """Return the enabled historical-reference-only v2 contract."""
+    input_schema = _similar_incident_input_schema(SEARCH_SIMILAR_INCIDENTS_VERSION)
+    result_properties = {
+        "closed_at": {"type": "string"},
+        "historical_reference_only": {"const": True, "type": "boolean"},
+        "incident_id": {"type": "string"},
+        "outcome": {"type": "string"},
+        "outcome_summary": {"maxLength": 1024, "minLength": 1, "type": "string"},
+        "root_cause_summary": {"maxLength": 1024, "minLength": 1, "type": "string"},
+        "service": {"maxLength": 128, "minLength": 1, "type": "string"},
+        "similarity": {"maximum": 1.0, "minimum": 0.0, "type": "number"},
+    }
+    input_schema = ToolSchema.from_mapping(
+        SEARCH_SIMILAR_INCIDENTS_VERSION,
+        input_schema.as_dict(),
+    )
+    output_schema = ToolSchema.from_mapping(
+        SEARCH_SIMILAR_INCIDENTS_VERSION,
+        {
+            "additionalProperties": False,
+            "properties": {
+                "enabled": {"const": True, "type": "boolean"},
+                "historical_reference_only": {"const": True, "type": "boolean"},
+                "query": {
+                    "additionalProperties": False,
+                    "properties": input_schema.as_dict()["properties"],
+                    "required": input_schema.as_dict()["required"],
+                    "type": "object",
+                },
+                "results": {
+                    "items": {
+                        "additionalProperties": False,
+                        "properties": result_properties,
+                        "required": sorted(result_properties),
+                        "type": "object",
+                    },
+                    "maxItems": MAX_SIMILAR_INCIDENT_RESULTS,
+                    "type": "array",
+                },
+                "schema_version": {
+                    "const": SEARCH_SIMILAR_INCIDENTS_VERSION.value,
+                    "type": "string",
+                },
+                "source": {"const": "incident-memory", "type": "string"},
+            },
+            "required": [
+                "enabled",
+                "historical_reference_only",
+                "query",
+                "results",
+                "schema_version",
+                "source",
+            ],
+            "type": "object",
+        },
+    )
+    return _similar_incidents_definition(
+        version=SEARCH_SIMILAR_INCIDENTS_VERSION,
+        input_schema=input_schema,
+        output_schema=output_schema,
+    )
+
+
+def _similar_incidents_definition(
+    *,
+    version: SemanticVersion,
+    input_schema: ToolSchema,
+    output_schema: ToolSchema,
+) -> ToolDefinition:
     return ToolDefinition(
         name="search_similar_incidents",
-        semantic_version=SEARCH_SIMILAR_INCIDENTS_VERSION,
+        semantic_version=version,
         input_schema=input_schema,
         output_schema=output_schema,
         access_class=ToolAccessClass.READ,
@@ -1441,7 +1533,7 @@ def search_similar_incidents_definition() -> ToolDefinition:
         timeout_ms=1_000,
         retry_policy=ToolRetryPolicy(1, 0, 0, frozenset()),
         idempotency=ToolIdempotency.NOT_APPLICABLE,
-        audit=ToolAuditPolicy("tool.call", SEARCH_SIMILAR_INCIDENTS_VERSION),
+        audit=ToolAuditPolicy("tool.call", version),
         max_input_bytes=512,
         max_result_bytes=64 * 1024,
     )
@@ -1461,6 +1553,107 @@ class SearchSimilarIncidentsDisabledAdapter:
             "historical_reference_only": True,
             "query": {"max_results": max_results},
             "results": [],
+            "schema_version": SEARCH_SIMILAR_INCIDENTS_DISABLED_VERSION.value,
+            "source": "incident-memory",
+        }
+
+
+class IncidentMemoryQueryProvider(Protocol):
+    """Build a query vector from server-owned current-Incident context."""
+
+    async def query_for(
+        self,
+        *,
+        tenant_id: TenantId,
+        incident_id: IncidentId,
+        max_results: int,
+        requested_at: datetime,
+        max_age: timedelta,
+    ) -> IncidentMemorySearchQuery: ...
+
+
+class SearchSimilarIncidentsAdapter:
+    """Expose bounded historical retrieval without accepting model-supplied query content."""
+
+    def __init__(
+        self,
+        query_provider: IncidentMemoryQueryProvider,
+        store: IncidentMemorySearchStore,
+        *,
+        clock: Callable[[], datetime] = utc_now,
+        max_age: timedelta = timedelta(days=365),
+    ) -> None:
+        if not timedelta(0) < max_age <= MAX_MEMORY_LOOKBACK:
+            raise InvalidDomainValueError("similar Incident adapter freshness window is invalid")
+        self._query_provider = query_provider
+        self._store = store
+        self._clock = clock
+        self._max_age = max_age
+
+    async def invoke(
+        self, context: ToolAdapterContext, arguments: Mapping[str, Any]
+    ) -> Mapping[str, Any]:
+        max_results = arguments["max_results"]
+        if (
+            not isinstance(max_results, int)
+            or isinstance(max_results, bool)
+            or not 1 <= max_results <= MAX_SIMILAR_INCIDENT_RESULTS
+        ):
+            raise InvalidDomainValueError("similar incident result limit is outside bounds")
+        requested_at = as_utc(self._clock())
+        query = await self._query_provider.query_for(
+            tenant_id=context.tenant_id,
+            incident_id=context.incident_id,
+            max_results=max_results,
+            requested_at=requested_at,
+            max_age=self._max_age,
+        )
+        if (
+            not isinstance(query, IncidentMemorySearchQuery)
+            or query.tenant_id != context.tenant_id
+            or query.current_incident_id != context.incident_id
+            or query.max_results != max_results
+            or query.requested_at != requested_at
+            or query.max_age != self._max_age
+        ):
+            raise InvalidDomainValueError("server-owned similar Incident query scope drifted")
+        results = await self._store.search(query)
+        if (
+            not isinstance(results, tuple)
+            or len(results) > max_results
+            or any(not isinstance(item, SimilarIncidentReference) for item in results)
+            or any(item.incident_id == context.incident_id for item in results)
+            or len({item.incident_id for item in results}) != len(results)
+            or results
+            != tuple(
+                sorted(
+                    results,
+                    key=lambda item: (
+                        -item.similarity,
+                        -item.closed_at.timestamp(),
+                        item.incident_id.value,
+                    ),
+                )
+            )
+        ):
+            raise InvalidDomainValueError("similar Incident backend result is invalid")
+        return {
+            "enabled": True,
+            "historical_reference_only": True,
+            "query": {"max_results": max_results},
+            "results": [
+                {
+                    "closed_at": item.closed_at.isoformat(),
+                    "historical_reference_only": True,
+                    "incident_id": item.incident_id.value,
+                    "outcome": item.outcome,
+                    "outcome_summary": item.outcome_summary,
+                    "root_cause_summary": item.root_cause_summary,
+                    "service": item.service,
+                    "similarity": item.similarity,
+                }
+                for item in results
+            ],
             "schema_version": SEARCH_SIMILAR_INCIDENTS_VERSION.value,
             "source": "incident-memory",
         }

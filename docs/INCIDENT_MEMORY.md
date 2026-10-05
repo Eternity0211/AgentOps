@@ -71,6 +71,9 @@ outcome summaries, closure time, similarity, and an invariant historical-only ma
 tenant IDs, vectors, Evidence IDs/content, Diagnosis/Gate fingerprints, confirmation references,
 and recovery-action references. Cross-tenant lookup fails without revealing whether memory exists.
 
-These records remain `HISTORICAL_REFERENCE` and cannot satisfy current Evidence Gate facts. The
-enabled `search_similar_incidents` adapter remains the next Phase 7 batch; scoped storage retrieval
-alone does not grant model or Tool Gateway access.
+These records remain `HISTORICAL_REFERENCE`. Tool Gateway `search_similar_incidents` v2 now exposes
+the scoped retrieval only after `EVIDENCE_READ` authorization. It accepts no model-supplied query
+content: a server-owned provider binds the current Incident context to the vector identity, clock,
+freshness window, tenant, and result limit. The disabled v1 response remains immutable for replay.
+The adapter repeats scope, ordering, uniqueness, self-reference, type, and result-limit checks
+before emitting its minimal historical-only response.

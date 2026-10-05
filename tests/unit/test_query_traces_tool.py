@@ -20,6 +20,7 @@ from agentops_incident_commander.domain import (
     IncidentId,
     InvalidDomainValueError,
     Permission,
+    TenantId,
     ToolAccessClass,
     ToolCallId,
     ToolIdempotency,
@@ -45,6 +46,7 @@ CONTEXT = ToolAdapterContext(
     IncidentId("incident-traces"),
     WorkflowRunId("workflow-traces"),
     ActorId("viewer-traces"),
+    TenantId("tenant-1"),
     CorrelationId("correlation-traces"),
     CausationId("cause-traces"),
 )

@@ -158,7 +158,7 @@ Exit: a worker can crash at each durable boundary and resume without evidence lo
 - [x] Define confirmed closed-incident memory projection with source/outcome/trust metadata.
 - [x] Generate and store pgvector embeddings with embedding model/version and reindex support.
 - [x] Implement scoped similar-incident retrieval with authorization, freshness, and leakage controls.
-- [ ] Implement and enable the `search_similar_incidents` Tool Gateway adapter against the confirmed-memory projection.
+- [x] Implement and enable the `search_similar_incidents` Tool Gateway adapter against the confirmed-memory projection.
 - [ ] Ensure historical incidents are labeled reference-only and cannot satisfy current Evidence Gate facts.
 - [ ] Extend the minimal prompt regression gate with memory/no-memory comparisons and enforce it before memory-aware prompt promotion.
 - [ ] Add memory isolation, embedding-version, retrieval authorization, prompt rollback, and unauthorized-promotion tests.

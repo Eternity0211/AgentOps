@@ -226,6 +226,7 @@ async def test_gateway_dispatches_valid_call_and_audits_hashes() -> None:
     assert audit.events[0].request_hash == request().request_hash
     assert audit.events[0].result_hash is None
     assert adapter.contexts[0].incident_id == IncidentId("incident-1")
+    assert adapter.contexts[0].tenant_id == TenantId("tenant-1")
     assert adapter.arguments == [{"service": "orders"}]
 
 

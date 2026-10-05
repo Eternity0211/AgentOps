@@ -109,12 +109,18 @@ edges. The adapter requires canonical ordering, unique service identities and ed
 environment scope, closed non-self edge references, root presence, graph connectivity, and
 reachability within the requested depth before returning a versioned service-catalog document.
 
-The `search_similar_incidents` v1 definition is registered in an explicitly disabled form until
-Phase 7 supplies the confirmed-incident memory projection. It accepts only a bounded result count
-and has no query text, URL, path, selector, or backend port. Its deterministic adapter always
-returns `enabled: false`, a stable disabled reason, `historical_reference_only: true`, and an empty
-result list. The future enabled adapter must retain historical-reference labeling so retrieved
-incidents can never satisfy current-incident Evidence Gate facts.
+The immutable `search_similar_incidents` v1 definition remains explicitly disabled for exact replay.
+Its deterministic adapter returns the stable disabled response and never accesses memory. Phase 7
+adds enabled v2 rather than mutating v1. Both versions accept only a bounded result count and no
+query text, URL, path, selector, vector, or backend target.
+
+For v2, the Gateway performs `EVIDENCE_READ` authorization and hash-only audit before dispatch. The
+adapter asks a server-owned query provider for the current Incident vector, tenant, exact embedding
+identity, clock, and freshness window, then invokes the scoped confirmed-memory store. It rejects
+scope drift, direct-call limit bypass, self/duplicate/untyped/over-limit results, and unstable
+ordering. Output is `historical_reference_only` and contains only the prior Incident ID, service,
+bounded confirmed summaries, outcome, closure time, and similarity. It omits tenant IDs, vectors,
+Evidence content/references, internal fingerprints, and confirmation or recovery-action references.
 
 Diagnosis uses a dedicated gateway entry point and catalog. The catalog exposes enabled `READ`
 definitions only. Invocation resolves the exact version again, rejects every `WRITE` definition,
@@ -153,9 +159,10 @@ out-of-window or out-of-order records, duplicate identities/timestamps, and back
 The topology adapter suite covers raw-query and target rejection, typed node/edge bounds, canonical
 output, depth bounds, ordering and duplicate failures, service identity collisions, missing roots,
 environment substitution, unknown edge endpoints, disconnected graphs, and excessive depth.
-The disabled similar-incidents suite covers exact metadata, strict rejection of query/target
-fields and invalid limits, stable empty results across calls, historical-reference labeling, and
-adapter-side limit revalidation without any memory-backend access.
+The similar-incidents suite preserves the exact disabled v1 response and verifies the strict v2
+schema, server-owned query construction, tenant propagation, stable minimal output, scope-drift and
+backend-result rejection, authorization rejection before backend access, and started/succeeded or
+rejected audit events.
 Diagnosis-boundary tests prove write definitions remain hidden and non-invocable, nested unsafe
 strings never reach adapters, safe read calls still dispatch, and unknown versions remain audited.
 The completed Phase 4 matrix additionally covers conservative schema compatibility, timeout and

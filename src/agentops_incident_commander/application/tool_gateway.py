@@ -24,6 +24,7 @@ from agentops_incident_commander.domain import (
     RetryableToolError,
     SemanticVersion,
     Sha256Digest,
+    TenantId,
     ToolAccessClass,
     ToolCallId,
     ToolDefinition,
@@ -96,6 +97,7 @@ class ToolAdapterContext:
     incident_id: IncidentId
     workflow_run_id: WorkflowRunId
     actor_id: ActorId
+    tenant_id: TenantId
     correlation_id: CorrelationId
     causation_id: CausationId
 
@@ -488,6 +490,7 @@ class ToolGateway:
             incident_id=call.incident_id,
             workflow_run_id=call.workflow_run_id,
             actor_id=call.principal.actor_id,
+            tenant_id=call.principal.tenant_id,
             correlation_id=call.correlation_id,
             causation_id=call.causation_id,
         )

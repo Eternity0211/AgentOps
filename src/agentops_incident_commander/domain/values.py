@@ -46,6 +46,11 @@ class IncidentId(OpaqueIdentifier):
 
 
 @dataclass(frozen=True, slots=True)
+class IncidentMemoryId(OpaqueIdentifier):
+    """Identity of one immutable historical Incident memory projection."""
+
+
+@dataclass(frozen=True, slots=True)
 class AlertId(OpaqueIdentifier):
     """Identity of one incoming or merged Alert."""
 

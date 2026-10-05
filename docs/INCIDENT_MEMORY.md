@@ -77,3 +77,8 @@ content: a server-owned provider binds the current Incident context to the vecto
 freshness window, tenant, and result limit. The disabled v1 response remains immutable for replay.
 The adapter repeats scope, ordering, uniqueness, self-reference, type, and result-limit checks
 before emitting its minimal historical-only response.
+
+Evidence Gate ruleset `1.1.0` enforces the authority boundary independently: if a candidate cites
+any `HISTORICAL_REFERENCE` as supporting or counter Evidence, the Gate emits
+`HISTORICAL_REFERENCE_NOT_CURRENT_EVIDENCE` and fails even when enough fresh independent direct
+observations are also present.

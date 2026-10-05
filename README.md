@@ -32,7 +32,8 @@ confirmation, outcome, trust, and content fingerprint metadata remain bound. Its
 `HISTORICAL_REFERENCE`, so old incidents remain advisory. The enabled Tool Gateway v2 adapter
 accepts only a bounded result count; its query vector, tenant, current Incident, clock, and
 freshness window are server owned. The immutable disabled v1 contract remains available for exact
-replay.
+replay. Evidence Gate ruleset `1.1.0` explicitly fails any candidate that cites historical memory
+as current supporting or counter Evidence.
 
 ## Why this project exists
 

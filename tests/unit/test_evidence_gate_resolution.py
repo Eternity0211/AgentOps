@@ -273,6 +273,44 @@ def test_characteristics_accept_fresh_quality_independent_direct_sources() -> No
     )
 
 
+@pytest.mark.parametrize("historical_is_counter", [False, True])
+def test_historical_reference_explicitly_fails_even_with_enough_current_sources(
+    historical_is_counter: bool,
+) -> None:
+    first = evidence("evidence-direct-1")
+    second = evidence(
+        "evidence-direct-2",
+        source_type=EvidenceSourceType.METRIC,
+        source_instance="prometheus-primary",
+    )
+    historical = evidence(
+        "evidence-history",
+        source_type=EvidenceSourceType.TRACE,
+        source_instance="incident-memory",
+        trust=TrustClassification.HISTORICAL_REFERENCE,
+    )
+    claim = RootCauseEvidenceClaim(
+        INCIDENT,
+        "candidate-1",
+        (first.id, second.id) if historical_is_counter else (first.id, second.id, historical.id),
+        (historical.id,) if historical_is_counter else (),
+        counter_evidence_resolved=historical_is_counter,
+    )
+
+    decision = evaluate_evidence_gate(
+        claim,
+        EvidenceReferenceResolution((first, second, historical), ()),
+        rules=EvidenceGateRules(),
+        at=NOW,
+    )
+
+    assert decision.outcome is EvidenceGateOutcome.FAIL
+    assert [reason.code for reason in decision.reasons] == [
+        EvidenceGateReasonCode.HISTORICAL_REFERENCE_NOT_CURRENT_EVIDENCE
+    ]
+    assert decision.reasons[0].evidence_ids == (historical.id,)
+
+
 def test_characteristics_reports_time_expiry_quality_availability_and_source_count() -> None:
     stale = evidence(
         "evidence-1",

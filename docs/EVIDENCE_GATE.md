@@ -37,6 +37,12 @@ quality below the configured basis-point floor, and records that do not explicit
 direct observations by source type plus source instance. Derived observations, historical
 references, and untrusted input never increase that count.
 
+Ruleset `1.1.0` additionally fails every cited `HISTORICAL_REFERENCE` with the stable
+`HISTORICAL_REFERENCE_NOT_CURRENT_EVIDENCE` reason. This applies to supporting and counter-evidence
+references even when enough fresh independent direct observations are also present. Historical
+memory can guide investigation, but it cannot be promoted into a current-Incident fact or help a
+candidate pass the Gate.
+
 `evaluate_evidence_gate` combines reference and characteristic failures with explicit completeness
 rules. Unresolved material counter-evidence and declared missing evidence fail closed by default.
 The resulting decision records model confidence and includes it in the reproducibility fingerprint,
@@ -58,7 +64,8 @@ decision authority.
 Application tests cover complete support/counter resolution, scoped reader calls, missing IDs,
 cross-Incident/ID substitution, missing Artifacts, and content-hash alteration.
 Characteristic tests cover fresh independent sources, future/stale/expired observations, low
-quality, unavailable sources, derived-source non-counting, and duplicate or uncited inputs.
+quality, unavailable sources, derived-source non-counting, explicit historical-reference refusal
+for both supporting and counter citations, and duplicate or uncited inputs.
 Decision tests cover unresolved counter-evidence, declared missing evidence, configurable rule
 flags, canonical fingerprints, and both confidence extremes without changing deterministic outcomes.
 PostgreSQL integration tests cover migration round trips, persisted input/decision reconstruction,

@@ -238,6 +238,14 @@ def evaluate_evidence_characteristics(
                     (item.id,),
                 )
             )
+        if item.trust is TrustClassification.HISTORICAL_REFERENCE:
+            reasons.append(
+                EvidenceGateReason(
+                    EvidenceGateReasonCode.HISTORICAL_REFERENCE_NOT_CURRENT_EVIDENCE,
+                    "Historical references cannot establish current-Incident facts.",
+                    (item.id,),
+                )
+            )
     supporting = (by_id[item] for item in claim.supporting_evidence_ids if item in by_id)
     independent = {
         (item.source_type, item.source_instance)

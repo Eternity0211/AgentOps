@@ -63,7 +63,7 @@ def decision(**overrides: Any) -> EvidenceGateDecision:
 
 def test_default_rules_are_versioned_bounded_and_deterministic() -> None:
     rules = EvidenceGateRules()
-    assert rules.version == "1.0.0"
+    assert rules.version == "1.1.0"
     assert rules.schema_version == EVIDENCE_GATE_SCHEMA_VERSION
     assert rules.minimum_quality_basis_points == 7_000
     assert rules.maximum_evidence_age == timedelta(hours=1)

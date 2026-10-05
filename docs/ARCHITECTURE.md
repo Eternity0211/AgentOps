@@ -134,7 +134,10 @@ stateDiagram-v2
 
 The graph state is a versioned Pydantic model holding identifiers and bounded summaries, not large raw telemetry. Raw results live behind Artifact references. Key fields include workflow/incident IDs, state schema version, plan and attempt budgets, selected tool calls, evidence IDs, hypotheses, gate decision, remediation proposal fingerprint, policy decision, approval reference, recovery-action reference, verification observations, optional compensation authorization/reference, and error classification.
 
-The implemented Phase 6 foundation is documented in [Versioned Diagnosis Graph State](GRAPH_STATE.md).
+The implemented Phase 6 state and executable topology are documented in
+[Versioned Diagnosis Graph State](GRAPH_STATE.md) and
+[Bounded Diagnosis LangGraph](DIAGNOSIS_GRAPH.md). The graph currently has no checkpointer; durable
+PostgreSQL resume behavior remains a later batch.
 It uses canonical content-free snapshots and a bounded sequential migration registry; LangGraph
 nodes and PostgreSQL checkpoint persistence remain separate later batches.
 

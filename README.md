@@ -9,8 +9,10 @@ Phase 6 now includes the versioned [Prompt Registry](docs/PROMPT_REGISTRY.md),
 [Diagnosis Agent schemas](docs/DIAGNOSIS_SCHEMAS.md), the
 [versioned graph-state contract](docs/GRAPH_STATE.md), and all-or-nothing
 [diagnosis-plan compilation](docs/DIAGNOSIS_PLANNING.md) against the server tool catalog and hard
-resource budgets. Production provider invocation remains disabled until the durable Diagnosis
-workflow is implemented.
+resource budgets. The executable [bounded Diagnosis LangGraph](docs/DIAGNOSIS_GRAPH.md) now routes
+context loading, planning, parallel read tools, evidence persistence, hypotheses, deterministic
+gating, bounded replanning, and human handoff. Production provider invocation and PostgreSQL graph
+checkpointing remain disabled until their later Phase 6 batches.
 
 ## Why this project exists
 
@@ -165,6 +167,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Versioned Diagnosis graph state](docs/GRAPH_STATE.md)
 - [Diagnosis Agent structured schemas](docs/DIAGNOSIS_SCHEMAS.md)
 - [Deterministic diagnosis-plan compilation](docs/DIAGNOSIS_PLANNING.md)
+- [Bounded Diagnosis LangGraph](docs/DIAGNOSIS_GRAPH.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)

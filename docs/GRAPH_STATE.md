@@ -17,9 +17,9 @@ results, excessive chains, extra fields, and invalid final state all fail closed
 snapshot remains unchanged. A migration implementation must be deterministic and covered by a
 version-pair fixture before deployment.
 
-This batch does not claim checkpoint persistence or workflow execution. The later LangGraph and
-PostgreSQL checkpoint batches must load state only through this registry and retain graph/state
-versions plus thread/run correlation.
+The state is now used by the executable [Bounded Diagnosis LangGraph](DIAGNOSIS_GRAPH.md). That graph
+still compiles without a checkpointer: the later PostgreSQL checkpoint batch must load state only
+through this registry and retain graph/state versions plus thread/run correlation.
 
 Unit tests cover canonical round trips, frozen state, content-bearing field refusal, identifiers,
 hashes, UTC timestamps, unique references, all budget dimensions, old-version migration,

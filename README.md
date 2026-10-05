@@ -15,8 +15,10 @@ gating, bounded replanning, repeated-equivalent-query refusal, and human handoff
 provider invocation remains disabled. The official PostgreSQL LangGraph checkpointer now provides
 strictly serialized, thread/run-correlated history and restore. Every Diagnosis node now supports
 durable pre-effect pause/resume, safe-boundary cancellation, and stable operation identities for
-exact effect replay; worker-crash continuation and checkpoint observability remain later Phase 6
-batches.
+exact effect replay. A checkpoint-aware runner now distinguishes new work from continuation,
+survives worker replacement at every durable Diagnosis boundary, and exposes bounded content-free
+checkpoint observations. Deterministic mock-model and production service composition remain later
+Phase 6 batches.
 
 ## Why this project exists
 

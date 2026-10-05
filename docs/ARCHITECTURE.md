@@ -139,7 +139,9 @@ The implemented Phase 6 state and executable topology are documented in
 [Bounded Diagnosis LangGraph](DIAGNOSIS_GRAPH.md). It uses canonical content-free snapshots, a
 bounded sequential migration registry, strict PostgreSQL checkpoint serialization, durable
 pre-effect interrupts, safe-boundary cancellation, and stable operation identities for idempotent
-node replay. Worker-crash continuation and checkpoint observability remain later batches.
+node replay. The checkpoint-aware runner detects an existing thread and resumes it without
+replacing state. Content-free checkpoint views expose phase, status, sequence, scheduled nodes,
+counts, timestamps, and a state fingerprint without exposing state or task payloads.
 
 Each externally visible transition writes domain state, outbox/audit event, and next job intent transactionally where possible. PostgreSQL checkpointing supports pauses, interrupts, safe-boundary cancellation, and worker recovery. Jobs use `SELECT ... FOR UPDATE SKIP LOCKED` (or an equivalently documented strategy), owner/lease timestamps, heartbeat, attempts, and stale-lease reclamation. Execution idempotency is independent of workflow retry semantics.
 

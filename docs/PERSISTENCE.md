@@ -102,6 +102,14 @@ applied at the same safe boundary and terminates the graph without dispatching t
 Service adapters use the stable operation identity to replay previously committed results rather
 than repeat effects after delivery or worker retries.
 
+`DiagnosisWorkflowRunner` checks the hashed thread before invocation. With no saved state it starts
+the supplied run; with saved state it validates tenant, Incident, workflow-run, and correlation
+identity and continues using `None` input so caller data cannot replace the checkpoint. Its bounded
+history API derives content-free observations from PostgreSQL snapshots and classifies pending,
+interrupted, failed, and complete checkpoints without copying task errors or interrupt values.
+Integration tests close and recreate the saver/graph after every Diagnosis node boundary and also
+cover the narrower effect-committed/checkpoint-not-yet-written failure window.
+
 ## Versioned embedding metadata
 
 Revision `20261003_0002` enables the `vector` extension and adds

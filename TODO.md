@@ -145,7 +145,7 @@ Exit: only candidates satisfying deterministic rules pass; false citations and c
 - [x] Detect repeated/equivalent queries and enforce finite replan/attempt budgets.
 - [x] Integrate PostgreSQL LangGraph checkpoints with thread/run correlation.
 - [x] Implement pause, resume, cancel, and idempotent node replay semantics.
-- [ ] Implement worker-crash continuation and checkpoint observability.
+- [x] Implement worker-crash continuation and checkpoint observability.
 - [ ] Add deterministic mock-model mode covering valid, malformed, timeout, refusal, fabricated-reference, and injection-resistant outputs.
 - [ ] Require every Diagnosis node invocation to load an approved Prompt Registry version; prohibit unregistered inline production prompts.
 - [ ] Add Agent schema tests and all Diagnosis graph path tests.

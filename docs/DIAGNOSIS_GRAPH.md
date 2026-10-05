@@ -74,7 +74,17 @@ graph version, checkpoint sequence, and node name. Per-tool identities also incl
 Tool Call ID. A service implementation must store and exactly replay the result for a repeated
 operation identity, because a worker may fail after the effect but before its next checkpoint.
 The graph therefore supplies replay identity without putting payloads into state. Worker-crash
-continuation and checkpoint observability remain the next TODO batch.
+continuation uses a checkpoint-aware runner: it starts with the supplied state only when the
+thread has no checkpoint, otherwise it validates the persisted tenant/run/correlation identity and
+invokes the graph with no replacement input. A newly constructed worker and PostgreSQL saver can
+therefore continue the scheduled node from the last durable boundary.
+
+Checkpoint observations are immutable content-free projections. They contain the hashed thread
+ID, checkpoint and parent IDs, workflow run ID, graph phase, `READY`/`INTERRUPTED`/`FAILED`/`COMPLETE`
+status, state sequence, bounded next-node names, task/interrupt counts, creation time, and a
+canonical state fingerprint. Task errors, interrupt values, budgets, prompts, evidence, tool/model
+payloads, and raw state are never copied into the projection. History reads are explicitly bounded
+and omit LangGraph's internal pre-input checkpoint because it contains no Diagnosis state.
 
 ## Verification
 
@@ -84,3 +94,7 @@ reference-only output, transition sequencing, exact pending-call batches, duplic
 invalid result refusal, premature evidence-persistence refusal, and unsupported-route failure.
 Interrupt tests additionally cover durable resume, resume-as-cancel, malformed directives,
 cancellation before every service boundary, and stable identities for exact node replay.
+PostgreSQL crash tests reconstruct the saver/graph at every durable node boundary and assert each
+service operation occurs once. A separate failure-window test crashes after a plan effect commits
+but before the node checkpoint and proves the repeated operation identity replays the stored result
+instead of committing the effect twice.

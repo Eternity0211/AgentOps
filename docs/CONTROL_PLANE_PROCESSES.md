@@ -21,7 +21,10 @@ runtime checks it before execution and passes it into the handler for safe-bound
 SIGINT/SIGTERM request cooperative shutdown; the worker stops claiming, waits through its bounded
 grace period, then cancels overdue local tasks without acknowledging their database lease.
 PostgreSQL stale-lease recovery can therefore safely reassign them. This does not claim that
-workflow handlers already exist.
+production workflow service adapters or a database-backed default `WorkSource` already exist. The
+Phase 6 Diagnosis runtime now provides the handler-side checkpoint-aware runner: a replacement
+worker resumes an existing PostgreSQL thread rather than replacing its state, while exact operation
+identities let service adapters replay effects committed before a worker exit.
 
 Tests verify independent settings, fail-closed startup, the API health contract, absence of worker
 routes/tasks, the HTTP-free worker source, concurrency saturation, cancellation before and during

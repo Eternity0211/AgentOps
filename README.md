@@ -161,6 +161,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Versioned Prompt Registry](docs/PROMPT_REGISTRY.md)
 - [Content-free model-call tracing](docs/MODEL_CALL_TRACING.md)
 - [Versioned Diagnosis graph state](docs/GRAPH_STATE.md)
+- [Diagnosis Agent structured schemas](docs/DIAGNOSIS_SCHEMAS.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)

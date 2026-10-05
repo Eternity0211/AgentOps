@@ -91,6 +91,11 @@ class PromptId(OpaqueIdentifier):
 
 
 @dataclass(frozen=True, slots=True)
+class ModelCallId(OpaqueIdentifier):
+    """Stable identity of one metered model invocation attempt."""
+
+
+@dataclass(frozen=True, slots=True)
 class ToolCallId(OpaqueIdentifier):
     """Identity of the Tool Gateway call that produced an observation."""
 

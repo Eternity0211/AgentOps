@@ -45,6 +45,13 @@ index permits at most one active version per tenant and Prompt family. Each atom
 stores before/after fingerprints and statuses, the bounded regression result when applicable, and
 the matching append-only audit event in the caller transaction.
 
+Revision `20261005_0010` adds content-free `model_call_traces`. Composite foreign keys bind each
+attempt to its tenant-owned Incident and exact registered Prompt version. The row copies exact
+model/settings/schema metadata, request/response hashes, lifecycle timing, typed outcome, consistent
+token counts, and integer-nanounit cost with a versioned source. Missing metering is explicit rather
+than silently treated as zero. Start and terminal audit records commit atomically with trace state;
+row locks and expected-state comparison reject duplicate completion.
+
 ## Repository concurrency
 
 `IncidentRepository` updates with `WHERE id = ... AND version = ...`. A zero-row update raises the

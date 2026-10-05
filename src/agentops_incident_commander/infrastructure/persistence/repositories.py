@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import Any, cast
 
@@ -14,6 +15,7 @@ from agentops_incident_commander.application import (
     evidence_gate_decision_fingerprint,
     evidence_gate_input_fingerprint,
     evidence_gate_input_snapshot,
+    model_call_trace_fingerprint,
 )
 from agentops_incident_commander.domain import (
     ActorId,
@@ -54,6 +56,14 @@ from agentops_incident_commander.domain import (
     JobLease,
     JobLeaseError,
     JobStatus,
+    ModelCallId,
+    ModelCallStatus,
+    ModelCallTrace,
+    ModelCost,
+    ModelCostSource,
+    ModelMetering,
+    ModelMeteringUnavailableReason,
+    ModelTokenUsage,
     NormalizedQuery,
     OpaqueIdentifier,
     OptimisticVersionError,
@@ -95,6 +105,7 @@ from .models import (
     IncidentRow,
     IncidentTransitionRow,
     JobRow,
+    ModelCallTraceRow,
     OutboxEventRow,
     PromptLifecycleEventRow,
     PromptVersionRow,
@@ -956,6 +967,242 @@ class PromptLifecycleRepository:
                 audit_event_id=audit_event.id.value,
                 occurred_at=audit_event.occurred_at,
             )
+        )
+        await AuditRepository(self._session).append(audit_event)
+        await self._session.flush()
+
+
+def _model_call_from_row(row: ModelCallTraceRow) -> ModelCallTrace:
+    usage = (
+        None
+        if row.input_tokens is None
+        else ModelTokenUsage(
+            row.input_tokens,
+            cast(int, row.output_tokens),
+            cast(int, row.cached_input_tokens),
+            cast(int, row.reasoning_tokens),
+            cast(int, row.total_tokens),
+        )
+    )
+    cost = (
+        None
+        if row.cost_nanounits is None
+        else ModelCost(
+            row.cost_nanounits,
+            cast(str, row.currency),
+            ModelCostSource(cast(str, row.cost_source)),
+            SemanticVersion(cast(str, row.rate_card_version)),
+        )
+    )
+    metering = (
+        None
+        if row.status == ModelCallStatus.STARTED.value
+        else ModelMetering(
+            usage,
+            cost,
+            (
+                None
+                if row.metering_unavailable_reason is None
+                else ModelMeteringUnavailableReason(row.metering_unavailable_reason)
+            ),
+        )
+    )
+    return ModelCallTrace(
+        id=ModelCallId(row.id),
+        tenant_id=TenantId(row.tenant_id),
+        incident_id=IncidentId(row.incident_id),
+        workflow_run_id=WorkflowRunId(row.workflow_run_id),
+        node=row.node,
+        attempt=row.attempt,
+        prompt=PromptVersionReference(PromptId(row.prompt_id), SemanticVersion(row.prompt_version)),
+        prompt_fingerprint=Sha256Digest(row.prompt_fingerprint),
+        provider=row.provider,
+        model=row.model,
+        temperature_basis_points=row.temperature_basis_points,
+        top_p_basis_points=row.top_p_basis_points,
+        max_output_tokens=row.max_output_tokens,
+        seed=row.seed,
+        input_schema_version=SemanticVersion(row.input_schema_version),
+        output_schema_version=SemanticVersion(row.output_schema_version),
+        request_hash=Sha256Digest(row.request_hash),
+        response_hash=(Sha256Digest(row.response_hash) if row.response_hash is not None else None),
+        correlation_id=CorrelationId(row.correlation_id),
+        causation_id=CausationId(row.causation_id),
+        status=ModelCallStatus(row.status),
+        started_at=row.started_at,
+        completed_at=row.completed_at,
+        metering=metering,
+        failure_code=row.failure_code,
+        schema_version=row.schema_version,
+    )
+
+
+def _validate_model_call_audit(
+    trace: ModelCallTrace,
+    audit_event: AuditEvent,
+    *,
+    event_type: str,
+    request_hash: Sha256Digest,
+    result_hash: Sha256Digest,
+) -> None:
+    if (
+        audit_event.tenant_id != trace.tenant_id
+        or audit_event.type != event_type
+        or audit_event.target.type != "model.call"
+        or audit_event.target.id.value != trace.id.value
+        or audit_event.correlation_id != trace.correlation_id
+        or audit_event.causation_id != trace.causation_id
+        or audit_event.request_hash != request_hash
+        or audit_event.result_hash != result_hash
+    ):
+        raise InvalidDomainValueError("model call audit event is not bound to the trace")
+
+
+class ModelCallTraceRepository:
+    """Persist content-free start/finish traces and audit in caller-owned transactions."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get(self, tenant_id: TenantId, call_id: ModelCallId) -> ModelCallTrace | None:
+        row = await self._session.scalar(
+            select(ModelCallTraceRow).where(
+                ModelCallTraceRow.tenant_id == tenant_id.value,
+                ModelCallTraceRow.id == call_id.value,
+            )
+        )
+        return _model_call_from_row(row) if row is not None else None
+
+    async def start(self, trace: ModelCallTrace, audit_event: AuditEvent) -> None:
+        fingerprint = model_call_trace_fingerprint(trace)
+        _validate_model_call_audit(
+            trace,
+            audit_event,
+            event_type="model.call_started",
+            request_hash=fingerprint,
+            result_hash=fingerprint,
+        )
+        prompt_row = await self._session.scalar(
+            select(PromptVersionRow)
+            .where(
+                PromptVersionRow.tenant_id == trace.tenant_id.value,
+                PromptVersionRow.prompt_id == trace.prompt.prompt_id.value,
+                PromptVersionRow.version == trace.prompt.version.value,
+            )
+            .with_for_update(read=True)
+        )
+        if prompt_row is None:
+            raise InvalidDomainValueError("model call Prompt version is not registered")
+        prompt = _prompt_from_row(prompt_row)
+        params = prompt.model_parameters
+        schemas = prompt.schema_compatibility
+        if (
+            prompt.status is not PromptLifecycleStatus.ACTIVE
+            or trace.prompt_fingerprint != prompt.content_fingerprint
+            or trace.provider != params.provider
+            or trace.model != params.model
+            or trace.temperature_basis_points != params.temperature_basis_points
+            or trace.top_p_basis_points != params.top_p_basis_points
+            or trace.max_output_tokens != params.max_output_tokens
+            or trace.seed != params.seed
+            or trace.input_schema_version != schemas.input_version
+            or trace.output_schema_version != schemas.output_version
+        ):
+            raise InvalidDomainValueError("model call metadata does not match the active Prompt")
+        self._session.add(
+            ModelCallTraceRow(
+                id=trace.id.value,
+                tenant_id=trace.tenant_id.value,
+                incident_id=trace.incident_id.value,
+                workflow_run_id=trace.workflow_run_id.value,
+                node=trace.node,
+                attempt=trace.attempt,
+                prompt_id=trace.prompt.prompt_id.value,
+                prompt_version=trace.prompt.version.value,
+                prompt_fingerprint=trace.prompt_fingerprint.value,
+                provider=trace.provider,
+                model=trace.model,
+                temperature_basis_points=trace.temperature_basis_points,
+                top_p_basis_points=trace.top_p_basis_points,
+                max_output_tokens=trace.max_output_tokens,
+                seed=trace.seed,
+                input_schema_version=trace.input_schema_version.value,
+                output_schema_version=trace.output_schema_version.value,
+                request_hash=trace.request_hash.value,
+                response_hash=None,
+                correlation_id=trace.correlation_id.value,
+                causation_id=trace.causation_id.value,
+                status=trace.status.value,
+                started_at=trace.started_at,
+                completed_at=None,
+                input_tokens=None,
+                output_tokens=None,
+                cached_input_tokens=None,
+                reasoning_tokens=None,
+                total_tokens=None,
+                cost_nanounits=None,
+                currency=None,
+                cost_source=None,
+                rate_card_version=None,
+                metering_unavailable_reason=None,
+                failure_code=None,
+                schema_version=trace.schema_version,
+            )
+        )
+        await AuditRepository(self._session).append(audit_event)
+        await self._session.flush()
+
+    async def finish(
+        self,
+        expected: ModelCallTrace,
+        completed: ModelCallTrace,
+        audit_event: AuditEvent,
+    ) -> None:
+        _validate_model_call_audit(
+            completed,
+            audit_event,
+            event_type="model.call_finished",
+            request_hash=model_call_trace_fingerprint(expected),
+            result_hash=model_call_trace_fingerprint(completed),
+        )
+        row = await self._session.scalar(
+            select(ModelCallTraceRow)
+            .where(
+                ModelCallTraceRow.tenant_id == expected.tenant_id.value,
+                ModelCallTraceRow.id == expected.id.value,
+            )
+            .with_for_update()
+        )
+        if row is None or _model_call_from_row(row) != expected:
+            raise InvalidDomainValueError("stale model call trace state")
+        reconstructed = replace(
+            completed,
+            status=ModelCallStatus.STARTED,
+            completed_at=None,
+            response_hash=None,
+            metering=None,
+            failure_code=None,
+        )
+        if reconstructed != expected:
+            raise InvalidDomainValueError("completed model call immutable metadata changed")
+        metering = cast(ModelMetering, completed.metering)
+        usage = metering.token_usage
+        cost = metering.cost
+        row.status = completed.status.value
+        row.completed_at = completed.completed_at
+        row.response_hash = completed.response_hash.value if completed.response_hash else None
+        row.failure_code = completed.failure_code
+        row.input_tokens = usage.input_tokens if usage else None
+        row.output_tokens = usage.output_tokens if usage else None
+        row.cached_input_tokens = usage.cached_input_tokens if usage else None
+        row.reasoning_tokens = usage.reasoning_tokens if usage else None
+        row.total_tokens = usage.total_tokens if usage else None
+        row.cost_nanounits = cost.amount_nanounits if cost else None
+        row.currency = cost.currency if cost else None
+        row.cost_source = cost.source.value if cost else None
+        row.rate_card_version = cost.rate_card_version.value if cost else None
+        row.metering_unavailable_reason = (
+            metering.unavailable_reason.value if metering.unavailable_reason else None
         )
         await AuditRepository(self._session).append(audit_event)
         await self._session.flush()

@@ -10,6 +10,11 @@ from .evidence_gate import (
     evidence_gate_input_snapshot,
     resolve_gate_evidence_references,
 )
+from .model_tracing import (
+    ModelCallTraceManager,
+    ModelCallTraceStore,
+    model_call_trace_fingerprint,
+)
 from .prompt_registry import PromptLifecycleChange, PromptLifecycleManager, PromptLifecycleStore
 from .tool_gateway import (
     AuditWriter,
@@ -29,6 +34,8 @@ __all__ = [
     "AuditWriter",
     "EvidenceReader",
     "EvidenceReferenceResolution",
+    "ModelCallTraceManager",
+    "ModelCallTraceStore",
     "PromptLifecycleChange",
     "PromptLifecycleManager",
     "PromptLifecycleStore",
@@ -47,5 +54,6 @@ __all__ = [
     "evidence_gate_decision_fingerprint",
     "evidence_gate_input_fingerprint",
     "evidence_gate_input_snapshot",
+    "model_call_trace_fingerprint",
     "resolve_gate_evidence_references",
 ]

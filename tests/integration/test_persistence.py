@@ -29,6 +29,7 @@ from testcontainers.community.postgres import PostgresContainer
 
 from agentops_incident_commander.application import (
     EvidenceReferenceResolution,
+    ModelCallTraceManager,
     PromptLifecycleChange,
     PromptLifecycleManager,
     ToolAdapterContext,
@@ -36,6 +37,7 @@ from agentops_incident_commander.application import (
     ToolGateway,
     evaluate_evidence_gate,
     evidence_gate_decision_fingerprint,
+    model_call_trace_fingerprint,
 )
 from agentops_incident_commander.apps.api import create_app
 from agentops_incident_commander.apps.config import ApiSettings
@@ -78,6 +80,13 @@ from agentops_incident_commander.domain import (
     JobId,
     JobLeaseError,
     JobStatus,
+    ModelCallId,
+    ModelCallStatus,
+    ModelCost,
+    ModelCostSource,
+    ModelMetering,
+    ModelMeteringUnavailableReason,
+    ModelTokenUsage,
     NormalizedQuery,
     OpaqueIdentifier,
     OptimisticVersionError,
@@ -137,6 +146,8 @@ from agentops_incident_commander.infrastructure.persistence import (
     IncidentTransitionRow,
     JobRepository,
     JobRow,
+    ModelCallTraceRepository,
+    ModelCallTraceRow,
     OutboxEventRow,
     OutboxRepository,
     PromptLifecycleEventRow,
@@ -182,7 +193,8 @@ async def engine(migrated_url: str) -> AsyncIterator[AsyncEngine]:
             text(
                 "TRUNCATE alerts, alert_groups, incident_cancellation_requests, "
                 "incident_transitions, evidence, idempotency_records, outbox_events, jobs, "
-                "evidence_gate_decisions, prompt_lifecycle_events, prompt_versions, "
+                "evidence_gate_decisions, model_call_traces, prompt_lifecycle_events, "
+                "prompt_versions, "
                 "incidents RESTART IDENTITY CASCADE"
             )
         )
@@ -362,6 +374,7 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "incident_memory_embeddings",
         "idempotency_records",
         "jobs",
+        "model_call_traces",
         "outbox_events",
         "prompt_lifecycle_events",
         "prompt_versions",
@@ -1897,3 +1910,264 @@ async def test_prompt_lifecycle_repository_commits_versions_transitions_and_audi
             )
             == 3
         )
+
+
+async def activate_prompt_for_model_call(
+    sessions: async_sessionmaker[AsyncSession],
+) -> PromptDefinition:
+    ids = count(1)
+    owner = Principal(ActorId("admin-model"), TenantId("tenant-1"), frozenset({Role.ADMIN}))
+    definition = prompt_definition("2.0.0", "Return evidence-linked candidates only.")
+    reference = PromptVersionReference(definition.prompt_id, definition.version)
+    regression = PromptRegressionEvaluation(
+        reference,
+        SemanticVersion("1.0.0"),
+        (PromptRegressionFixtureResult("trace-safe", True),),
+        NOW,
+    )
+    async with sessions.begin() as session:
+        await PromptLifecycleManager(
+            PromptLifecycleRepository(session),
+            clock=lambda: NOW,
+            id_factory=lambda: f"audit-model-prompt-{next(ids)}",
+        ).draft(
+            definition,
+            principal=owner,
+            correlation_id=CorrelationId("correlation-model"),
+            causation_id=CausationId("draft-model-prompt"),
+        )
+    async with sessions.begin() as session:
+        await PromptLifecycleManager(
+            PromptLifecycleRepository(session),
+            clock=lambda: NOW,
+            id_factory=lambda: f"audit-model-prompt-{next(ids)}",
+        ).evaluate(
+            regression,
+            principal=owner,
+            correlation_id=CorrelationId("correlation-model"),
+            causation_id=CausationId("evaluate-model-prompt"),
+        )
+    async with sessions.begin() as session:
+        return await PromptLifecycleManager(
+            PromptLifecycleRepository(session),
+            clock=lambda: NOW,
+            id_factory=lambda: f"audit-model-prompt-{next(ids)}",
+        ).promote(
+            reference,
+            principal=owner,
+            correlation_id=CorrelationId("correlation-model"),
+            causation_id=CausationId("promote-model-prompt"),
+        )
+
+
+@pytest.mark.anyio
+async def test_model_call_trace_repository_records_exact_metadata_and_atomic_audit(
+    engine: AsyncEngine,
+) -> None:
+    await add_incident(engine, "incident-model-call", tenant="tenant-1")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    prompt = await activate_prompt_for_model_call(sessions)
+    ids = count(1)
+    async with sessions.begin() as session:
+        started = await ModelCallTraceManager(
+            ModelCallTraceRepository(session),
+            clock=lambda: NOW + timedelta(minutes=1),
+            id_factory=lambda: f"model-trace-{next(ids)}",
+        ).start(
+            tenant_id=TenantId("tenant-1"),
+            incident_id=IncidentId("incident-model-call"),
+            workflow_run_id=WorkflowRunId("workflow-model-call"),
+            node="diagnosis.hypothesis",
+            attempt=1,
+            prompt=prompt,
+            request_hash=Sha256Digest("d" * 64),
+            actor_id=ActorId("diagnosis-worker"),
+            correlation_id=CorrelationId("correlation-model"),
+            causation_id=CausationId("node-model"),
+        )
+    exact_metering = ModelMetering(
+        ModelTokenUsage(100, 20, 10, 5, 120),
+        ModelCost(
+            12_345,
+            "USD",
+            ModelCostSource.RATE_CARD_CALCULATED,
+            SemanticVersion("1.0.0"),
+        ),
+    )
+    async with sessions.begin() as session:
+        completed = await ModelCallTraceManager(
+            ModelCallTraceRepository(session),
+            clock=lambda: NOW + timedelta(minutes=2),
+            id_factory=lambda: f"model-trace-{next(ids)}",
+        ).finish(
+            started,
+            status=ModelCallStatus.SUCCEEDED,
+            metering=exact_metering,
+            actor_id=ActorId("diagnosis-worker"),
+            response_hash=Sha256Digest("e" * 64),
+        )
+
+    async with sessions.begin() as session:
+        timed_out_started = await ModelCallTraceManager(
+            ModelCallTraceRepository(session),
+            clock=lambda: NOW + timedelta(minutes=3),
+            id_factory=lambda: f"model-trace-{next(ids)}",
+        ).start(
+            tenant_id=TenantId("tenant-1"),
+            incident_id=IncidentId("incident-model-call"),
+            workflow_run_id=WorkflowRunId("workflow-model-call"),
+            node="diagnosis.replan",
+            attempt=2,
+            prompt=prompt,
+            request_hash=Sha256Digest("f" * 64),
+            actor_id=ActorId("diagnosis-worker"),
+            correlation_id=CorrelationId("correlation-model"),
+            causation_id=CausationId("node-replan"),
+        )
+    unavailable = ModelMetering(
+        None,
+        None,
+        ModelMeteringUnavailableReason.CALL_FAILED_BEFORE_METERING,
+    )
+    async with sessions.begin() as session:
+        timed_out = await ModelCallTraceManager(
+            ModelCallTraceRepository(session),
+            clock=lambda: NOW + timedelta(minutes=4),
+            id_factory=lambda: f"model-trace-{next(ids)}",
+        ).finish(
+            timed_out_started,
+            status=ModelCallStatus.TIMED_OUT,
+            metering=unavailable,
+            actor_id=ActorId("diagnosis-worker"),
+            failure_code="provider_timeout",
+        )
+
+    async with sessions() as session:
+        repository = ModelCallTraceRepository(session)
+        assert await repository.get(TenantId("tenant-1"), started.id) == completed
+        assert await repository.get(TenantId("tenant-1"), timed_out_started.id) == timed_out
+        assert await repository.get(TenantId("tenant-2"), started.id) is None
+        row = await session.get(ModelCallTraceRow, started.id.value)
+        assert row is not None
+        assert row.input_tokens == 100
+        assert row.cost_nanounits == 12_345
+        assert row.request_hash == "d" * 64
+        assert row.response_hash == "e" * 64
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(AuditEventRow)
+                .where(AuditEventRow.event_type.like("model.call_%"))
+            )
+            == 4
+        )
+
+    forged = replace(started, id=ModelCallId("model-call-forged"), provider="other-provider")
+    forged_fingerprint = model_call_trace_fingerprint(forged)
+    forged_audit = AuditEvent(
+        id=AuditEventId("audit-model-forged"),
+        tenant_id=forged.tenant_id,
+        type="model.call_started",
+        event_version=1,
+        payload_schema_version="model_call/v1",
+        actor_id=ActorId("diagnosis-worker"),
+        correlation_id=forged.correlation_id,
+        causation_id=forged.causation_id,
+        target=AuditTarget("model.call", forged.id),
+        occurred_at=forged.started_at,
+        request_hash=forged_fingerprint,
+        result_hash=forged_fingerprint,
+    )
+    async with sessions.begin() as session:
+        with pytest.raises(InvalidDomainValueError, match="does not match"):
+            await ModelCallTraceRepository(session).start(forged, forged_audit)
+
+    async with sessions.begin() as session:
+        with pytest.raises(InvalidDomainValueError, match="audit event"):
+            await ModelCallTraceRepository(session).start(
+                forged,
+                replace(forged_audit, tenant_id=TenantId("tenant-2")),
+            )
+
+    unregistered = replace(
+        started,
+        id=ModelCallId("model-call-unregistered"),
+        prompt=PromptVersionReference(PromptId("missing-prompt"), SemanticVersion("1.0.0")),
+    )
+    unregistered_fingerprint = model_call_trace_fingerprint(unregistered)
+    unregistered_audit = replace(
+        forged_audit,
+        id=AuditEventId("audit-model-unregistered"),
+        target=AuditTarget("model.call", unregistered.id),
+        request_hash=unregistered_fingerprint,
+        result_hash=unregistered_fingerprint,
+    )
+    async with sessions.begin() as session:
+        with pytest.raises(InvalidDomainValueError, match="not registered"):
+            await ModelCallTraceRepository(session).start(unregistered, unregistered_audit)
+
+    async with sessions.begin() as session:
+        immutable_started = await ModelCallTraceManager(
+            ModelCallTraceRepository(session),
+            clock=lambda: NOW + timedelta(minutes=5),
+            id_factory=lambda: f"model-trace-{next(ids)}",
+        ).start(
+            tenant_id=TenantId("tenant-1"),
+            incident_id=IncidentId("incident-model-call"),
+            workflow_run_id=WorkflowRunId("workflow-model-call"),
+            node="diagnosis.final",
+            attempt=3,
+            prompt=prompt,
+            request_hash=Sha256Digest("1" * 64),
+            actor_id=ActorId("diagnosis-worker"),
+            correlation_id=CorrelationId("correlation-model"),
+            causation_id=CausationId("node-final"),
+        )
+    changed_completion = replace(
+        immutable_started.finish(
+            status=ModelCallStatus.SUCCEEDED,
+            completed_at=NOW + timedelta(minutes=6),
+            metering=exact_metering,
+            response_hash=Sha256Digest("2" * 64),
+        ),
+        model="changed-model",
+    )
+    changed_audit = AuditEvent(
+        id=AuditEventId("audit-model-changed"),
+        tenant_id=changed_completion.tenant_id,
+        type="model.call_finished",
+        event_version=1,
+        payload_schema_version="model_call/v1",
+        actor_id=ActorId("diagnosis-worker"),
+        correlation_id=changed_completion.correlation_id,
+        causation_id=changed_completion.causation_id,
+        target=AuditTarget("model.call", changed_completion.id),
+        occurred_at=changed_completion.completed_at or NOW,
+        request_hash=model_call_trace_fingerprint(immutable_started),
+        result_hash=model_call_trace_fingerprint(changed_completion),
+    )
+    async with sessions.begin() as session:
+        with pytest.raises(InvalidDomainValueError, match="immutable metadata"):
+            await ModelCallTraceRepository(session).finish(
+                immutable_started,
+                changed_completion,
+                changed_audit,
+            )
+
+    async with sessions.begin() as session:
+        with pytest.raises(InvalidDomainValueError, match="stale model call"):
+            await ModelCallTraceManager(
+                ModelCallTraceRepository(session),
+                clock=lambda: NOW + timedelta(minutes=3),
+                id_factory=lambda: f"model-trace-{next(ids)}",
+            ).finish(
+                started,
+                status=ModelCallStatus.TIMED_OUT,
+                metering=ModelMetering(
+                    None,
+                    None,
+                    ModelMeteringUnavailableReason.CALL_FAILED_BEFORE_METERING,
+                ),
+                actor_id=ActorId("diagnosis-worker"),
+                failure_code="provider_timeout",
+            )

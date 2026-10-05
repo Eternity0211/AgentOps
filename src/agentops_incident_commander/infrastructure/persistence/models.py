@@ -27,6 +27,9 @@ from agentops_incident_commander.domain import (
     EvidenceGateOutcome,
     EvidenceSourceType,
     IncidentState,
+    ModelCallStatus,
+    ModelCostSource,
+    ModelMeteringUnavailableReason,
     PromptInjectionStatus,
     PromptLifecycleStatus,
     PromptPurpose,
@@ -41,6 +44,9 @@ _INJECTION_STATES = ", ".join(f"'{value.value}'" for value in PromptInjectionSta
 _GATE_OUTCOMES = ", ".join(f"'{value.value}'" for value in EvidenceGateOutcome)
 _PROMPT_PURPOSES = ", ".join(f"'{value.value}'" for value in PromptPurpose)
 _PROMPT_STATUSES = ", ".join(f"'{value.value}'" for value in PromptLifecycleStatus)
+_MODEL_CALL_STATUSES = ", ".join(f"'{value.value}'" for value in ModelCallStatus)
+_MODEL_COST_SOURCES = ", ".join(f"'{value.value}'" for value in ModelCostSource)
+_METERING_UNAVAILABLE = ", ".join(f"'{value.value}'" for value in ModelMeteringUnavailableReason)
 
 
 class Base(DeclarativeBase):
@@ -414,6 +420,105 @@ class PromptLifecycleEventRow(Base):
     regression_evaluation: Mapped[dict[str, object] | None] = mapped_column(JSONB)
     audit_event_id: Mapped[str] = mapped_column(String(128), nullable=False)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ModelCallTraceRow(Base):
+    """Content-free attempted model call and exact terminal metering metadata."""
+
+    __tablename__ = "model_call_traces"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["incident_id", "tenant_id"],
+            ["incidents.id", "incidents.tenant_id"],
+            name="fk_model_calls_incident_tenant",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "prompt_id", "prompt_version"],
+            ["prompt_versions.tenant_id", "prompt_versions.prompt_id", "prompt_versions.version"],
+            name="fk_model_calls_prompt_version",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(f"status IN ({_MODEL_CALL_STATUSES})", name="ck_model_calls_status"),
+        CheckConstraint("attempt >= 1", name="ck_model_calls_attempt"),
+        CheckConstraint(
+            "prompt_fingerprint ~ '^[0-9a-f]{64}$' AND request_hash ~ '^[0-9a-f]{64}$' "
+            "AND (response_hash IS NULL OR response_hash ~ '^[0-9a-f]{64}$')",
+            name="ck_model_calls_hashes",
+        ),
+        CheckConstraint(
+            "temperature_basis_points BETWEEN 0 AND 20000 "
+            "AND top_p_basis_points BETWEEN 1 AND 10000 "
+            "AND max_output_tokens BETWEEN 1 AND 32768",
+            name="ck_model_calls_settings",
+        ),
+        CheckConstraint(
+            "(status = 'STARTED' AND completed_at IS NULL AND response_hash IS NULL "
+            "AND failure_code IS NULL) OR "
+            "(status = 'SUCCEEDED' AND completed_at >= started_at AND response_hash IS NOT NULL "
+            "AND failure_code IS NULL) OR "
+            "(status IN ('FAILED', 'TIMED_OUT', 'REFUSED') AND completed_at >= started_at "
+            "AND failure_code IS NOT NULL)",
+            name="ck_model_calls_completion",
+        ),
+        CheckConstraint(
+            "(status = 'STARTED' AND input_tokens IS NULL AND output_tokens IS NULL "
+            "AND cached_input_tokens IS NULL AND reasoning_tokens IS NULL "
+            "AND total_tokens IS NULL AND cost_nanounits IS NULL AND currency IS NULL "
+            "AND cost_source IS NULL AND rate_card_version IS NULL "
+            "AND metering_unavailable_reason IS NULL) OR "
+            "(status <> 'STARTED' AND ((input_tokens >= 0 AND output_tokens >= 0 "
+            "AND cached_input_tokens BETWEEN 0 AND input_tokens "
+            "AND reasoning_tokens BETWEEN 0 AND output_tokens "
+            "AND total_tokens = input_tokens + output_tokens AND cost_nanounits >= 0 "
+            f"AND currency ~ '^[A-Z]{{3}}$' AND cost_source IN ({_MODEL_COST_SOURCES}) "
+            "AND rate_card_version IS NOT NULL AND metering_unavailable_reason IS NULL) OR "
+            "(input_tokens IS NULL AND output_tokens IS NULL AND cached_input_tokens IS NULL "
+            "AND reasoning_tokens IS NULL AND total_tokens IS NULL AND cost_nanounits IS NULL "
+            "AND currency IS NULL AND cost_source IS NULL AND rate_card_version IS NULL "
+            f"AND metering_unavailable_reason IN ({_METERING_UNAVAILABLE}))))",
+            name="ck_model_calls_metering",
+        ),
+        Index("ix_model_calls_incident_time", "tenant_id", "incident_id", "started_at", "id"),
+        Index("ix_model_calls_workflow", "tenant_id", "workflow_run_id", "started_at", "id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    incident_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    workflow_run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    node: Mapped[str] = mapped_column(String(128), nullable=False)
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False)
+    prompt_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    prompt_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    provider: Mapped[str] = mapped_column(String(128), nullable=False)
+    model: Mapped[str] = mapped_column(String(128), nullable=False)
+    temperature_basis_points: Mapped[int] = mapped_column(Integer, nullable=False)
+    top_p_basis_points: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_output_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    seed: Mapped[int | None] = mapped_column(Integer)
+    input_schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    output_schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    response_hash: Mapped[str | None] = mapped_column(String(64))
+    correlation_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    causation_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    input_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    output_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    cached_input_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    reasoning_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    total_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    cost_nanounits: Mapped[int | None] = mapped_column(BigInteger)
+    currency: Mapped[str | None] = mapped_column(String(3))
+    cost_source: Mapped[str | None] = mapped_column(String(32))
+    rate_card_version: Mapped[str | None] = mapped_column(String(64))
+    metering_unavailable_reason: Mapped[str | None] = mapped_column(String(64))
+    failure_code: Mapped[str | None] = mapped_column(String(128))
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
 class IdempotencyRecordRow(Base):

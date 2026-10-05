@@ -33,6 +33,7 @@ flowchart LR
 | Domain | incident states, evidence/policy/action contracts and invariants | depend on FastAPI, ORM, or model SDKs |
 | Evidence | normalize, redact, hash, persist, expire, resolve artifacts | infer root cause |
 | Tool Gateway | validate versioned calls, enforce permission/risk/timeout/retry/idempotency, audit | expose arbitrary shell/network capabilities |
+| Model tracing | bind calls to active Prompt versions, record hash-only start/outcome and exact metering | store Prompt/context/response bodies or grant execution authority |
 | Policy/Approval | deterministic risk decisions and proposal-bound approvals | trust client-side checks |
 | Executor | allowlisted idempotent mutation with locks and snapshots | accept free-form commands |
 | Verifier/Compensation | determine observed recovery and, only for future explicitly reversible actions, verify authorized compensation | accept LLM success claims or infer that every action has a safe inverse |

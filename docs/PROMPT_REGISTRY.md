@@ -36,7 +36,10 @@ operation. Request and result hashes contain Prompt fingerprints/statuses and bo
 results, not Prompt content. `PromptLifecycleRepository` now implements that store port with row
 locks, immutable content fields, a database-enforced single-active-version index, versioned
 regression snapshots, lifecycle history, and audit append in the caller transaction. Production
-model invocation remains disabled. No inline Prompt is approved by these contracts.
+model invocation remains disabled. No inline Prompt is approved by these contracts. The
+content-free [model-call trace contract](MODEL_CALL_TRACING.md) independently resolves the active
+stored Prompt and binds every future provider attempt to its exact fingerprint, settings, and
+schemas.
 
 ## Verification
 

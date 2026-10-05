@@ -25,8 +25,9 @@ that it is the single active `DIAGNOSIS` registration before control handling or
 unregistered, stale, non-active, wrong-purpose, or fingerprint-mismatched references fail closed.
 
 Phase 7 now includes the immutable confirmed Incident-memory projection and its transactionally
-bound, versioned [pgvector index](docs/INCIDENT_MEMORY.md). Similarity retrieval remains disabled
-until its tenant and authorization boundary is implemented.
+bound, versioned [pgvector index](docs/INCIDENT_MEMORY.md), plus authorized same-tenant similarity
+retrieval with explicit freshness and leakage controls. The Tool Gateway adapter remains disabled
+until the next Phase 7 batch binds current-Incident query vectors to this retrieval boundary.
 Only authoritative closed Incidents can enter it; source Evidence, Diagnosis Report, Evidence Gate,
 confirmation, outcome, trust, and content fingerprint metadata remain bound. Its trust is always
 `HISTORICAL_REFERENCE`, so old incidents remain advisory and cannot satisfy current Evidence Gate

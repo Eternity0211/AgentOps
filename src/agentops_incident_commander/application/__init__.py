@@ -19,6 +19,7 @@ from .memory_indexing import (
     IncidentMemoryIndexer,
     IncidentMemoryIndexStore,
 )
+from .memory_retrieval import IncidentMemorySearchStore, SimilarIncidentRetriever
 from .model_tracing import (
     ModelCallTraceManager,
     ModelCallTraceStore,
@@ -60,6 +61,7 @@ __all__ = [
     "IncidentMemoryEmbedder",
     "IncidentMemoryIndexStore",
     "IncidentMemoryIndexer",
+    "IncidentMemorySearchStore",
     "ModelCallTraceManager",
     "ModelCallTraceStore",
     "PlanningBudgets",
@@ -68,6 +70,7 @@ __all__ = [
     "PromptLifecycleManager",
     "PromptLifecycleStore",
     "ProposedToolCall",
+    "SimilarIncidentRetriever",
     "ToolAdapter",
     "ToolAdapterContext",
     "ToolAdapterFailure",

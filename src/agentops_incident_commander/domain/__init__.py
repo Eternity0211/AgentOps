@@ -147,7 +147,11 @@ from .log_patterns import (
 )
 from .memory_embeddings import (
     MAX_EMBEDDING_DIMENSIONS,
+    MAX_MEMORY_LOOKBACK,
+    MAX_SIMILAR_INCIDENT_RESULTS,
     IncidentMemoryEmbedding,
+    IncidentMemorySearchQuery,
+    SimilarIncidentReference,
 )
 from .metric_trends import (
     MAX_METRIC_LABELS,
@@ -290,6 +294,7 @@ __all__ = [
     "MAX_INCIDENT_MEMORY_EVIDENCE",
     "MAX_INCIDENT_MEMORY_TEXT",
     "MAX_LOG_EVENTS",
+    "MAX_MEMORY_LOOKBACK",
     "MAX_METRIC_LABELS",
     "MAX_METRIC_POINTS",
     "MAX_MODEL_COST_NANOUNITS",
@@ -304,6 +309,7 @@ __all__ = [
     "MAX_REDACTION_DEPTH",
     "MAX_REDACTION_NODES",
     "MAX_REDACTION_TEXT",
+    "MAX_SIMILAR_INCIDENT_RESULTS",
     "MAX_TELEMETRY_TEXT",
     "MAX_TOOL_ATTEMPTS",
     "MAX_TOOL_RESULT_BYTES",
@@ -385,6 +391,7 @@ __all__ = [
     "IncidentMemoryId",
     "IncidentMemoryOutcome",
     "IncidentMemoryProjection",
+    "IncidentMemorySearchQuery",
     "IncidentSeverity",
     "IncidentState",
     "IncidentTransition",
@@ -455,6 +462,7 @@ __all__ = [
     "RootCauseEvidenceClaim",
     "SemanticVersion",
     "Sha256Digest",
+    "SimilarIncidentReference",
     "StoredAuditEvent",
     "TelemetrySafetyEnvelope",
     "TenantId",

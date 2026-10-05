@@ -33,6 +33,7 @@ from agentops_incident_commander.domain import (
     AuditEvent,
     AuditEventId,
     AuditTarget,
+    AuthorizationError,
     CausationId,
     CorrelationId,
     Evidence,
@@ -53,6 +54,7 @@ from agentops_incident_commander.domain import (
     IncidentMemoryId,
     IncidentMemoryOutcome,
     IncidentMemoryProjection,
+    IncidentMemorySearchQuery,
     IncidentSeverity,
     IncidentState,
     InvalidDomainValueError,
@@ -92,6 +94,7 @@ from agentops_incident_commander.domain import (
     RootCauseEvidenceClaim,
     SemanticVersion,
     Sha256Digest,
+    SimilarIncidentReference,
     StoredAuditEvent,
     TenantId,
     ToolCallId,
@@ -1519,6 +1522,71 @@ class IncidentMemoryRepository:
         self._session.add(row)
         await self._session.flush()
         return _memory_embedding_from_row(row, projection)
+
+    async def search(
+        self, query: IncidentMemorySearchQuery
+    ) -> tuple[SimilarIncidentReference, ...]:
+        """Return fresh compatible vectors only within the current Incident's tenant."""
+        current = await self._session.scalar(
+            select(IncidentRow.id).where(
+                IncidentRow.id == query.current_incident_id.value,
+                IncidentRow.tenant_id == query.tenant_id.value,
+            )
+        )
+        if current is None:
+            raise AuthorizationError("current Incident is not available in the requested tenant")
+
+        distance = IncidentMemoryEmbeddingRow.embedding.cosine_distance(list(query.vector))
+        rows = (
+            await self._session.execute(
+                select(IncidentMemoryProjectionRow, distance.label("distance"))
+                .join(
+                    IncidentMemoryEmbeddingRow,
+                    IncidentMemoryEmbeddingRow.incident_id
+                    == IncidentMemoryProjectionRow.source_incident_id,
+                )
+                .where(
+                    IncidentMemoryProjectionRow.tenant_id == query.tenant_id.value,
+                    IncidentMemoryProjectionRow.source_incident_id
+                    != query.current_incident_id.value,
+                    IncidentMemoryProjectionRow.closed_at >= query.freshness_cutoff,
+                    IncidentMemoryProjectionRow.closed_at <= query.requested_at,
+                    IncidentMemoryProjectionRow.projected_at <= query.requested_at,
+                    IncidentMemoryEmbeddingRow.reindex_required.is_(False),
+                    IncidentMemoryEmbeddingRow.provider == query.provider,
+                    IncidentMemoryEmbeddingRow.model == query.model,
+                    IncidentMemoryEmbeddingRow.model_version == query.model_version,
+                    IncidentMemoryEmbeddingRow.content_schema_version
+                    == query.content_schema_version,
+                    IncidentMemoryEmbeddingRow.normalization_version == query.normalization_version,
+                    IncidentMemoryEmbeddingRow.dimensions == query.dimensions,
+                    distance >= 0.0,
+                    distance <= 1.0,
+                )
+                .order_by(
+                    distance.asc(),
+                    IncidentMemoryProjectionRow.closed_at.desc(),
+                    IncidentMemoryProjectionRow.source_incident_id.asc(),
+                )
+                .limit(query.max_results)
+            )
+        ).all()
+        results: list[SimilarIncidentReference] = []
+        for raw_row, raw_distance in rows:
+            row = cast(IncidentMemoryProjectionRow, raw_row)
+            row_distance = cast(float, raw_distance)
+            results.append(
+                SimilarIncidentReference(
+                    incident_id=IncidentId(row.source_incident_id),
+                    service=row.service,
+                    root_cause_summary=row.root_cause_summary,
+                    outcome=row.outcome,
+                    outcome_summary=row.outcome_summary,
+                    closed_at=row.closed_at,
+                    similarity=1.0 - row_distance,
+                )
+            )
+        return tuple(results)
 
 
 def _alert_row(alert: Alert, group_id: AlertGroupId) -> AlertRow:

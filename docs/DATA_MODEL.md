@@ -44,6 +44,8 @@ This is the conceptual model. SQLAlchemy/Alembic implementation must preserve th
 - Enforce unique idempotency scope at the database level.
 - Audit rows are append-only to the application role; corrections are compensating events.
 - Embeddings retain source/version metadata and never erase the authoritative textual reference.
+- Similarity lookup verifies current-Incident ownership, tenant, freshness, active vector identity,
+  dimensions, and a bounded result count; returned references omit vectors and internal lineage.
 - Retention and expiry do not silently delete audit integrity metadata.
 - Artifact locators are server-generated rather than client paths. Retrieval revalidates tenant,
   Incident ownership, permission, expiry, byte size, and content hash. The development backend and

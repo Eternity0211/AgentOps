@@ -56,6 +56,21 @@ whose Incident and source hash do not resolve to that projection. Exact model-id
 idempotent. A new model or normalization identity inserts a new vector and explicitly marks prior
 vectors for that Incident `reindex_required`; version identities are never silently overwritten.
 
-These records remain `HISTORICAL_REFERENCE`. Similarity retrieval and the enabled
-`search_similar_incidents` adapter remain separate Phase 7 batches, so this change grants no search
-or Evidence Gate authority.
+## Scoped similarity retrieval
+
+`SimilarIncidentRetriever` requires `EVIDENCE_READ` for the query tenant before storage access.
+The PostgreSQL repository independently verifies that the current Incident belongs to that tenant,
+then performs pgvector cosine search only across that tenant's authoritative projections. It
+excludes the current Incident, future and out-of-window closures/projections, vectors marked for
+reindex, incompatible provider/model/model-version/schema/normalization identities, dimension
+mismatches, and negative similarity. Result counts are capped at 20 and ordered by distance,
+closure time, then stable Incident ID.
+
+The result type exposes only the historical Incident ID, service, bounded confirmed root-cause and
+outcome summaries, closure time, similarity, and an invariant historical-only marker. It omits
+tenant IDs, vectors, Evidence IDs/content, Diagnosis/Gate fingerprints, confirmation references,
+and recovery-action references. Cross-tenant lookup fails without revealing whether memory exists.
+
+These records remain `HISTORICAL_REFERENCE` and cannot satisfy current Evidence Gate facts. The
+enabled `search_similar_incidents` adapter remains the next Phase 7 batch; scoped storage retrieval
+alone does not grant model or Tool Gateway access.

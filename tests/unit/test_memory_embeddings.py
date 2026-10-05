@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import math
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 import pytest
 
-from agentops_incident_commander.application import IncidentMemoryIndexer
+from agentops_incident_commander.application import IncidentMemoryIndexer, SimilarIncidentRetriever
 from agentops_incident_commander.domain import (
+    ActorId,
     AggregateVersion,
+    AuthenticationError,
+    AuthorizationError,
     EvidenceId,
     Incident,
     IncidentId,
@@ -19,11 +22,15 @@ from agentops_incident_commander.domain import (
     IncidentMemoryId,
     IncidentMemoryOutcome,
     IncidentMemoryProjection,
+    IncidentMemorySearchQuery,
     IncidentSeverity,
     IncidentState,
     InvalidDomainValueError,
     OpaqueIdentifier,
+    Principal,
+    Role,
     Sha256Digest,
+    SimilarIncidentReference,
     TenantId,
 )
 from agentops_incident_commander.infrastructure import DeterministicIncidentMemoryEmbedder
@@ -106,6 +113,8 @@ def test_embedding_retains_complete_reproducibility_identity() -> None:
         ({"vector": (1,)}, "vector"),
         ({"vector": (float("inf"),)}, "vector"),
         ({"vector": (float("nan"),)}, "vector"),
+        ({"vector": (0.0, 0.0)}, "vector"),
+        ({"vector": (0.1,) * 16_001}, "vector"),
         ({"reindex_required": cast(bool, 1)}, "reindex flag"),
     ],
 )
@@ -178,3 +187,116 @@ def test_embedding_is_frozen() -> None:
     value = embedding()
     with pytest.raises(AttributeError):
         value.model = "changed"  # type: ignore[misc]
+
+
+def search_query(**overrides: Any) -> IncidentMemorySearchQuery:
+    values: dict[str, object] = {
+        "tenant_id": TenantId("tenant-1"),
+        "current_incident_id": IncidentId("incident-current"),
+        "provider": "agentops-mock",
+        "model": "deterministic-sha256",
+        "model_version": "1.0.0",
+        "content_schema_version": "1.0.0",
+        "normalization_version": "l2-v1",
+        "vector": (0.6, 0.8),
+        "max_results": 5,
+        "requested_at": NOW,
+        "max_age": timedelta(days=30),
+    }
+    values.update(overrides)
+    return IncidentMemorySearchQuery(**values)  # type: ignore[arg-type]
+
+
+def test_search_query_exposes_bounded_scope_and_freshness() -> None:
+    query = search_query()
+    assert query.dimensions == 2
+    assert query.freshness_cutoff == NOW - timedelta(days=30)
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"tenant_id": cast(TenantId, "tenant-1")}, "scope"),
+        ({"current_incident_id": cast(IncidentId, "incident-1")}, "scope"),
+        ({"provider": "bad provider"}, "provider"),
+        ({"vector": (0.0,)}, "vector"),
+        ({"max_results": 0}, "result limit"),
+        ({"max_results": 21}, "result limit"),
+        ({"max_results": True}, "result limit"),
+        ({"max_age": timedelta(0)}, "freshness"),
+        ({"max_age": timedelta(days=3651)}, "freshness"),
+        ({"max_age": cast(timedelta, 1)}, "freshness"),
+    ],
+)
+def test_search_query_rejects_unsafe_scope_or_bounds(
+    overrides: dict[str, object], message: str
+) -> None:
+    with pytest.raises(InvalidDomainValueError, match=message):
+        search_query(**overrides)
+
+
+def reference(**overrides: Any) -> SimilarIncidentReference:
+    values: dict[str, object] = {
+        "incident_id": IncidentId("incident-old"),
+        "service": "orders",
+        "root_cause_summary": "Connection pool exhaustion",
+        "outcome": "RECOVERED",
+        "outcome_summary": "Rollback stabilized the service",
+        "closed_at": NOW,
+        "similarity": 0.75,
+    }
+    values.update(overrides)
+    return SimilarIncidentReference(**values)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"incident_id": cast(IncidentId, "incident-old")}, "identity"),
+        ({"service": ""}, "summary"),
+        ({"root_cause_summary": cast(str, 1)}, "summary"),
+        ({"outcome": ""}, "summary"),
+        ({"outcome_summary": ""}, "summary"),
+        ({"similarity": cast(float, 1)}, "score"),
+        ({"similarity": float("nan")}, "score"),
+        ({"similarity": -0.1}, "score"),
+        ({"similarity": 1.1}, "score"),
+        ({"historical_reference_only": False}, "historical reference"),
+    ],
+)
+def test_similar_reference_rejects_authority_or_unbounded_fields(
+    overrides: dict[str, object], message: str
+) -> None:
+    with pytest.raises(InvalidDomainValueError, match=message):
+        reference(**overrides)
+
+
+class SearchStore:
+    def __init__(self) -> None:
+        self.queries: list[IncidentMemorySearchQuery] = []
+
+    async def search(
+        self, query: IncidentMemorySearchQuery
+    ) -> tuple[SimilarIncidentReference, ...]:
+        self.queries.append(query)
+        return (reference(),)
+
+
+@pytest.mark.anyio
+async def test_retriever_authorizes_tenant_before_search() -> None:
+    store = SearchStore()
+    retriever = SimilarIncidentRetriever(store)
+    query = search_query()
+    viewer = Principal(ActorId("viewer-1"), query.tenant_id, frozenset({Role.VIEWER}))
+
+    assert await retriever.search(viewer, query) == (reference(),)
+    assert store.queries == [query]
+
+    with pytest.raises(AuthenticationError):
+        await retriever.search(None, query)
+    with pytest.raises(AuthorizationError):
+        await retriever.search(
+            Principal(ActorId("viewer-2"), TenantId("tenant-2"), frozenset({Role.VIEWER})),
+            query,
+        )
+    assert store.queries == [query]

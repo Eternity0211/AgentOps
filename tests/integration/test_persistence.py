@@ -32,6 +32,7 @@ from agentops_incident_commander.application import (
     ModelCallTraceManager,
     PromptLifecycleChange,
     PromptLifecycleManager,
+    SimilarIncidentRetriever,
     ToolAdapterContext,
     ToolCallRequest,
     ToolGateway,
@@ -55,6 +56,7 @@ from agentops_incident_commander.domain import (
     AuditEvent,
     AuditEventId,
     AuditTarget,
+    AuthorizationError,
     CausationId,
     CorrelationId,
     EventMetadata,
@@ -73,9 +75,11 @@ from agentops_incident_commander.domain import (
     IncidentChange,
     IncidentId,
     IncidentMemoryConfirmationSource,
+    IncidentMemoryEmbedding,
     IncidentMemoryId,
     IncidentMemoryOutcome,
     IncidentMemoryProjection,
+    IncidentMemorySearchQuery,
     IncidentSeverity,
     IncidentState,
     InvalidDomainValueError,
@@ -1603,6 +1607,136 @@ async def test_embedding_metadata_retains_versions_and_enforces_vector_dimension
         )
         with pytest.raises(DBAPIError, match="authoritative memory projection"):
             await session.flush()
+
+
+@pytest.mark.anyio
+async def test_similar_incident_retrieval_is_tenant_fresh_versioned_and_minimal(
+    engine: AsyncEngine,
+) -> None:
+    """Similarity lookup hides stale, self, incompatible, and cross-tenant memories."""
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    requested_at = NOW + timedelta(days=60)
+
+    def memory(
+        incident_id: str,
+        *,
+        tenant: str = "tenant-1",
+        age_days: int = 2,
+        vector: tuple[float, ...] = (1.0, 0.0),
+        model_version: str = "1.0.0",
+    ) -> tuple[Incident, IncidentMemoryProjection, IncidentMemoryEmbedding]:
+        closed_at = requested_at - timedelta(days=age_days)
+        incident = Incident(
+            id=IncidentId(incident_id),
+            tenant_id=TenantId(tenant),
+            severity=IncidentSeverity.SEV3,
+            opened_at=closed_at - timedelta(hours=1),
+            updated_at=closed_at,
+            state=IncidentState.CLOSED,
+            version=AggregateVersion(4),
+            closed_at=closed_at,
+        )
+        item = IncidentMemoryProjection.create(
+            memory_id=IncidentMemoryId(f"memory-{incident_id}"),
+            incident=incident,
+            service="orders",
+            root_cause_summary=f"Confirmed cause for {incident_id}",
+            outcome=IncidentMemoryOutcome.RECOVERED,
+            outcome_summary="Recovery passed deterministic verification.",
+            source_evidence_ids=(EvidenceId(f"evidence-{incident_id}"),),
+            diagnosis_report_fingerprint=Sha256Digest("a" * 64),
+            evidence_gate_decision_fingerprint=Sha256Digest("b" * 64),
+            confirmation_source=IncidentMemoryConfirmationSource.DETERMINISTIC_VERIFIER,
+            confirmation_reference=OpaqueIdentifier(f"verify-{incident_id}"),
+            recovery_action_reference=OpaqueIdentifier(f"action-{incident_id}"),
+            projected_at=closed_at + timedelta(minutes=1),
+        )
+        embedding = IncidentMemoryEmbedding(
+            id=OpaqueIdentifier(f"embedding-{incident_id}"),
+            tenant_id=incident.tenant_id,
+            memory_id=item.id,
+            incident_id=incident.id,
+            source_content_fingerprint=item.content_fingerprint,
+            provider="agentops-mock",
+            model="deterministic-sha256",
+            model_version=model_version,
+            content_schema_version=item.schema_version,
+            normalization_version="l2-v1",
+            vector=vector,
+            created_at=closed_at + timedelta(minutes=2),
+        )
+        return incident, item, embedding
+
+    records = (
+        memory("incident-current"),
+        memory("incident-similar-a"),
+        memory("incident-similar-b", vector=(0.8, 0.6)),
+        memory("incident-reindexed", vector=(0.9, 0.435889894)),
+        memory("incident-stale", age_days=31),
+        memory("incident-other-tenant", tenant="tenant-2"),
+        memory("incident-old-model", model_version="0.9.0"),
+    )
+    async with sessions.begin() as session:
+        repository = IncidentMemoryRepository(session)
+        for incident, item, embedding in records:
+            await IncidentRepository(session).add(incident)
+            await repository.store(item, embedding)
+            if incident.id == IncidentId("incident-reindexed"):
+                await repository.store(
+                    item,
+                    replace(
+                        embedding,
+                        id=OpaqueIdentifier("embedding-incident-reindexed-v2"),
+                        model_version="2.0.0",
+                    ),
+                )
+
+    query = IncidentMemorySearchQuery(
+        tenant_id=TenantId("tenant-1"),
+        current_incident_id=IncidentId("incident-current"),
+        provider="agentops-mock",
+        model="deterministic-sha256",
+        model_version="1.0.0",
+        content_schema_version="1.0.0",
+        normalization_version="l2-v1",
+        vector=(1.0, 0.0),
+        max_results=3,
+        requested_at=requested_at,
+        max_age=timedelta(days=30),
+    )
+    viewer = Principal(ActorId("viewer-memory"), TenantId("tenant-1"), frozenset({Role.VIEWER}))
+    async with sessions() as session:
+        results = await SimilarIncidentRetriever(IncidentMemoryRepository(session)).search(
+            viewer, query
+        )
+
+    assert [result.incident_id.value for result in results] == [
+        "incident-similar-a",
+        "incident-similar-b",
+    ]
+    assert [result.similarity for result in results] == pytest.approx([1.0, 0.8])
+    assert all(result.historical_reference_only for result in results)
+    assert results[0].root_cause_summary == "Confirmed cause for incident-similar-a"
+    assert not hasattr(results[0], "tenant_id")
+    assert not hasattr(results[0], "source_evidence_ids")
+
+    async with sessions() as session:
+        with pytest.raises(AuthorizationError, match="not available"):
+            await IncidentMemoryRepository(session).search(
+                replace(
+                    query,
+                    current_incident_id=IncidentId("incident-other-tenant"),
+                )
+            )
+        with pytest.raises(AuthorizationError, match="another tenant"):
+            await SimilarIncidentRetriever(IncidentMemoryRepository(session)).search(
+                Principal(
+                    ActorId("viewer-other"),
+                    TenantId("tenant-2"),
+                    frozenset({Role.VIEWER}),
+                ),
+                query,
+            )
 
 
 def evidence_artifact(*, tenant: str = "tenant-1", incident: str = "incident-evidence") -> Artifact:

@@ -126,8 +126,15 @@ trigger requires every vector's Incident and source hash to resolve to that proj
 for writes outside the repository. Exact generation replay returns the stored row; generation with
 a new provider/model/model-version/schema/normalization identity marks prior vectors for the
 Incident `reindex_required` before inserting the replacement. The bundled deterministic generator
-supports mock-model and test operation without credentials. Similarity search is still disabled,
-and historical memory remains reference-only rather than current Evidence.
+supports mock-model and test operation without credentials. Tool Gateway similarity access remains
+disabled, and historical memory remains reference-only rather than current Evidence.
+
+The Phase 7 retrieval repository accepts a typed, tenant-bound query vector and verifies current
+Incident ownership before issuing cosine search. It filters by closure freshness, projection time,
+active reindex state, complete embedding identity, dimensions, and non-negative similarity; it
+excludes the current Incident and applies a database result limit. Stable tie ordering and a
+minimal reference-only result type prevent vectors, Evidence references, internal fingerprints,
+confirmation/action references, tenant identifiers, or cross-tenant counts from leaving storage.
 
 ## Append-only audit ledger
 

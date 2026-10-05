@@ -17,8 +17,10 @@ strictly serialized, thread/run-correlated history and restore. Every Diagnosis 
 durable pre-effect pause/resume, safe-boundary cancellation, and stable operation identities for
 exact effect replay. A checkpoint-aware runner now distinguishes new work from continuation,
 survives worker replacement at every durable Diagnosis boundary, and exposes bounded content-free
-checkpoint observations. Deterministic mock-model and production service composition remain later
-Phase 6 batches.
+checkpoint observations. The credential-free [deterministic mock model](docs/MOCK_MODEL.md) now
+supplies versioned valid, malformed, timeout, refusal, fabricated-reference, and
+injection-resistant fixtures; production service composition and provider invocation remain
+disabled.
 
 ## Why this project exists
 
@@ -170,6 +172,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Deterministic Evidence Gate](docs/EVIDENCE_GATE.md)
 - [Versioned Prompt Registry](docs/PROMPT_REGISTRY.md)
 - [Content-free model-call tracing](docs/MODEL_CALL_TRACING.md)
+- [Deterministic Diagnosis mock model](docs/MOCK_MODEL.md)
 - [Versioned Diagnosis graph state](docs/GRAPH_STATE.md)
 - [Diagnosis Agent structured schemas](docs/DIAGNOSIS_SCHEMAS.md)
 - [Deterministic diagnosis-plan compilation](docs/DIAGNOSIS_PLANNING.md)

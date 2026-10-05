@@ -27,3 +27,8 @@ Both models are frozen, strict, and reject extra fields. Tests cover bounds, uns
 duplicate and crossed references, invalid dependency graphs, rank/identity consistency, all
 non-candidate dispositions, explicit counter-evidence handling, unknown fields, and exact Gate
 claim conversion.
+
+The credential-free [deterministic mock model](MOCK_MODEL.md) exercises both schemas with valid,
+malformed, timeout, refusal, fabricated-reference, and injection-resistant scenarios. A fabricated
+reference can satisfy syntax but remains unable to pass Evidence resolution or the deterministic
+Gate.

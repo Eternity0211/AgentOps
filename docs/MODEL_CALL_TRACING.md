@@ -39,8 +39,9 @@ transactions as their corresponding trace state. Their request/result hashes bin
 metadata, never model content. Row locks and an exact expected-state comparison reject duplicate or
 stale completion.
 
-Production provider invocation remains disabled until the Diagnosis graph and mock/provider
-adapters are implemented. Those adapters must use this start/finish port; they may not create an
+The credential-free deterministic mock adapter is implemented for schema, workflow, and failure
+fixtures. Production provider invocation remains disabled. Later service composition must route
+both mock and future production adapters through this start/finish port; neither may create an
 untraced model path.
 
 ## Verification

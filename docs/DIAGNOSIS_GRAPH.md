@@ -26,9 +26,9 @@ and phases only; model text, tool arguments/results, telemetry bodies, secrets, 
 never checkpoint fields. Each successful node transition increments the checkpoint sequence and
 records a UTC timestamp.
 
-State schema `1.2.0` retains the immutable query-fingerprint history added in `1.1.0` and adds the
-terminal Diagnosis-graph `CANCELLED` phase. Migrations never infer or invent hashes for earlier
-calls.
+State schema `1.3.0` retains the immutable query-fingerprint history and terminal `CANCELLED` phase
+from earlier versions, and makes the exact Prompt ID, semantic version, and content fingerprint
+mandatory. Migrations never infer or invent Prompt references or hashes for earlier calls.
 
 ## Ports and authority
 
@@ -37,6 +37,14 @@ Its planning operation must first schema-validate and compile the model proposal
 the exact calls under the returned Tool Call IDs. The execution node reloads deterministic parallel
 waves for those IDs and invokes each call only through the diagnosis-only Tool Gateway. It validates
 that the waves contain every pending compiled call exactly once before starting them.
+
+Before control handling and before every node-side service effect, the graph calls the required
+Prompt-authorization port with the stable node operation identity. The production resolver loads
+the exact tenant-scoped Registry version and current active version, requires them to be identical,
+and then requires `ACTIVE` status, `DIAGNOSIS` purpose, and an exact content-fingerprint match to
+state. There is no default or bypass implementation in `DiagnosisRuntimeContext`; composition that
+does not supply the resolver cannot construct a runnable graph context. Prompt content remains in
+the Registry and is never copied into graph state, checkpoints, interrupts, or observations.
 
 Calls in one wave run concurrently with structured cancellation; waves run in order. The graph
 cannot persist evidence until every selected call is complete. The persistence port normalizes and
@@ -97,4 +105,7 @@ cancellation before every service boundary, and stable identities for exact node
 PostgreSQL crash tests reconstruct the saver/graph at every durable node boundary and assert each
 service operation occurs once. A separate failure-window test crashes after a plan effect commits
 but before the node checkpoint and proves the repeated operation identity replays the stored result
-instead of committing the effect twice.
+instead of committing the effect twice. Prompt tests cover all seven node names, exact active
+selection, tenant/version lookup, draft/evaluated/retired refusal, wrong-purpose and fingerprint
+refusal, missing or changed active registration, and authorization ordering before controls and
+effects.

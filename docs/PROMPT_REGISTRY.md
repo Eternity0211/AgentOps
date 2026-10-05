@@ -41,6 +41,16 @@ content-free [model-call trace contract](MODEL_CALL_TRACING.md) independently re
 stored Prompt and binds every future provider attempt to its exact fingerprint, settings, and
 schemas.
 
+The executable Diagnosis graph also has a mandatory, fail-closed runtime resolver. Every one of its
+seven node invocations loads the exact tenant, Prompt ID, and semantic version referenced by graph
+state and separately loads the active family version. The versions must be identical and the
+definition must be `ACTIVE`, have `DIAGNOSIS` purpose, and match the state's content fingerprint.
+This authorization happens before pause/cancel handling and before any service effect, including on
+checkpoint resume and replay. The runtime context has no permissive default. Prompt content is
+loaded only from the Registry and is never embedded in graph state, checkpoints, interrupts, or
+content-free observations; future provider composition must consume that registered definition and
+has no supported inline production-Prompt path.
+
 ## Verification
 
 Unit tests cover content/hash binding, UTF-8 byte limits, normalized line endings, semantic
@@ -50,6 +60,9 @@ purpose drift, multiple active versions, exact lookup, active lookup, and determ
 Lifecycle tests cover Admin-only access, failed regression refusal, illegal transition refusal,
 first and replacement promotion, old-version retirement, copy-based rollback, and complete audit
 emission with request/result hashes.
+Diagnosis runtime tests cover every node allowlist entry, exact tenant/version selection, invalid
+operation identities, missing or changed active versions, every non-active lifecycle status,
+wrong-purpose and fingerprint refusal, and proof that authorization precedes control and effects.
 PostgreSQL integration tests cover migration round trips, tenant-scoped resolution, missing active
 versions, durable draft/evaluate/promote transitions, regression snapshot retention, single active
 selection, and matching lifecycle/audit record counts.

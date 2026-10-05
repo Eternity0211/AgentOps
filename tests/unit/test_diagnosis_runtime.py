@@ -23,6 +23,7 @@ from agentops_incident_commander.workflows import (
     DiagnosisGraphState,
     GraphBudgetState,
     GraphPhase,
+    GraphPromptReference,
 )
 
 NOW = datetime(2026, 10, 5, 14, 0, tzinfo=UTC)
@@ -30,7 +31,7 @@ NOW = datetime(2026, 10, 5, 14, 0, tzinfo=UTC)
 
 def state(**overrides: Any) -> DiagnosisGraphState:
     values: dict[str, object] = {
-        "state_schema_version": "1.2.0",
+        "state_schema_version": "1.3.0",
         "graph_version": "1.0.0",
         "tenant_id": "tenant-1",
         "incident_id": "incident-1",
@@ -51,6 +52,9 @@ def state(**overrides: Any) -> DiagnosisGraphState:
             used_tokens=0,
             max_cost_nanounits=10,
             used_cost_nanounits=0,
+        ),
+        "prompt": GraphPromptReference(
+            prompt_id="diagnosis", version="1.0.0", content_fingerprint="a" * 64
         ),
         "checkpoint_sequence": 1,
         "updated_at": NOW,
@@ -134,7 +138,7 @@ def test_checkpoint_observation_exposes_only_bounded_metadata(
     assert observation.checkpoint_sequence == 1
     assert (
         observation.state_fingerprint
-        == "1c41d0289fd1a41b1a42547fc69be68e75545d9a044c25ebd46044f750e0c25d"
+        == "f52c5c696dfe0402b580a6797feb0aed4fa726793d542577af1024a5b2d87be0"
     )
     encoded = observation.model_dump_json()
     assert "sensitive failure" not in encoded

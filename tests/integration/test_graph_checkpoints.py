@@ -30,6 +30,7 @@ from agentops_incident_commander.workflows import (
     GateRoute,
     GraphBudgetState,
     GraphPhase,
+    GraphPromptReference,
     HypothesisNodeResult,
     PlanNodeResult,
     WorkflowControl,
@@ -51,7 +52,7 @@ def checkpoint_postgres_url() -> Iterator[str]:
 
 def initial_state(*, run: str = "run-1") -> DiagnosisGraphState:
     return DiagnosisGraphState(
-        state_schema_version="1.2.0",
+        state_schema_version="1.3.0",
         graph_version="1.0.0",
         tenant_id="tenant-1",
         incident_id="incident-1",
@@ -72,6 +73,9 @@ def initial_state(*, run: str = "run-1") -> DiagnosisGraphState:
             used_tokens=0,
             max_cost_nanounits=100,
             used_cost_nanounits=0,
+        ),
+        prompt=GraphPromptReference(
+            prompt_id="diagnosis", version="1.0.0", content_fingerprint="a" * 64
         ),
         checkpoint_sequence=0,
         updated_at=NOW,
@@ -147,6 +151,21 @@ class PauseContextControl:
         return WorkflowControl.CONTINUE
 
 
+class ApprovedPrompts:
+    async def require_approved(
+        self, state: DiagnosisGraphState, *, node_name: str, operation_id: str
+    ) -> None:
+        assert state.prompt.prompt_id == "diagnosis"
+
+
+def runtime(
+    services: CheckpointServices, *, control: PauseContextControl | None = None
+) -> DiagnosisRuntimeContext:
+    if control is None:
+        return DiagnosisRuntimeContext(services, ApprovedPrompts())
+    return DiagnosisRuntimeContext(services, ApprovedPrompts(), control=control)
+
+
 @pytest.mark.anyio
 async def test_postgres_checkpoint_restores_latest_history_and_isolates_threads(
     checkpoint_postgres_url: str,
@@ -157,7 +176,7 @@ async def test_postgres_checkpoint_restores_latest_history_and_isolates_threads(
     async with postgres_diagnosis_checkpointer(checkpoint_postgres_url) as saver:
         graph = build_diagnosis_graph(checkpointer=saver)
         runner = compiled_diagnosis_runner(graph)
-        outcome = await runner.run_or_resume(first, DiagnosisRuntimeContext(services))
+        outcome = await runner.run_or_resume(first, runtime(services))
         snapshot = await graph.aget_state(config)
         history = [entry async for entry in saver.alist(config)]
         observations = await runner.history(first)
@@ -178,7 +197,7 @@ async def test_postgres_checkpoint_restores_latest_history_and_isolates_threads(
             await saver.aget_tuple(diagnosis_checkpoint_config(initial_state(run="run-2"))) is None
         )
 
-        resumed = await runner.run_or_resume(first, DiagnosisRuntimeContext(services))
+        resumed = await runner.run_or_resume(first, runtime(services))
         assert resumed.state.phase is GraphPhase.COMPLETE
         assert resumed.resumed
         assert services.plan_calls == 1
@@ -193,16 +212,16 @@ async def test_postgres_checkpoint_persists_interrupt_and_resumes_same_operation
     config = diagnosis_checkpoint_config(first)
     services = CheckpointServices()
     control = PauseContextControl()
-    runtime = DiagnosisRuntimeContext(services, control=control)
+    graph_runtime = runtime(services, control=control)
     async with postgres_diagnosis_checkpointer(checkpoint_postgres_url) as saver:
         graph = build_diagnosis_graph(checkpointer=saver)
 
-        paused = await graph.ainvoke(first, config, context=runtime)
+        paused = await graph.ainvoke(first, config, context=graph_runtime)
         assert paused["__interrupt__"][0].value["kind"] == "DIAGNOSIS_PAUSED"
         assert services.load_operations == []
 
         resumed = await graph.ainvoke(
-            Command[Any](resume={"action": "RESUME"}), config, context=runtime
+            Command[Any](resume={"action": "RESUME"}), config, context=graph_runtime
         )
         assert resumed["phase"] is GraphPhase.COMPLETE
         assert len(services.load_operations) == 1
@@ -230,14 +249,14 @@ async def test_new_worker_continues_from_every_durable_boundary_without_duplicat
     first = initial_state(run=f"crash-{boundary}")
     config = diagnosis_checkpoint_config(first)
     services = CheckpointServices(gate_route=gate_route)
-    runtime = DiagnosisRuntimeContext(services)
+    graph_runtime = runtime(services)
     async with postgres_diagnosis_checkpointer(checkpoint_postgres_url) as saver:
         graph = build_diagnosis_graph(checkpointer=saver)
-        await graph.ainvoke(first, config, context=runtime, interrupt_after=[boundary])
+        await graph.ainvoke(first, config, context=graph_runtime, interrupt_after=[boundary])
 
     async with postgres_diagnosis_checkpointer(checkpoint_postgres_url) as recovered_saver:
         recovered_graph = build_diagnosis_graph(checkpointer=recovered_saver)
-        outcome = await DiagnosisWorkflowRunner(recovered_graph).run_or_resume(first, runtime)
+        outcome = await DiagnosisWorkflowRunner(recovered_graph).run_or_resume(first, graph_runtime)
 
     assert outcome.resumed
     expected_phase = (
@@ -298,7 +317,8 @@ async def test_retried_failed_node_replays_committed_operation_instead_of_effect
                 first,
                 config,
                 context=DiagnosisRuntimeContext(
-                    CrashAfterCommittedPlan(durable_results, committed_effects, crash=True)
+                    CrashAfterCommittedPlan(durable_results, committed_effects, crash=True),
+                    ApprovedPrompts(),
                 ),
             )
         failed_history = await DiagnosisWorkflowRunner(graph).history(first)
@@ -308,7 +328,7 @@ async def test_retried_failed_node_replays_committed_operation_instead_of_effect
     async with postgres_diagnosis_checkpointer(checkpoint_postgres_url) as recovered_saver:
         recovered_graph = build_diagnosis_graph(checkpointer=recovered_saver)
         outcome = await DiagnosisWorkflowRunner(recovered_graph).run_or_resume(
-            first, DiagnosisRuntimeContext(recovered_services)
+            first, DiagnosisRuntimeContext(recovered_services, ApprovedPrompts())
         )
 
     assert outcome.resumed

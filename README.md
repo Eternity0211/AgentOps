@@ -20,7 +20,9 @@ survives worker replacement at every durable Diagnosis boundary, and exposes bou
 checkpoint observations. The credential-free [deterministic mock model](docs/MOCK_MODEL.md) now
 supplies versioned valid, malformed, timeout, refusal, fabricated-reference, and
 injection-resistant fixtures; production service composition and provider invocation remain
-disabled.
+disabled. Every Diagnosis node now resolves the exact tenant-scoped Prompt version and confirms
+that it is the single active `DIAGNOSIS` registration before control handling or any node effect;
+unregistered, stale, non-active, wrong-purpose, or fingerprint-mismatched references fail closed.
 
 ## Why this project exists
 

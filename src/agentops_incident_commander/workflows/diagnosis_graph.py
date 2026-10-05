@@ -21,6 +21,18 @@ from agentops_incident_commander.domain import InvalidDomainValueError, utc_now
 
 from .state import DiagnosisGraphState, GraphBudgetState, GraphPhase
 
+DIAGNOSIS_NODE_NAMES = frozenset(
+    {
+        "load_context",
+        "plan",
+        "execute_read_tools",
+        "persist_evidence",
+        "hypothesis",
+        "evidence_gate",
+        "human_handoff",
+    }
+)
+
 
 class GateRoute(StrEnum):
     """Deterministic Evidence Gate route; never supplied by a model."""
@@ -40,6 +52,12 @@ class DiagnosisControlPort(Protocol):
     async def decision(
         self, state: DiagnosisGraphState, *, node_name: str, operation_id: str
     ) -> WorkflowControl: ...
+
+
+class DiagnosisPromptAuthorizationPort(Protocol):
+    async def require_approved(
+        self, state: DiagnosisGraphState, *, node_name: str, operation_id: str
+    ) -> None: ...
 
 
 class ContinueDiagnosisControl:
@@ -166,6 +184,7 @@ class DiagnosisWorkflowServices(Protocol):
 @dataclass(frozen=True, slots=True)
 class DiagnosisRuntimeContext:
     services: DiagnosisWorkflowServices
+    prompts: DiagnosisPromptAuthorizationPort
     clock: Callable[[], datetime] = field(default=utc_now)
     control: DiagnosisControlPort = field(default_factory=ContinueDiagnosisControl)
 
@@ -461,6 +480,9 @@ async def _before_effect(
     node_name: str,
 ) -> tuple[str, dict[str, object] | None]:
     operation_id = node_operation_id(state, node_name)
+    await runtime.context.prompts.require_approved(
+        state, node_name=node_name, operation_id=operation_id
+    )
     decision = await runtime.context.control.decision(
         state, node_name=node_name, operation_id=operation_id
     )

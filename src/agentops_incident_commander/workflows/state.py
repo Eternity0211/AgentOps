@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from agentops_incident_commander.domain import InvalidDomainValueError, SemanticVersion
 
-DIAGNOSIS_GRAPH_STATE_SCHEMA_VERSION = "1.2.0"
+DIAGNOSIS_GRAPH_STATE_SCHEMA_VERSION = "1.3.0"
 MAX_GRAPH_STATE_REFERENCES = 512
 MAX_GRAPH_MIGRATIONS = 32
 _ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
@@ -76,7 +76,7 @@ class GraphBudgetState(StrictStateModel):
 
 
 class DiagnosisGraphState(StrictStateModel):
-    state_schema_version: Literal["1.2.0"]
+    state_schema_version: Literal["1.3.0"]
     graph_version: Version
     tenant_id: Identifier
     incident_id: Identifier
@@ -85,7 +85,7 @@ class DiagnosisGraphState(StrictStateModel):
     causation_id: Identifier
     phase: GraphPhase
     budgets: GraphBudgetState
-    prompt: GraphPromptReference | None = None
+    prompt: GraphPromptReference
     tool_call_ids: tuple[Identifier, ...] = Field(default=(), max_length=MAX_GRAPH_STATE_REFERENCES)
     tool_query_fingerprints: tuple[Digest, ...] = Field(
         default=(), max_length=MAX_GRAPH_STATE_REFERENCES
@@ -143,7 +143,7 @@ class GraphStateMigrationRegistry:
     def __init__(self, *, current_version: str = DIAGNOSIS_GRAPH_STATE_SCHEMA_VERSION) -> None:
         self._current = SemanticVersion(current_version)
         self._migrations: dict[SemanticVersion, tuple[SemanticVersion, GraphStateMigration]] = {}
-        if self._current == SemanticVersion("1.2.0"):
+        if self._current == SemanticVersion("1.3.0"):
             self._migrations[SemanticVersion("1.0.0")] = (
                 SemanticVersion("1.1.0"),
                 _migrate_1_0_to_1_1,
@@ -151,6 +151,10 @@ class GraphStateMigrationRegistry:
             self._migrations[SemanticVersion("1.1.0")] = (
                 SemanticVersion("1.2.0"),
                 _migrate_1_1_to_1_2,
+            )
+            self._migrations[SemanticVersion("1.2.0")] = (
+                SemanticVersion("1.3.0"),
+                _migrate_1_2_to_1_3,
             )
 
     def register(self, source: str, target: str, migration: GraphStateMigration) -> None:
@@ -209,3 +213,9 @@ def _migrate_1_0_to_1_1(value: dict[str, Any]) -> dict[str, Any]:
 
 def _migrate_1_1_to_1_2(value: dict[str, Any]) -> dict[str, Any]:
     return {**value, "state_schema_version": "1.2.0"}
+
+
+def _migrate_1_2_to_1_3(value: dict[str, Any]) -> dict[str, Any]:
+    if value.get("prompt") is None:
+        raise InvalidDomainValueError("legacy graph state has no Prompt reference")
+    return {**value, "state_schema_version": "1.3.0"}

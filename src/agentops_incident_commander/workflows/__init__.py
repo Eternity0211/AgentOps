@@ -15,9 +15,11 @@ from .diagnosis import (
     RootCauseCandidate,
 )
 from .diagnosis_graph import (
+    DIAGNOSIS_NODE_NAMES,
     ContextLoadResult,
     ContinueDiagnosisControl,
     DiagnosisControlPort,
+    DiagnosisPromptAuthorizationPort,
     DiagnosisRuntimeContext,
     DiagnosisWorkflowServices,
     EvidencePersistenceResult,
@@ -50,6 +52,7 @@ from .state import (
 
 __all__ = [
     "DIAGNOSIS_GRAPH_STATE_SCHEMA_VERSION",
+    "DIAGNOSIS_NODE_NAMES",
     "DIAGNOSIS_PLAN_SCHEMA_VERSION",
     "DIAGNOSIS_REPORT_SCHEMA_VERSION",
     "MAX_CANDIDATE_EVIDENCE",
@@ -62,6 +65,7 @@ __all__ = [
     "DiagnosisControlPort",
     "DiagnosisDisposition",
     "DiagnosisGraphState",
+    "DiagnosisPromptAuthorizationPort",
     "DiagnosisReport",
     "DiagnosisRuntimeContext",
     "DiagnosisWorkflowServices",

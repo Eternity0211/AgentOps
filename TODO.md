@@ -147,7 +147,7 @@ Exit: only candidates satisfying deterministic rules pass; false citations and c
 - [x] Implement pause, resume, cancel, and idempotent node replay semantics.
 - [x] Implement worker-crash continuation and checkpoint observability.
 - [x] Add deterministic mock-model mode covering valid, malformed, timeout, refusal, fabricated-reference, and injection-resistant outputs.
-- [ ] Require every Diagnosis node invocation to load an approved Prompt Registry version; prohibit unregistered inline production prompts.
+- [x] Require every Diagnosis node invocation to load an approved Prompt Registry version; prohibit unregistered inline production prompts.
 - [ ] Add Agent schema tests and all Diagnosis graph path tests.
 - [ ] Add parallel investigation and model/tool timeout/failure tests.
 

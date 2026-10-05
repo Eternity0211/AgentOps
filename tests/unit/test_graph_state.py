@@ -81,7 +81,7 @@ def test_current_state_is_strict_frozen_and_canonical() -> None:
     )
     encoded = canonical_graph_state_bytes(state)
     assert DiagnosisGraphState.model_validate_json(encoded) == state
-    assert json.loads(encoded)["state_schema_version"] == "1.2.0"
+    assert json.loads(encoded)["state_schema_version"] == "1.3.0"
     with pytest.raises(ValidationError, match="frozen"):
         state.phase = GraphPhase.COMPLETE
 
@@ -111,6 +111,14 @@ def test_state_restores_json_checkpoint_reference_arrays_as_immutable_tuples() -
 def test_state_rejects_content_bearing_or_unknown_fields(field: str) -> None:
     with pytest.raises(ValidationError, match="Extra inputs"):
         DiagnosisGraphState.model_validate(state_dict(**{field: "seeded-secret"}))
+
+
+def test_state_requires_registered_prompt_reference() -> None:
+    value = state_dict()
+    value.pop("prompt")
+
+    with pytest.raises(ValidationError, match="prompt"):
+        DiagnosisGraphState.model_validate(value)
 
 
 @pytest.mark.parametrize(
@@ -199,8 +207,16 @@ def test_builtin_migration_upgrades_1_1_snapshot_and_supports_cancelled_phase() 
     legacy["state_schema_version"] = "1.1.0"
     loaded = GraphStateMigrationRegistry().load(legacy)
 
-    assert loaded.state_schema_version == "1.2.0"
+    assert loaded.state_schema_version == "1.3.0"
     assert loaded.phase is GraphPhase.CANCELLED
+
+
+def test_builtin_migration_rejects_legacy_state_without_prompt_reference() -> None:
+    legacy = state_dict(state_schema_version="1.2.0")
+    legacy.pop("prompt")
+
+    with pytest.raises(InvalidDomainValueError, match="no Prompt reference"):
+        GraphStateMigrationRegistry().load(legacy)
 
 
 def test_registry_rejects_non_mapping_migration_result_and_excessive_chain() -> None:

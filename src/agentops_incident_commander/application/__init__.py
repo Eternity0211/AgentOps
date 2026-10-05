@@ -1,5 +1,9 @@
 """Deterministic application use cases and ports."""
 
+from .diagnosis_prompts import (
+    ApprovedDiagnosisPromptResolver,
+    DiagnosisPromptStore,
+)
 from .evidence_gate import (
     EvidenceReader,
     EvidenceReferenceResolution,
@@ -41,9 +45,11 @@ from .tool_gateway import (
 )
 
 __all__ = [
+    "ApprovedDiagnosisPromptResolver",
     "AuditWriter",
     "CompiledInvestigationPlan",
     "CompiledToolCall",
+    "DiagnosisPromptStore",
     "EvidenceReader",
     "EvidenceReferenceResolution",
     "ModelCallTraceManager",

@@ -19,13 +19,14 @@ from agentops_incident_commander.workflows import (
     DiagnosisGraphState,
     GraphBudgetState,
     GraphPhase,
+    GraphPromptReference,
     GraphStateMigrationRegistry,
 )
 
 
 def state(**overrides: Any) -> DiagnosisGraphState:
     values: dict[str, object] = {
-        "state_schema_version": "1.2.0",
+        "state_schema_version": "1.3.0",
         "graph_version": "1.0.0",
         "tenant_id": "tenant-1",
         "incident_id": "incident-1",
@@ -46,6 +47,9 @@ def state(**overrides: Any) -> DiagnosisGraphState:
             used_tokens=0,
             max_cost_nanounits=10,
             used_cost_nanounits=0,
+        ),
+        "prompt": GraphPromptReference(
+            prompt_id="diagnosis", version="1.0.0", content_fingerprint="a" * 64
         ),
         "checkpoint_sequence": 0,
         "updated_at": datetime(2026, 10, 5, tzinfo=UTC),

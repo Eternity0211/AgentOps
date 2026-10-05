@@ -51,7 +51,7 @@ Q3 = "3" * 64
 
 def state(**overrides: object) -> DiagnosisGraphState:
     values: dict[str, object] = {
-        "state_schema_version": "1.2.0",
+        "state_schema_version": "1.3.0",
         "graph_version": "1.0.0",
         "tenant_id": "tenant-1",
         "incident_id": "incident-1",
@@ -180,10 +180,28 @@ class FakeServices:
         self.handoffs += 1
 
 
+class ApprovedPrompts:
+    def __init__(self) -> None:
+        self.operations: list[tuple[str, str]] = []
+
+    async def require_approved(
+        self, graph_state: DiagnosisGraphState, *, node_name: str, operation_id: str
+    ) -> None:
+        assert graph_state.prompt.prompt_id == "diagnosis"
+        self.operations.append((node_name, operation_id))
+
+
+class RejectingPrompts:
+    async def require_approved(
+        self, graph_state: DiagnosisGraphState, *, node_name: str, operation_id: str
+    ) -> None:
+        raise InvalidDomainValueError("Prompt is not approved")
+
+
 def context(services: FakeServices, control: Any = None) -> DiagnosisRuntimeContext:
     if control is None:
-        return DiagnosisRuntimeContext(services, Clock())
-    return DiagnosisRuntimeContext(services, Clock(), control)
+        return DiagnosisRuntimeContext(services, ApprovedPrompts(), Clock())
+    return DiagnosisRuntimeContext(services, ApprovedPrompts(), Clock(), control)
 
 
 class StaticControl:
@@ -229,7 +247,9 @@ class PauseAtControl:
 @pytest.mark.anyio
 async def test_graph_pass_path_parallelizes_reads_and_returns_only_references() -> None:
     services = FakeServices()
-    result = await build_diagnosis_graph().ainvoke(state(), context=context(services))
+    prompt_checks = ApprovedPrompts()
+    graph_context = DiagnosisRuntimeContext(services, prompt_checks, Clock())
+    result = await build_diagnosis_graph().ainvoke(state(), context=graph_context)
 
     assert result["phase"] is GraphPhase.COMPLETE
     assert result["tool_call_ids"] == ("tool-1", "tool-2")
@@ -246,6 +266,14 @@ async def test_graph_pass_path_parallelizes_reads_and_returns_only_references() 
     assert result["budgets"].used_tokens == 30
     assert result["budgets"].used_cost_nanounits == 5
     assert "arguments" not in result and "model_response" not in result
+    assert [name for name, _ in prompt_checks.operations] == [
+        "load_context",
+        "plan",
+        "execute_read_tools",
+        "persist_evidence",
+        "hypothesis",
+        "evidence_gate",
+    ]
 
 
 @pytest.mark.anyio
@@ -505,6 +533,21 @@ async def test_pause_rejects_invalid_resume_and_control_directives() -> None:
         await _before_effect(
             state(), Runtime(context=context(services, invalid_control)), "load_context"
         )
+
+
+@pytest.mark.anyio
+async def test_prompt_authorization_precedes_control_and_node_effects() -> None:
+    services = FakeServices()
+    control = StaticControl(WorkflowControl.CONTINUE)
+    runtime = Runtime(
+        context=DiagnosisRuntimeContext(services, RejectingPrompts(), Clock(), control)
+    )
+
+    with pytest.raises(InvalidDomainValueError, match="not approved"):
+        await load_context_node(state(), runtime)
+
+    assert control.operations == []
+    assert services.operations == []
 
 
 @pytest.mark.anyio

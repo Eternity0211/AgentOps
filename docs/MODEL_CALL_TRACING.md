@@ -42,7 +42,9 @@ stale completion.
 The credential-free deterministic mock adapter is implemented for schema, workflow, and failure
 fixtures. Production provider invocation remains disabled. Later service composition must route
 both mock and future production adapters through this start/finish port; neither may create an
-untraced model path.
+untraced model path. The Diagnosis graph independently authorizes its exact tenant-scoped active
+Prompt Registry reference before every node invocation, so later provider composition cannot add a
+supported unregistered inline-Prompt route.
 
 ## Verification
 

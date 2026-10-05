@@ -13,8 +13,14 @@ from langgraph.runtime import Runtime
 from langgraph.types import Command
 from pydantic import ValidationError
 
+from agentops_incident_commander.application import ToolGatewayError
 from agentops_incident_commander.domain import InvalidDomainValueError
-from agentops_incident_commander.infrastructure import diagnosis_checkpoint_serializer
+from agentops_incident_commander.infrastructure import (
+    MockModelMalformedOutput,
+    MockModelRefusal,
+    MockModelTimeout,
+    diagnosis_checkpoint_serializer,
+)
 from agentops_incident_commander.workflows import (
     DIAGNOSIS_NODE_NAMES,
     ContextLoadResult,
@@ -199,6 +205,64 @@ class RejectingPrompts:
         raise InvalidDomainValueError("Prompt is not approved")
 
 
+class WaveServices(FakeServices):
+    def __init__(self) -> None:
+        super().__init__(batches=[(("tool-1", "tool-2"), ("tool-3",))])
+        self.wave_events: list[str] = []
+
+    async def execute_read_tool(
+        self, graph_state: DiagnosisGraphState, tool_call_id: str, *, operation_id: str
+    ) -> None:
+        self.active += 1
+        self.max_active = max(self.max_active, self.active)
+        self.wave_events.append(f"start:{tool_call_id}")
+        await asyncio.sleep(0)
+        self.wave_events.append(f"finish:{tool_call_id}")
+        self.active -= 1
+        self.executed.append(tool_call_id)
+
+
+class FailingParallelServices(FakeServices):
+    def __init__(self) -> None:
+        super().__init__()
+        self.started: list[str] = []
+        self.cancelled: list[str] = []
+
+    async def execute_read_tool(
+        self, graph_state: DiagnosisGraphState, tool_call_id: str, *, operation_id: str
+    ) -> None:
+        self.started.append(tool_call_id)
+        if tool_call_id == "tool-timeout":
+            await asyncio.sleep(0)
+            raise ToolGatewayError("TOOL_TIMEOUT", "tool adapter exceeded its timeout", attempts=3)
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            self.cancelled.append(tool_call_id)
+            raise
+
+
+class ModelFailureServices(FakeServices):
+    def __init__(self, *, stage: str, error: Exception) -> None:
+        super().__init__()
+        self.stage = stage
+        self.error = error
+
+    async def plan(self, graph_state: DiagnosisGraphState, *, operation_id: str) -> PlanNodeResult:
+        if self.stage == "plan":
+            self.record("plan", operation_id)
+            raise self.error
+        return await super().plan(graph_state, operation_id=operation_id)
+
+    async def hypothesize(
+        self, graph_state: DiagnosisGraphState, *, operation_id: str
+    ) -> HypothesisNodeResult:
+        if self.stage == "hypothesis":
+            self.record("hypothesis", operation_id)
+            raise self.error
+        return await super().hypothesize(graph_state, operation_id=operation_id)
+
+
 def context(services: FakeServices, control: Any = None) -> DiagnosisRuntimeContext:
     if control is None:
         return DiagnosisRuntimeContext(services, ApprovedPrompts(), Clock())
@@ -299,6 +363,79 @@ def test_compiled_graph_topology_contains_only_reviewed_bounded_paths() -> None:
         ("evidence_gate", "human_handoff", True),
         ("human_handoff", "__end__", False),
     }
+
+
+@pytest.mark.anyio
+async def test_parallel_waves_overlap_only_within_each_declared_wave() -> None:
+    services = WaveServices()
+    initial = state(
+        phase=GraphPhase.INVESTIGATING,
+        tool_call_ids=("tool-1", "tool-2", "tool-3"),
+        tool_query_fingerprints=(Q1, Q2, Q3),
+    )
+
+    updates = await execute_read_tools_node(initial, Runtime(context=context(services)))
+
+    assert services.max_active == 2
+    assert set(services.wave_events[:2]) == {"start:tool-1", "start:tool-2"}
+    assert services.wave_events.index("start:tool-3") > services.wave_events.index("finish:tool-1")
+    assert services.wave_events.index("start:tool-3") > services.wave_events.index("finish:tool-2")
+    budgets = cast(GraphBudgetState, updates["budgets"])
+    assert budgets.used_tool_calls == 3
+
+
+@pytest.mark.anyio
+async def test_parallel_tool_timeout_cancels_peers_and_cannot_persist_partial_evidence() -> None:
+    services = FailingParallelServices()
+    initial = state(
+        phase=GraphPhase.INVESTIGATING,
+        tool_call_ids=("tool-timeout", "tool-peer"),
+        tool_query_fingerprints=(Q1, Q2),
+    )
+
+    with pytest.raises(ExceptionGroup) as raised:
+        await execute_read_tools_node(initial, Runtime(context=context(services)))
+
+    failures = [error for error in raised.value.exceptions if isinstance(error, ToolGatewayError)]
+    assert len(failures) == 1
+    assert failures[0].code == "TOOL_TIMEOUT"
+    assert failures[0].attempts == 3
+    assert set(services.started) == {"tool-timeout", "tool-peer"}
+    assert services.cancelled == ["tool-peer"]
+    assert initial.budgets.used_tool_calls == 0
+    assert services.persist_calls == services.hypothesis_calls == 0
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("stage", "error"),
+    [
+        ("plan", MockModelTimeout("model timed out")),
+        ("plan", MockModelRefusal("model refused")),
+        ("plan", MockModelMalformedOutput("model output was invalid")),
+        ("hypothesis", MockModelTimeout("model timed out")),
+        ("hypothesis", MockModelMalformedOutput("model output was invalid")),
+    ],
+)
+async def test_model_timeout_refusal_and_malformed_output_stop_downstream_work(
+    stage: str, error: Exception
+) -> None:
+    services = ModelFailureServices(stage=stage, error=error)
+
+    with pytest.raises(type(error), match=str(error)):
+        await build_diagnosis_graph().ainvoke(state(), context=context(services))
+
+    operation_names = [name for name, _ in services.operations]
+    assert "evidence_gate" not in operation_names
+    assert services.handoffs == 0
+    if stage == "plan":
+        assert operation_names == ["load_context", "plan"]
+        assert services.executed == []
+        assert services.persist_calls == services.hypothesis_calls == 0
+    else:
+        assert operation_names[-1] == "hypothesis"
+        assert services.persist_calls == 1
+        assert services.hypothesis_calls == 0
 
 
 @pytest.mark.anyio

@@ -111,3 +111,12 @@ instead of committing the effect twice. Prompt tests cover all seven node names,
 selection, tenant/version lookup, draft/evaluated/retired refusal, wrong-purpose and fingerprint
 refusal, missing or changed active registration, and authorization ordering before controls and
 effects.
+
+Parallel investigation tests prove that calls overlap only inside their compiler-declared wave and
+that the next wave starts only after every prior call completes. If one Tool Gateway call times out
+after its bounded attempts, structured concurrency cancels unfinished peers, preserves the typed
+failure and attempt count, does not increment the completed-tool budget, and cannot enter evidence
+persistence. Planning or hypothesis model timeout, refusal, or malformed output likewise propagates
+as a typed failed node: no downstream tools, Evidence Gate, handoff claim, or invented usage is
+created. Durable checkpoint history records the failed task for worker/operator handling; the graph
+does not silently retry model calls or accept partial evidence.

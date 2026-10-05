@@ -134,6 +134,10 @@ stateDiagram-v2
 
 The graph state is a versioned Pydantic model holding identifiers and bounded summaries, not large raw telemetry. Raw results live behind Artifact references. Key fields include workflow/incident IDs, state schema version, plan and attempt budgets, selected tool calls, evidence IDs, hypotheses, gate decision, remediation proposal fingerprint, policy decision, approval reference, recovery-action reference, verification observations, optional compensation authorization/reference, and error classification.
 
+The implemented Phase 6 foundation is documented in [Versioned Diagnosis Graph State](GRAPH_STATE.md).
+It uses canonical content-free snapshots and a bounded sequential migration registry; LangGraph
+nodes and PostgreSQL checkpoint persistence remain separate later batches.
+
 Each externally visible transition writes domain state, outbox/audit event, and next job intent transactionally where possible. PostgreSQL checkpointing supports pauses, interrupts, safe-boundary cancellation, and worker recovery. Jobs use `SELECT ... FOR UPDATE SKIP LOCKED` (or an equivalently documented strategy), owner/lease timestamps, heartbeat, attempts, and stale-lease reclamation. Execution idempotency is independent of workflow retry semantics.
 
 LangGraph, rather than a black-box general ReAct agent, is the workflow authority because the graph must expose safety routing, durable pauses, resumption, and compensation. `langchain-core` model/message/tool-schema or retriever components may be used underneath nodes where helpful, but Evidence, Policy, RBAC, Executor, and Verifier remain application/domain responsibilities.

@@ -6,7 +6,9 @@ AgentOps Incident Commander is an evidence-driven platform for diagnosing micros
 
 Phase 6 now includes the versioned [Prompt Registry](docs/PROMPT_REGISTRY.md) and
 [content-free model-call tracing](docs/MODEL_CALL_TRACING.md); production provider invocation remains
-disabled until the bounded Diagnosis workflow is implemented.
+disabled until the bounded Diagnosis workflow is implemented. The strict
+[versioned graph-state contract](docs/GRAPH_STATE.md) now defines content-free checkpoint data and
+fail-closed schema migration before LangGraph/checkpointer integration.
 
 ## Why this project exists
 
@@ -158,6 +160,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Deterministic Evidence Gate](docs/EVIDENCE_GATE.md)
 - [Versioned Prompt Registry](docs/PROMPT_REGISTRY.md)
 - [Content-free model-call tracing](docs/MODEL_CALL_TRACING.md)
+- [Versioned Diagnosis graph state](docs/GRAPH_STATE.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)

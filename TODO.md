@@ -138,7 +138,7 @@ Exit: only candidates satisfying deterministic rules pass; false citations and c
   - [x] Implement framework-independent RBAC lifecycle orchestration, regression gating, immutable copy-based rollback, and hash-bound audit contracts.
   - [x] Add the PostgreSQL lifecycle store so Prompt versions, status transitions, regression results, and audit commit atomically.
 - [x] Trace the exact prompt/model/settings/token/cost metadata for every model call without leaking sensitive content.
-- [ ] Define versioned Pydantic graph state and migration/compatibility strategy.
+- [x] Define versioned Pydantic graph state and migration/compatibility strategy.
 - [ ] Implement Diagnosis Agent structured schemas for bounded plan, candidates, support, counter-evidence, missing evidence, and uncertainty.
 - [ ] Implement tool-catalog constrained planning with maximum steps, parallelism, time, tokens, and cost.
 - [ ] Implement LangGraph nodes/routes for context load, plan, parallel read-only tools, evidence persistence, hypothesis, gate, replan/handoff.

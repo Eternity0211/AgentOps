@@ -143,7 +143,7 @@ Exit: only candidates satisfying deterministic rules pass; false citations and c
 - [x] Implement tool-catalog constrained planning with maximum steps, parallelism, time, tokens, and cost.
 - [x] Implement LangGraph nodes/routes for context load, plan, parallel read-only tools, evidence persistence, hypothesis, gate, replan/handoff.
 - [x] Detect repeated/equivalent queries and enforce finite replan/attempt budgets.
-- [ ] Integrate PostgreSQL LangGraph checkpoints with thread/run correlation.
+- [x] Integrate PostgreSQL LangGraph checkpoints with thread/run correlation.
 - [ ] Implement pause, resume, cancel, and idempotent node replay semantics.
 - [ ] Implement worker-crash continuation and checkpoint observability.
 - [ ] Add deterministic mock-model mode covering valid, malformed, timeout, refusal, fabricated-reference, and injection-resistant outputs.

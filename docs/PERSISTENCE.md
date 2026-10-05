@@ -75,7 +75,25 @@ defensive paths that valid foreign keys and locks should make unreachable.
 
 The test suite uses an ignored repository-local `.pytest-runtime-*` directory because elevated
 Docker access on Windows cannot reliably access the normal per-user pytest temporary root. This is
-test isolation only; no runtime data is committed. Workflow checkpoints remain a later phase.
+test isolation only; no runtime data is committed.
+
+## LangGraph checkpoints
+
+Phase 6 integrates the official asynchronous PostgreSQL LangGraph saver. Startup explicitly calls
+its idempotent schema setup/migration operation before yielding the saver. Diagnosis graphs compile
+with that saver and use a deterministic thread ID derived from canonical tenant, Incident, and
+workflow-run identity. The raw identities are not exposed in the thread key; tenant, Incident,
+workflow run, and correlation IDs are attached as checkpoint metadata for audit reconstruction.
+
+The root graph uses LangGraph's required empty `checkpoint_ns`; non-empty namespaces are reserved
+for compiled subgraphs. A fixed `diagnosis-` thread prefix plus the composite identity hash provides
+the product namespace. Configuration is generated only from validated graph state, and an explicit
+identity guard rejects any attempt to pair a config identity with another tenant/run state.
+
+Checkpoint serialization disables pickle fallback and explicitly allowlists only the project graph
+state types. The PostgreSQL adapter never accepts non-PostgreSQL URLs. A container integration test
+proves setup, checkpoint history, latest-state restoration, completed-run resume without re-running
+planning, metadata correlation, and isolation between workflow threads.
 
 ## Versioned embedding metadata
 

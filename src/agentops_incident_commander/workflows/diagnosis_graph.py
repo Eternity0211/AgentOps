@@ -9,6 +9,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Protocol
 
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.runtime import Runtime
@@ -293,7 +294,9 @@ def route_after_plan(state: DiagnosisGraphState) -> str:
     raise InvalidDomainValueError("planning produced an unsupported graph phase")
 
 
-def build_diagnosis_graph() -> CompiledStateGraph[
+def build_diagnosis_graph(
+    *, checkpointer: BaseCheckpointSaver[str] | None = None
+) -> CompiledStateGraph[
     DiagnosisGraphState,
     DiagnosisRuntimeContext,
     DiagnosisGraphState,
@@ -324,7 +327,7 @@ def build_diagnosis_graph() -> CompiledStateGraph[
         {"complete": END, "replan": "plan", "handoff": "human_handoff"},
     )
     builder.add_edge("human_handoff", END)
-    return builder.compile()
+    return builder.compile(checkpointer=checkpointer)
 
 
 def _transition(

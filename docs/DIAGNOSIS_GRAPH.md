@@ -58,12 +58,13 @@ the other queries in that plan. Any equivalent query routes directly to `HUMAN_H
 planning model call, tokens, cost, and proposed-step attempt are still counted, preventing free
 retry loops. The compiler performs the same duplicate check before a conforming service returns.
 
-## Deferred durability work
+## Durability boundary
 
-This graph currently compiles without a checkpointer. PostgreSQL checkpoint storage, thread/run
-correlation, pause/resume/cancel, idempotent node replay, crash continuation, and checkpoint
-observability remain separate TODO batches. The service ports already use durable identifiers so
-those capabilities can be added without placing content-bearing payloads in graph state.
+The graph accepts the strict PostgreSQL checkpointer and has verified thread/run-correlated save,
+history, restore, and completed-run resume behavior. Pause/resume/cancel controls, idempotent node
+effect replay, worker-crash continuation, and checkpoint observability remain separate TODO batches.
+The service ports use durable identifiers so those capabilities do not require content-bearing
+payloads in graph state.
 
 ## Verification
 

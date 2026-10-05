@@ -22,8 +22,8 @@ snapshot remains unchanged. A migration implementation must be deterministic and
 version-pair fixture before deployment.
 
 The state is now used by the executable [Bounded Diagnosis LangGraph](DIAGNOSIS_GRAPH.md). That graph
-still compiles without a checkpointer: the later PostgreSQL checkpoint batch must load state only
-through this registry and retain graph/state versions plus thread/run correlation.
+now accepts the production PostgreSQL checkpointer. Thread/run correlation, strict serialization,
+history, restore, and isolation are documented in [Operational Persistence](PERSISTENCE.md).
 
 Unit tests cover canonical round trips, frozen state, content-bearing field refusal, identifiers,
 hashes, UTC timestamps, unique references, all budget dimensions, old-version migration,

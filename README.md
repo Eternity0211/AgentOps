@@ -12,8 +12,9 @@ Phase 6 now includes the versioned [Prompt Registry](docs/PROMPT_REGISTRY.md),
 resource budgets. The executable [bounded Diagnosis LangGraph](docs/DIAGNOSIS_GRAPH.md) now routes
 context loading, planning, parallel read tools, evidence persistence, hypotheses, deterministic
 gating, bounded replanning, repeated-equivalent-query refusal, and human handoff. Production
-provider invocation and PostgreSQL graph checkpointing remain disabled until their later Phase 6
-batches.
+provider invocation remains disabled. The official PostgreSQL LangGraph checkpointer now provides
+strictly serialized, thread/run-correlated history and restore; pause/resume/cancel and crash
+continuation remain later Phase 6 batches.
 
 ## Why this project exists
 

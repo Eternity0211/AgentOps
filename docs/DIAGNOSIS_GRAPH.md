@@ -17,6 +17,8 @@ START
        -> COMPLETE / END
        -> plan (only while the replan budget remains)
        -> human_handoff / END
+
+Every node may also route to CANCELLED / END before invoking its service port.
 ```
 
 Every node accepts the versioned `DiagnosisGraphState`. State retains identifiers, counters, hashes,
@@ -24,9 +26,9 @@ and phases only; model text, tool arguments/results, telemetry bodies, secrets, 
 never checkpoint fields. Each successful node transition increments the checkpoint sequence and
 records a UTC timestamp.
 
-State schema `1.1.0` adds only the immutable query-fingerprint history. The migration from `1.0.0`
-creates an empty history because older checkpoints never recorded this value; it cannot infer or
-invent hashes for earlier calls.
+State schema `1.2.0` retains the immutable query-fingerprint history added in `1.1.0` and adds the
+terminal Diagnosis-graph `CANCELLED` phase. Migrations never infer or invent hashes for earlier
+calls.
 
 ## Ports and authority
 
@@ -61,10 +63,18 @@ retry loops. The compiler performs the same duplicate check before a conforming 
 ## Durability boundary
 
 The graph accepts the strict PostgreSQL checkpointer and has verified thread/run-correlated save,
-history, restore, and completed-run resume behavior. Pause/resume/cancel controls, idempotent node
-effect replay, worker-crash continuation, and checkpoint observability remain separate TODO batches.
-The service ports use durable identifiers so those capabilities do not require content-bearing
-payloads in graph state.
+history, restore, and completed-run resume behavior. Before every node-side service effect, a typed
+control port may continue, pause, or cancel. Pause emits a content-free LangGraph interrupt bound
+to the same checkpoint thread. Resume accepts only `RESUME` or `CANCEL`; invalid directives fail
+closed. Cancellation transitions to `CANCELLED` and explicit conditional routing reaches `END`
+without scheduling a later node or interrupting an effect already in progress.
+
+Every service-port call receives a SHA-256 operation identity derived from tenant, workflow run,
+graph version, checkpoint sequence, and node name. Per-tool identities also include the immutable
+Tool Call ID. A service implementation must store and exactly replay the result for a repeated
+operation identity, because a worker may fail after the effect but before its next checkpoint.
+The graph therefore supplies replay identity without putting payloads into state. Worker-crash
+continuation and checkpoint observability remain the next TODO batch.
 
 ## Verification
 
@@ -72,3 +82,5 @@ Tests execute the compiled async graph through pass, one-replan-then-pass, expli
 replan-budget-exhaustion routes. They prove same-wave tool concurrency, cumulative budgets,
 reference-only output, transition sequencing, exact pending-call batches, duplicate refusal,
 invalid result refusal, premature evidence-persistence refusal, and unsupported-route failure.
+Interrupt tests additionally cover durable resume, resume-as-cancel, malformed directives,
+cancellation before every service boundary, and stable identities for exact node replay.

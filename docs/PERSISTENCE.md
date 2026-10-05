@@ -95,6 +95,13 @@ state types. The PostgreSQL adapter never accepts non-PostgreSQL URLs. A contain
 proves setup, checkpoint history, latest-state restoration, completed-run resume without re-running
 planning, metadata correlation, and isolation between workflow threads.
 
+Diagnosis nodes can durably pause before a service effect and resume on the same thread. The
+content-free interrupt carries only the node and stable operation identity. Checkpoint JSON arrays
+are restored to immutable state tuples before strict validation. A cancellation directive is
+applied at the same safe boundary and terminates the graph without dispatching that node's effect.
+Service adapters use the stable operation identity to replay previously committed results rather
+than repeat effects after delivery or worker retries.
+
 ## Versioned embedding metadata
 
 Revision `20261003_0002` enables the `vector` extension and adds

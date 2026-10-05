@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from typing import Any, cast
 
 import pytest
+from langgraph.types import Command
 from testcontainers.community.postgres import PostgresContainer
 
 from agentops_incident_commander.infrastructure import (
@@ -27,6 +28,7 @@ from agentops_incident_commander.workflows import (
     GraphPhase,
     HypothesisNodeResult,
     PlanNodeResult,
+    WorkflowControl,
     build_diagnosis_graph,
 )
 
@@ -45,7 +47,7 @@ def checkpoint_postgres_url() -> Iterator[str]:
 
 def initial_state(*, run: str = "run-1") -> DiagnosisGraphState:
     return DiagnosisGraphState(
-        state_schema_version="1.1.0",
+        state_schema_version="1.2.0",
         graph_version="1.0.0",
         tenant_id="tenant-1",
         incident_id="incident-1",
@@ -75,31 +77,58 @@ def initial_state(*, run: str = "run-1") -> DiagnosisGraphState:
 class CheckpointServices:
     def __init__(self) -> None:
         self.plan_calls = 0
+        self.load_operations: list[str] = []
 
-    async def load_context(self, state: DiagnosisGraphState) -> ContextLoadResult:
+    async def load_context(
+        self, state: DiagnosisGraphState, *, operation_id: str
+    ) -> ContextLoadResult:
+        self.load_operations.append(operation_id)
         return ContextLoadResult()
 
-    async def plan(self, state: DiagnosisGraphState) -> PlanNodeResult:
+    async def plan(self, state: DiagnosisGraphState, *, operation_id: str) -> PlanNodeResult:
         self.plan_calls += 1
         return PlanNodeResult("model-plan", ("tool-1",), ("1" * 64,), 1, 10, 1)
 
-    async def load_tool_batches(self, state: DiagnosisGraphState) -> tuple[tuple[str, ...], ...]:
+    async def load_tool_batches(
+        self, state: DiagnosisGraphState, *, operation_id: str
+    ) -> tuple[tuple[str, ...], ...]:
         return (("tool-1",),)
 
-    async def execute_read_tool(self, state: DiagnosisGraphState, tool_call_id: str) -> None:
+    async def execute_read_tool(
+        self, state: DiagnosisGraphState, tool_call_id: str, *, operation_id: str
+    ) -> None:
         assert tool_call_id == "tool-1"
 
-    async def persist_evidence(self, state: DiagnosisGraphState) -> EvidencePersistenceResult:
+    async def persist_evidence(
+        self, state: DiagnosisGraphState, *, operation_id: str
+    ) -> EvidencePersistenceResult:
         return EvidencePersistenceResult(("evidence-1",))
 
-    async def hypothesize(self, state: DiagnosisGraphState) -> HypothesisNodeResult:
+    async def hypothesize(
+        self, state: DiagnosisGraphState, *, operation_id: str
+    ) -> HypothesisNodeResult:
         return HypothesisNodeResult("model-hypothesis", 10, 1)
 
-    async def evaluate_evidence_gate(self, state: DiagnosisGraphState) -> GateNodeResult:
+    async def evaluate_evidence_gate(
+        self, state: DiagnosisGraphState, *, operation_id: str
+    ) -> GateNodeResult:
         return GateNodeResult("2" * 64, GateRoute.PASS)
 
-    async def record_handoff(self, state: DiagnosisGraphState) -> None:
+    async def record_handoff(self, state: DiagnosisGraphState, *, operation_id: str) -> None:
         raise AssertionError("passing workflow must not hand off")
+
+
+class PauseContextControl:
+    def __init__(self) -> None:
+        self.operations: list[str] = []
+
+    async def decision(
+        self, state: DiagnosisGraphState, *, node_name: str, operation_id: str
+    ) -> WorkflowControl:
+        if node_name == "load_context":
+            self.operations.append(operation_id)
+            return WorkflowControl.PAUSE
+        return WorkflowControl.CONTINUE
 
 
 @pytest.mark.anyio
@@ -129,3 +158,27 @@ async def test_postgres_checkpoint_restores_latest_history_and_isolates_threads(
         assert resumed["phase"] == GraphPhase.COMPLETE.value
         assert services.plan_calls == 1
         DiagnosisCheckpointIdentity.from_state(first).require_matches(first)
+
+
+@pytest.mark.anyio
+async def test_postgres_checkpoint_persists_interrupt_and_resumes_same_operation(
+    checkpoint_postgres_url: str,
+) -> None:
+    first = initial_state(run="pause-run")
+    config = diagnosis_checkpoint_config(first)
+    services = CheckpointServices()
+    control = PauseContextControl()
+    runtime = DiagnosisRuntimeContext(services, control=control)
+    async with postgres_diagnosis_checkpointer(checkpoint_postgres_url) as saver:
+        graph = build_diagnosis_graph(checkpointer=saver)
+
+        paused = await graph.ainvoke(first, config, context=runtime)
+        assert paused["__interrupt__"][0].value["kind"] == "DIAGNOSIS_PAUSED"
+        assert services.load_operations == []
+
+        resumed = await graph.ainvoke(
+            Command[Any](resume={"action": "RESUME"}), config, context=runtime
+        )
+        assert resumed["phase"] is GraphPhase.COMPLETE
+        assert len(services.load_operations) == 1
+        assert control.operations[0] == control.operations[1] == services.load_operations[0]

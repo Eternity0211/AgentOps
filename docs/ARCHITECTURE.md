@@ -136,10 +136,10 @@ The graph state is a versioned Pydantic model holding identifiers and bounded su
 
 The implemented Phase 6 state and executable topology are documented in
 [Versioned Diagnosis Graph State](GRAPH_STATE.md) and
-[Bounded Diagnosis LangGraph](DIAGNOSIS_GRAPH.md). The graph currently has no checkpointer; durable
-PostgreSQL resume behavior remains a later batch.
-It uses canonical content-free snapshots and a bounded sequential migration registry; LangGraph
-nodes and PostgreSQL checkpoint persistence remain separate later batches.
+[Bounded Diagnosis LangGraph](DIAGNOSIS_GRAPH.md). It uses canonical content-free snapshots, a
+bounded sequential migration registry, strict PostgreSQL checkpoint serialization, durable
+pre-effect interrupts, safe-boundary cancellation, and stable operation identities for idempotent
+node replay. Worker-crash continuation and checkpoint observability remain later batches.
 
 Each externally visible transition writes domain state, outbox/audit event, and next job intent transactionally where possible. PostgreSQL checkpointing supports pauses, interrupts, safe-boundary cancellation, and worker recovery. Jobs use `SELECT ... FOR UPDATE SKIP LOCKED` (or an equivalently documented strategy), owner/lease timestamps, heartbeat, attempts, and stale-lease reclamation. Execution idempotency is independent of workflow retry semantics.
 

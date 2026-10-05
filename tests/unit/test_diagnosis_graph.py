@@ -7,10 +7,14 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 import pytest
+from langchain_core.runnables import RunnableConfig
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.runtime import Runtime
+from langgraph.types import Command
 from pydantic import ValidationError
 
 from agentops_incident_commander.domain import InvalidDomainValueError
+from agentops_incident_commander.infrastructure import diagnosis_checkpoint_serializer
 from agentops_incident_commander.workflows import (
     ContextLoadResult,
     DiagnosisGraphState,
@@ -23,14 +27,19 @@ from agentops_incident_commander.workflows import (
     GraphPromptReference,
     HypothesisNodeResult,
     PlanNodeResult,
+    WorkflowControl,
     build_diagnosis_graph,
     execute_read_tools_node,
+    load_context_node,
+    node_operation_id,
     persist_evidence_node,
     route_after_gate,
     route_after_plan,
 )
 from agentops_incident_commander.workflows.diagnosis_graph import (
+    _before_effect,
     _consume_budget,
+    _route_or_cancel,
     _validate_tool_batches,
 )
 
@@ -42,7 +51,7 @@ Q3 = "3" * 64
 
 def state(**overrides: object) -> DiagnosisGraphState:
     values: dict[str, object] = {
-        "state_schema_version": "1.1.0",
+        "state_schema_version": "1.2.0",
         "graph_version": "1.0.0",
         "tenant_id": "tenant-1",
         "incident_id": "incident-1",
@@ -108,49 +117,113 @@ class FakeServices:
         self.persist_calls = 0
         self.hypothesis_calls = 0
         self.handoffs = 0
+        self.operations: list[tuple[str, str]] = []
 
-    async def load_context(self, graph_state: DiagnosisGraphState) -> ContextLoadResult:
+    def record(self, name: str, operation_id: str) -> None:
+        self.operations.append((name, operation_id))
+
+    async def load_context(
+        self, graph_state: DiagnosisGraphState, *, operation_id: str
+    ) -> ContextLoadResult:
         assert graph_state.phase is GraphPhase.CONTEXT_LOADING
+        self.record("load_context", operation_id)
         return ContextLoadResult(("evidence-context",))
 
-    async def plan(self, graph_state: DiagnosisGraphState) -> PlanNodeResult:
+    async def plan(self, graph_state: DiagnosisGraphState, *, operation_id: str) -> PlanNodeResult:
         assert graph_state.phase is GraphPhase.PLANNING
+        self.record("plan", operation_id)
         return self.plans.pop(0)
 
     async def load_tool_batches(
-        self, graph_state: DiagnosisGraphState
+        self, graph_state: DiagnosisGraphState, *, operation_id: str
     ) -> tuple[tuple[str, ...], ...]:
+        self.record("load_tool_batches", operation_id)
         if self.batches:
             return self.batches.pop(0)
         return (graph_state.tool_call_ids[graph_state.budgets.used_tool_calls :],)
 
-    async def execute_read_tool(self, graph_state: DiagnosisGraphState, tool_call_id: str) -> None:
+    async def execute_read_tool(
+        self, graph_state: DiagnosisGraphState, tool_call_id: str, *, operation_id: str
+    ) -> None:
         assert graph_state.phase is GraphPhase.INVESTIGATING
+        self.record(f"execute_read_tool:{tool_call_id}", operation_id)
         self.active += 1
         self.max_active = max(self.max_active, self.active)
         await asyncio.sleep(0)
         self.executed.append(tool_call_id)
         self.active -= 1
 
-    async def persist_evidence(self, graph_state: DiagnosisGraphState) -> EvidencePersistenceResult:
+    async def persist_evidence(
+        self, graph_state: DiagnosisGraphState, *, operation_id: str
+    ) -> EvidencePersistenceResult:
+        self.record("persist_evidence", operation_id)
         self.persist_calls += 1
         return EvidencePersistenceResult((f"evidence-tools-{self.persist_calls}",))
 
-    async def hypothesize(self, graph_state: DiagnosisGraphState) -> HypothesisNodeResult:
+    async def hypothesize(
+        self, graph_state: DiagnosisGraphState, *, operation_id: str
+    ) -> HypothesisNodeResult:
+        self.record("hypothesis", operation_id)
         self.hypothesis_calls += 1
         return HypothesisNodeResult(f"model-hypothesis-{self.hypothesis_calls}", 20, 3)
 
-    async def evaluate_evidence_gate(self, graph_state: DiagnosisGraphState) -> GateNodeResult:
+    async def evaluate_evidence_gate(
+        self, graph_state: DiagnosisGraphState, *, operation_id: str
+    ) -> GateNodeResult:
         assert graph_state.phase is GraphPhase.EVIDENCE_REVIEW
+        self.record("evidence_gate", operation_id)
         return self.gates.pop(0)
 
-    async def record_handoff(self, graph_state: DiagnosisGraphState) -> None:
+    async def record_handoff(self, graph_state: DiagnosisGraphState, *, operation_id: str) -> None:
         assert graph_state.phase is GraphPhase.HUMAN_HANDOFF
+        self.record("human_handoff", operation_id)
         self.handoffs += 1
 
 
-def context(services: FakeServices) -> DiagnosisRuntimeContext:
-    return DiagnosisRuntimeContext(services, Clock())
+def context(services: FakeServices, control: Any = None) -> DiagnosisRuntimeContext:
+    if control is None:
+        return DiagnosisRuntimeContext(services, Clock())
+    return DiagnosisRuntimeContext(services, Clock(), control)
+
+
+class StaticControl:
+    def __init__(self, decision: WorkflowControl) -> None:
+        self.choice = decision
+        self.operations: list[tuple[str, str]] = []
+
+    async def decision(
+        self, graph_state: DiagnosisGraphState, *, node_name: str, operation_id: str
+    ) -> WorkflowControl:
+        self.operations.append((node_name, operation_id))
+        return self.choice
+
+
+class SelectiveControl:
+    def __init__(self, cancel_at: str) -> None:
+        self.cancel_at = cancel_at
+        self.operations: list[tuple[str, str]] = []
+
+    async def decision(
+        self, graph_state: DiagnosisGraphState, *, node_name: str, operation_id: str
+    ) -> WorkflowControl:
+        self.operations.append((node_name, operation_id))
+        if node_name == self.cancel_at:
+            return WorkflowControl.CANCEL
+        return WorkflowControl.CONTINUE
+
+
+class PauseAtControl:
+    def __init__(self, pause_at: str = "load_context") -> None:
+        self.pause_at = pause_at
+        self.operations: list[tuple[str, str]] = []
+
+    async def decision(
+        self, graph_state: DiagnosisGraphState, *, node_name: str, operation_id: str
+    ) -> WorkflowControl:
+        self.operations.append((node_name, operation_id))
+        if node_name == self.pause_at:
+            return WorkflowControl.PAUSE
+        return WorkflowControl.CONTINUE
 
 
 @pytest.mark.anyio
@@ -340,3 +413,128 @@ def test_plan_router_accepts_only_investigation_or_handoff() -> None:
     assert route_after_plan(state(phase=GraphPhase.HUMAN_HANDOFF)) == "handoff"
     with pytest.raises(InvalidDomainValueError, match="unsupported"):
         route_after_plan(state(phase=GraphPhase.PLANNING))
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "cancel_at",
+    [
+        "load_context",
+        "plan",
+        "execute_read_tools",
+        "persist_evidence",
+        "hypothesis",
+        "evidence_gate",
+        "human_handoff",
+    ],
+)
+async def test_cancel_stops_at_each_safe_boundary_before_its_effect(cancel_at: str) -> None:
+    gates = (
+        [GateNodeResult("f" * 64, GateRoute.HUMAN_HANDOFF, "REVIEW_REQUIRED")]
+        if cancel_at == "human_handoff"
+        else None
+    )
+    services = FakeServices(gates=gates)
+    control = SelectiveControl(cancel_at)
+
+    result = await build_diagnosis_graph().ainvoke(state(), context=context(services, control))
+
+    assert result["phase"] is GraphPhase.CANCELLED
+    assert result["error_code"] == "CANCELLED_AT_SAFE_BOUNDARY"
+    assert all(name != cancel_at for name, _ in services.operations)
+    assert control.operations[-1][0] == cancel_at
+
+
+@pytest.mark.anyio
+async def test_pause_interrupt_resumes_same_checkpoint_without_duplicate_effect() -> None:
+    services = FakeServices()
+    control = PauseAtControl()
+    graph = build_diagnosis_graph(
+        checkpointer=InMemorySaver(serde=diagnosis_checkpoint_serializer())
+    )
+    config: RunnableConfig = {"configurable": {"thread_id": "diagnosis-pause-resume"}}
+
+    paused = await graph.ainvoke(state(), config, context=context(services, control))
+
+    assert services.operations == []
+    assert paused["__interrupt__"][0].value["kind"] == "DIAGNOSIS_PAUSED"
+    resumed = await graph.ainvoke(
+        Command[Any](resume={"action": "RESUME"}), config, context=context(services, control)
+    )
+    assert resumed["phase"] is GraphPhase.COMPLETE
+    assert len(services.operations) == 8
+    assert control.operations[0] == control.operations[1]
+
+
+@pytest.mark.anyio
+async def test_pause_can_resume_as_cancel_without_running_the_node_effect() -> None:
+    services = FakeServices()
+    control = PauseAtControl()
+    graph = build_diagnosis_graph(
+        checkpointer=InMemorySaver(serde=diagnosis_checkpoint_serializer())
+    )
+    config: RunnableConfig = {"configurable": {"thread_id": "diagnosis-pause-cancel"}}
+
+    await graph.ainvoke(state(), config, context=context(services, control))
+    cancelled = await graph.ainvoke(
+        Command[Any](resume={"action": "CANCEL"}), config, context=context(services, control)
+    )
+
+    assert cancelled["phase"] is GraphPhase.CANCELLED
+    assert cancelled["checkpoint_sequence"] == 1
+    assert services.operations == []
+
+
+@pytest.mark.anyio
+async def test_pause_rejects_invalid_resume_and_control_directives() -> None:
+    services = FakeServices()
+    graph = build_diagnosis_graph(
+        checkpointer=InMemorySaver(serde=diagnosis_checkpoint_serializer())
+    )
+    config: RunnableConfig = {"configurable": {"thread_id": "diagnosis-invalid-resume"}}
+    await graph.ainvoke(state(), config, context=context(services, PauseAtControl()))
+    with pytest.raises(InvalidDomainValueError, match="resume directive"):
+        await graph.ainvoke(
+            Command[Any](resume={"action": "INVALID"}),
+            config,
+            context=context(services, PauseAtControl()),
+        )
+
+    invalid_control = StaticControl(cast(WorkflowControl, "INVALID"))
+    with pytest.raises(InvalidDomainValueError, match="control decision"):
+        await _before_effect(
+            state(), Runtime(context=context(services, invalid_control)), "load_context"
+        )
+
+
+@pytest.mark.anyio
+async def test_operation_identity_is_stable_for_exact_node_replay() -> None:
+    services = FakeServices()
+    runtime = Runtime(context=context(services))
+    initial = state()
+
+    await load_context_node(initial, runtime)
+    await load_context_node(initial, runtime)
+
+    assert services.operations[0][1] == services.operations[1][1]
+    assert node_operation_id(initial, "load_context") != node_operation_id(initial, "plan")
+    assert node_operation_id(initial, "load_context") != node_operation_id(
+        state(checkpoint_sequence=1), "load_context"
+    )
+    with pytest.raises(InvalidDomainValueError, match="identity inputs"):
+        node_operation_id(initial, "")
+    with pytest.raises(InvalidDomainValueError, match="identity inputs"):
+        node_operation_id(cast(DiagnosisGraphState, {}), "load_context")
+
+
+def test_control_routes_accept_cancellation_and_reject_unexpected_phase() -> None:
+    cancelled = state(phase=GraphPhase.CANCELLED)
+    assert route_after_plan(cancelled) == "cancelled"
+    assert route_after_gate(cancelled) == "cancelled"
+    assert _route_or_cancel(cancelled, GraphPhase.PLANNING, "next", "node") == "cancelled"
+    assert (
+        _route_or_cancel(state(phase=GraphPhase.PLANNING), GraphPhase.PLANNING, "next", "node")
+        == "next"
+    )
+    with pytest.raises(InvalidDomainValueError, match="unsupported"):
+        _route_or_cancel(state(), GraphPhase.PLANNING, "next", "node")

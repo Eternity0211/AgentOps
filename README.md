@@ -13,8 +13,10 @@ resource budgets. The executable [bounded Diagnosis LangGraph](docs/DIAGNOSIS_GR
 context loading, planning, parallel read tools, evidence persistence, hypotheses, deterministic
 gating, bounded replanning, repeated-equivalent-query refusal, and human handoff. Production
 provider invocation remains disabled. The official PostgreSQL LangGraph checkpointer now provides
-strictly serialized, thread/run-correlated history and restore; pause/resume/cancel and crash
-continuation remain later Phase 6 batches.
+strictly serialized, thread/run-correlated history and restore. Every Diagnosis node now supports
+durable pre-effect pause/resume, safe-boundary cancellation, and stable operation identities for
+exact effect replay; worker-crash continuation and checkpoint observability remain later Phase 6
+batches.
 
 ## Why this project exists
 

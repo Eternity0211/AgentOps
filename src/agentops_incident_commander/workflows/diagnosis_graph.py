@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
-from typing import Protocol
+from hashlib import sha256
+from typing import Any, Protocol
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.runtime import Runtime
+from langgraph.types import interrupt
 
 from agentops_incident_commander.domain import InvalidDomainValueError, utc_now
 
@@ -25,6 +28,25 @@ class GateRoute(StrEnum):
     PASS = "PASS"
     REPLAN = "REPLAN"
     HUMAN_HANDOFF = "HUMAN_HANDOFF"
+
+
+class WorkflowControl(StrEnum):
+    CONTINUE = "CONTINUE"
+    PAUSE = "PAUSE"
+    CANCEL = "CANCEL"
+
+
+class DiagnosisControlPort(Protocol):
+    async def decision(
+        self, state: DiagnosisGraphState, *, node_name: str, operation_id: str
+    ) -> WorkflowControl: ...
+
+
+class ContinueDiagnosisControl:
+    async def decision(
+        self, state: DiagnosisGraphState, *, node_name: str, operation_id: str
+    ) -> WorkflowControl:
+        return WorkflowControl.CONTINUE
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,42 +126,58 @@ class GateNodeResult:
 class DiagnosisWorkflowServices(Protocol):
     """Ports used by graph nodes; implementations retain persistence and gateway authority."""
 
-    async def load_context(self, state: DiagnosisGraphState) -> ContextLoadResult: ...
+    async def load_context(
+        self, state: DiagnosisGraphState, *, operation_id: str
+    ) -> ContextLoadResult: ...
 
-    async def plan(self, state: DiagnosisGraphState) -> PlanNodeResult:
+    async def plan(self, state: DiagnosisGraphState, *, operation_id: str) -> PlanNodeResult:
         """Return only after compiling and durably storing exact read-tool calls."""
         ...
 
-    async def load_tool_batches(self, state: DiagnosisGraphState) -> tuple[tuple[str, ...], ...]:
+    async def load_tool_batches(
+        self, state: DiagnosisGraphState, *, operation_id: str
+    ) -> tuple[tuple[str, ...], ...]:
         """Load deterministic parallel waves for all selected tool-call IDs."""
         ...
 
-    async def execute_read_tool(self, state: DiagnosisGraphState, tool_call_id: str) -> None:
+    async def execute_read_tool(
+        self, state: DiagnosisGraphState, tool_call_id: str, *, operation_id: str
+    ) -> None:
         """Invoke one stored compiled call through the diagnosis-only Tool Gateway."""
         ...
 
-    async def persist_evidence(self, state: DiagnosisGraphState) -> EvidencePersistenceResult: ...
+    async def persist_evidence(
+        self, state: DiagnosisGraphState, *, operation_id: str
+    ) -> EvidencePersistenceResult: ...
 
-    async def hypothesize(self, state: DiagnosisGraphState) -> HypothesisNodeResult: ...
+    async def hypothesize(
+        self, state: DiagnosisGraphState, *, operation_id: str
+    ) -> HypothesisNodeResult: ...
 
-    async def evaluate_evidence_gate(self, state: DiagnosisGraphState) -> GateNodeResult:
+    async def evaluate_evidence_gate(
+        self, state: DiagnosisGraphState, *, operation_id: str
+    ) -> GateNodeResult:
         """Return a route derived by the deterministic Evidence Gate, never the model."""
         ...
 
-    async def record_handoff(self, state: DiagnosisGraphState) -> None: ...
+    async def record_handoff(self, state: DiagnosisGraphState, *, operation_id: str) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)
 class DiagnosisRuntimeContext:
     services: DiagnosisWorkflowServices
     clock: Callable[[], datetime] = field(default=utc_now)
+    control: DiagnosisControlPort = field(default_factory=ContinueDiagnosisControl)
 
 
 async def load_context_node(
     state: DiagnosisGraphState, runtime: Runtime[DiagnosisRuntimeContext]
 ) -> dict[str, object]:
     _require_phase(state, GraphPhase.CONTEXT_LOADING)
-    result = await runtime.context.services.load_context(state)
+    operation_id, control = await _before_effect(state, runtime, "load_context")
+    if control is not None:
+        return control
+    result = await runtime.context.services.load_context(state, operation_id=operation_id)
     return _transition(
         state,
         runtime,
@@ -152,7 +190,10 @@ async def plan_node(
     state: DiagnosisGraphState, runtime: Runtime[DiagnosisRuntimeContext]
 ) -> dict[str, object]:
     _require_phase(state, GraphPhase.PLANNING)
-    result = await runtime.context.services.plan(state)
+    operation_id, control = await _before_effect(state, runtime, "plan")
+    if control is not None:
+        return control
+    result = await runtime.context.services.plan(state, operation_id=operation_id)
     budgets = _consume_budget(
         state.budgets,
         used_steps=result.used_steps,
@@ -193,14 +234,21 @@ async def execute_read_tools_node(
     state: DiagnosisGraphState, runtime: Runtime[DiagnosisRuntimeContext]
 ) -> dict[str, object]:
     _require_phase(state, GraphPhase.INVESTIGATING)
-    batches = await runtime.context.services.load_tool_batches(state)
+    operation_id, control = await _before_effect(state, runtime, "execute_read_tools")
+    if control is not None:
+        return control
+    batches = await runtime.context.services.load_tool_batches(state, operation_id=operation_id)
     _validate_tool_batches(batches, state.tool_call_ids, state.budgets.used_tool_calls)
     pending_ids = state.tool_call_ids[state.budgets.used_tool_calls :]
     for batch in batches:
         async with asyncio.TaskGroup() as tasks:
             for tool_call_id in batch:
                 tasks.create_task(
-                    runtime.context.services.execute_read_tool(state, tool_call_id),
+                    runtime.context.services.execute_read_tool(
+                        state,
+                        tool_call_id,
+                        operation_id=node_operation_id(state, f"execute_read_tools:{tool_call_id}"),
+                    ),
                     name=f"diagnosis-tool:{tool_call_id}",
                 )
     budgets = _consume_budget(state.budgets, used_tool_calls=len(pending_ids))
@@ -213,7 +261,10 @@ async def persist_evidence_node(
     _require_phase(state, GraphPhase.INVESTIGATING)
     if state.budgets.used_tool_calls != len(state.tool_call_ids):
         raise InvalidDomainValueError("evidence cannot persist before all selected tools complete")
-    result = await runtime.context.services.persist_evidence(state)
+    operation_id, control = await _before_effect(state, runtime, "persist_evidence")
+    if control is not None:
+        return control
+    result = await runtime.context.services.persist_evidence(state, operation_id=operation_id)
     return _transition(
         state,
         runtime,
@@ -226,7 +277,10 @@ async def hypothesis_node(
     state: DiagnosisGraphState, runtime: Runtime[DiagnosisRuntimeContext]
 ) -> dict[str, object]:
     _require_phase(state, GraphPhase.HYPOTHESIS)
-    result = await runtime.context.services.hypothesize(state)
+    operation_id, control = await _before_effect(state, runtime, "hypothesis")
+    if control is not None:
+        return control
+    result = await runtime.context.services.hypothesize(state, operation_id=operation_id)
     budgets = _consume_budget(
         state.budgets,
         used_model_calls=1,
@@ -246,7 +300,10 @@ async def evidence_gate_node(
     state: DiagnosisGraphState, runtime: Runtime[DiagnosisRuntimeContext]
 ) -> dict[str, object]:
     _require_phase(state, GraphPhase.EVIDENCE_REVIEW)
-    result = await runtime.context.services.evaluate_evidence_gate(state)
+    operation_id, control = await _before_effect(state, runtime, "evidence_gate")
+    if control is not None:
+        return control
+    result = await runtime.context.services.evaluate_evidence_gate(state, operation_id=operation_id)
     budgets = state.budgets
     error_code = result.error_code
     if result.route is GateRoute.PASS:
@@ -272,11 +329,16 @@ async def human_handoff_node(
     state: DiagnosisGraphState, runtime: Runtime[DiagnosisRuntimeContext]
 ) -> dict[str, object]:
     _require_phase(state, GraphPhase.HUMAN_HANDOFF)
-    await runtime.context.services.record_handoff(state)
+    operation_id, control = await _before_effect(state, runtime, "human_handoff")
+    if control is not None:
+        return control
+    await runtime.context.services.record_handoff(state, operation_id=operation_id)
     return _transition(state, runtime)
 
 
 def route_after_gate(state: DiagnosisGraphState) -> str:
+    if state.phase is GraphPhase.CANCELLED:
+        return "cancelled"
     if state.phase is GraphPhase.COMPLETE:
         return "complete"
     if state.phase is GraphPhase.PLANNING:
@@ -287,11 +349,29 @@ def route_after_gate(state: DiagnosisGraphState) -> str:
 
 
 def route_after_plan(state: DiagnosisGraphState) -> str:
+    if state.phase is GraphPhase.CANCELLED:
+        return "cancelled"
     if state.phase is GraphPhase.INVESTIGATING:
         return "investigate"
     if state.phase is GraphPhase.HUMAN_HANDOFF:
         return "handoff"
     raise InvalidDomainValueError("planning produced an unsupported graph phase")
+
+
+def route_after_context(state: DiagnosisGraphState) -> str:
+    return _route_or_cancel(state, GraphPhase.PLANNING, "plan", "context loading")
+
+
+def route_after_tools(state: DiagnosisGraphState) -> str:
+    return _route_or_cancel(state, GraphPhase.INVESTIGATING, "persist", "tool execution")
+
+
+def route_after_persistence(state: DiagnosisGraphState) -> str:
+    return _route_or_cancel(state, GraphPhase.HYPOTHESIS, "hypothesis", "evidence persistence")
+
+
+def route_after_hypothesis(state: DiagnosisGraphState) -> str:
+    return _route_or_cancel(state, GraphPhase.EVIDENCE_REVIEW, "gate", "hypothesis generation")
 
 
 def build_diagnosis_graph(
@@ -312,22 +392,120 @@ def build_diagnosis_graph(
     builder.add_node("evidence_gate", evidence_gate_node)
     builder.add_node("human_handoff", human_handoff_node)
     builder.add_edge(START, "load_context")
-    builder.add_edge("load_context", "plan")
+    builder.add_conditional_edges(
+        "load_context", route_after_context, {"plan": "plan", "cancelled": END}
+    )
     builder.add_conditional_edges(
         "plan",
         route_after_plan,
-        {"investigate": "execute_read_tools", "handoff": "human_handoff"},
+        {
+            "investigate": "execute_read_tools",
+            "handoff": "human_handoff",
+            "cancelled": END,
+        },
     )
-    builder.add_edge("execute_read_tools", "persist_evidence")
-    builder.add_edge("persist_evidence", "hypothesis")
-    builder.add_edge("hypothesis", "evidence_gate")
+    builder.add_conditional_edges(
+        "execute_read_tools",
+        route_after_tools,
+        {"persist": "persist_evidence", "cancelled": END},
+    )
+    builder.add_conditional_edges(
+        "persist_evidence",
+        route_after_persistence,
+        {"hypothesis": "hypothesis", "cancelled": END},
+    )
+    builder.add_conditional_edges(
+        "hypothesis",
+        route_after_hypothesis,
+        {"gate": "evidence_gate", "cancelled": END},
+    )
     builder.add_conditional_edges(
         "evidence_gate",
         route_after_gate,
-        {"complete": END, "replan": "plan", "handoff": "human_handoff"},
+        {
+            "complete": END,
+            "replan": "plan",
+            "handoff": "human_handoff",
+            "cancelled": END,
+        },
     )
     builder.add_edge("human_handoff", END)
     return builder.compile(checkpointer=checkpointer)
+
+
+def node_operation_id(state: DiagnosisGraphState, node_name: str) -> str:
+    """Derive a stable idempotency identity for one node attempt boundary."""
+    if (
+        not isinstance(state, DiagnosisGraphState)
+        or not isinstance(node_name, str)
+        or not node_name
+    ):
+        raise InvalidDomainValueError("node operation identity inputs are invalid")
+    canonical = json.dumps(
+        {
+            "checkpoint_sequence": state.checkpoint_sequence,
+            "graph_version": state.graph_version,
+            "node_name": node_name,
+            "tenant_id": state.tenant_id,
+            "workflow_run_id": state.workflow_run_id,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return sha256(canonical.encode("utf-8")).hexdigest()
+
+
+async def _before_effect(
+    state: DiagnosisGraphState,
+    runtime: Runtime[DiagnosisRuntimeContext],
+    node_name: str,
+) -> tuple[str, dict[str, object] | None]:
+    operation_id = node_operation_id(state, node_name)
+    decision = await runtime.context.control.decision(
+        state, node_name=node_name, operation_id=operation_id
+    )
+    if not isinstance(decision, WorkflowControl):
+        raise InvalidDomainValueError("workflow control decision is invalid")
+    if decision is WorkflowControl.PAUSE:
+        response: Any = interrupt(
+            {
+                "kind": "DIAGNOSIS_PAUSED",
+                "node_name": node_name,
+                "operation_id": operation_id,
+            },
+            response_schema={
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {"action": {"enum": ["RESUME", "CANCEL"], "type": "string"}},
+                "required": ["action"],
+            },
+        )
+        if not isinstance(response, dict) or response.get("action") not in {"RESUME", "CANCEL"}:
+            raise InvalidDomainValueError("workflow resume directive is invalid")
+        if response["action"] == "CANCEL":
+            decision = WorkflowControl.CANCEL
+    if decision is WorkflowControl.CANCEL:
+        update = _transition(
+            state,
+            runtime,
+            phase=GraphPhase.CANCELLED,
+            error_code="CANCELLED_AT_SAFE_BOUNDARY",
+        )
+        return operation_id, update
+    return operation_id, None
+
+
+def _route_or_cancel(
+    state: DiagnosisGraphState,
+    expected_phase: GraphPhase,
+    continuation: str,
+    node_description: str,
+) -> str:
+    if state.phase is GraphPhase.CANCELLED:
+        return "cancelled"
+    if state.phase is expected_phase:
+        return continuation
+    raise InvalidDomainValueError(f"{node_description} produced an unsupported graph phase")
 
 
 def _transition(

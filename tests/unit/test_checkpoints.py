@@ -25,7 +25,7 @@ from agentops_incident_commander.workflows import (
 
 def state(**overrides: Any) -> DiagnosisGraphState:
     values: dict[str, object] = {
-        "state_schema_version": "1.1.0",
+        "state_schema_version": "1.2.0",
         "graph_version": "1.0.0",
         "tenant_id": "tenant-1",
         "incident_id": "incident-1",

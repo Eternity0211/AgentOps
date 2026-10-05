@@ -144,7 +144,7 @@ Exit: only candidates satisfying deterministic rules pass; false citations and c
 - [x] Implement LangGraph nodes/routes for context load, plan, parallel read-only tools, evidence persistence, hypothesis, gate, replan/handoff.
 - [x] Detect repeated/equivalent queries and enforce finite replan/attempt budgets.
 - [x] Integrate PostgreSQL LangGraph checkpoints with thread/run correlation.
-- [ ] Implement pause, resume, cancel, and idempotent node replay semantics.
+- [x] Implement pause, resume, cancel, and idempotent node replay semantics.
 - [ ] Implement worker-crash continuation and checkpoint observability.
 - [ ] Add deterministic mock-model mode covering valid, malformed, timeout, refusal, fabricated-reference, and injection-resistant outputs.
 - [ ] Require every Diagnosis node invocation to load an approved Prompt Registry version; prohibit unregistered inline production prompts.

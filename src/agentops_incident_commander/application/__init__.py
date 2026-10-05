@@ -15,6 +15,14 @@ from .model_tracing import (
     ModelCallTraceStore,
     model_call_trace_fingerprint,
 )
+from .planning import (
+    CompiledInvestigationPlan,
+    CompiledToolCall,
+    PlanningBudgets,
+    PlanningUsage,
+    ProposedToolCall,
+    compile_investigation_plan,
+)
 from .prompt_registry import PromptLifecycleChange, PromptLifecycleManager, PromptLifecycleStore
 from .tool_gateway import (
     AuditWriter,
@@ -28,17 +36,23 @@ from .tool_gateway import (
     ToolPayloadValidationError,
     ToolResultLimitError,
     ToolSchemaConfigurationError,
+    validate_diagnosis_tool_proposal,
 )
 
 __all__ = [
     "AuditWriter",
+    "CompiledInvestigationPlan",
+    "CompiledToolCall",
     "EvidenceReader",
     "EvidenceReferenceResolution",
     "ModelCallTraceManager",
     "ModelCallTraceStore",
+    "PlanningBudgets",
+    "PlanningUsage",
     "PromptLifecycleChange",
     "PromptLifecycleManager",
     "PromptLifecycleStore",
+    "ProposedToolCall",
     "ToolAdapter",
     "ToolAdapterContext",
     "ToolAdapterFailure",
@@ -49,6 +63,7 @@ __all__ = [
     "ToolPayloadValidationError",
     "ToolResultLimitError",
     "ToolSchemaConfigurationError",
+    "compile_investigation_plan",
     "evaluate_evidence_characteristics",
     "evaluate_evidence_gate",
     "evidence_gate_decision_fingerprint",
@@ -56,4 +71,5 @@ __all__ = [
     "evidence_gate_input_snapshot",
     "model_call_trace_fingerprint",
     "resolve_gate_evidence_references",
+    "validate_diagnosis_tool_proposal",
 ]

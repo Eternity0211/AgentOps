@@ -140,7 +140,7 @@ Exit: only candidates satisfying deterministic rules pass; false citations and c
 - [x] Trace the exact prompt/model/settings/token/cost metadata for every model call without leaking sensitive content.
 - [x] Define versioned Pydantic graph state and migration/compatibility strategy.
 - [x] Implement Diagnosis Agent structured schemas for bounded plan, candidates, support, counter-evidence, missing evidence, and uncertainty.
-- [ ] Implement tool-catalog constrained planning with maximum steps, parallelism, time, tokens, and cost.
+- [x] Implement tool-catalog constrained planning with maximum steps, parallelism, time, tokens, and cost.
 - [ ] Implement LangGraph nodes/routes for context load, plan, parallel read-only tools, evidence persistence, hypothesis, gate, replan/handoff.
 - [ ] Detect repeated/equivalent queries and enforce finite replan/attempt budgets.
 - [ ] Integrate PostgreSQL LangGraph checkpoints with thread/run correlation.

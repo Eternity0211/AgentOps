@@ -386,6 +386,29 @@ def _validate_diagnosis_arguments(value: object, *, path: str = "$") -> None:
         )
 
 
+def validate_diagnosis_tool_proposal(
+    registry: ToolRegistry,
+    *,
+    tool_name: str,
+    tool_version: SemanticVersion,
+    arguments: Mapping[str, Any],
+) -> ToolDefinition:
+    """Resolve and validate a proposed Diagnosis call without dispatching it."""
+    definition = registry.resolve(tool_name, tool_version)
+    if definition.access_class is not ToolAccessClass.READ:
+        raise ToolPayloadValidationError(
+            "DIAGNOSIS_WRITE_TOOL_FORBIDDEN", "diagnosis can propose read-only tools only"
+        )
+    if len(_canonical_json(arguments).encode("utf-8")) > definition.max_input_bytes:
+        raise ToolPayloadValidationError(
+            "INPUT_LIMIT_EXCEEDED", "tool input exceeds its registered byte limit"
+        )
+    _check_schema(definition.input_schema.as_dict())
+    _validate_payload(definition.input_schema.as_dict(), dict(arguments))
+    _validate_diagnosis_arguments(dict(arguments))
+    return definition
+
+
 class ToolGateway:
     """Execute only exact registered adapters behind deterministic controls."""
 

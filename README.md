@@ -4,11 +4,13 @@ AgentOps Incident Commander is an evidence-driven platform for diagnosing micros
 
 > Status: Phase 1 through Phase 5 are complete. The reproducible simulator and live local Compose verification remain documented in the versioned [Phase 1 verification record](docs/PHASE_1_VERIFICATION.md). The control plane includes the framework-free [typed domain model](docs/DOMAIN_MODEL.md), complete Incident lifecycle, deterministic Alert triage, a [PostgreSQL/pgvector persistence foundation](docs/PERSISTENCE.md) with append-only audit, transactional outbox, durable JobLease queue, tenant ownership, command idempotency, and immutable Evidence Gate decisions, separate [API/worker process composition](docs/CONTROL_PLANE_PROCESSES.md) with bounded runtime controls, tenant-scoped [authentication/RBAC contracts](docs/AUTHORIZATION.md), and a fail-closed [versioned business API](docs/API_V1.md) with a committed OpenAPI snapshot and stable problem-detail conventions. Phase 3 includes [immutable Artifact storage](docs/ARTIFACT_STORAGE.md), a tenant-scoped [Evidence model, normalization, quality, verification, redaction, untrusted-telemetry quarantine, and budgeted Context Builder pipeline](docs/EVIDENCE_MODEL.md), five bounded [deterministic collectors](docs/COLLECTORS.md), log error clustering, metric trend summaries, trace critical-path/error summaries, Incident-window deployment correlation with raw Artifact provenance, and tenant-scoped Evidence/Artifact read APIs with verified content bindings. Phase 4 includes the immutable, fail-closed [versioned ToolDefinition registry and deterministic Tool Gateway](docs/TOOL_GATEWAY.md) with conservative schema compatibility, validation, RBAC, exact dispatch, bounded timeout/retry/result controls, hash-only audit events, five bounded live read-tool v1 adapters, the disabled historical-reference-only `search_similar_incidents` v1 contract, and a diagnosis-only read catalog with recursive URL/path/command rejection. Phase 5 includes the versioned [deterministic Evidence Gate](docs/EVIDENCE_GATE.md), resolvable/owned/fresh/independent evidence checks, explicit counter/missing-evidence handling, confidence non-authority, reproducible persistence, audit binding, and adversarial fail-closed coverage. A production authentication adapter and production Artifact backend remain open; no production-scale or reliability claim is implied.
 
-Phase 6 now includes the versioned [Prompt Registry](docs/PROMPT_REGISTRY.md) and
-[content-free model-call tracing](docs/MODEL_CALL_TRACING.md); production provider invocation remains
-disabled until the bounded Diagnosis workflow is implemented. The strict
-[versioned graph-state contract](docs/GRAPH_STATE.md) now defines content-free checkpoint data and
-fail-closed schema migration before LangGraph/checkpointer integration.
+Phase 6 now includes the versioned [Prompt Registry](docs/PROMPT_REGISTRY.md),
+[content-free model-call tracing](docs/MODEL_CALL_TRACING.md), strict
+[Diagnosis Agent schemas](docs/DIAGNOSIS_SCHEMAS.md), the
+[versioned graph-state contract](docs/GRAPH_STATE.md), and all-or-nothing
+[diagnosis-plan compilation](docs/DIAGNOSIS_PLANNING.md) against the server tool catalog and hard
+resource budgets. Production provider invocation remains disabled until the durable Diagnosis
+workflow is implemented.
 
 ## Why this project exists
 
@@ -162,6 +164,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Content-free model-call tracing](docs/MODEL_CALL_TRACING.md)
 - [Versioned Diagnosis graph state](docs/GRAPH_STATE.md)
 - [Diagnosis Agent structured schemas](docs/DIAGNOSIS_SCHEMAS.md)
+- [Deterministic diagnosis-plan compilation](docs/DIAGNOSIS_PLANNING.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)

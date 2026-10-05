@@ -122,8 +122,12 @@ and recursively rejects raw URL schemes, absolute or parent-traversal paths, com
 forms, and control characters before adapter dispatch. These refusals use the normal
 `tool.call_rejected` hash-only audit path; unknown and disabled versions remain fail-closed registry
 errors with the same rejection audit behavior.
-Diagnosis-only catalog enforcement and the explicit raw URL/path/command deny rules are still open
-and will be completed before agent workflows can invoke the gateway.
+
+Before invocation, the deterministic [diagnosis-plan compiler](DIAGNOSIS_PLANNING.md) binds each
+model-proposed step to an exact enabled definition, repeats the read-only/schema/unsafe-argument
+checks, permits only `LOW` risk, and enforces aggregate step, parallelism, worst-case time, token,
+and integer cost budgets. The runtime workflow must execute only the resulting frozen calls. The
+gateway intentionally revalidates the same security boundary at dispatch.
 
 ## Verification
 

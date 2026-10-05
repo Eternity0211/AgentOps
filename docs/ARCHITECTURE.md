@@ -146,6 +146,11 @@ LangGraph, rather than a black-box general ReAct agent, is the workflow authorit
 
 The Diagnosis Agent may propose only tools from the supplied catalog and within maximum step, parallelism, wall-clock, and token budgets. Tool arguments pass schemas before dispatch. Independent read-only calls can fan out; results join at evidence normalization. A deterministic router decides whether missing evidence justifies replanning. Replanning has a hard attempt limit and repeated-equivalent-query detection.
 
+The implemented all-or-nothing compilation boundary, including exact registry binding, low-risk
+read-only enforcement, worst-case retry accounting, and integer token/cost limits, is documented in
+[Deterministic diagnosis-plan compilation](DIAGNOSIS_PLANNING.md). Scheduling and bounded replanning
+remain workflow responsibilities.
+
 Its implemented [structured schemas](DIAGNOSIS_SCHEMAS.md) separate a finite evidence-oriented plan
 from ranked, evidence-linked conclusions and explicit refusal/handoff outcomes. Schema validity
 never substitutes for Tool Gateway authorization or Evidence Gate resolution.

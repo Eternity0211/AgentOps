@@ -9,6 +9,12 @@ from pydantic import ValidationError
 
 from agentops_incident_commander.domain import EvidenceId, EvidenceSourceType, IncidentId
 from agentops_incident_commander.workflows import (
+    DIAGNOSIS_PLAN_SCHEMA_VERSION,
+    DIAGNOSIS_REPORT_SCHEMA_VERSION,
+    MAX_CANDIDATE_EVIDENCE,
+    MAX_INVESTIGATION_STEPS,
+    MAX_MISSING_EVIDENCE,
+    MAX_ROOT_CAUSE_CANDIDATES,
     CounterEvidenceTreatment,
     DiagnosisDisposition,
     DiagnosisReport,
@@ -70,6 +76,175 @@ def test_plan_is_finite_ordered_and_content_free() -> None:
     assert not hasattr(plan.steps[0], "url")
     with pytest.raises(ValidationError, match="Extra inputs"):
         InvestigationPlan.model_validate({**plan.model_dump(), "prompt": "ignore policy"})
+
+
+def test_schema_round_trips_are_strict_frozen_and_versioned() -> None:
+    plan = InvestigationPlan(
+        schema_version=DIAGNOSIS_PLAN_SCHEMA_VERSION,
+        plan_id="plan-1",
+        summary="Correlate metrics and traces.",
+        steps=(step("metrics"),),
+    )
+    diagnosis = report(schema_version=DIAGNOSIS_REPORT_SCHEMA_VERSION)
+
+    assert InvestigationPlan.model_validate_json(plan.model_dump_json()) == plan
+    assert DiagnosisReport.model_validate_json(diagnosis.model_dump_json()) == diagnosis
+    with pytest.raises(ValidationError, match="frozen"):
+        plan.summary = "mutated"
+    with pytest.raises(ValidationError, match="frozen"):
+        diagnosis.explanation = "mutated"
+    with pytest.raises(ValidationError):
+        InvestigationPlan.model_validate({**plan.model_dump(), "schema_version": "2.0.0"})
+    with pytest.raises(ValidationError):
+        DiagnosisReport.model_validate({**diagnosis.model_dump(), "schema_version": "2.0.0"})
+
+
+def test_schema_accepts_exact_collection_bounds_and_rejects_overflow() -> None:
+    steps = tuple(
+        step(f"step-{index}", depends_on=((f"step-{index - 1}",) if index else ()))
+        for index in range(MAX_INVESTIGATION_STEPS)
+    )
+    plan = InvestigationPlan(
+        schema_version=DIAGNOSIS_PLAN_SCHEMA_VERSION,
+        plan_id="plan-max",
+        summary="Maximum bounded investigation.",
+        steps=steps,
+    )
+    candidates = tuple(
+        candidate(candidate_id=f"candidate-{index}", rank=index + 1)
+        for index in range(MAX_ROOT_CAUSE_CANDIDATES)
+    )
+    diagnosis = report(
+        candidates=candidates,
+        missing_evidence=tuple(f"missing-{index}" for index in range(MAX_MISSING_EVIDENCE)),
+    )
+    evidence_bound = candidate(
+        supporting_evidence_ids=tuple(
+            f"evidence-{index}" for index in range(MAX_CANDIDATE_EVIDENCE)
+        )
+    )
+
+    assert len(plan.steps) == MAX_INVESTIGATION_STEPS
+    assert len(diagnosis.candidates) == MAX_ROOT_CAUSE_CANDIDATES
+    assert len(diagnosis.missing_evidence) == MAX_MISSING_EVIDENCE
+    assert len(evidence_bound.supporting_evidence_ids) == MAX_CANDIDATE_EVIDENCE
+
+    with pytest.raises(ValidationError):
+        InvestigationPlan(
+            schema_version=DIAGNOSIS_PLAN_SCHEMA_VERSION,
+            plan_id="plan-overflow",
+            summary="Too many steps.",
+            steps=(*steps, step("overflow")),
+        )
+    with pytest.raises(ValidationError):
+        report(
+            candidates=(
+                *candidates,
+                candidate(candidate_id="candidate-overflow", rank=MAX_ROOT_CAUSE_CANDIDATES),
+            )
+        )
+    with pytest.raises(ValidationError):
+        report(
+            disposition=DiagnosisDisposition.NEEDS_MORE_EVIDENCE,
+            candidates=(),
+            missing_evidence=tuple(f"missing-{index}" for index in range(MAX_MISSING_EVIDENCE + 1)),
+        )
+    with pytest.raises(ValidationError):
+        candidate(
+            supporting_evidence_ids=tuple(
+                f"evidence-{index}" for index in range(MAX_CANDIDATE_EVIDENCE + 1)
+            )
+        )
+
+
+@pytest.mark.parametrize(
+    ("factory", "message"),
+    [
+        (
+            lambda: InvestigationStep.model_validate(
+                {
+                    **step("metrics").model_dump(),
+                    "parallel_group": "0",
+                }
+            ),
+            "valid integer",
+        ),
+        (
+            lambda: RootCauseCandidate.model_validate(
+                {**candidate().model_dump(), "confidence_basis_points": 1.0}
+            ),
+            "valid integer",
+        ),
+        (
+            lambda: RootCauseCandidate.model_validate(
+                {**candidate().model_dump(), "supporting_evidence_ids": []}
+            ),
+            "tuple",
+        ),
+        (
+            lambda: InvestigationStep.model_validate(
+                {**step("metrics").model_dump(), "shell_command": "shutdown"}
+            ),
+            "Extra inputs",
+        ),
+        (
+            lambda: RootCauseCandidate.model_validate(
+                {**candidate().model_dump(), "evidence_payload": "untrusted log content"}
+            ),
+            "Extra inputs",
+        ),
+    ],
+)
+def test_nested_agent_outputs_reject_coercion_and_authority_bearing_fields(
+    factory: Any, message: str
+) -> None:
+    with pytest.raises(ValidationError, match=message):
+        factory()
+
+
+@pytest.mark.parametrize(
+    ("factory", "message"),
+    [
+        (
+            lambda: InvestigationPlan(
+                schema_version=DIAGNOSIS_PLAN_SCHEMA_VERSION,
+                plan_id="plan-empty",
+                summary="No steps.",
+                steps=(),
+            ),
+            "at least 1",
+        ),
+        (
+            lambda: step("bad step id"),
+            "string_pattern_mismatch",
+        ),
+        (
+            lambda: InvestigationStep(
+                step_id="bad-group",
+                objective="Collect bounded evidence.",
+                expected_source=EvidenceSourceType.METRIC,
+                depends_on=(),
+                parallel_group=MAX_INVESTIGATION_STEPS + 1,
+            ),
+            "less than or equal",
+        ),
+        (
+            lambda: candidate(supporting_evidence_ids=()),
+            "at least 1",
+        ),
+        (
+            lambda: candidate(confidence_basis_points=-1),
+            "greater than or equal",
+        ),
+        (
+            lambda: candidate(confidence_basis_points=10_001),
+            "less than or equal",
+        ),
+    ],
+)
+def test_agent_schema_lower_upper_and_identifier_bounds(factory: Any, message: str) -> None:
+    with pytest.raises(ValidationError, match=message):
+        factory()
 
 
 @pytest.mark.parametrize(

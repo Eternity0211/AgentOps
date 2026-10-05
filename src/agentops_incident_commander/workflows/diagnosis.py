@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -14,8 +14,8 @@ from agentops_incident_commander.domain import (
     RootCauseEvidenceClaim,
 )
 
-DIAGNOSIS_PLAN_SCHEMA_VERSION = "1.0.0"
-DIAGNOSIS_REPORT_SCHEMA_VERSION = "1.0.0"
+DIAGNOSIS_PLAN_SCHEMA_VERSION: Final[Literal["1.0.0"]] = "1.0.0"
+DIAGNOSIS_REPORT_SCHEMA_VERSION: Final[Literal["1.0.0"]] = "1.0.0"
 MAX_INVESTIGATION_STEPS = 16
 MAX_ROOT_CAUSE_CANDIDATES = 8
 MAX_CANDIDATE_EVIDENCE = 32

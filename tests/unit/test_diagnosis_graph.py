@@ -16,6 +16,7 @@ from pydantic import ValidationError
 from agentops_incident_commander.domain import InvalidDomainValueError
 from agentops_incident_commander.infrastructure import diagnosis_checkpoint_serializer
 from agentops_incident_commander.workflows import (
+    DIAGNOSIS_NODE_NAMES,
     ContextLoadResult,
     DiagnosisGraphState,
     DiagnosisRuntimeContext,
@@ -274,6 +275,30 @@ async def test_graph_pass_path_parallelizes_reads_and_returns_only_references() 
         "hypothesis",
         "evidence_gate",
     ]
+
+
+def test_compiled_graph_topology_contains_only_reviewed_bounded_paths() -> None:
+    graph = build_diagnosis_graph().get_graph()
+
+    assert set(graph.nodes) == {"__start__", "__end__", *DIAGNOSIS_NODE_NAMES}
+    assert {(edge.source, edge.target, edge.conditional) for edge in graph.edges} == {
+        ("__start__", "load_context", False),
+        ("load_context", "plan", True),
+        ("load_context", "__end__", True),
+        ("plan", "execute_read_tools", True),
+        ("plan", "human_handoff", True),
+        ("plan", "__end__", True),
+        ("execute_read_tools", "persist_evidence", True),
+        ("execute_read_tools", "__end__", True),
+        ("persist_evidence", "hypothesis", True),
+        ("persist_evidence", "__end__", True),
+        ("hypothesis", "evidence_gate", True),
+        ("hypothesis", "__end__", True),
+        ("evidence_gate", "__end__", True),
+        ("evidence_gate", "plan", True),
+        ("evidence_gate", "human_handoff", True),
+        ("human_handoff", "__end__", False),
+    }
 
 
 @pytest.mark.anyio

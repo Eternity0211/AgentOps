@@ -26,7 +26,10 @@ missing evidence remain visible to the Gate and therefore fail closed under the 
 Both models are frozen, strict, and reject extra fields. Tests cover bounds, unsafe multiline text,
 duplicate and crossed references, invalid dependency graphs, rank/identity consistency, all
 non-candidate dispositions, explicit counter-evidence handling, unknown fields, and exact Gate
-claim conversion.
+claim conversion. Boundary fixtures now exercise the exact maximum step, candidate, evidence, and
+missing-evidence collections plus one-item overflow; JSON round trips preserve immutable tuples and
+schema versions. Nested coercion, invalid identifiers, unsupported schema versions, and attempted
+authority-bearing fields such as commands or evidence payloads fail closed.
 
 The credential-free [deterministic mock model](MOCK_MODEL.md) exercises both schemas with valid,
 malformed, timeout, refusal, fabricated-reference, and injection-resistant scenarios. A fabricated

@@ -148,7 +148,7 @@ Exit: only candidates satisfying deterministic rules pass; false citations and c
 - [x] Implement worker-crash continuation and checkpoint observability.
 - [x] Add deterministic mock-model mode covering valid, malformed, timeout, refusal, fabricated-reference, and injection-resistant outputs.
 - [x] Require every Diagnosis node invocation to load an approved Prompt Registry version; prohibit unregistered inline production prompts.
-- [ ] Add Agent schema tests and all Diagnosis graph path tests.
+- [x] Add Agent schema tests and all Diagnosis graph path tests.
 - [ ] Add parallel investigation and model/tool timeout/failure tests.
 
 Exit: a worker can crash at each durable boundary and resume without evidence loss, illegal writes, unbounded loops, or duplicate effects.

@@ -99,7 +99,9 @@ and omit LangGraph's internal pre-input checkpoint because it contains no Diagno
 Tests execute the compiled async graph through pass, one-replan-then-pass, explicit handoff, and
 replan-budget-exhaustion routes. They prove same-wave tool concurrency, cumulative budgets,
 reference-only output, transition sequencing, exact pending-call batches, duplicate refusal,
-invalid result refusal, premature evidence-persistence refusal, and unsupported-route failure.
+invalid result refusal, premature evidence-persistence refusal, and unsupported-route failure. A
+topology contract enumerates every compiled node and edge, including every safe-boundary
+cancellation edge, so an added or removed workflow route requires an explicit test review.
 Interrupt tests additionally cover durable resume, resume-as-cancel, malformed directives,
 cancellation before every service boundary, and stable identities for exact node replay.
 PostgreSQL crash tests reconstruct the saver/graph at every durable node boundary and assert each

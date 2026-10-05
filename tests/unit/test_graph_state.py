@@ -60,6 +60,7 @@ def state_dict(**overrides: Any) -> dict[str, object]:
             "content_fingerprint": "a" * 64,
         },
         "tool_call_ids": ("tool-1",),
+        "tool_query_fingerprints": ("b" * 64,),
         "model_call_ids": ("model-1",),
         "evidence_ids": ("evidence-1",),
         "gate_decision_fingerprint": None,
@@ -80,7 +81,7 @@ def test_current_state_is_strict_frozen_and_canonical() -> None:
     )
     encoded = canonical_graph_state_bytes(state)
     assert DiagnosisGraphState.model_validate_json(encoded) == state
-    assert json.loads(encoded)["state_schema_version"] == "1.0.0"
+    assert json.loads(encoded)["state_schema_version"] == "1.1.0"
     with pytest.raises(ValidationError, match="frozen"):
         state.phase = GraphPhase.COMPLETE
 
@@ -102,6 +103,7 @@ def test_state_rejects_content_bearing_or_unknown_fields(field: str) -> None:
         ("gate_decision_fingerprint", "not-a-hash"),
         ("updated_at", datetime(2026, 10, 5, 10, 0)),
         ("tool_call_ids", ("duplicate", "duplicate")),
+        ("tool_query_fingerprints", ("b" * 64, "b" * 64)),
     ],
 )
 def test_state_rejects_invalid_identity_time_hash_and_duplicate_references(
@@ -132,6 +134,7 @@ def test_registry_migrates_copy_sequentially_and_validates_final_state() -> None
     current_snapshot = json.loads(canonical_graph_state_bytes(current))
     legacy = {**current_snapshot, "state_schema_version": "0.9.0"}
     legacy["legacy_phase"] = legacy.pop("phase")
+    legacy.pop("tool_query_fingerprints")
     original = copy.deepcopy(legacy)
     registry = GraphStateMigrationRegistry()
 
@@ -143,6 +146,7 @@ def test_registry_migrates_copy_sequentially_and_validates_final_state() -> None
     registry.register("0.9.0", "1.0.0", migrate)
     loaded = registry.load(legacy)
     assert loaded.phase is GraphPhase.INVESTIGATING
+    assert loaded.tool_query_fingerprints == ()
     assert legacy == original
     assert registry.load(current_snapshot) == current
 
@@ -162,6 +166,12 @@ def test_registry_rejects_unknown_future_missing_and_invalid_migrations() -> Non
         registry.register("0.9.0", "1.0.0", lambda value: value)
     with pytest.raises(InvalidDomainValueError, match="invalid target"):
         registry.load({"state_schema_version": "0.9.0"})
+
+
+def test_builtin_query_history_migration_rejects_future_field_in_legacy_snapshot() -> None:
+    legacy = state_dict(state_schema_version="1.0.0", tool_query_fingerprints=("b" * 64,))
+    with pytest.raises(InvalidDomainValueError, match="future query-history"):
+        GraphStateMigrationRegistry().load(legacy)
 
 
 def test_registry_rejects_non_mapping_migration_result_and_excessive_chain() -> None:

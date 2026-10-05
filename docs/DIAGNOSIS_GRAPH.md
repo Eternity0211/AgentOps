@@ -24,6 +24,10 @@ and phases only; model text, tool arguments/results, telemetry bodies, secrets, 
 never checkpoint fields. Each successful node transition increments the checkpoint sequence and
 records a UTC timestamp.
 
+State schema `1.1.0` adds only the immutable query-fingerprint history. The migration from `1.0.0`
+creates an empty history because older checkpoints never recorded this value; it cannot infer or
+invent hashes for earlier calls.
+
 ## Ports and authority
 
 `DiagnosisWorkflowServices` is the framework boundary implemented by later composition batches.
@@ -47,6 +51,12 @@ route. `evaluate_evidence_gate` is a deterministic port. Its typed result can:
 An exhausted replan request is converted to `HUMAN_HANDOFF` with a stable error code. Step, tool,
 model-call, token, and integer-cost consumption is cumulative across replans and fails closed when a
 maximum would be exceeded. Reference replay or duplication is rejected.
+
+The plan node also compares every returned query fingerprint with durable prior history and with
+the other queries in that plan. Any equivalent query routes directly to `HUMAN_HANDOFF` with
+`REPEATED_EQUIVALENT_QUERY`; no Tool Call ID is accepted and no tool is dispatched. The rejected
+planning model call, tokens, cost, and proposed-step attempt are still counted, preventing free
+retry loops. The compiler performs the same duplicate check before a conforming service returns.
 
 ## Deferred durability work
 

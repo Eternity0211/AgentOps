@@ -13,6 +13,7 @@ from agentops_incident_commander.application import (
     PlanningUsage,
     ProposedToolCall,
     compile_investigation_plan,
+    tool_query_fingerprint,
     validate_diagnosis_tool_proposal,
 )
 from agentops_incident_commander.application.tool_gateway import ToolPayloadValidationError
@@ -143,7 +144,7 @@ def test_compiles_in_plan_order_and_calculates_parallel_worst_case() -> None:
     value = compile_investigation_plan(
         plan(0, 0, 1),
         (
-            proposal("step-3"),
+            proposal("step-3", value="payments"),
             proposal("step-1"),
             proposal("step-2", name="query_metrics"),
         ),
@@ -247,7 +248,7 @@ def test_compile_rejects_parallelism_and_wall_time_budgets() -> None:
     with pytest.raises(InvalidDomainValueError, match="parallelism"):
         compile_investigation_plan(
             plan(0, 0),
-            (proposal("step-1"), proposal("step-2")),
+            (proposal("step-1"), proposal("step-2", value="payments")),
             registry=registry,
             budgets=budgets(max_parallelism=1),
             usage=PlanningUsage(0, 0),
@@ -255,7 +256,7 @@ def test_compile_rejects_parallelism_and_wall_time_budgets() -> None:
     with pytest.raises(InvalidDomainValueError, match="wall-time"):
         compile_investigation_plan(
             plan(0, 1),
-            (proposal("step-1"), proposal("step-2")),
+            (proposal("step-1"), proposal("step-2", value="payments")),
             registry=registry,
             budgets=budgets(max_wall_time_ms=199),
             usage=PlanningUsage(0, 0),
@@ -328,3 +329,53 @@ def test_compiled_plan_is_frozen() -> None:
     with pytest.raises(AttributeError):
         result.calls = ()  # type: ignore[misc]
     assert replace(result.calls[0], step_id="copy").step_id == "copy"
+
+
+def test_query_fingerprint_is_step_independent_but_binds_tool_version_and_arguments() -> None:
+    first = proposal("step-1")
+    equivalent = proposal("different-step")
+    different_arguments = proposal("step-2", value="payments")
+    different_version = ProposedToolCall("step-3", "query_logs", V2, first.arguments_json)
+
+    assert tool_query_fingerprint(first) == tool_query_fingerprint(equivalent)
+    assert tool_query_fingerprint(first) != tool_query_fingerprint(different_arguments)
+    assert tool_query_fingerprint(first) != tool_query_fingerprint(different_version)
+    with pytest.raises(InvalidDomainValueError, match="structured proposal"):
+        tool_query_fingerprint(object())  # type: ignore[arg-type]
+
+
+def test_compile_rejects_repeated_queries_within_plan_and_across_replans() -> None:
+    registry = ToolRegistry((definition(),))
+    repeated = (proposal("step-1"), proposal("step-2"))
+    with pytest.raises(InvalidDomainValueError, match="equivalent"):
+        compile_investigation_plan(
+            plan(0, 0),
+            repeated,
+            registry=registry,
+            budgets=budgets(),
+            usage=PlanningUsage(0, 0),
+        )
+
+    prior = frozenset({tool_query_fingerprint(repeated[0])})
+    with pytest.raises(InvalidDomainValueError, match="equivalent"):
+        compile_investigation_plan(
+            plan(0),
+            (repeated[0],),
+            registry=registry,
+            budgets=budgets(),
+            usage=PlanningUsage(0, 0),
+            prior_query_fingerprints=prior,
+        )
+
+
+@pytest.mark.parametrize("history", [set(), frozenset({"invalid"})])
+def test_compile_rejects_invalid_query_history(history: object) -> None:
+    with pytest.raises(InvalidDomainValueError, match="fingerprints are invalid"):
+        compile_investigation_plan(
+            plan(0),
+            (proposal("step-1"),),
+            registry=ToolRegistry((definition(),)),
+            budgets=budgets(),
+            usage=PlanningUsage(0, 0),
+            prior_query_fingerprints=history,  # type: ignore[arg-type]
+        )

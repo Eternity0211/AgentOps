@@ -22,6 +22,7 @@ from .planning import (
     PlanningUsage,
     ProposedToolCall,
     compile_investigation_plan,
+    tool_query_fingerprint,
 )
 from .prompt_registry import PromptLifecycleChange, PromptLifecycleManager, PromptLifecycleStore
 from .tool_gateway import (
@@ -71,5 +72,6 @@ __all__ = [
     "evidence_gate_input_snapshot",
     "model_call_trace_fingerprint",
     "resolve_gate_evidence_references",
+    "tool_query_fingerprint",
     "validate_diagnosis_tool_proposal",
 ]

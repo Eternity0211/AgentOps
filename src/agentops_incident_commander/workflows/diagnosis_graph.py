@@ -40,6 +40,7 @@ class PlanNodeResult:
 
     model_call_id: str
     tool_call_ids: tuple[str, ...]
+    query_fingerprints: tuple[str, ...]
     used_steps: int
     model_tokens: int
     cost_nanounits: int
@@ -47,11 +48,16 @@ class PlanNodeResult:
     def __post_init__(self) -> None:
         _validate_identifiers((self.model_call_id,), field_name="planning model call")
         _validate_identifiers(self.tool_call_ids, field_name="planned tool call", allow_empty=False)
+        _validate_fingerprints(self.query_fingerprints, field_name="planned query")
         _validate_non_negative(
             (self.used_steps, self.model_tokens, self.cost_nanounits), field_name="planning usage"
         )
         if self.used_steps == 0 or self.used_steps != len(self.tool_call_ids):
             raise InvalidDomainValueError("planning steps must match planned tool calls")
+        if len(self.query_fingerprints) != len(self.tool_call_ids):
+            raise InvalidDomainValueError(
+                "planning query fingerprints must match planned tool calls"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,14 +159,32 @@ async def plan_node(
         used_tokens=result.model_tokens,
         used_cost_nanounits=result.cost_nanounits,
     )
+    common_updates: dict[str, object] = {
+        "budgets": budgets,
+        "model_call_ids": _append_unique(
+            state.model_call_ids, (result.model_call_id,), "model call"
+        ),
+    }
+    repeated = set(result.query_fingerprints) & set(state.tool_query_fingerprints)
+    repeated_within_plan = len(set(result.query_fingerprints)) != len(result.query_fingerprints)
+    if repeated or repeated_within_plan:
+        return _transition(
+            state,
+            runtime,
+            phase=GraphPhase.HUMAN_HANDOFF,
+            error_code="REPEATED_EQUIVALENT_QUERY",
+            **common_updates,
+        )
     return _transition(
         state,
         runtime,
         phase=GraphPhase.INVESTIGATING,
-        budgets=budgets,
         tool_call_ids=_append_unique(state.tool_call_ids, result.tool_call_ids, "tool call"),
-        model_call_ids=_append_unique(state.model_call_ids, (result.model_call_id,), "model call"),
+        tool_query_fingerprints=_append_unique(
+            state.tool_query_fingerprints, result.query_fingerprints, "tool query"
+        ),
         error_code=None,
+        **common_updates,
     )
 
 
@@ -261,6 +285,14 @@ def route_after_gate(state: DiagnosisGraphState) -> str:
     raise InvalidDomainValueError("evidence gate produced an unsupported graph phase")
 
 
+def route_after_plan(state: DiagnosisGraphState) -> str:
+    if state.phase is GraphPhase.INVESTIGATING:
+        return "investigate"
+    if state.phase is GraphPhase.HUMAN_HANDOFF:
+        return "handoff"
+    raise InvalidDomainValueError("planning produced an unsupported graph phase")
+
+
 def build_diagnosis_graph() -> CompiledStateGraph[
     DiagnosisGraphState,
     DiagnosisRuntimeContext,
@@ -278,7 +310,11 @@ def build_diagnosis_graph() -> CompiledStateGraph[
     builder.add_node("human_handoff", human_handoff_node)
     builder.add_edge(START, "load_context")
     builder.add_edge("load_context", "plan")
-    builder.add_edge("plan", "execute_read_tools")
+    builder.add_conditional_edges(
+        "plan",
+        route_after_plan,
+        {"investigate": "execute_read_tools", "handoff": "human_handoff"},
+    )
     builder.add_edge("execute_read_tools", "persist_evidence")
     builder.add_edge("persist_evidence", "hypothesis")
     builder.add_edge("hypothesis", "evidence_gate")
@@ -339,6 +375,20 @@ def _validate_identifiers(
 def _validate_non_negative(values: tuple[int, ...], *, field_name: str) -> None:
     if any(not isinstance(value, int) or isinstance(value, bool) or value < 0 for value in values):
         raise InvalidDomainValueError(f"{field_name} must contain non-negative integers")
+
+
+def _validate_fingerprints(values: tuple[str, ...], *, field_name: str) -> None:
+    if (
+        not isinstance(values, tuple)
+        or not values
+        or any(
+            not isinstance(value, str)
+            or len(value) != 64
+            or any(character not in "0123456789abcdef" for character in value)
+            for value in values
+        )
+    ):
+        raise InvalidDomainValueError(f"{field_name} fingerprints are invalid")
 
 
 def _validate_tool_batches(

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from hashlib import sha256
 
 from agentops_incident_commander.domain import (
     InvalidDomainValueError,
@@ -80,6 +81,7 @@ class CompiledToolCall:
     tool_name: str
     tool_version: SemanticVersion
     arguments_json: str
+    query_fingerprint: str
     worst_case_duration_ms: int
 
 
@@ -100,8 +102,10 @@ def compile_investigation_plan(
     registry: ToolRegistry,
     budgets: PlanningBudgets,
     usage: PlanningUsage,
+    prior_query_fingerprints: frozenset[str] = frozenset(),
 ) -> CompiledInvestigationPlan:
     """Compile all-or-nothing against server-owned tools and aggregate budgets."""
+    _validate_query_history(prior_query_fingerprints)
     if len(plan.steps) > budgets.max_steps:
         raise InvalidDomainValueError("investigation plan exceeds the step budget")
     if len(proposals) != len(plan.steps):
@@ -122,6 +126,7 @@ def compile_investigation_plan(
     compiled: list[CompiledToolCall] = []
     durations: dict[int, list[int]] = {}
     counts: dict[int, int] = {}
+    query_fingerprints = set(prior_query_fingerprints)
     for step in plan.steps:
         proposal = by_step[step.step_id]
         definition = validate_diagnosis_tool_proposal(
@@ -132,6 +137,10 @@ def compile_investigation_plan(
         )
         if definition.risk is not ToolRisk.LOW:
             raise InvalidDomainValueError("diagnosis planning permits low-risk tools only")
+        query_fingerprint = tool_query_fingerprint(proposal)
+        if query_fingerprint in query_fingerprints:
+            raise InvalidDomainValueError("investigation plan repeats an equivalent tool query")
+        query_fingerprints.add(query_fingerprint)
         retry = definition.retry_policy
         worst_case = definition.timeout_ms * retry.max_attempts
         if retry.max_attempts > 1:
@@ -145,6 +154,7 @@ def compile_investigation_plan(
                 definition.name,
                 definition.semantic_version,
                 proposal.arguments_json,
+                query_fingerprint,
                 worst_case,
             )
         )
@@ -175,3 +185,27 @@ def _canonical(value: object) -> str:
         )
     except (TypeError, ValueError) as error:
         raise InvalidDomainValueError("proposed tool arguments must be JSON") from error
+
+
+def tool_query_fingerprint(proposal: ProposedToolCall) -> str:
+    """Hash exact capability identity plus canonical structured arguments."""
+    if not isinstance(proposal, ProposedToolCall):
+        raise InvalidDomainValueError("tool query fingerprint requires a structured proposal")
+    value = _canonical(
+        {
+            "arguments": proposal.arguments(),
+            "tool_name": proposal.tool_name,
+            "tool_version": proposal.tool_version.value,
+        }
+    )
+    return sha256(value.encode("utf-8")).hexdigest()
+
+
+def _validate_query_history(values: frozenset[str]) -> None:
+    if not isinstance(values, frozenset) or any(
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+        for value in values
+    ):
+        raise InvalidDomainValueError("prior tool query fingerprints are invalid")

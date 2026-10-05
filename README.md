@@ -11,8 +11,9 @@ Phase 6 now includes the versioned [Prompt Registry](docs/PROMPT_REGISTRY.md),
 [diagnosis-plan compilation](docs/DIAGNOSIS_PLANNING.md) against the server tool catalog and hard
 resource budgets. The executable [bounded Diagnosis LangGraph](docs/DIAGNOSIS_GRAPH.md) now routes
 context loading, planning, parallel read tools, evidence persistence, hypotheses, deterministic
-gating, bounded replanning, and human handoff. Production provider invocation and PostgreSQL graph
-checkpointing remain disabled until their later Phase 6 batches.
+gating, bounded replanning, repeated-equivalent-query refusal, and human handoff. Production
+provider invocation and PostgreSQL graph checkpointing remain disabled until their later Phase 6
+batches.
 
 ## Why this project exists
 

@@ -20,6 +20,13 @@ than reparsing or trusting the original model response. The Tool Gateway still r
 version, access, schema, authorization, timeout, retry, result-limit, and audit checks at invocation;
 plan compilation is an additional fail-closed boundary, not a replacement for the gateway.
 
+Each compiled call also carries a lowercase SHA-256 query fingerprint over the exact tool name,
+semantic version, and canonical structured arguments. Step IDs are deliberately excluded, so
+renaming or reordering a step cannot disguise an equivalent query. JSON key order and whitespace
+cannot affect the result. Tool-version or argument changes do affect it. Compilation rejects a
+duplicate within the same plan and accepts durable fingerprint history from earlier replans so it
+can reject an equivalent query before any dispatch.
+
 ## Hard budgets
 
 The server supplies positive bounded limits for:
@@ -44,4 +51,6 @@ responsibilities belong to the durable LangGraph workflow and its deterministic 
 Unit tests cover stable plan-order compilation, parallel-wave and retry duration accounting,
 immutability, every hard budget, malformed/non-canonical proposals, missing/duplicate step mapping,
 unknown and disabled versions, write and non-low-risk tools, input size and schema failures, and
-prompt-injection-like URL content. No refusal path dispatches a tool.
+prompt-injection-like URL content. Query tests cover step-independent equivalence, version and
+argument differences, same-plan duplicates, prior-replan duplicates, and malformed history. No
+refusal path dispatches a tool.

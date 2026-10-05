@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from agentops_incident_commander.domain import InvalidDomainValueError, SemanticVersion
 
-DIAGNOSIS_GRAPH_STATE_SCHEMA_VERSION = "1.0.0"
+DIAGNOSIS_GRAPH_STATE_SCHEMA_VERSION = "1.1.0"
 MAX_GRAPH_STATE_REFERENCES = 512
 MAX_GRAPH_MIGRATIONS = 32
 _ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
@@ -75,7 +75,7 @@ class GraphBudgetState(StrictStateModel):
 
 
 class DiagnosisGraphState(StrictStateModel):
-    state_schema_version: Literal["1.0.0"]
+    state_schema_version: Literal["1.1.0"]
     graph_version: Version
     tenant_id: Identifier
     incident_id: Identifier
@@ -86,6 +86,9 @@ class DiagnosisGraphState(StrictStateModel):
     budgets: GraphBudgetState
     prompt: GraphPromptReference | None = None
     tool_call_ids: tuple[Identifier, ...] = Field(default=(), max_length=MAX_GRAPH_STATE_REFERENCES)
+    tool_query_fingerprints: tuple[Digest, ...] = Field(
+        default=(), max_length=MAX_GRAPH_STATE_REFERENCES
+    )
     model_call_ids: tuple[Identifier, ...] = Field(
         default=(), max_length=MAX_GRAPH_STATE_REFERENCES
     )
@@ -95,7 +98,7 @@ class DiagnosisGraphState(StrictStateModel):
     checkpoint_sequence: int = Field(ge=0)
     updated_at: datetime
 
-    @field_validator("tool_call_ids", "model_call_ids", "evidence_ids")
+    @field_validator("tool_call_ids", "tool_query_fingerprints", "model_call_ids", "evidence_ids")
     @classmethod
     def require_unique_references(cls, value: tuple[str, ...]) -> tuple[str, ...]:
         if len(set(value)) != len(value):
@@ -119,6 +122,11 @@ class GraphStateMigrationRegistry:
     def __init__(self, *, current_version: str = DIAGNOSIS_GRAPH_STATE_SCHEMA_VERSION) -> None:
         self._current = SemanticVersion(current_version)
         self._migrations: dict[SemanticVersion, tuple[SemanticVersion, GraphStateMigration]] = {}
+        if self._current == SemanticVersion("1.1.0"):
+            self._migrations[SemanticVersion("1.0.0")] = (
+                SemanticVersion("1.1.0"),
+                _migrate_1_0_to_1_1,
+            )
 
     def register(self, source: str, target: str, migration: GraphStateMigration) -> None:
         source_version = SemanticVersion(source)
@@ -162,3 +170,13 @@ def canonical_graph_state_bytes(state: DiagnosisGraphState) -> bytes:
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
+
+
+def _migrate_1_0_to_1_1(value: dict[str, Any]) -> dict[str, Any]:
+    if "tool_query_fingerprints" in value:
+        raise InvalidDomainValueError("legacy graph state contains a future query-history field")
+    return {
+        **value,
+        "state_schema_version": "1.1.0",
+        "tool_query_fingerprints": (),
+    }

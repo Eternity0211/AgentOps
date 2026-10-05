@@ -27,6 +27,7 @@ from agentops_incident_commander.workflows import (
     execute_read_tools_node,
     persist_evidence_node,
     route_after_gate,
+    route_after_plan,
 )
 from agentops_incident_commander.workflows.diagnosis_graph import (
     _consume_budget,
@@ -34,11 +35,14 @@ from agentops_incident_commander.workflows.diagnosis_graph import (
 )
 
 NOW = datetime(2026, 10, 5, 8, 0, tzinfo=UTC)
+Q1 = "1" * 64
+Q2 = "2" * 64
+Q3 = "3" * 64
 
 
 def state(**overrides: object) -> DiagnosisGraphState:
     values: dict[str, object] = {
-        "state_schema_version": "1.0.0",
+        "state_schema_version": "1.1.0",
         "graph_version": "1.0.0",
         "tenant_id": "tenant-1",
         "incident_id": "incident-1",
@@ -64,6 +68,7 @@ def state(**overrides: object) -> DiagnosisGraphState:
             prompt_id="diagnosis", version="1.0.0", content_fingerprint="a" * 64
         ),
         "tool_call_ids": (),
+        "tool_query_fingerprints": (),
         "model_call_ids": (),
         "evidence_ids": (),
         "gate_decision_fingerprint": None,
@@ -92,7 +97,9 @@ class FakeServices:
         gates: list[GateNodeResult] | None = None,
         batches: list[tuple[tuple[str, ...], ...]] | None = None,
     ) -> None:
-        self.plans = plans or [PlanNodeResult("model-plan-1", ("tool-1", "tool-2"), 2, 10, 2)]
+        self.plans = plans or [
+            PlanNodeResult("model-plan-1", ("tool-1", "tool-2"), (Q1, Q2), 2, 10, 2)
+        ]
         self.gates = gates or [GateNodeResult("b" * 64, GateRoute.PASS)]
         self.batches = batches or []
         self.executed: list[str] = []
@@ -153,6 +160,7 @@ async def test_graph_pass_path_parallelizes_reads_and_returns_only_references() 
 
     assert result["phase"] is GraphPhase.COMPLETE
     assert result["tool_call_ids"] == ("tool-1", "tool-2")
+    assert result["tool_query_fingerprints"] == (Q1, Q2)
     assert set(services.executed) == {"tool-1", "tool-2"}
     assert services.max_active == 2
     assert result["evidence_ids"] == ("evidence-context", "evidence-tools-1")
@@ -171,8 +179,8 @@ async def test_graph_pass_path_parallelizes_reads_and_returns_only_references() 
 async def test_graph_replans_once_then_passes_with_cumulative_budgets() -> None:
     services = FakeServices(
         plans=[
-            PlanNodeResult("model-plan-1", ("tool-1",), 1, 10, 1),
-            PlanNodeResult("model-plan-2", ("tool-2",), 1, 12, 2),
+            PlanNodeResult("model-plan-1", ("tool-1",), (Q1,), 1, 10, 1),
+            PlanNodeResult("model-plan-2", ("tool-2",), (Q3,), 1, 12, 2),
         ],
         gates=[
             GateNodeResult("c" * 64, GateRoute.REPLAN, "MORE_EVIDENCE_REQUIRED"),
@@ -190,6 +198,38 @@ async def test_graph_replans_once_then_passes_with_cumulative_budgets() -> None:
     assert result["error_code"] is None
     assert services.persist_calls == services.hypothesis_calls == 2
     assert result["checkpoint_sequence"] == 11
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "initial_fingerprints",
+    [(), (Q1,)],
+)
+async def test_graph_hands_off_before_dispatch_for_equivalent_queries(
+    initial_fingerprints: tuple[str, ...],
+) -> None:
+    plans = [
+        PlanNodeResult(
+            "model-plan-repeat",
+            ("tool-new-1", "tool-new-2"),
+            (Q1, Q1) if not initial_fingerprints else (Q1, Q2),
+            2,
+            10,
+            1,
+        )
+    ]
+    services = FakeServices(plans=plans)
+    result = await build_diagnosis_graph().ainvoke(
+        state(tool_query_fingerprints=initial_fingerprints), context=context(services)
+    )
+
+    assert result["phase"] is GraphPhase.HUMAN_HANDOFF
+    assert result["error_code"] == "REPEATED_EQUIVALENT_QUERY"
+    assert result["tool_call_ids"] == ()
+    assert result["budgets"].used_steps == 2
+    assert result["budgets"].used_model_calls == 1
+    assert services.executed == []
+    assert services.handoffs == 1
 
 
 @pytest.mark.anyio
@@ -220,9 +260,11 @@ async def test_graph_handoff_routes_are_terminal_and_recorded(
     ("factory", "message"),
     [
         (lambda: ContextLoadResult(("same", "same")), "context evidence"),
-        (lambda: PlanNodeResult("model", (), 0, 0, 0), "planned tool"),
-        (lambda: PlanNodeResult("model", ("tool",), 2, 0, 0), "steps"),
-        (lambda: PlanNodeResult("model", ("tool",), 1, -1, 0), "usage"),
+        (lambda: PlanNodeResult("model", (), (), 0, 0, 0), "planned tool"),
+        (lambda: PlanNodeResult("model", ("tool",), (), 1, 0, 0), "fingerprints"),
+        (lambda: PlanNodeResult("model", ("tool",), (Q1,), 2, 0, 0), "steps"),
+        (lambda: PlanNodeResult("model", ("tool",), (Q1,), 1, -1, 0), "usage"),
+        (lambda: PlanNodeResult("model", ("tool",), (Q1, Q2), 1, 0, 0), "must match"),
         (lambda: EvidencePersistenceResult(()), "persisted evidence"),
         (lambda: HypothesisNodeResult("", 0, 0), "hypothesis model"),
         (lambda: HypothesisNodeResult("model", True, 0), "usage"),
@@ -291,3 +333,10 @@ def test_gate_router_rejects_nonterminal_phase() -> None:
     assert route_after_gate(state(phase=GraphPhase.HUMAN_HANDOFF)) == "handoff"
     with pytest.raises(InvalidDomainValueError, match="unsupported"):
         route_after_gate(state(phase=GraphPhase.EVIDENCE_REVIEW))
+
+
+def test_plan_router_accepts_only_investigation_or_handoff() -> None:
+    assert route_after_plan(state(phase=GraphPhase.INVESTIGATING)) == "investigate"
+    assert route_after_plan(state(phase=GraphPhase.HUMAN_HANDOFF)) == "handoff"
+    with pytest.raises(InvalidDomainValueError, match="unsupported"):
+        route_after_plan(state(phase=GraphPhase.PLANNING))

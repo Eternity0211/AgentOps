@@ -1,7 +1,7 @@
 # Versioned Diagnosis Graph State
 
 Phase 6 defines a strict Pydantic checkpoint contract before adding LangGraph nodes or a PostgreSQL
-checkpointer. `DiagnosisGraphState` is frozen, rejects unknown fields, uses schema version `1.0.0`,
+checkpointer. `DiagnosisGraphState` is frozen, rejects unknown fields, uses schema version `1.1.0`,
 and serializes to canonical sorted JSON bytes.
 
 The state contains only tenant, Incident, workflow, correlation and causation identities; graph
@@ -9,6 +9,10 @@ phase/version; bounded step, replan, tool, model, token, and integer cost counte
 reference; Tool Call, Model Call, and Evidence IDs; an optional Evidence Gate decision hash; a
 bounded error code; checkpoint sequence; and UTC update time. Prompt text, model responses, raw
 telemetry, Artifact bodies, exceptions, credentials, and Ground Truth have no fields in the model.
+
+Version `1.1.0` adds a bounded, unique tuple of SHA-256 tool-query fingerprints used to reject
+equivalent investigation calls across replans. The built-in `1.0.0 -> 1.1.0` migration initializes
+an empty history and rejects a purported legacy snapshot that already contains the future field.
 
 `GraphStateMigrationRegistry` upgrades decoded checkpoint mappings one registered version at a time.
 Every migration receives a deep copy, must advance to its declared target, and is capped at 32

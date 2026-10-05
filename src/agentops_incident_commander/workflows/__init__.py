@@ -32,6 +32,7 @@ from .diagnosis_graph import (
     persist_evidence_node,
     plan_node,
     route_after_gate,
+    route_after_plan,
 )
 from .state import (
     DIAGNOSIS_GRAPH_STATE_SCHEMA_VERSION,
@@ -80,4 +81,5 @@ __all__ = [
     "persist_evidence_node",
     "plan_node",
     "route_after_gate",
+    "route_after_plan",
 ]

@@ -14,6 +14,8 @@ from .models import (
     IncidentTransitionRow,
     JobRow,
     OutboxEventRow,
+    PromptLifecycleEventRow,
+    PromptVersionRow,
 )
 from .repositories import (
     AlertRepository,
@@ -23,6 +25,7 @@ from .repositories import (
     IncidentRepository,
     JobRepository,
     OutboxRepository,
+    PromptLifecycleRepository,
 )
 
 __all__ = [
@@ -46,4 +49,7 @@ __all__ = [
     "JobRow",
     "OutboxEventRow",
     "OutboxRepository",
+    "PromptLifecycleEventRow",
+    "PromptLifecycleRepository",
+    "PromptVersionRow",
 ]

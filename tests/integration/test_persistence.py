@@ -29,6 +29,8 @@ from testcontainers.community.postgres import PostgresContainer
 
 from agentops_incident_commander.application import (
     EvidenceReferenceResolution,
+    PromptLifecycleChange,
+    PromptLifecycleManager,
     ToolAdapterContext,
     ToolCallRequest,
     ToolGateway,
@@ -85,7 +87,17 @@ from agentops_incident_commander.domain import (
     OutboxPayload,
     Permission,
     Principal,
+    PromptDefinition,
+    PromptId,
     PromptInjectionStatus,
+    PromptLifecycleStatus,
+    PromptModelParameters,
+    PromptPurpose,
+    PromptRegressionEvaluation,
+    PromptRegressionFixtureResult,
+    PromptSchemaCompatibility,
+    PromptTraceLink,
+    PromptVersionReference,
     QueryParameter,
     RedactionStatus,
     RedactionTransformId,
@@ -127,6 +139,9 @@ from agentops_incident_commander.infrastructure.persistence import (
     JobRow,
     OutboxEventRow,
     OutboxRepository,
+    PromptLifecycleEventRow,
+    PromptLifecycleRepository,
+    PromptVersionRow,
 )
 
 NOW = datetime(2026, 10, 3, 8, 0, tzinfo=UTC)
@@ -167,7 +182,8 @@ async def engine(migrated_url: str) -> AsyncIterator[AsyncEngine]:
             text(
                 "TRUNCATE alerts, alert_groups, incident_cancellation_requests, "
                 "incident_transitions, evidence, idempotency_records, outbox_events, jobs, "
-                "evidence_gate_decisions, incidents RESTART IDENTITY CASCADE"
+                "evidence_gate_decisions, prompt_lifecycle_events, prompt_versions, "
+                "incidents RESTART IDENTITY CASCADE"
             )
         )
     await value.dispose()
@@ -347,6 +363,8 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "idempotency_records",
         "jobs",
         "outbox_events",
+        "prompt_lifecycle_events",
+        "prompt_versions",
     } <= names
     async with engine.connect() as connection:
         assert await connection.scalar(
@@ -1780,3 +1798,102 @@ async def test_evidence_gate_decision_and_audit_commit_or_rollback_together(
 
     async with sessions() as session:
         assert await session.scalar(select(func.count()).select_from(EvidenceGateDecisionRow)) == 0
+
+
+def prompt_definition(version: str, content: str) -> PromptDefinition:
+    semantic = SemanticVersion(version)
+    return PromptDefinition.create(
+        prompt_id=PromptId("diagnosis-root-cause"),
+        version=semantic,
+        purpose=PromptPurpose.DIAGNOSIS,
+        content=content,
+        model_parameters=PromptModelParameters("mock", "model-v1", 0, 10_000, 2_048, 7),
+        schema_compatibility=PromptSchemaCompatibility(
+            SemanticVersion("1.0.0"), SemanticVersion("1.0.0")
+        ),
+        trace=PromptTraceLink(
+            ActorId("admin-prompt"),
+            CorrelationId("correlation-prompt"),
+            CausationId(f"create-{version}"),
+            NOW,
+        ),
+    )
+
+
+@pytest.mark.anyio
+async def test_prompt_lifecycle_repository_commits_versions_transitions_and_audit(
+    engine: AsyncEngine,
+) -> None:
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    audit_ids = count(1)
+    owner = Principal(ActorId("admin-prompt"), TenantId("tenant-1"), frozenset({Role.ADMIN}))
+    first = prompt_definition("1.0.0", "Diagnose only from resolvable evidence.")
+    reference = PromptVersionReference(first.prompt_id, first.version)
+    regression = PromptRegressionEvaluation(
+        reference,
+        SemanticVersion("1.0.0"),
+        (PromptRegressionFixtureResult("valid-output", True),),
+        NOW,
+    )
+
+    async def invoke(action: str) -> PromptDefinition:
+        async with sessions.begin() as session:
+            service = PromptLifecycleManager(
+                PromptLifecycleRepository(session),
+                clock=lambda: NOW,
+                id_factory=lambda: f"audit-prompt-db-{next(audit_ids)}",
+            )
+            if action == "draft":
+                return await service.draft(
+                    first,
+                    principal=owner,
+                    correlation_id=CorrelationId("correlation-prompt"),
+                    causation_id=CausationId("command-draft"),
+                )
+            if action == "evaluate":
+                return await service.evaluate(
+                    regression,
+                    principal=owner,
+                    correlation_id=CorrelationId("correlation-prompt"),
+                    causation_id=CausationId("command-evaluate"),
+                )
+            return await service.promote(
+                reference,
+                principal=owner,
+                correlation_id=CorrelationId("correlation-prompt"),
+                causation_id=CausationId("command-promote"),
+            )
+
+    await invoke("draft")
+    await invoke("evaluate")
+    promoted = await invoke("promote")
+    assert promoted.status is PromptLifecycleStatus.ACTIVE
+
+    async with sessions.begin() as session:
+        with pytest.raises(InvalidDomainValueError, match="stale Prompt"):
+            await PromptLifecycleRepository(session).apply(
+                PromptLifecycleChange("stale", (first,), (first,)),
+                audit_event("audit-prompt-stale"),
+            )
+
+    async with sessions() as session:
+        repository = PromptLifecycleRepository(session)
+        assert (
+            await repository.resolve(TenantId("tenant-1"), first.prompt_id, first.version)
+            == promoted
+        )
+        assert await repository.active(TenantId("tenant-1"), first.prompt_id) == promoted
+        assert (
+            await repository.resolve(TenantId("tenant-2"), first.prompt_id, first.version) is None
+        )
+        assert await repository.active(TenantId("tenant-2"), first.prompt_id) is None
+        assert await session.scalar(select(func.count()).select_from(PromptVersionRow)) == 1
+        assert await session.scalar(select(func.count()).select_from(PromptLifecycleEventRow)) == 3
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(AuditEventRow)
+                .where(AuditEventRow.event_type.like("prompt.%"))
+            )
+            == 3
+        )

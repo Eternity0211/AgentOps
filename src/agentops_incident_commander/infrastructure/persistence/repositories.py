@@ -10,6 +10,7 @@ from sqlalchemy import CursorResult, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentops_incident_commander.application import (
+    PromptLifecycleChange,
     evidence_gate_decision_fingerprint,
     evidence_gate_input_fingerprint,
     evidence_gate_input_snapshot,
@@ -61,10 +62,19 @@ from agentops_incident_commander.domain import (
     OutboxEventId,
     OutboxLeaseError,
     OutboxPayload,
+    PromptDefinition,
+    PromptId,
     PromptInjectionStatus,
+    PromptLifecycleStatus,
+    PromptModelParameters,
+    PromptPurpose,
+    PromptSchemaCompatibility,
+    PromptTraceLink,
+    PromptVersionReference,
     QueryParameter,
     RedactionTransformId,
     RootCauseEvidenceClaim,
+    SemanticVersion,
     Sha256Digest,
     StoredAuditEvent,
     TenantId,
@@ -86,6 +96,8 @@ from .models import (
     IncidentTransitionRow,
     JobRow,
     OutboxEventRow,
+    PromptLifecycleEventRow,
+    PromptVersionRow,
 )
 
 
@@ -774,6 +786,179 @@ class EvidenceGateRepository:
             )
         )
         return _gate_decision_from_row(row) if row is not None else None
+
+
+def _prompt_from_row(row: PromptVersionRow) -> PromptDefinition:
+    params = row.model_parameters
+    compatibility = row.schema_compatibility
+    trace = row.trace
+    predecessor = row.rollback_predecessor
+    return PromptDefinition(
+        prompt_id=PromptId(row.prompt_id),
+        version=SemanticVersion(row.version),
+        purpose=PromptPurpose(row.purpose),
+        content=row.content,
+        content_fingerprint=Sha256Digest(row.content_fingerprint),
+        model_parameters=PromptModelParameters(
+            cast(str, params["provider"]),
+            cast(str, params["model"]),
+            cast(int, params["temperature_basis_points"]),
+            cast(int, params["top_p_basis_points"]),
+            cast(int, params["max_output_tokens"]),
+            cast(int | None, params["seed"]),
+        ),
+        schema_compatibility=PromptSchemaCompatibility(
+            SemanticVersion(cast(str, compatibility["input_version"])),
+            SemanticVersion(cast(str, compatibility["output_version"])),
+        ),
+        trace=PromptTraceLink(
+            ActorId(cast(str, trace["actor_id"])),
+            CorrelationId(cast(str, trace["correlation_id"])),
+            CausationId(cast(str, trace["causation_id"])),
+            datetime.fromisoformat(cast(str, trace["created_at"])),
+        ),
+        status=PromptLifecycleStatus(row.status),
+        rollback_predecessor=(
+            None
+            if predecessor is None
+            else PromptVersionReference(
+                PromptId(cast(str, predecessor["prompt_id"])),
+                SemanticVersion(cast(str, predecessor["version"])),
+            )
+        ),
+        schema_version=row.schema_version,
+    )
+
+
+def _prompt_row(tenant_id: TenantId, value: PromptDefinition) -> PromptVersionRow:
+    params = value.model_parameters
+    compatibility = value.schema_compatibility
+    trace = value.trace
+    predecessor = value.rollback_predecessor
+    return PromptVersionRow(
+        tenant_id=tenant_id.value,
+        prompt_id=value.prompt_id.value,
+        version=value.version.value,
+        purpose=value.purpose.value,
+        content=value.content,
+        content_fingerprint=value.content_fingerprint.value,
+        model_parameters={
+            "provider": params.provider,
+            "model": params.model,
+            "temperature_basis_points": params.temperature_basis_points,
+            "top_p_basis_points": params.top_p_basis_points,
+            "max_output_tokens": params.max_output_tokens,
+            "seed": params.seed,
+        },
+        schema_compatibility={
+            "input_version": compatibility.input_version.value,
+            "output_version": compatibility.output_version.value,
+        },
+        trace={
+            "actor_id": trace.actor_id.value,
+            "correlation_id": trace.correlation_id.value,
+            "causation_id": trace.causation_id.value,
+            "created_at": trace.created_at.isoformat(),
+        },
+        status=value.status.value,
+        rollback_predecessor=(
+            None
+            if predecessor is None
+            else {"prompt_id": predecessor.prompt_id.value, "version": predecessor.version.value}
+        ),
+        schema_version=value.schema_version,
+    )
+
+
+def _prompt_state(values: tuple[PromptDefinition, ...]) -> list[dict[str, object]]:
+    return [
+        {
+            "prompt_id": item.prompt_id.value,
+            "version": item.version.value,
+            "status": item.status.value,
+            "content_fingerprint": item.content_fingerprint.value,
+        }
+        for item in values
+    ]
+
+
+class PromptLifecycleRepository:
+    """PostgreSQL implementation of the atomic Prompt lifecycle store port."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def resolve(
+        self, tenant_id: TenantId, prompt_id: PromptId, version: SemanticVersion
+    ) -> PromptDefinition | None:
+        row = await self._session.scalar(
+            select(PromptVersionRow).where(
+                PromptVersionRow.tenant_id == tenant_id.value,
+                PromptVersionRow.prompt_id == prompt_id.value,
+                PromptVersionRow.version == version.value,
+            )
+        )
+        return _prompt_from_row(row) if row is not None else None
+
+    async def active(self, tenant_id: TenantId, prompt_id: PromptId) -> PromptDefinition | None:
+        row = await self._session.scalar(
+            select(PromptVersionRow).where(
+                PromptVersionRow.tenant_id == tenant_id.value,
+                PromptVersionRow.prompt_id == prompt_id.value,
+                PromptVersionRow.status == PromptLifecycleStatus.ACTIVE.value,
+            )
+        )
+        return _prompt_from_row(row) if row is not None else None
+
+    async def apply(self, change: PromptLifecycleChange, audit_event: AuditEvent) -> None:
+        locked: dict[tuple[str, str], PromptVersionRow] = {}
+        for expected in change.before:
+            row = await self._session.scalar(
+                select(PromptVersionRow)
+                .where(
+                    PromptVersionRow.tenant_id == audit_event.tenant_id.value,
+                    PromptVersionRow.prompt_id == expected.prompt_id.value,
+                    PromptVersionRow.version == expected.version.value,
+                )
+                .with_for_update()
+            )
+            if row is None or _prompt_from_row(row) != expected:
+                raise InvalidDomainValueError("stale Prompt lifecycle state")
+            locked[(row.prompt_id, row.version)] = row
+        for value in change.after:
+            row = locked.get((value.prompt_id.value, value.version.value))
+            if row is None:
+                self._session.add(_prompt_row(audit_event.tenant_id, value))
+            else:
+                row.status = value.status.value
+        target = change.after[-1]
+        evaluation = change.evaluation
+        self._session.add(
+            PromptLifecycleEventRow(
+                tenant_id=audit_event.tenant_id.value,
+                prompt_id=target.prompt_id.value,
+                version=target.version.value,
+                action=change.action,
+                before_state=_prompt_state(change.before),
+                after_state=_prompt_state(change.after),
+                regression_evaluation=(
+                    None
+                    if evaluation is None
+                    else {
+                        "suite_version": evaluation.suite_version.value,
+                        "evaluated_at": evaluation.evaluated_at.isoformat(),
+                        "results": [
+                            {"fixture_id": item.fixture_id, "passed": item.passed}
+                            for item in evaluation.results
+                        ],
+                    }
+                ),
+                audit_event_id=audit_event.id.value,
+                occurred_at=audit_event.occurred_at,
+            )
+        )
+        await AuditRepository(self._session).append(audit_event)
+        await self._session.flush()
 
 
 def _incident_from_row(row: IncidentRow) -> Incident:

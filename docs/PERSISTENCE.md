@@ -38,6 +38,13 @@ repository treats the tenant/Incident/candidate/fingerprint tuple as an idempote
 rejects conflicting replay. Its insert and the hash-bound `evidence.gate_decided` audit event share
 the caller transaction, so neither can commit alone.
 
+Revision `20261004_0009` adds tenant-scoped `prompt_versions` and `prompt_lifecycle_events`.
+Prompt content, fingerprint, model parameters, schema compatibility, creation trace, and rollback
+predecessor are inserted once; lifecycle commands row-lock and update status only. A partial unique
+index permits at most one active version per tenant and Prompt family. Each atomic lifecycle change
+stores before/after fingerprints and statuses, the bounded regression result when applicable, and
+the matching append-only audit event in the caller transaction.
+
 ## Repository concurrency
 
 `IncidentRepository` updates with `WHERE id = ... AND version = ...`. A zero-row update raises the

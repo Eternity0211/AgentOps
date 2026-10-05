@@ -33,8 +33,10 @@ the retired target and whose predecessor binds the previously active version.
 
 Every accepted transition carries a hash-bound `prompt.*` audit event into the same atomic store
 operation. Request and result hashes contain Prompt fingerprints/statuses and bounded evaluation
-results, not Prompt content. The PostgreSQL store adapter remains the next part of this lifecycle
-TODO; production model invocation remains disabled. No inline Prompt is approved by these contracts.
+results, not Prompt content. `PromptLifecycleRepository` now implements that store port with row
+locks, immutable content fields, a database-enforced single-active-version index, versioned
+regression snapshots, lifecycle history, and audit append in the caller transaction. Production
+model invocation remains disabled. No inline Prompt is approved by these contracts.
 
 ## Verification
 
@@ -45,3 +47,6 @@ purpose drift, multiple active versions, exact lookup, active lookup, and determ
 Lifecycle tests cover Admin-only access, failed regression refusal, illegal transition refusal,
 first and replacement promotion, old-version retirement, copy-based rollback, and complete audit
 emission with request/result hashes.
+PostgreSQL integration tests cover migration round trips, tenant-scoped resolution, missing active
+versions, durable draft/evaluate/promote transitions, regression snapshot retention, single active
+selection, and matching lifecycle/audit record counts.

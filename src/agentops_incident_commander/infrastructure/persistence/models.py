@@ -16,14 +16,20 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
+from sqlalchemy import (
+    text as sql_text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from agentops_incident_commander.domain import (
+    MAX_PROMPT_CONTENT_BYTES,
     EvidenceGateOutcome,
     EvidenceSourceType,
     IncidentState,
     PromptInjectionStatus,
+    PromptLifecycleStatus,
+    PromptPurpose,
     TrustClassification,
 )
 
@@ -33,6 +39,8 @@ _EVIDENCE_SOURCES = ", ".join(f"'{value.value}'" for value in EvidenceSourceType
 _EVIDENCE_TRUST = ", ".join(f"'{value.value}'" for value in TrustClassification)
 _INJECTION_STATES = ", ".join(f"'{value.value}'" for value in PromptInjectionStatus)
 _GATE_OUTCOMES = ", ".join(f"'{value.value}'" for value in EvidenceGateOutcome)
+_PROMPT_PURPOSES = ", ".join(f"'{value.value}'" for value in PromptPurpose)
+_PROMPT_STATUSES = ", ".join(f"'{value.value}'" for value in PromptLifecycleStatus)
 
 
 class Base(DeclarativeBase):
@@ -352,6 +360,60 @@ class EvidenceGateDecisionRow(Base):
     evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     model_confidence_basis_points: Mapped[int | None] = mapped_column(Integer)
     schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class PromptVersionRow(Base):
+    """Tenant-scoped immutable Prompt content with mutable lifecycle status only."""
+
+    __tablename__ = "prompt_versions"
+    __table_args__ = (
+        CheckConstraint(f"purpose IN ({_PROMPT_PURPOSES})", name="ck_prompt_purpose"),
+        CheckConstraint(f"status IN ({_PROMPT_STATUSES})", name="ck_prompt_status"),
+        CheckConstraint("content_fingerprint ~ '^[0-9a-f]{64}$'", name="ck_prompt_hash"),
+        UniqueConstraint("tenant_id", "prompt_id", "version", name="uq_prompt_version"),
+        Index(
+            "uq_prompt_active",
+            "tenant_id",
+            "prompt_id",
+            unique=True,
+            postgresql_where=sql_text("status = 'ACTIVE'"),
+        ),
+    )
+
+    sequence: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    prompt_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    version: Mapped[str] = mapped_column(String(64), nullable=False)
+    purpose: Mapped[str] = mapped_column(String(32), nullable=False)
+    content: Mapped[str] = mapped_column(String(MAX_PROMPT_CONTENT_BYTES), nullable=False)
+    content_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    model_parameters: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    schema_compatibility: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    trace: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    rollback_predecessor: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class PromptLifecycleEventRow(Base):
+    """Append-only Prompt lifecycle transition and regression snapshot."""
+
+    __tablename__ = "prompt_lifecycle_events"
+    __table_args__ = (
+        UniqueConstraint("audit_event_id", name="uq_prompt_lifecycle_audit"),
+        Index("ix_prompt_lifecycle_family", "tenant_id", "prompt_id", "sequence"),
+    )
+
+    sequence: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    prompt_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    version: Mapped[str] = mapped_column(String(64), nullable=False)
+    action: Mapped[str] = mapped_column(String(32), nullable=False)
+    before_state: Mapped[list[dict[str, object]]] = mapped_column(JSONB, nullable=False)
+    after_state: Mapped[list[dict[str, object]]] = mapped_column(JSONB, nullable=False)
+    regression_evaluation: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    audit_event_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class IdempotencyRecordRow(Base):

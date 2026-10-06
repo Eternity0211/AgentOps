@@ -34,6 +34,7 @@ from .planning import (
     compile_investigation_plan,
     tool_query_fingerprint,
 )
+from .policy_engine import MAX_POLICY_SERVICES, PolicyRules, evaluate_remediation_policy
 from .prompt_registry import PromptLifecycleChange, PromptLifecycleManager, PromptLifecycleStore
 from .remediation_gate import (
     EvidenceBoundRemediationProposal,
@@ -56,6 +57,7 @@ from .tool_gateway import (
 )
 
 __all__ = [
+    "MAX_POLICY_SERVICES",
     "ApprovedDiagnosisPromptResolver",
     "AuditWriter",
     "CompiledInvestigationPlan",
@@ -72,6 +74,7 @@ __all__ = [
     "ModelCallTraceStore",
     "PlanningBudgets",
     "PlanningUsage",
+    "PolicyRules",
     "PromptLifecycleChange",
     "PromptLifecycleManager",
     "PromptLifecycleStore",
@@ -92,6 +95,7 @@ __all__ = [
     "compile_investigation_plan",
     "evaluate_evidence_characteristics",
     "evaluate_evidence_gate",
+    "evaluate_remediation_policy",
     "evidence_gate_decision_fingerprint",
     "evidence_gate_input_fingerprint",
     "evidence_gate_input_snapshot",

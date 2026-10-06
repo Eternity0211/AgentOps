@@ -50,7 +50,9 @@ immutable `PASS`; absent, failed, stale, changed, or cross-tenant decisions cann
 The versioned [deterministic Policy Engine contracts](docs/POLICY_ENGINE.md) now bind proposal,
 Evidence Gate, actor/role, environment, target, blast-radius, maintenance, and separation inputs to
 stable fingerprints, with closed risk/outcome enums, structured reasons, and bounded approval
-lifetimes.
+lifetimes. Its server-owned rules evaluate those controls in fixed order, retain every denial
+reason, derive risk deterministically, and can only advance a valid rollback to
+`APPROVAL_REQUIRED`; it never authorizes or executes a mutation.
 
 ## Why this project exists
 

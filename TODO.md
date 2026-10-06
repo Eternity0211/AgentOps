@@ -160,7 +160,7 @@ Exit: a worker can crash at each durable boundary and resume without evidence lo
 - [x] Implement scoped similar-incident retrieval with authorization, freshness, and leakage controls.
 - [x] Implement and enable the `search_similar_incidents` Tool Gateway adapter against the confirmed-memory projection.
 - [x] Ensure historical incidents are labeled reference-only and cannot satisfy current Evidence Gate facts.
-- [ ] Extend the minimal prompt regression gate with memory/no-memory comparisons and enforce it before memory-aware prompt promotion.
+- [x] Extend the minimal prompt regression gate with memory/no-memory comparisons and enforce it before memory-aware prompt promotion.
 - [ ] Add memory isolation, embedding-version, retrieval authorization, prompt rollback, and unauthorized-promotion tests.
 
 Exit: retrieval improves context experimentally without label/fact leakage; every model call is reproducible to a registered prompt version.

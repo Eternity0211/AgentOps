@@ -82,3 +82,13 @@ Evidence Gate ruleset `1.1.0` enforces the authority boundary independently: if 
 any `HISTORICAL_REFERENCE` as supporting or counter Evidence, the Gate emits
 `HISTORICAL_REFERENCE_NOT_CURRENT_EVIDENCE` and fails even when enough fresh independent direct
 observations are also present.
+
+## Memory-aware Prompt promotion
+
+A Prompt that consumes these historical results declares the exact memory-context schema version
+in its Registry compatibility contract. Before it can become `EVALUATED`, the regression suite must
+record a no-memory and with-memory run for every fixture. Both modes must pass without unsupported
+conclusions, fabricated references, authorization violations, or Ground Truth visibility. The
+comparison is deterministic, persisted with the lifecycle event, and covered by the transition's
+audit hashes. Missing or unsafe pairs leave the version in `DRAFT`, which makes promotion
+structurally unavailable. Non-memory Prompt versions retain the original all-safe regression gate.

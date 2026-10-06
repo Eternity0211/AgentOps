@@ -10,7 +10,9 @@ Each `PromptDefinition` contains a stable Prompt ID and semantic version, one bo
 (`DIAGNOSIS`, `REMEDIATION`, or constrained `POSTMORTEM`), normalized content, and a verified
 SHA-256 content fingerprint. Exact provider/model settings include temperature and top-p in basis
 points, maximum output tokens, and an optional bounded seed. Input and output schema versions are
-explicit semantic versions rather than implicit application assumptions.
+explicit semantic versions rather than implicit application assumptions. A Prompt that consumes
+confirmed-Incident memory additionally declares an exact memory-context semantic version; absence
+of that field means the Prompt is not memory-aware.
 
 Creation metadata retains actor, correlation ID, causation ID, and UTC timestamp without embedding
 request or response content. Lifecycle status is one of `DRAFT`, `EVALUATED`, `ACTIVE`, or
@@ -30,6 +32,13 @@ a non-empty, versioned, all-pass regression fixture result; promotion accepts on
 versions and retires the prior active version atomically through the store port. Rollback never
 mutates old content: it creates a newer version whose content/model/schema contract exactly copies
 the retired target and whose predecessor binds the previously active version.
+
+For a memory-aware Prompt, evaluation is a stricter transition gate. Every fixture ID must have
+exactly one `WITHOUT_MEMORY` result and one `WITH_MEMORY` result. Both runs must pass and report no
+unsupported conclusions, fabricated references, authorization violations, or Ground Truth
+visibility. Missing, duplicate, failed, unsafe, or partially executed pairs keep the Prompt in
+`DRAFT`, so promotion cannot bypass the comparison. The memory-context version, paired modes, safety
+counters, and Ground Truth-isolation flag are retained in the immutable Prompt/lifecycle records.
 
 Every accepted transition carries a hash-bound `prompt.*` audit event into the same atomic store
 operation. Request and result hashes contain Prompt fingerprints/statuses and bounded evaluation
@@ -59,7 +68,9 @@ typed trace links, lifecycle values, rollback ordering and resolution, duplicate
 purpose drift, multiple active versions, exact lookup, active lookup, and deterministic catalogs.
 Lifecycle tests cover Admin-only access, failed regression refusal, illegal transition refusal,
 first and replacement promotion, old-version retirement, copy-based rollback, and complete audit
-emission with request/result hashes.
+emission with request/result hashes. Memory-aware tests cover schema typing, complete paired
+comparison, missing-mode refusal, each safety failure, durable comparison snapshots, and promotion
+only after the paired gate passes.
 Diagnosis runtime tests cover every node allowlist entry, exact tenant/version selection, invalid
 operation identities, missing or changed active versions, every non-active lifecycle status,
 wrong-purpose and fingerprint refusal, and proof that authorization precedes control and effects.

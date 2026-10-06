@@ -832,6 +832,11 @@ def _prompt_from_row(row: PromptVersionRow) -> PromptDefinition:
         schema_compatibility=PromptSchemaCompatibility(
             SemanticVersion(cast(str, compatibility["input_version"])),
             SemanticVersion(cast(str, compatibility["output_version"])),
+            (
+                SemanticVersion(cast(str, compatibility["memory_context_version"]))
+                if compatibility.get("memory_context_version") is not None
+                else None
+            ),
         ),
         trace=PromptTraceLink(
             ActorId(cast(str, trace["actor_id"])),
@@ -875,6 +880,11 @@ def _prompt_row(tenant_id: TenantId, value: PromptDefinition) -> PromptVersionRo
         schema_compatibility={
             "input_version": compatibility.input_version.value,
             "output_version": compatibility.output_version.value,
+            "memory_context_version": (
+                compatibility.memory_context_version.value
+                if compatibility.memory_context_version is not None
+                else None
+            ),
         },
         trace={
             "actor_id": trace.actor_id.value,
@@ -970,7 +980,15 @@ class PromptLifecycleRepository:
                         "suite_version": evaluation.suite_version.value,
                         "evaluated_at": evaluation.evaluated_at.isoformat(),
                         "results": [
-                            {"fixture_id": item.fixture_id, "passed": item.passed}
+                            {
+                                "authorization_violations": item.authorization_violations,
+                                "context": item.context.value,
+                                "fabricated_references": item.fabricated_references,
+                                "fixture_id": item.fixture_id,
+                                "ground_truth_visible": item.ground_truth_visible,
+                                "passed": item.passed,
+                                "unsupported_conclusions": item.unsupported_conclusions,
+                            }
                             for item in evaluation.results
                         ],
                     }

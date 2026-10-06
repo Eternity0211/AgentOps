@@ -91,6 +91,10 @@ class PromptLifecycleManager:
         current = await self._required(actor.tenant_id, evaluation.prompt)
         if current.status is not PromptLifecycleStatus.DRAFT:
             raise InvalidDomainValueError("only DRAFT Prompt versions can be evaluated")
+        if current.memory_aware and not evaluation.memory_comparison_passed:
+            raise InvalidDomainValueError(
+                "memory-aware Prompt requires a passing paired memory regression"
+            )
         if not evaluation.passed:
             raise InvalidDomainValueError("Prompt regression fixture gate did not pass")
         evaluated = replace(current, status=PromptLifecycleStatus.EVALUATED)
@@ -243,7 +247,15 @@ def _change_hash(
         document["evaluation"] = {
             "evaluated_at": evaluation.evaluated_at.isoformat(),
             "fixtures": [
-                {"fixture_id": item.fixture_id, "passed": item.passed}
+                {
+                    "authorization_violations": item.authorization_violations,
+                    "context": item.context.value,
+                    "fabricated_references": item.fabricated_references,
+                    "fixture_id": item.fixture_id,
+                    "ground_truth_visible": item.ground_truth_visible,
+                    "passed": item.passed,
+                    "unsupported_conclusions": item.unsupported_conclusions,
+                }
                 for item in evaluation.results
             ],
             "suite_version": evaluation.suite_version.value,

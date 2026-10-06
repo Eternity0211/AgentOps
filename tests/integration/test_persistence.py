@@ -110,6 +110,7 @@ from agentops_incident_commander.domain import (
     PromptLifecycleStatus,
     PromptModelParameters,
     PromptPurpose,
+    PromptRegressionContext,
     PromptRegressionEvaluation,
     PromptRegressionFixtureResult,
     PromptSchemaCompatibility,
@@ -2057,7 +2058,12 @@ async def test_evidence_gate_decision_and_audit_commit_or_rollback_together(
         assert await session.scalar(select(func.count()).select_from(EvidenceGateDecisionRow)) == 0
 
 
-def prompt_definition(version: str, content: str) -> PromptDefinition:
+def prompt_definition(
+    version: str,
+    content: str,
+    *,
+    memory_context_version: SemanticVersion | None = None,
+) -> PromptDefinition:
     semantic = SemanticVersion(version)
     return PromptDefinition.create(
         prompt_id=PromptId("diagnosis-root-cause"),
@@ -2066,7 +2072,9 @@ def prompt_definition(version: str, content: str) -> PromptDefinition:
         content=content,
         model_parameters=PromptModelParameters("mock", "model-v1", 0, 10_000, 2_048, 7),
         schema_compatibility=PromptSchemaCompatibility(
-            SemanticVersion("1.0.0"), SemanticVersion("1.0.0")
+            SemanticVersion("1.0.0"),
+            SemanticVersion("1.0.0"),
+            memory_context_version,
         ),
         trace=PromptTraceLink(
             ActorId("admin-prompt"),
@@ -2154,6 +2162,71 @@ async def test_prompt_lifecycle_repository_commits_versions_transitions_and_audi
             )
             == 3
         )
+
+
+@pytest.mark.anyio
+async def test_prompt_repository_retains_memory_schema_and_paired_regression(
+    engine: AsyncEngine,
+) -> None:
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    owner = Principal(ActorId("admin-prompt"), TenantId("tenant-1"), frozenset({Role.ADMIN}))
+    definition = prompt_definition(
+        "1.1.0",
+        "Treat historical incidents only as non-authoritative context.",
+        memory_context_version=SemanticVersion("1.0.0"),
+    )
+    reference = PromptVersionReference(definition.prompt_id, definition.version)
+    regression = PromptRegressionEvaluation(
+        reference,
+        SemanticVersion("1.1.0"),
+        (
+            PromptRegressionFixtureResult(
+                "historical-context", True, PromptRegressionContext.WITHOUT_MEMORY
+            ),
+            PromptRegressionFixtureResult(
+                "historical-context", True, PromptRegressionContext.WITH_MEMORY
+            ),
+        ),
+        NOW,
+    )
+    audit_ids = count(1)
+
+    async with sessions.begin() as session:
+        service = PromptLifecycleManager(
+            PromptLifecycleRepository(session),
+            clock=lambda: NOW,
+            id_factory=lambda: f"audit-memory-prompt-{next(audit_ids)}",
+        )
+        await service.draft(
+            definition,
+            principal=owner,
+            correlation_id=CorrelationId("correlation-memory-prompt"),
+            causation_id=CausationId("draft-memory-prompt"),
+        )
+        await service.evaluate(
+            regression,
+            principal=owner,
+            correlation_id=CorrelationId("correlation-memory-prompt"),
+            causation_id=CausationId("evaluate-memory-prompt"),
+        )
+
+    async with sessions() as session:
+        stored = await PromptLifecycleRepository(session).resolve(
+            TenantId("tenant-1"), definition.prompt_id, definition.version
+        )
+        assert stored is not None
+        assert stored.memory_aware
+        event = await session.scalar(
+            select(PromptLifecycleEventRow).where(PromptLifecycleEventRow.action == "evaluated")
+        )
+        assert event is not None
+        assert event.regression_evaluation is not None
+        fixtures = cast(list[dict[str, object]], event.regression_evaluation["results"])
+        assert {fixture["context"] for fixture in fixtures} == {
+            "WITHOUT_MEMORY",
+            "WITH_MEMORY",
+        }
+        assert all(fixture["fabricated_references"] == 0 for fixture in fixtures)
 
 
 async def activate_prompt_for_model_call(

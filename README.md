@@ -34,6 +34,11 @@ accepts only a bounded result count; its query vector, tenant, current Incident,
 freshness window are server owned. The immutable disabled v1 contract remains available for exact
 replay. Evidence Gate ruleset `1.1.0` explicitly fails any candidate that cites historical memory
 as current supporting or counter Evidence.
+Memory-aware Prompt versions declare the exact memory-context schema they consume and cannot leave
+`DRAFT` until every regression fixture has safe, complete no-memory/with-memory results. The paired
+gate rejects missing modes, failed fixtures, unsupported conclusions, fabricated references,
+authorization violations, and any Ground Truth exposure; accepted snapshots are hash-bound and
+persisted with the lifecycle audit before promotion is possible.
 
 ## Why this project exists
 

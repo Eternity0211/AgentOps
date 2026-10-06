@@ -71,6 +71,7 @@ def definition(
     status: PromptLifecycleStatus = PromptLifecycleStatus.DRAFT,
     purpose: PromptPurpose = PromptPurpose.DIAGNOSIS,
     predecessor: PromptVersionReference | None = None,
+    memory_context_version: SemanticVersion | None = None,
 ) -> PromptDefinition:
     return PromptDefinition.create(
         prompt_id=PROMPT_ID,
@@ -78,7 +79,7 @@ def definition(
         purpose=purpose,
         content=CONTENT,
         model_parameters=parameters(),
-        schema_compatibility=PromptSchemaCompatibility(V1, V1),
+        schema_compatibility=PromptSchemaCompatibility(V1, V1, memory_context_version),
         trace=trace(),
         status=status,
         rollback_predecessor=predecessor,
@@ -94,6 +95,8 @@ def test_prompt_definition_is_versioned_fingerprinted_and_traceable() -> None:
     )
     assert value.model_parameters.max_output_tokens == 2_048
     assert value.schema_compatibility.input_version == V1
+    assert not value.memory_aware
+    assert definition(memory_context_version=V1).memory_aware
     shifted = trace(created_at=NOW.astimezone(timezone(timedelta(hours=8))))
     assert shifted.created_at == NOW
 
@@ -130,6 +133,8 @@ def test_schema_compatibility_and_trace_require_typed_reproducibility_links() ->
     for input_version, output_version in (("1.0.0", V1), (V1, "1.0.0")):
         with pytest.raises(InvalidDomainValueError, match="must be semantic"):
             PromptSchemaCompatibility(cast(Any, input_version), cast(Any, output_version))
+    with pytest.raises(InvalidDomainValueError, match="memory context"):
+        PromptSchemaCompatibility(V1, V1, cast(Any, "1.0.0"))
     with pytest.raises(InvalidDomainValueError, match="actor"):
         trace(actor_id=cast(ActorId, "admin"))
     with pytest.raises(InvalidDomainValueError, match="correlation"):

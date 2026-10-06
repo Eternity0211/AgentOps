@@ -91,12 +91,17 @@ class PromptSchemaCompatibility:
 
     input_version: SemanticVersion
     output_version: SemanticVersion
+    memory_context_version: SemanticVersion | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.input_version, SemanticVersion) or not isinstance(
             self.output_version, SemanticVersion
         ):
             raise InvalidDomainValueError("Prompt schema compatibility versions must be semantic")
+        if self.memory_context_version is not None and not isinstance(
+            self.memory_context_version, SemanticVersion
+        ):
+            raise InvalidDomainValueError("Prompt memory context version must be semantic")
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,10 +135,20 @@ class PromptVersionReference:
             raise InvalidDomainValueError("Prompt version reference is invalid")
 
 
+class PromptRegressionContext(StrEnum):
+    WITHOUT_MEMORY = "WITHOUT_MEMORY"
+    WITH_MEMORY = "WITH_MEMORY"
+
+
 @dataclass(frozen=True, slots=True)
 class PromptRegressionFixtureResult:
     fixture_id: str
     passed: bool
+    context: PromptRegressionContext = PromptRegressionContext.WITHOUT_MEMORY
+    unsupported_conclusions: int = 0
+    fabricated_references: int = 0
+    authorization_violations: int = 0
+    ground_truth_visible: bool = False
 
     def __post_init__(self) -> None:
         if (
@@ -143,6 +158,27 @@ class PromptRegressionFixtureResult:
             raise InvalidDomainValueError("Prompt regression fixture ID is invalid")
         if not isinstance(self.passed, bool):
             raise InvalidDomainValueError("Prompt regression fixture result must be boolean")
+        if not isinstance(self.context, PromptRegressionContext):
+            raise InvalidDomainValueError("Prompt regression fixture context is invalid")
+        for name, value in (
+            ("unsupported conclusion", self.unsupported_conclusions),
+            ("fabricated reference", self.fabricated_references),
+            ("authorization violation", self.authorization_violations),
+        ):
+            if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= 10_000:
+                raise InvalidDomainValueError(f"Prompt regression {name} count is invalid")
+        if not isinstance(self.ground_truth_visible, bool):
+            raise InvalidDomainValueError("Prompt regression Ground Truth flag is invalid")
+
+    @property
+    def safe(self) -> bool:
+        return (
+            self.passed
+            and self.unsupported_conclusions == 0
+            and self.fabricated_references == 0
+            and self.authorization_violations == 0
+            and not self.ground_truth_visible
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,14 +198,36 @@ class PromptRegressionEvaluation:
             or not self.results
             or len(self.results) > MAX_PROMPT_REGRESSION_FIXTURES
             or any(not isinstance(item, PromptRegressionFixtureResult) for item in self.results)
-            or len({item.fixture_id for item in self.results}) != len(self.results)
+            or len({(item.fixture_id, item.context) for item in self.results}) != len(self.results)
         ):
             raise InvalidDomainValueError("Prompt regression results must be unique and bounded")
         object.__setattr__(self, "evaluated_at", as_utc(self.evaluated_at))
 
     @property
     def passed(self) -> bool:
-        return all(item.passed for item in self.results)
+        return all(item.safe for item in self.results)
+
+    @property
+    def memory_comparison_passed(self) -> bool:
+        by_fixture: dict[str, dict[PromptRegressionContext, PromptRegressionFixtureResult]] = {}
+        for item in self.results:
+            by_fixture.setdefault(item.fixture_id, {})[item.context] = item
+        expected = {PromptRegressionContext.WITHOUT_MEMORY, PromptRegressionContext.WITH_MEMORY}
+        if any(set(values) != expected for values in by_fixture.values()):
+            return False
+        return self.passed and all(
+            with_memory.unsupported_conclusions <= without.unsupported_conclusions
+            and with_memory.fabricated_references <= without.fabricated_references
+            and with_memory.authorization_violations <= without.authorization_violations
+            and not with_memory.ground_truth_visible
+            for values in by_fixture.values()
+            for without, with_memory in (
+                (
+                    values[PromptRegressionContext.WITHOUT_MEMORY],
+                    values[PromptRegressionContext.WITH_MEMORY],
+                ),
+            )
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -256,6 +314,10 @@ class PromptDefinition:
     @property
     def identity(self) -> tuple[PromptId, SemanticVersion]:
         return (self.prompt_id, self.version)
+
+    @property
+    def memory_aware(self) -> bool:
+        return self.schema_compatibility.memory_context_version is not None
 
 
 class PromptRegistry:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC, datetime
+from typing import Any, cast
 
 import pytest
 
@@ -26,6 +27,7 @@ from agentops_incident_commander.domain import (
     PromptLifecycleStatus,
     PromptModelParameters,
     PromptPurpose,
+    PromptRegressionContext,
     PromptRegressionEvaluation,
     PromptRegressionFixtureResult,
     PromptSchemaCompatibility,
@@ -50,6 +52,7 @@ def prompt(
     *,
     predecessor: PromptVersionReference | None = None,
     status: PromptLifecycleStatus = PromptLifecycleStatus.DRAFT,
+    memory_context_version: SemanticVersion | None = None,
 ) -> PromptDefinition:
     return PromptDefinition.create(
         prompt_id=PROMPT_ID,
@@ -57,7 +60,7 @@ def prompt(
         purpose=PromptPurpose.DIAGNOSIS,
         content=content,
         model_parameters=PromptModelParameters("mock", "model-v1", 0, 10_000, 2_048, 7),
-        schema_compatibility=PromptSchemaCompatibility(V1, V1),
+        schema_compatibility=PromptSchemaCompatibility(V1, V1, memory_context_version),
         trace=PromptTraceLink(
             ActorId("admin-prompts"),
             CorrelationId("correlation-prompts"),
@@ -77,6 +80,36 @@ def evaluation(version: SemanticVersion, *, passed: bool = True) -> PromptRegres
             PromptRegressionFixtureResult("valid-output", passed),
             PromptRegressionFixtureResult("no-fabricated-evidence", passed),
         ),
+        NOW,
+    )
+
+
+def memory_evaluation(
+    version: SemanticVersion,
+    *,
+    include_with_memory: bool = True,
+    fabricated_references: int = 0,
+) -> PromptRegressionEvaluation:
+    results = [
+        PromptRegressionFixtureResult(
+            "historical-context",
+            True,
+            PromptRegressionContext.WITHOUT_MEMORY,
+        )
+    ]
+    if include_with_memory:
+        results.append(
+            PromptRegressionFixtureResult(
+                "historical-context",
+                True,
+                PromptRegressionContext.WITH_MEMORY,
+                fabricated_references=fabricated_references,
+            )
+        )
+    return PromptRegressionEvaluation(
+        PromptVersionReference(PROMPT_ID, version),
+        SemanticVersion("1.1.0"),
+        tuple(results),
         NOW,
     )
 
@@ -270,6 +303,55 @@ async def test_lifecycle_refuses_unauthorized_failed_and_illegal_transitions() -
     assert Permission.ADMIN_MANAGE in admin().permissions
 
 
+@pytest.mark.anyio
+async def test_memory_aware_prompt_requires_complete_safe_paired_regression() -> None:
+    store = Store()
+    service = manager(store)
+    correlation = CorrelationId("correlation-memory-prompt")
+    cause = CausationId("command-memory-prompt")
+    candidate = prompt(
+        V1,
+        "Use historical context only as a reference.",
+        memory_context_version=SemanticVersion("1.0.0"),
+    )
+    await service.draft(
+        candidate,
+        principal=admin(),
+        correlation_id=correlation,
+        causation_id=cause,
+    )
+
+    with pytest.raises(InvalidDomainValueError, match="paired memory regression"):
+        await service.evaluate(
+            memory_evaluation(V1, include_with_memory=False),
+            principal=admin(),
+            correlation_id=correlation,
+            causation_id=cause,
+        )
+    with pytest.raises(InvalidDomainValueError, match="paired memory regression"):
+        await service.evaluate(
+            memory_evaluation(V1, fabricated_references=1),
+            principal=admin(),
+            correlation_id=correlation,
+            causation_id=cause,
+        )
+
+    evaluated = await service.evaluate(
+        memory_evaluation(V1),
+        principal=admin(),
+        correlation_id=correlation,
+        causation_id=cause,
+    )
+    assert evaluated.status is PromptLifecycleStatus.EVALUATED
+    promoted = await service.promote(
+        PromptVersionReference(PROMPT_ID, V1),
+        principal=admin(),
+        correlation_id=correlation,
+        causation_id=cause,
+    )
+    assert promoted.status is PromptLifecycleStatus.ACTIVE
+
+
 def test_regression_evaluation_requires_unique_bounded_typed_results() -> None:
     reference = PromptVersionReference(PROMPT_ID, V1)
     valid = PromptRegressionFixtureResult("fixture-1", True)
@@ -285,3 +367,46 @@ def test_regression_evaluation_requires_unique_bounded_typed_results() -> None:
             PromptRegressionEvaluation(reference, V1, results, NOW)  # type: ignore[arg-type]
     with pytest.raises(InvalidDomainValueError, match="identity"):
         PromptRegressionEvaluation(reference, "1.0.0", (valid,), NOW)  # type: ignore[arg-type]
+
+
+def test_memory_regression_results_are_typed_safe_and_paired_by_fixture() -> None:
+    reference = PromptVersionReference(PROMPT_ID, V1)
+    without = PromptRegressionFixtureResult(
+        "fixture-1", True, PromptRegressionContext.WITHOUT_MEMORY
+    )
+    with_memory = PromptRegressionFixtureResult(
+        "fixture-1", True, PromptRegressionContext.WITH_MEMORY
+    )
+    paired = PromptRegressionEvaluation(reference, V1, (without, with_memory), NOW)
+    assert paired.passed
+    assert paired.memory_comparison_passed
+    assert not PromptRegressionEvaluation(reference, V1, (without,), NOW).memory_comparison_passed
+
+    unsafe_values: tuple[dict[str, object], ...] = (
+        {"unsupported_conclusions": 1},
+        {"fabricated_references": 1},
+        {"authorization_violations": 1},
+        {"ground_truth_visible": True},
+        {"passed": False},
+    )
+    for overrides in unsafe_values:
+        unsafe = replace(with_memory, **cast(Any, overrides))
+        result = PromptRegressionEvaluation(reference, V1, (without, unsafe), NOW)
+        assert not unsafe.safe
+        assert not result.passed
+        assert not result.memory_comparison_passed
+
+    invalid_values: tuple[dict[str, object], ...] = (
+        {"context": "WITH_MEMORY"},
+        {"unsupported_conclusions": -1},
+        {"fabricated_references": True},
+        {"authorization_violations": 10_001},
+        {"ground_truth_visible": 1},
+    )
+    for overrides in invalid_values:
+        with pytest.raises(InvalidDomainValueError, match="Prompt regression"):
+            replace(with_memory, **cast(Any, overrides))
+
+    duplicate = (without, replace(without, passed=False))
+    with pytest.raises(InvalidDomainValueError, match="unique and bounded"):
+        PromptRegressionEvaluation(reference, V1, duplicate, NOW)

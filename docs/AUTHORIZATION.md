@@ -23,3 +23,9 @@ Tests exhaust the role map and prove rejection of anonymous, roleless, underpriv
 self-approval, wrong-role approval, and cross-tenant approval requests. The `/api/v1` endpoint
 dependencies now enforce these contracts; the deployment-owned authentication adapter remains
 future work, and its absence fails closed rather than trusting caller-supplied identity headers.
+
+The Phase 8 Approval lifecycle rechecks these permissions in the application service rather than
+trusting a UI or transport. Requester identity and complete role assignment must exactly match the
+hash-bound Policy input. Medium, high, and critical risk always require an independent Approver;
+low risk can disable separation only through the server-owned Policy input and still requires the
+explicit Approver permission. Approval at or after expiry becomes an audited `EXPIRED` result.

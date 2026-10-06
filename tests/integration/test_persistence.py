@@ -28,6 +28,8 @@ from sqlalchemy.ext.asyncio import (
 from testcontainers.community.postgres import PostgresContainer
 
 from agentops_incident_commander.application import (
+    ApprovalLifecycleChange,
+    ApprovalLifecycleManager,
     EvidenceReferenceResolution,
     ModelCallTraceManager,
     PromptLifecycleChange,
@@ -51,6 +53,8 @@ from agentops_incident_commander.domain import (
     AlertGroupId,
     AlertId,
     AlertTriageAction,
+    ApprovalId,
+    ApprovalStatus,
     Artifact,
     ArtifactId,
     ArtifactStorage,
@@ -89,6 +93,7 @@ from agentops_incident_commander.domain import (
     JobId,
     JobLeaseError,
     JobStatus,
+    MaintenanceWindowStatus,
     ModelCallId,
     ModelCallStatus,
     ModelCost,
@@ -104,6 +109,14 @@ from agentops_incident_commander.domain import (
     OutboxLeaseError,
     OutboxPayload,
     Permission,
+    PolicyAction,
+    PolicyBlastRadius,
+    PolicyDecision,
+    PolicyEnvironment,
+    PolicyEvaluationInput,
+    PolicyOutcome,
+    PolicyReason,
+    PolicyReasonCode,
     Principal,
     PromptDefinition,
     PromptId,
@@ -121,6 +134,7 @@ from agentops_incident_commander.domain import (
     RedactionStatus,
     RedactionTransformId,
     RetentionClass,
+    RiskLevel,
     Role,
     RootCauseEvidenceClaim,
     SemanticVersion,
@@ -144,6 +158,9 @@ from agentops_incident_commander.infrastructure.persistence import (
     AlertGroupRow,
     AlertRepository,
     AlertRow,
+    ApprovalLifecycleEventRow,
+    ApprovalLifecycleRepository,
+    ApprovalRow,
     AuditEventRow,
     AuditRepository,
     EvidenceGateDecisionRow,
@@ -216,7 +233,8 @@ async def engine(migrated_url: str) -> AsyncIterator[AsyncEngine]:
             text(
                 "TRUNCATE alerts, alert_groups, incident_cancellation_requests, "
                 "incident_transitions, evidence, idempotency_records, outbox_events, jobs, "
-                "evidence_gate_decisions, model_call_traces, prompt_lifecycle_events, "
+                "evidence_gate_decisions, model_call_traces, approval_lifecycle_events, "
+                "approvals, prompt_lifecycle_events, "
                 "prompt_versions, "
                 "incidents RESTART IDENTITY CASCADE"
             )
@@ -388,6 +406,8 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "alembic_version",
         "alerts",
         "alert_groups",
+        "approval_lifecycle_events",
+        "approvals",
         "audit_events",
         "evidence",
         "evidence_gate_decisions",
@@ -2131,6 +2151,212 @@ async def test_remediation_admission_requires_exact_stored_passing_gate_decision
         assert admitted.evidence_gate_decision == decision
         with pytest.raises(InvalidDomainValueError, match="stored passing"):
             await gate.admit(proposal, tenant_id=TenantId("tenant-2"))
+
+
+def approval_policy_input() -> PolicyEvaluationInput:
+    return PolicyEvaluationInput(
+        tenant_id=TenantId("tenant-1"),
+        incident_id=IncidentId("incident-approval-storage"),
+        proposal_id=OpaqueIdentifier("remediation-approval-storage"),
+        proposal_version=1,
+        proposal_fingerprint=Sha256Digest("a" * 64),
+        evidence_gate_decision_fingerprint=Sha256Digest("b" * 64),
+        requester_actor_id=ActorId("operator-approval-storage"),
+        requester_roles=frozenset({Role.OPERATOR}),
+        environment=PolicyEnvironment.PRODUCTION,
+        action=PolicyAction.ROLLBACK_SERVICE,
+        service="orders",
+        blast_radius=PolicyBlastRadius.SINGLE_SERVICE,
+        maintenance_window=MaintenanceWindowStatus.ACTIVE,
+        separation_of_duties_required=True,
+        requested_at=NOW + timedelta(minutes=3),
+    )
+
+
+def approval_policy_decision(value: PolicyEvaluationInput) -> PolicyDecision:
+    return PolicyDecision(
+        id=OpaqueIdentifier("policy-approval-storage"),
+        policy_version=SemanticVersion("1.0.0"),
+        input_fingerprint=value.fingerprint,
+        proposal_fingerprint=value.proposal_fingerprint,
+        outcome=PolicyOutcome.APPROVAL_REQUIRED,
+        risk_level=RiskLevel.HIGH,
+        reasons=(
+            PolicyReason(
+                PolicyReasonCode.APPROVAL_REQUIRED,
+                "Human approval is required before rollback execution.",
+            ),
+        ),
+        evaluated_at=NOW + timedelta(minutes=4),
+        approval_ttl=timedelta(minutes=30),
+    )
+
+
+def approval_manager(
+    session: AsyncSession,
+    *,
+    at: datetime,
+    approval_id: str = "approval-storage-1",
+    audit_id: str = "audit-approval-storage",
+) -> ApprovalLifecycleManager:
+    return ApprovalLifecycleManager(
+        ApprovalLifecycleRepository(session),
+        clock=lambda: at,
+        approval_id_factory=lambda: approval_id,
+        audit_id_factory=lambda: audit_id,
+        expiry_actor_id=ActorId("approval-expiry-worker"),
+    )
+
+
+@pytest.mark.anyio
+async def test_approval_lifecycle_persists_state_history_and_audit_atomically(
+    engine: AsyncEngine,
+) -> None:
+    await add_incident(
+        engine,
+        "incident-approval-storage",
+        tenant="tenant-1",
+        state=IncidentState.POLICY_REVIEW,
+    )
+    value = approval_policy_input()
+    decision = approval_policy_decision(value)
+    requester = Principal(
+        ActorId("operator-approval-storage"),
+        TenantId("tenant-1"),
+        frozenset({Role.OPERATOR}),
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        requested = await approval_manager(
+            session,
+            at=NOW + timedelta(minutes=5),
+        ).request(
+            value,
+            decision,
+            principal=requester,
+            correlation_id=CorrelationId("correlation-approval-storage"),
+            causation_id=CausationId("request-approval-storage"),
+        )
+
+    async with sessions() as session:
+        repository = ApprovalLifecycleRepository(session)
+        assert await repository.get(requested.id, tenant_id=TenantId("tenant-1")) == requested
+        assert await repository.get(requested.id, tenant_id=TenantId("tenant-2")) is None
+
+    async with sessions.begin() as session:
+        approved = await approval_manager(
+            session,
+            at=NOW + timedelta(minutes=6),
+            audit_id="audit-approval-approved",
+        ).approve(
+            requested.id,
+            principal=Principal(
+                ActorId("approver-approval-storage"),
+                TenantId("tenant-1"),
+                frozenset({Role.APPROVER}),
+            ),
+            reason=EventReason("Verified proposal, evidence, and rollback scope."),
+            correlation_id=CorrelationId("correlation-approval-storage"),
+            causation_id=CausationId("approve-approval-storage"),
+        )
+    assert approved.status is ApprovalStatus.APPROVED
+
+    with pytest.raises(InvalidDomainValueError, match="already exists"):
+        async with sessions.begin() as session:
+            await approval_manager(
+                session,
+                at=NOW + timedelta(minutes=7),
+                approval_id=requested.id.value,
+                audit_id="audit-approval-duplicate-record",
+            ).request(
+                value,
+                replace(decision, id=OpaqueIdentifier("policy-approval-storage-2")),
+                principal=requester,
+                correlation_id=CorrelationId("correlation-approval-storage"),
+                causation_id=CausationId("duplicate-approval-storage"),
+            )
+
+    stale_audit = AuditEvent(
+        id=AuditEventId("audit-approval-stale"),
+        tenant_id=approved.tenant_id,
+        type="approval.approved",
+        event_version=1,
+        payload_schema_version="approval/v1",
+        actor_id=ActorId("approver-approval-storage"),
+        correlation_id=CorrelationId("correlation-approval-storage"),
+        causation_id=CausationId("stale-approval-storage"),
+        target=AuditTarget("approval.record", OpaqueIdentifier(approved.id.value)),
+        occurred_at=cast(datetime, approved.decided_at),
+        request_hash=requested.fingerprint,
+        result_hash=approved.fingerprint,
+    )
+    with pytest.raises(InvalidDomainValueError, match="stale Approval"):
+        async with sessions.begin() as session:
+            await ApprovalLifecycleRepository(session).apply(
+                ApprovalLifecycleChange("approved", requested, approved),
+                stale_audit,
+            )
+
+    async with sessions() as session:
+        assert (
+            await ApprovalLifecycleRepository(session).get(
+                ApprovalId("approval-storage-1"), tenant_id=TenantId("tenant-1")
+            )
+            == approved
+        )
+        assert await session.scalar(select(func.count()).select_from(ApprovalRow)) == 1
+        assert (
+            await session.scalar(select(func.count()).select_from(ApprovalLifecycleEventRow)) == 2
+        )
+        audit_types = (
+            await session.scalars(
+                select(AuditEventRow.event_type)
+                .where(AuditEventRow.event_type.like("approval.%"))
+                .order_by(AuditEventRow.sequence)
+            )
+        ).all()
+        assert audit_types == ["approval.requested", "approval.approved"]
+
+
+@pytest.mark.anyio
+async def test_approval_and_audit_rollback_together_on_duplicate_audit(
+    engine: AsyncEngine,
+) -> None:
+    await add_incident(
+        engine,
+        "incident-approval-storage",
+        tenant="tenant-1",
+        state=IncidentState.POLICY_REVIEW,
+    )
+    duplicate = audit_event("audit-approval-duplicate")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        await AuditRepository(session).append(duplicate)
+
+    value = approval_policy_input()
+    with pytest.raises(IntegrityError):
+        async with sessions.begin() as session:
+            await approval_manager(
+                session,
+                at=NOW + timedelta(minutes=5),
+                audit_id=duplicate.id.value,
+            ).request(
+                value,
+                approval_policy_decision(value),
+                principal=Principal(
+                    ActorId("operator-approval-storage"),
+                    TenantId("tenant-1"),
+                    frozenset({Role.OPERATOR}),
+                ),
+                correlation_id=CorrelationId("correlation-approval-storage"),
+                causation_id=CausationId("request-approval-storage"),
+            )
+
+    async with sessions() as session:
+        assert await session.scalar(select(func.count()).select_from(ApprovalRow)) == 0
+        assert (
+            await session.scalar(select(func.count()).select_from(ApprovalLifecycleEventRow)) == 0
+        )
 
 
 def prompt_definition(

@@ -11,6 +11,7 @@ from .alerts import (
     AlertTriageDecision,
     select_alert_group,
 )
+from .approvals import APPROVAL_SCHEMA_VERSION, Approval, ApprovalStatus
 from .artifacts import (
     ARTIFACT_METADATA_SCHEMA_VERSION,
     Artifact,
@@ -267,6 +268,7 @@ from .values import (
     AggregateVersion,
     AlertGroupId,
     AlertId,
+    ApprovalId,
     ArtifactId,
     AuditEventId,
     CausationId,
@@ -291,6 +293,7 @@ from .values import (
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
+    "APPROVAL_SCHEMA_VERSION",
     "ARTIFACT_METADATA_SCHEMA_VERSION",
     "CANCELLABLE_STATES",
     "CONTEXT_SCHEMA_VERSION",
@@ -363,6 +366,9 @@ __all__ = [
     "AlertId",
     "AlertTriageAction",
     "AlertTriageDecision",
+    "Approval",
+    "ApprovalId",
+    "ApprovalStatus",
     "Artifact",
     "ArtifactAlreadyExistsError",
     "ArtifactContent",

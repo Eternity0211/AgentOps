@@ -1,5 +1,10 @@
 """Deterministic application use cases and ports."""
 
+from .approvals import (
+    ApprovalLifecycleChange,
+    ApprovalLifecycleManager,
+    ApprovalLifecycleStore,
+)
 from .diagnosis_prompts import (
     ApprovedDiagnosisPromptResolver,
     DiagnosisPromptStore,
@@ -58,6 +63,9 @@ from .tool_gateway import (
 
 __all__ = [
     "MAX_POLICY_SERVICES",
+    "ApprovalLifecycleChange",
+    "ApprovalLifecycleManager",
+    "ApprovalLifecycleStore",
     "ApprovedDiagnosisPromptResolver",
     "AuditWriter",
     "CompiledInvestigationPlan",

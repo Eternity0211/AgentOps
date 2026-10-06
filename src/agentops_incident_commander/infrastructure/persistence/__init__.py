@@ -3,6 +3,8 @@
 from .models import (
     AlertGroupRow,
     AlertRow,
+    ApprovalLifecycleEventRow,
+    ApprovalRow,
     AuditEventRow,
     Base,
     EvidenceGateDecisionRow,
@@ -21,6 +23,7 @@ from .models import (
 )
 from .repositories import (
     AlertRepository,
+    ApprovalLifecycleRepository,
     AuditRepository,
     EvidenceGateRepository,
     EvidenceRepository,
@@ -36,6 +39,9 @@ __all__ = [
     "AlertGroupRow",
     "AlertRepository",
     "AlertRow",
+    "ApprovalLifecycleEventRow",
+    "ApprovalLifecycleRepository",
+    "ApprovalRow",
     "AuditEventRow",
     "AuditRepository",
     "Base",

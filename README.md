@@ -53,6 +53,10 @@ stable fingerprints, with closed risk/outcome enums, structured reasons, and bou
 lifetimes. Its server-owned rules evaluate those controls in fixed order, retain every denial
 reason, derive risk deterministically, and can only advance a valid rollback to
 `APPROVAL_REQUIRED`; it never authorizes or executes a mutation.
+The [proposal-bound Approval lifecycle](docs/APPROVALS.md) now enforces expiring hash bindings,
+Approver RBAC, medium/high/critical-risk separation of duties, finite terminal transitions,
+optimistic persistence, and transactionally matched lifecycle/audit records. Approval remains a
+human control record only and cannot invoke recovery.
 
 ## Why this project exists
 
@@ -212,6 +216,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Confirmed historical Incident memory](docs/INCIDENT_MEMORY.md)
 - [Remediation Agent proposal contract](docs/REMEDIATION_PROPOSAL.md)
 - [Deterministic Policy Engine contracts](docs/POLICY_ENGINE.md)
+- [Proposal-bound Approval lifecycle](docs/APPROVALS.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)

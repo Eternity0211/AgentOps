@@ -12,6 +12,7 @@ from sqlalchemy import CursorResult, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentops_incident_commander.application import (
+    ApprovalLifecycleChange,
     PromptLifecycleChange,
     evidence_gate_decision_fingerprint,
     evidence_gate_input_fingerprint,
@@ -28,6 +29,9 @@ from agentops_incident_commander.domain import (
     AlertId,
     AlertTriageAction,
     AlertTriageDecision,
+    Approval,
+    ApprovalId,
+    ApprovalStatus,
     Artifact,
     ArtifactId,
     AuditEvent,
@@ -36,6 +40,7 @@ from agentops_incident_commander.domain import (
     AuthorizationError,
     CausationId,
     CorrelationId,
+    EventReason,
     Evidence,
     EvidenceGateDecision,
     EvidenceGateOutcome,
@@ -91,6 +96,7 @@ from agentops_incident_commander.domain import (
     PromptVersionReference,
     QueryParameter,
     RedactionTransformId,
+    RiskLevel,
     RootCauseEvidenceClaim,
     SemanticVersion,
     Sha256Digest,
@@ -107,6 +113,8 @@ from agentops_incident_commander.domain import (
 from .models import (
     AlertGroupRow,
     AlertRow,
+    ApprovalLifecycleEventRow,
+    ApprovalRow,
     AuditEventRow,
     EvidenceGateDecisionRow,
     EvidenceRow,
@@ -993,6 +1001,190 @@ class PromptLifecycleRepository:
                         ],
                     }
                 ),
+                audit_event_id=audit_event.id.value,
+                occurred_at=audit_event.occurred_at,
+            )
+        )
+        await AuditRepository(self._session).append(audit_event)
+        await self._session.flush()
+
+
+def _approval_from_row(row: ApprovalRow) -> Approval:
+    return Approval(
+        id=ApprovalId(row.id),
+        tenant_id=TenantId(row.tenant_id),
+        incident_id=IncidentId(row.incident_id),
+        proposal_id=OpaqueIdentifier(row.proposal_id),
+        proposal_version=row.proposal_version,
+        proposal_fingerprint=Sha256Digest(row.proposal_fingerprint),
+        policy_decision_id=OpaqueIdentifier(row.policy_decision_id),
+        policy_decision_fingerprint=Sha256Digest(row.policy_decision_fingerprint),
+        policy_input_fingerprint=Sha256Digest(row.policy_input_fingerprint),
+        proposer_actor_id=ActorId(row.proposer_actor_id),
+        risk_level=RiskLevel(row.risk_level),
+        independent_approver_required=row.independent_approver_required,
+        status=ApprovalStatus(row.status),
+        version=AggregateVersion(row.version),
+        requested_at=row.requested_at,
+        expires_at=row.expires_at,
+        decided_at=row.decided_at,
+        decided_by=None if row.decided_by is None else ActorId(row.decided_by),
+        decision_reason=(None if row.decision_reason is None else EventReason(row.decision_reason)),
+        schema_version=row.schema_version,
+    )
+
+
+def _approval_row(value: Approval) -> ApprovalRow:
+    return ApprovalRow(
+        id=value.id.value,
+        tenant_id=value.tenant_id.value,
+        incident_id=value.incident_id.value,
+        proposal_id=value.proposal_id.value,
+        proposal_version=value.proposal_version,
+        proposal_fingerprint=value.proposal_fingerprint.value,
+        policy_decision_id=value.policy_decision_id.value,
+        policy_decision_fingerprint=value.policy_decision_fingerprint.value,
+        policy_input_fingerprint=value.policy_input_fingerprint.value,
+        proposer_actor_id=value.proposer_actor_id.value,
+        risk_level=value.risk_level.value,
+        independent_approver_required=value.independent_approver_required,
+        status=value.status.value,
+        version=value.version.value,
+        requested_at=value.requested_at,
+        expires_at=value.expires_at,
+        decided_at=value.decided_at,
+        decided_by=None if value.decided_by is None else value.decided_by.value,
+        decision_reason=(None if value.decision_reason is None else value.decision_reason.value),
+        schema_version=value.schema_version,
+    )
+
+
+def _approval_state(value: Approval | None) -> dict[str, object] | None:
+    if value is None:
+        return None
+    return {
+        "fingerprint": value.fingerprint.value,
+        "status": value.status.value,
+        "version": value.version.value,
+    }
+
+
+def _approval_binding(value: Approval) -> tuple[object, ...]:
+    return (
+        value.id,
+        value.tenant_id,
+        value.incident_id,
+        value.proposal_id,
+        value.proposal_version,
+        value.proposal_fingerprint,
+        value.policy_decision_id,
+        value.policy_decision_fingerprint,
+        value.policy_input_fingerprint,
+        value.proposer_actor_id,
+        value.risk_level,
+        value.independent_approver_required,
+        value.requested_at,
+        value.expires_at,
+        value.schema_version,
+    )
+
+
+def _validate_approval_change(
+    change: ApprovalLifecycleChange,
+    audit_event: AuditEvent,
+) -> None:
+    expected_status = {
+        "approved": ApprovalStatus.APPROVED,
+        "rejected": ApprovalStatus.REJECTED,
+        "expired": ApprovalStatus.EXPIRED,
+    }
+    if change.before is None:
+        valid_transition = (
+            change.action == "requested"
+            and change.after.status is ApprovalStatus.PENDING
+            and change.after.version == AggregateVersion.initial()
+        )
+        request_hash = change.after.policy_decision_fingerprint
+    else:
+        valid_transition = (
+            change.before.status is ApprovalStatus.PENDING
+            and expected_status.get(change.action) is change.after.status
+            and change.after.version == change.before.version.next()
+            and _approval_binding(change.before) == _approval_binding(change.after)
+        )
+        request_hash = change.before.fingerprint
+    expected_time = (
+        change.after.requested_at
+        if change.before is None
+        else change.after.decided_at or change.after.requested_at
+    )
+    if not valid_transition:
+        raise InvalidDomainValueError("invalid Approval lifecycle transition")
+    if (
+        audit_event.tenant_id != change.after.tenant_id
+        or audit_event.type != f"approval.{change.action}"
+        or audit_event.target
+        != AuditTarget("approval.record", OpaqueIdentifier(change.after.id.value))
+        or audit_event.request_hash != request_hash
+        or audit_event.result_hash != change.after.fingerprint
+        or audit_event.occurred_at != expected_time
+    ):
+        raise InvalidDomainValueError("Approval lifecycle audit event is not bound to the change")
+
+
+class ApprovalLifecycleRepository:
+    """PostgreSQL implementation of atomic Approval state and audit persistence."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get(self, approval_id: ApprovalId, *, tenant_id: TenantId) -> Approval | None:
+        row = await self._session.scalar(
+            select(ApprovalRow).where(
+                ApprovalRow.id == approval_id.value,
+                ApprovalRow.tenant_id == tenant_id.value,
+            )
+        )
+        return None if row is None else _approval_from_row(row)
+
+    async def apply(
+        self,
+        change: ApprovalLifecycleChange,
+        audit_event: AuditEvent,
+    ) -> None:
+        _validate_approval_change(change, audit_event)
+        row = await self._session.scalar(
+            select(ApprovalRow)
+            .where(
+                ApprovalRow.id == change.after.id.value,
+                ApprovalRow.tenant_id == change.after.tenant_id.value,
+            )
+            .with_for_update()
+        )
+        if change.before is None:
+            if row is not None:
+                raise InvalidDomainValueError("Approval already exists")
+            self._session.add(_approval_row(change.after))
+            await self._session.flush()
+        else:
+            if row is None or _approval_from_row(row) != change.before:
+                raise InvalidDomainValueError("stale Approval lifecycle state")
+            row.status = change.after.status.value
+            row.version = change.after.version.value
+            row.decided_at = change.after.decided_at
+            row.decided_by = (
+                None if change.after.decided_by is None else change.after.decided_by.value
+            )
+            row.decision_reason = (
+                None if change.after.decision_reason is None else change.after.decision_reason.value
+            )
+        self._session.add(
+            ApprovalLifecycleEventRow(
+                tenant_id=change.after.tenant_id.value,
+                approval_id=change.after.id.value,
+                action=change.action,
+                before_state=_approval_state(change.before),
+                after_state=cast(dict[str, object], _approval_state(change.after)),
                 audit_event_id=audit_event.id.value,
                 occurred_at=audit_event.occurred_at,
             )

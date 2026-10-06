@@ -23,8 +23,10 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from agentops_incident_commander.domain import (
+    APPROVAL_SCHEMA_VERSION,
     INCIDENT_MEMORY_SCHEMA_VERSION,
     MAX_PROMPT_CONTENT_BYTES,
+    ApprovalStatus,
     EvidenceGateOutcome,
     EvidenceSourceType,
     IncidentMemoryConfirmationSource,
@@ -36,6 +38,7 @@ from agentops_incident_commander.domain import (
     PromptInjectionStatus,
     PromptLifecycleStatus,
     PromptPurpose,
+    RiskLevel,
     TrustClassification,
 )
 
@@ -52,6 +55,8 @@ _MODEL_COST_SOURCES = ", ".join(f"'{value.value}'" for value in ModelCostSource)
 _METERING_UNAVAILABLE = ", ".join(f"'{value.value}'" for value in ModelMeteringUnavailableReason)
 _MEMORY_OUTCOMES = ", ".join(f"'{value.value}'" for value in IncidentMemoryOutcome)
 _MEMORY_CONFIRMATIONS = ", ".join(f"'{value.value}'" for value in IncidentMemoryConfirmationSource)
+_APPROVAL_STATUSES = ", ".join(f"'{value.value}'" for value in ApprovalStatus)
+_RISK_LEVELS = ", ".join(f"'{value.value}'" for value in RiskLevel)
 
 
 class Base(DeclarativeBase):
@@ -423,6 +428,97 @@ class PromptLifecycleEventRow(Base):
     before_state: Mapped[list[dict[str, object]]] = mapped_column(JSONB, nullable=False)
     after_state: Mapped[list[dict[str, object]]] = mapped_column(JSONB, nullable=False)
     regression_evaluation: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    audit_event_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ApprovalRow(Base):
+    """Mutable proposal-bound Approval aggregate with optimistic version."""
+
+    __tablename__ = "approvals"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["incident_id", "tenant_id"],
+            ["incidents.id", "incidents.tenant_id"],
+            name="fk_approvals_incident_tenant",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(f"status IN ({_APPROVAL_STATUSES})", name="ck_approval_status"),
+        CheckConstraint(f"risk_level IN ({_RISK_LEVELS})", name="ck_approval_risk"),
+        CheckConstraint("version >= 1", name="ck_approval_version"),
+        CheckConstraint("proposal_version >= 1", name="ck_approval_proposal_version"),
+        CheckConstraint("expires_at > requested_at", name="ck_approval_expiry_order"),
+        CheckConstraint(
+            "proposal_fingerprint ~ '^[0-9a-f]{64}$' AND "
+            "policy_decision_fingerprint ~ '^[0-9a-f]{64}$' AND "
+            "policy_input_fingerprint ~ '^[0-9a-f]{64}$'",
+            name="ck_approval_hashes",
+        ),
+        CheckConstraint(
+            "(status = 'PENDING' AND decided_at IS NULL AND decided_by IS NULL "
+            "AND decision_reason IS NULL) OR "
+            "(status IN ('APPROVED', 'REJECTED') AND decided_at >= requested_at "
+            "AND decided_at < expires_at AND decided_by IS NOT NULL "
+            "AND decision_reason IS NOT NULL) OR "
+            "(status = 'EXPIRED' AND decided_at >= expires_at AND decided_by IS NOT NULL "
+            "AND decision_reason IS NOT NULL)",
+            name="ck_approval_decision_state",
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "policy_decision_fingerprint",
+            name="uq_approval_policy_decision",
+        ),
+        UniqueConstraint("id", "tenant_id", name="uq_approval_id_tenant"),
+        Index("ix_approval_incident_status", "tenant_id", "incident_id", "status"),
+        Index("ix_approval_expiry", "status", "expires_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    incident_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    proposal_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    proposal_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    proposal_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    policy_decision_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    policy_decision_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    policy_input_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    proposer_actor_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    risk_level: Mapped[str] = mapped_column(String(16), nullable=False)
+    independent_approver_required: Mapped[bool] = mapped_column(nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decided_by: Mapped[str | None] = mapped_column(String(128))
+    decision_reason: Mapped[str | None] = mapped_column(String(512))
+    schema_version: Mapped[str] = mapped_column(
+        String(64), nullable=False, default=APPROVAL_SCHEMA_VERSION
+    )
+
+
+class ApprovalLifecycleEventRow(Base):
+    """Append-only before/after record for each Approval transition."""
+
+    __tablename__ = "approval_lifecycle_events"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["approval_id", "tenant_id"],
+            ["approvals.id", "approvals.tenant_id"],
+            name="fk_approval_events_approval_tenant",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("audit_event_id", name="uq_approval_lifecycle_audit"),
+        Index("ix_approval_lifecycle", "tenant_id", "approval_id", "sequence"),
+    )
+
+    sequence: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    approval_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    action: Mapped[str] = mapped_column(String(32), nullable=False)
+    before_state: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    after_state: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
     audit_event_id: Mapped[str] = mapped_column(String(128), nullable=False)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

@@ -51,6 +51,11 @@ class IncidentMemoryId(OpaqueIdentifier):
 
 
 @dataclass(frozen=True, slots=True)
+class ApprovalId(OpaqueIdentifier):
+    """Identity of one proposal-bound human Approval aggregate."""
+
+
+@dataclass(frozen=True, slots=True)
 class AlertId(OpaqueIdentifier):
     """Identity of one incoming or merged Alert."""
 

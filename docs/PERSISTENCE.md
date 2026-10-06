@@ -52,6 +52,14 @@ token counts, and integer-nanounit cost with a versioned source. Missing meterin
 than silently treated as zero. Start and terminal audit records commit atomically with trace state;
 row locks and expected-state comparison reject duplicate completion.
 
+Revision `20261006_0012` adds tenant/Incident-scoped `approvals` and append-only
+`approval_lifecycle_events`. Each request binds exact proposal, Policy input, and Policy decision
+fingerprints plus proposer, risk, separation requirement, and Policy-derived expiry. Status and
+decision-field database checks mirror the finite lifecycle. Commands row-lock and compare the
+complete expected aggregate, then commit its next state, before/after fingerprint snapshot, and
+matching content-free audit event in one caller-owned transaction. A tenant-scoped unique Policy
+decision fingerprint prevents duplicate Approval issuance for the same decision.
+
 ## Repository concurrency
 
 `IncidentRepository` updates with `WHERE id = ... AND version = ...`. A zero-row update raises the

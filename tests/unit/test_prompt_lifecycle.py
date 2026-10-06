@@ -304,6 +304,49 @@ async def test_lifecycle_refuses_unauthorized_failed_and_illegal_transitions() -
 
 
 @pytest.mark.anyio
+async def test_prompt_promotion_refuses_unauthorized_principals_without_side_effects() -> None:
+    store = Store()
+    service = manager(store)
+    correlation = CorrelationId("correlation-unauthorized-promotion")
+    cause = CausationId("command-unauthorized-promotion")
+    candidate = prompt(V1, "Diagnose only from authorized evidence.")
+    await service.draft(
+        candidate,
+        principal=admin(),
+        correlation_id=correlation,
+        causation_id=cause,
+    )
+    await service.evaluate(
+        evaluation(V1),
+        principal=admin(),
+        correlation_id=correlation,
+        causation_id=cause,
+    )
+    before_values = dict(store.values)
+    before_audits = tuple(store.audits)
+    reference = PromptVersionReference(PROMPT_ID, V1)
+
+    with pytest.raises(AuthenticationError):
+        await service.promote(
+            reference,
+            principal=None,
+            correlation_id=correlation,
+            causation_id=cause,
+        )
+    with pytest.raises(AuthorizationError):
+        await service.promote(
+            reference,
+            principal=Principal(ActorId("viewer"), TENANT, frozenset({Role.VIEWER})),
+            correlation_id=correlation,
+            causation_id=cause,
+        )
+
+    assert store.values == before_values
+    assert tuple(store.audits) == before_audits
+    assert store.values[(TENANT, PROMPT_ID, V1)].status is PromptLifecycleStatus.EVALUATED
+
+
+@pytest.mark.anyio
 async def test_memory_aware_prompt_requires_complete_safe_paired_regression() -> None:
     store = Store()
     service = manager(store)

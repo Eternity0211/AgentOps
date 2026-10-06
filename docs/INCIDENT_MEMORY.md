@@ -92,3 +92,19 @@ conclusions, fabricated references, authorization violations, or Ground Truth vi
 comparison is deterministic, persisted with the lifecycle event, and covered by the transition's
 audit hashes. Missing or unsafe pairs leave the version in `DRAFT`, which makes promotion
 structurally unavailable. Non-memory Prompt versions retain the original all-safe regression gate.
+
+## Phase 7 safety-test matrix
+
+The executable suite closes the phase with explicit checks at both application and PostgreSQL
+boundaries:
+
+- tenant isolation: cross-tenant projections are never returned, and a current Incident owned by
+  another tenant fails without disclosing whether memory exists;
+- embedding identity: provider, model, model version, content schema, normalization, dimensions,
+  source hash, and reindex status must all match before a vector can participate in retrieval;
+- retrieval authorization: unauthenticated or tenant-mismatched principals are rejected before the
+  search port is called;
+- Prompt rollback: a rollback creates a newer immutable copy of the retired target, binds the
+  previously active predecessor, retires that active version, and emits one audited transition; and
+- Prompt promotion authorization: anonymous and non-Admin callers cannot promote an evaluated
+  version, change lifecycle state, retire another version, or append an audit event.

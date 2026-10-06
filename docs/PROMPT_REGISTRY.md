@@ -70,7 +70,10 @@ Lifecycle tests cover Admin-only access, failed regression refusal, illegal tran
 first and replacement promotion, old-version retirement, copy-based rollback, and complete audit
 emission with request/result hashes. Memory-aware tests cover schema typing, complete paired
 comparison, missing-mode refusal, each safety failure, durable comparison snapshots, and promotion
-only after the paired gate passes.
+only after the paired gate passes. Dedicated authorization tests prove anonymous and non-Admin
+promotion attempts leave the evaluated definition and audit history unchanged. Rollback tests prove
+the replacement is a newer exact copy, the prior active version is retired atomically, and altered
+content or an invalid target is refused.
 Diagnosis runtime tests cover every node allowlist entry, exact tenant/version selection, invalid
 operation identities, missing or changed active versions, every non-active lifecycle status,
 wrong-purpose and fingerprint refusal, and proof that authorization precedes control and effects.

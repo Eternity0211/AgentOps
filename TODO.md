@@ -167,7 +167,7 @@ Exit: retrieval improves context experimentally without label/fact leakage; ever
 
 ## Phase 8 — Remediation, policy, approval, and safe execution
 
-- [ ] Define Remediation Agent structured proposal, prerequisites, verification conditions, safe failure routing, explicit compensation eligibility, and risk assumptions; prohibit compensation for `rollback_service`.
+- [x] Define Remediation Agent structured proposal, prerequisites, verification conditions, safe failure routing, explicit compensation eligibility, and risk assumptions; prohibit compensation for `rollback_service`.
 - [ ] Prevent remediation until an immutable passing EvidenceGateDecision is present.
 - [ ] Define risk levels and versioned deterministic Policy Engine inputs/outputs/reasons.
 - [ ] Implement policy rules for environment, role, action/target, evidence gate, blast radius, maintenance constraints, and separation of duties.

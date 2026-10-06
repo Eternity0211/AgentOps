@@ -40,6 +40,12 @@ gate rejects missing modes, failed fixtures, unsupported conclusions, fabricated
 authorization violations, and any Ground Truth exposure; accepted snapshots are hash-bound and
 persisted with the lifecycle audit before promotion is possible.
 
+Phase 8 begins with the strict [Remediation Agent proposal contract](docs/REMEDIATION_PROPOSAL.md).
+It permits only a bounded `rollback_service` proposal, keeps deployment versions and execution
+credentials outside model authority, requires non-bypassable policy/approval/lock prerequisites,
+defines deterministic-verifier inputs and safe failure routing, and makes compensation eligibility
+structurally false for this recovery action.
+
 ## Why this project exists
 
 - Shorten time to diagnose microservice failures.
@@ -196,6 +202,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Deterministic diagnosis-plan compilation](docs/DIAGNOSIS_PLANNING.md)
 - [Bounded Diagnosis LangGraph](docs/DIAGNOSIS_GRAPH.md)
 - [Confirmed historical Incident memory](docs/INCIDENT_MEMORY.md)
+- [Remediation Agent proposal contract](docs/REMEDIATION_PROPOSAL.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)

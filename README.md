@@ -70,6 +70,10 @@ Approval, and idempotency identities while excluding commands and caller-selecte
 tenant/service/environment target and stable version resolve only from a server-owned allowlist;
 the mutation adapter remains deliberately unregistered until the Executor and verifier safety
 gates are complete.
+The immutable [ActionExecution lifecycle](docs/ACTION_EXECUTION.md) now binds authority,
+server-resolved target, before/after Artifact snapshots, outcome, timing, and canonical fingerprint;
+success requires snapshot proof of the configured stable version. Persistence, locking, dispatch,
+and the real mutation route remain disabled work.
 
 ## Why this project exists
 
@@ -231,6 +235,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Deterministic Policy Engine contracts](docs/POLICY_ENGINE.md)
 - [Proposal-bound Approval lifecycle](docs/APPROVALS.md)
 - [Typed rollback_service contract](docs/ROLLBACK_SERVICE.md)
+- [Recovery ActionExecution lifecycle](docs/ACTION_EXECUTION.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)

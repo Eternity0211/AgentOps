@@ -119,6 +119,13 @@ from .evidence_processing import (
     resolve_and_validate_evidence,
     validate_evidence_content,
 )
+from .executions import (
+    ACTION_EXECUTION_SCHEMA_VERSION,
+    ACTION_SNAPSHOT_SCHEMA_VERSION,
+    ActionExecution,
+    ActionExecutionStatus,
+    ActionSnapshot,
+)
 from .incident_memory import (
     INCIDENT_MEMORY_SCHEMA_VERSION,
     MAX_INCIDENT_MEMORY_EVIDENCE,
@@ -306,6 +313,8 @@ from .values import (
 )
 
 __all__ = [
+    "ACTION_EXECUTION_SCHEMA_VERSION",
+    "ACTION_SNAPSHOT_SCHEMA_VERSION",
     "ALLOWED_TRANSITIONS",
     "APPROVAL_INVALIDATION_SCHEMA_VERSION",
     "APPROVAL_SCHEMA_VERSION",
@@ -371,6 +380,9 @@ __all__ = [
     "TELEMETRY_SAFETY_SCHEMA_VERSION",
     "TERMINAL_STATES",
     "TRACE_SUMMARY_SCHEMA_VERSION",
+    "ActionExecution",
+    "ActionExecutionStatus",
+    "ActionSnapshot",
     "ActorId",
     "AggregateVersion",
     "Alert",

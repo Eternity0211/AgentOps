@@ -177,6 +177,8 @@ Exit: retrieval improves context experimentally without label/fact leakage; ever
 - [x] Define versioned typed `rollback_service` tool requiring Incident ID, Approval ID, and Idempotency Key.
 - [x] Implement service/version resolution from server-owned allowlists; reject free-form commands/targets.
 - [ ] Implement Action Executor with execution locks, database uniqueness, idempotent result replay, before/after snapshots, timeout, and audit.
+  - [x] Define immutable ActionExecution lifecycle, terminal outcomes, snapshot bindings, and canonical fingerprint.
+  - [ ] Persist execution locks/uniqueness and implement deterministic dispatch/result replay.
 - [ ] Recheck RBAC, policy, state, approval hash/expiry, and idempotency immediately before mutation.
 - [ ] Keep the real mutation route disabled behind a server-side capability flag until the Phase 9 verifier/failure-routing exit gate passes.
 - [ ] Add concurrent approval, rejection/expiry routing, mutation, replay, duplicate delivery, timeout, unauthorized role, and bypass tests.

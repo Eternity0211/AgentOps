@@ -31,6 +31,7 @@ from agentops_incident_commander.domain import (
     AlertTriageDecision,
     Approval,
     ApprovalId,
+    ApprovalInvalidation,
     ApprovalStatus,
     Artifact,
     ArtifactId,
@@ -113,6 +114,7 @@ from agentops_incident_commander.domain import (
 from .models import (
     AlertGroupRow,
     AlertRow,
+    ApprovalInvalidationRow,
     ApprovalLifecycleEventRow,
     ApprovalRow,
     AuditEventRow,
@@ -1187,6 +1189,93 @@ class ApprovalLifecycleRepository:
                 after_state=cast(dict[str, object], _approval_state(change.after)),
                 audit_event_id=audit_event.id.value,
                 occurred_at=audit_event.occurred_at,
+            )
+        )
+        await AuditRepository(self._session).append(audit_event)
+        await self._session.flush()
+
+    async def get_invalidation(
+        self,
+        approval_id: ApprovalId,
+        *,
+        tenant_id: TenantId,
+    ) -> ApprovalInvalidation | None:
+        row = await self._session.scalar(
+            select(ApprovalInvalidationRow).where(
+                ApprovalInvalidationRow.approval_id == approval_id.value,
+                ApprovalInvalidationRow.tenant_id == tenant_id.value,
+            )
+        )
+        if row is None:
+            return None
+        return ApprovalInvalidation(
+            approval_id=ApprovalId(row.approval_id),
+            tenant_id=TenantId(row.tenant_id),
+            incident_id=IncidentId(row.incident_id),
+            approval_fingerprint=Sha256Digest(row.approval_fingerprint),
+            prior_proposal_fingerprint=Sha256Digest(row.prior_proposal_fingerprint),
+            replacement_proposal_id=OpaqueIdentifier(row.replacement_proposal_id),
+            replacement_proposal_version=row.replacement_proposal_version,
+            replacement_proposal_fingerprint=Sha256Digest(row.replacement_proposal_fingerprint),
+            replacement_material_fingerprint=Sha256Digest(row.replacement_material_fingerprint),
+            invalidated_by=ActorId(row.invalidated_by),
+            invalidated_at=row.invalidated_at,
+            schema_version=row.schema_version,
+        )
+
+    async def record_invalidation(
+        self,
+        approval: Approval,
+        invalidation: ApprovalInvalidation,
+        audit_event: AuditEvent,
+    ) -> None:
+        row = await self._session.scalar(
+            select(ApprovalRow)
+            .where(
+                ApprovalRow.id == approval.id.value,
+                ApprovalRow.tenant_id == approval.tenant_id.value,
+            )
+            .with_for_update()
+        )
+        if row is None or _approval_from_row(row) != approval:
+            raise InvalidDomainValueError("stale Approval invalidation state")
+        existing = await self.get_invalidation(approval.id, tenant_id=approval.tenant_id)
+        if existing is not None:
+            raise InvalidDomainValueError("Approval is already invalidated")
+        if (
+            invalidation.approval_id != approval.id
+            or invalidation.tenant_id != approval.tenant_id
+            or invalidation.incident_id != approval.incident_id
+            or invalidation.approval_fingerprint != approval.fingerprint
+            or invalidation.prior_proposal_fingerprint != approval.proposal_fingerprint
+            or audit_event.tenant_id != approval.tenant_id
+            or audit_event.type != "approval.invalidated"
+            or audit_event.target
+            != AuditTarget("approval.record", OpaqueIdentifier(approval.id.value))
+            or audit_event.occurred_at != invalidation.invalidated_at
+            or audit_event.request_hash != approval.fingerprint
+            or audit_event.result_hash != invalidation.fingerprint
+        ):
+            raise InvalidDomainValueError("Approval invalidation is not hash-bound")
+        self._session.add(
+            ApprovalInvalidationRow(
+                approval_id=invalidation.approval_id.value,
+                tenant_id=invalidation.tenant_id.value,
+                incident_id=invalidation.incident_id.value,
+                approval_fingerprint=invalidation.approval_fingerprint.value,
+                prior_proposal_fingerprint=invalidation.prior_proposal_fingerprint.value,
+                replacement_proposal_id=invalidation.replacement_proposal_id.value,
+                replacement_proposal_version=invalidation.replacement_proposal_version,
+                replacement_proposal_fingerprint=(
+                    invalidation.replacement_proposal_fingerprint.value
+                ),
+                replacement_material_fingerprint=(
+                    invalidation.replacement_material_fingerprint.value
+                ),
+                invalidated_by=invalidation.invalidated_by.value,
+                invalidated_at=invalidation.invalidated_at,
+                audit_event_id=audit_event.id.value,
+                schema_version=invalidation.schema_version,
             )
         )
         await AuditRepository(self._session).append(audit_event)

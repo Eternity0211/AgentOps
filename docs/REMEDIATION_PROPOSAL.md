@@ -13,8 +13,9 @@ current deployment are resolved later from server-owned records, outside model a
 
 Every proposal binds its Incident, root-cause candidate, immutable Evidence Gate input fingerprint
 and complete decision fingerprint, proposal identity/version, and schema version. Canonical JSON
-over all fields produces a SHA-256 fingerprint; changing any material proposal field therefore
-changes the approval/policy binding used by later phases.
+over all fields produces a SHA-256 fingerprint. A second material fingerprint covers every field
+except the monotonic proposal version, allowing revision handling to reject version-only bumps;
+changing any material proposal field changes the approval/policy binding used by later phases.
 
 `RemediationEvidenceGate` is the only current admission path. It re-loads the decision through a
 tenant-, Incident-, candidate-, and input-fingerprint-scoped store port. The returned immutable

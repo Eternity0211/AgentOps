@@ -46,6 +46,13 @@ from .remediation_gate import (
     RemediationEvidenceGate,
     RemediationEvidenceGateStore,
 )
+from .remediation_revision import (
+    ApprovalInvalidationStore,
+    PolicyReevaluationContext,
+    RemediationRevisionResult,
+    RemediationRevisionService,
+    RevisionOutcome,
+)
 from .tool_gateway import (
     AuditWriter,
     ToolAdapter,
@@ -63,6 +70,7 @@ from .tool_gateway import (
 
 __all__ = [
     "MAX_POLICY_SERVICES",
+    "ApprovalInvalidationStore",
     "ApprovalLifecycleChange",
     "ApprovalLifecycleManager",
     "ApprovalLifecycleStore",
@@ -82,6 +90,7 @@ __all__ = [
     "ModelCallTraceStore",
     "PlanningBudgets",
     "PlanningUsage",
+    "PolicyReevaluationContext",
     "PolicyRules",
     "PromptLifecycleChange",
     "PromptLifecycleManager",
@@ -89,6 +98,9 @@ __all__ = [
     "ProposedToolCall",
     "RemediationEvidenceGate",
     "RemediationEvidenceGateStore",
+    "RemediationRevisionResult",
+    "RemediationRevisionService",
+    "RevisionOutcome",
     "SimilarIncidentRetriever",
     "ToolAdapter",
     "ToolAdapterContext",

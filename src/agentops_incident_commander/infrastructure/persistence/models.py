@@ -23,6 +23,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from agentops_incident_commander.domain import (
+    APPROVAL_INVALIDATION_SCHEMA_VERSION,
     APPROVAL_SCHEMA_VERSION,
     INCIDENT_MEMORY_SCHEMA_VERSION,
     MAX_PROMPT_CONTENT_BYTES,
@@ -521,6 +522,49 @@ class ApprovalLifecycleEventRow(Base):
     after_state: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
     audit_event_id: Mapped[str] = mapped_column(String(128), nullable=False)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ApprovalInvalidationRow(Base):
+    """Immutable marker preventing reuse after a material proposal revision."""
+
+    __tablename__ = "approval_invalidations"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["approval_id", "tenant_id"],
+            ["approvals.id", "approvals.tenant_id"],
+            name="fk_approval_invalidations_approval_tenant",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "approval_fingerprint ~ '^[0-9a-f]{64}$' AND "
+            "prior_proposal_fingerprint ~ '^[0-9a-f]{64}$' AND "
+            "replacement_proposal_fingerprint ~ '^[0-9a-f]{64}$' AND "
+            "replacement_material_fingerprint ~ '^[0-9a-f]{64}$'",
+            name="ck_approval_invalidation_hashes",
+        ),
+        CheckConstraint(
+            "replacement_proposal_version >= 1",
+            name="ck_approval_invalidation_version",
+        ),
+        UniqueConstraint("audit_event_id", name="uq_approval_invalidation_audit"),
+        Index("ix_approval_invalidation_incident", "tenant_id", "incident_id"),
+    )
+
+    approval_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    incident_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    approval_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    prior_proposal_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    replacement_proposal_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    replacement_proposal_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    replacement_proposal_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    replacement_material_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    invalidated_by: Mapped[str] = mapped_column(String(128), nullable=False)
+    invalidated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    audit_event_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    schema_version: Mapped[str] = mapped_column(
+        String(64), nullable=False, default=APPROVAL_INVALIDATION_SCHEMA_VERSION
+    )
 
 
 class ModelCallTraceRow(Base):

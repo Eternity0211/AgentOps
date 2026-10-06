@@ -57,6 +57,10 @@ The [proposal-bound Approval lifecycle](docs/APPROVALS.md) now enforces expiring
 Approver RBAC, medium/high/critical-risk separation of duties, finite terminal transitions,
 optimistic persistence, and transactionally matched lifecycle/audit records. Approval remains a
 human control record only and cannot invoke recovery.
+Any accepted material proposal revision now creates an immutable approval-invalidation marker,
+rejects version-only or identity-changing edits, and reruns strict schema validation, exact
+Evidence Gate admission, and complete Policy evaluation. Gate/Policy failure cannot revive the old
+approval, while a successful re-evaluation still requires a newly issued human Approval.
 
 ## Why this project exists
 

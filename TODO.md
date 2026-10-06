@@ -172,7 +172,7 @@ Exit: retrieval improves context experimentally without label/fact leakage; ever
 - [x] Define risk levels and versioned deterministic Policy Engine inputs/outputs/reasons.
 - [x] Implement policy rules for environment, role, action/target, evidence gate, blast radius, maintenance constraints, and separation of duties.
 - [x] Implement approval request/approve/reject lifecycle, expiry, proposal-hash binding, and audit.
-- [ ] Invalidate approval after any material proposal change and rerun schema/policy checks.
+- [x] Invalidate approval after any material proposal change and rerun schema/policy checks.
 - [ ] Implement LangGraph Interrupt and durable resume for approval-required actions.
 - [ ] Define versioned typed `rollback_service` tool requiring Incident ID, Approval ID, and Idempotency Key.
 - [ ] Implement service/version resolution from server-owned allowlists; reject free-form commands/targets.

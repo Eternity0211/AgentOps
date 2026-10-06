@@ -3,6 +3,7 @@
 from .models import (
     AlertGroupRow,
     AlertRow,
+    ApprovalInvalidationRow,
     ApprovalLifecycleEventRow,
     ApprovalRow,
     AuditEventRow,
@@ -39,6 +40,7 @@ __all__ = [
     "AlertGroupRow",
     "AlertRepository",
     "AlertRow",
+    "ApprovalInvalidationRow",
     "ApprovalLifecycleEventRow",
     "ApprovalLifecycleRepository",
     "ApprovalRow",

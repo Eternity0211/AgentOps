@@ -44,8 +44,24 @@ transaction. Audit request/result hashes bind the prior and next Approval finger
 creation additionally binds the Policy decision fingerprint. A duplicate audit ID or stale state
 rolls the entire transaction back.
 
-This lifecycle does not execute recovery. Later batches must invalidate approval after proposal
-mutation, resume the durable workflow, and revalidate the exact record immediately before the
+## Material revision invalidation
+
+An accepted material revision writes a separate immutable invalidation marker rather than rewriting
+an already approved record or mislabeling it as rejected. The marker binds the Approval fingerprint,
+prior proposal fingerprint, replacement proposal identity/version/full fingerprint, replacement
+material fingerprint, actor, time, and audit event. One marker per Approval is enforced in
+PostgreSQL. Any later execution check must treat the marker as authoritative even though the
+historical Approval retains its original human decision.
+
+Revision processing accepts only the same proposal ID and Incident with a strictly higher version
+and a changed material fingerprint; a version-only bump is rejected. It validates the complete
+Pydantic proposal schema before recording invalidation, then re-resolves the exact passing Evidence
+Gate decision and rebuilds the complete Policy input from the replacement proposal and current
+requester/context. Gate rejection or Policy denial leaves the old Approval invalidated. A passing
+Policy result can only request a brand-new Approval; the old approval is never copied forward.
+
+This lifecycle does not execute recovery. Later batches must resume the durable workflow and
+revalidate the exact Approval plus absence of an invalidation marker immediately before the
 deterministic Executor runs.
 
 ## Verification
@@ -53,5 +69,7 @@ deterministic Executor runs.
 Unit tests cover request, approve, reject, explicit and lazy expiry, terminal-state refusal,
 proposal/Policy mismatch, stale and future Policy decisions, anonymous/wrong-role/cross-tenant/
 self-approval refusal, configurable low-risk separation, invariants, immutability, and audit hash
-binding. PostgreSQL integration tests cover migration round trips, tenant-scoped reads, lifecycle
-history, state/audit transactionality, and rollback on audit conflict.
+binding. Revision tests cover malformed schemas, identity/version tricks, version-only edits,
+material changes, duplicate invalidation, Gate rejection, Policy denial, and fresh-approval
+routing. PostgreSQL integration tests cover migration round trips, tenant-scoped reads, lifecycle
+history, invalidation markers, state/audit transactionality, and rollback on audit conflict.

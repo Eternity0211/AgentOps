@@ -23,6 +23,7 @@ from .values import (
 )
 
 APPROVAL_SCHEMA_VERSION = "1.0.0"
+APPROVAL_INVALIDATION_SCHEMA_VERSION = "1.0.0"
 
 
 class ApprovalStatus(StrEnum):
@@ -166,3 +167,63 @@ class Approval:
             decided_by=actor_id,
             decision_reason=reason,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class ApprovalInvalidation:
+    approval_id: ApprovalId
+    tenant_id: TenantId
+    incident_id: IncidentId
+    approval_fingerprint: Sha256Digest
+    prior_proposal_fingerprint: Sha256Digest
+    replacement_proposal_id: OpaqueIdentifier
+    replacement_proposal_version: int
+    replacement_proposal_fingerprint: Sha256Digest
+    replacement_material_fingerprint: Sha256Digest
+    invalidated_by: ActorId
+    invalidated_at: datetime
+    schema_version: str = APPROVAL_INVALIDATION_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        expected = (
+            (self.approval_id, ApprovalId),
+            (self.tenant_id, TenantId),
+            (self.incident_id, IncidentId),
+            (self.approval_fingerprint, Sha256Digest),
+            (self.prior_proposal_fingerprint, Sha256Digest),
+            (self.replacement_proposal_id, OpaqueIdentifier),
+            (self.replacement_proposal_fingerprint, Sha256Digest),
+            (self.replacement_material_fingerprint, Sha256Digest),
+            (self.invalidated_by, ActorId),
+            (self.invalidated_at, datetime),
+        )
+        if any(not isinstance(value, kind) for value, kind in expected):
+            raise InvalidDomainValueError("Approval invalidation field types are invalid")
+        if (
+            not isinstance(self.replacement_proposal_version, int)
+            or isinstance(self.replacement_proposal_version, bool)
+            or self.replacement_proposal_version < 1
+        ):
+            raise InvalidDomainValueError("replacement proposal version is invalid")
+        if self.schema_version != APPROVAL_INVALIDATION_SCHEMA_VERSION:
+            raise InvalidDomainValueError("Approval invalidation schema version is unsupported")
+        object.__setattr__(self, "invalidated_at", as_utc(self.invalidated_at))
+
+    @property
+    def fingerprint(self) -> Sha256Digest:
+        document = {
+            "approval_fingerprint": self.approval_fingerprint.value,
+            "approval_id": self.approval_id.value,
+            "incident_id": self.incident_id.value,
+            "invalidated_at": self.invalidated_at.isoformat(),
+            "invalidated_by": self.invalidated_by.value,
+            "prior_proposal_fingerprint": self.prior_proposal_fingerprint.value,
+            "replacement_material_fingerprint": self.replacement_material_fingerprint.value,
+            "replacement_proposal_fingerprint": self.replacement_proposal_fingerprint.value,
+            "replacement_proposal_id": self.replacement_proposal_id.value,
+            "replacement_proposal_version": self.replacement_proposal_version,
+            "schema_version": self.schema_version,
+            "tenant_id": self.tenant_id.value,
+        }
+        canonical = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
+        return Sha256Digest(hashlib.sha256(canonical).hexdigest())

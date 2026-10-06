@@ -60,6 +60,12 @@ complete expected aggregate, then commit its next state, before/after fingerprin
 matching content-free audit event in one caller-owned transaction. A tenant-scoped unique Policy
 decision fingerprint prevents duplicate Approval issuance for the same decision.
 
+Revision `20261006_0013` adds immutable `approval_invalidations`. A one-per-Approval marker binds
+the prior Approval/proposal hashes to the replacement proposal ID, higher version, full/material
+fingerprints, actor, time, and unique audit event. The repository row-locks and compares the exact
+Approval before atomically adding the marker and `approval.invalidated` event. The historical human
+decision is retained, while the marker becomes an independent non-reuse guard for later execution.
+
 ## Repository concurrency
 
 `IncidentRepository` updates with `WHERE id = ... AND version = ...`. A zero-row update raises the

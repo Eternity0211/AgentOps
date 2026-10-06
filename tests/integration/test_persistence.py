@@ -54,6 +54,7 @@ from agentops_incident_commander.domain import (
     AlertId,
     AlertTriageAction,
     ApprovalId,
+    ApprovalInvalidation,
     ApprovalStatus,
     Artifact,
     ArtifactId,
@@ -158,6 +159,7 @@ from agentops_incident_commander.infrastructure.persistence import (
     AlertGroupRow,
     AlertRepository,
     AlertRow,
+    ApprovalInvalidationRow,
     ApprovalLifecycleEventRow,
     ApprovalLifecycleRepository,
     ApprovalRow,
@@ -233,8 +235,8 @@ async def engine(migrated_url: str) -> AsyncIterator[AsyncEngine]:
             text(
                 "TRUNCATE alerts, alert_groups, incident_cancellation_requests, "
                 "incident_transitions, evidence, idempotency_records, outbox_events, jobs, "
-                "evidence_gate_decisions, model_call_traces, approval_lifecycle_events, "
-                "approvals, prompt_lifecycle_events, "
+                "evidence_gate_decisions, model_call_traces, approval_invalidations, "
+                "approval_lifecycle_events, approvals, prompt_lifecycle_events, "
                 "prompt_versions, "
                 "incidents RESTART IDENTITY CASCADE"
             )
@@ -407,6 +409,7 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "alerts",
         "alert_groups",
         "approval_lifecycle_events",
+        "approval_invalidations",
         "approvals",
         "audit_events",
         "evidence",
@@ -2297,6 +2300,48 @@ async def test_approval_lifecycle_persists_state_history_and_audit_atomically(
                 stale_audit,
             )
 
+    replacement_fingerprint = Sha256Digest("d" * 64)
+    invalidation = ApprovalInvalidation(
+        approval_id=approved.id,
+        tenant_id=approved.tenant_id,
+        incident_id=approved.incident_id,
+        approval_fingerprint=approved.fingerprint,
+        prior_proposal_fingerprint=approved.proposal_fingerprint,
+        replacement_proposal_id=approved.proposal_id,
+        replacement_proposal_version=approved.proposal_version + 1,
+        replacement_proposal_fingerprint=replacement_fingerprint,
+        replacement_material_fingerprint=Sha256Digest("e" * 64),
+        invalidated_by=ActorId("operator-approval-storage"),
+        invalidated_at=NOW + timedelta(minutes=7),
+    )
+    invalidation_audit = AuditEvent(
+        id=AuditEventId("audit-approval-invalidated"),
+        tenant_id=approved.tenant_id,
+        type="approval.invalidated",
+        event_version=1,
+        payload_schema_version="approval_invalidation/v1",
+        actor_id=invalidation.invalidated_by,
+        correlation_id=CorrelationId("correlation-approval-storage"),
+        causation_id=CausationId("revise-approval-storage"),
+        target=AuditTarget("approval.record", OpaqueIdentifier(approved.id.value)),
+        occurred_at=invalidation.invalidated_at,
+        request_hash=approved.fingerprint,
+        result_hash=invalidation.fingerprint,
+    )
+    with pytest.raises(InvalidDomainValueError, match="hash-bound"):
+        async with sessions.begin() as session:
+            await ApprovalLifecycleRepository(session).record_invalidation(
+                approved,
+                invalidation,
+                replace(invalidation_audit, result_hash=Sha256Digest("f" * 64)),
+            )
+    async with sessions.begin() as session:
+        await ApprovalLifecycleRepository(session).record_invalidation(
+            approved,
+            invalidation,
+            invalidation_audit,
+        )
+
     async with sessions() as session:
         assert (
             await ApprovalLifecycleRepository(session).get(
@@ -2305,6 +2350,16 @@ async def test_approval_lifecycle_persists_state_history_and_audit_atomically(
             == approved
         )
         assert await session.scalar(select(func.count()).select_from(ApprovalRow)) == 1
+        assert await session.scalar(select(func.count()).select_from(ApprovalInvalidationRow)) == 1
+        repository = ApprovalLifecycleRepository(session)
+        assert (
+            await repository.get_invalidation(approved.id, tenant_id=approved.tenant_id)
+            == invalidation
+        )
+        assert (
+            await repository.get_invalidation(approved.id, tenant_id=TenantId("tenant-other"))
+            is None
+        )
         assert (
             await session.scalar(select(func.count()).select_from(ApprovalLifecycleEventRow)) == 2
         )
@@ -2315,7 +2370,26 @@ async def test_approval_lifecycle_persists_state_history_and_audit_atomically(
                 .order_by(AuditEventRow.sequence)
             )
         ).all()
-        assert audit_types == ["approval.requested", "approval.approved"]
+        assert audit_types == [
+            "approval.requested",
+            "approval.approved",
+            "approval.invalidated",
+        ]
+
+    with pytest.raises(InvalidDomainValueError, match="already invalidated"):
+        async with sessions.begin() as session:
+            await ApprovalLifecycleRepository(session).record_invalidation(
+                approved,
+                invalidation,
+                replace(invalidation_audit, id=AuditEventId("audit-invalidation-duplicate")),
+            )
+    with pytest.raises(InvalidDomainValueError, match="stale Approval invalidation"):
+        async with sessions.begin() as session:
+            await ApprovalLifecycleRepository(session).record_invalidation(
+                replace(approved, version=approved.version.next()),
+                invalidation,
+                replace(invalidation_audit, id=AuditEventId("audit-invalidation-stale")),
+            )
 
 
 @pytest.mark.anyio

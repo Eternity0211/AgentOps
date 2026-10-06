@@ -120,6 +120,14 @@ class RemediationProposal(StrictRemediationModel):
         canonical = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
         return Sha256Digest(hashlib.sha256(canonical).hexdigest())
 
+    @property
+    def material_fingerprint(self) -> Sha256Digest:
+        """Hash every proposal field except its monotonically increasing version."""
+
+        document = self.model_dump(mode="json", exclude={"proposal_version"})
+        canonical = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
+        return Sha256Digest(hashlib.sha256(canonical).hexdigest())
+
 
 def _single_line(value: str) -> str:
     normalized = value.strip()

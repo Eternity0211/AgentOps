@@ -169,7 +169,7 @@ Exit: retrieval improves context experimentally without label/fact leakage; ever
 
 - [x] Define Remediation Agent structured proposal, prerequisites, verification conditions, safe failure routing, explicit compensation eligibility, and risk assumptions; prohibit compensation for `rollback_service`.
 - [x] Prevent remediation until an immutable passing EvidenceGateDecision is present.
-- [ ] Define risk levels and versioned deterministic Policy Engine inputs/outputs/reasons.
+- [x] Define risk levels and versioned deterministic Policy Engine inputs/outputs/reasons.
 - [ ] Implement policy rules for environment, role, action/target, evidence gate, blast radius, maintenance constraints, and separation of duties.
 - [ ] Implement approval request/approve/reject lifecycle, expiry, proposal-hash binding, and audit.
 - [ ] Invalidate approval after any material proposal change and rerun schema/policy checks.

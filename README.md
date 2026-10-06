@@ -47,6 +47,10 @@ defines deterministic-verifier inputs and safe failure routing, and makes compen
 structurally false for this recovery action. A deterministic admission gate now re-resolves the
 exact tenant/Incident/candidate Evidence Gate record and accepts only a fingerprint-matching
 immutable `PASS`; absent, failed, stale, changed, or cross-tenant decisions cannot reach policy.
+The versioned [deterministic Policy Engine contracts](docs/POLICY_ENGINE.md) now bind proposal,
+Evidence Gate, actor/role, environment, target, blast-radius, maintenance, and separation inputs to
+stable fingerprints, with closed risk/outcome enums, structured reasons, and bounded approval
+lifetimes.
 
 ## Why this project exists
 
@@ -205,6 +209,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Bounded Diagnosis LangGraph](docs/DIAGNOSIS_GRAPH.md)
 - [Confirmed historical Incident memory](docs/INCIDENT_MEMORY.md)
 - [Remediation Agent proposal contract](docs/REMEDIATION_PROPOSAL.md)
+- [Deterministic Policy Engine contracts](docs/POLICY_ENGINE.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)

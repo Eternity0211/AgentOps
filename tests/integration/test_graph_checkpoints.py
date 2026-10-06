@@ -6,22 +6,41 @@ import asyncio
 import sys
 from collections import Counter
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 import pytest
 from langgraph.types import Command
 from testcontainers.community.postgres import PostgresContainer
 
+from agentops_incident_commander.domain import (
+    ActorId,
+    AggregateVersion,
+    Approval,
+    ApprovalId,
+    ApprovalInvalidation,
+    ApprovalStatus,
+    EventReason,
+    IncidentId,
+    OpaqueIdentifier,
+    RiskLevel,
+    Sha256Digest,
+    TenantId,
+)
 from agentops_incident_commander.infrastructure import (
     CheckpointExecutionStatus,
     DiagnosisCheckpointIdentity,
     DiagnosisWorkflowRunner,
+    approval_checkpoint_config,
     compiled_diagnosis_runner,
     diagnosis_checkpoint_config,
+    postgres_approval_checkpointer,
     postgres_diagnosis_checkpointer,
 )
 from agentops_incident_commander.workflows import (
+    ApprovalGraphPhase,
+    ApprovalRuntimeContext,
+    ApprovalWaitState,
     ContextLoadResult,
     DiagnosisGraphState,
     DiagnosisRuntimeContext,
@@ -34,6 +53,7 @@ from agentops_incident_commander.workflows import (
     HypothesisNodeResult,
     PlanNodeResult,
     WorkflowControl,
+    build_approval_graph,
     build_diagnosis_graph,
 )
 
@@ -334,3 +354,100 @@ async def test_retried_failed_node_replays_committed_operation_instead_of_effect
     assert outcome.resumed
     assert outcome.state.phase is GraphPhase.COMPLETE
     assert len(committed_effects) == 1
+
+
+class DurableApprovalStore:
+    def __init__(self, value: Approval) -> None:
+        self.value = value
+        self.reads = 0
+
+    async def get(self, approval_id: ApprovalId, *, tenant_id: TenantId) -> Approval | None:
+        self.reads += 1
+        if self.value.id == approval_id and self.value.tenant_id == tenant_id:
+            return self.value
+        return None
+
+    async def get_invalidation(
+        self,
+        approval_id: ApprovalId,
+        *,
+        tenant_id: TenantId,
+    ) -> ApprovalInvalidation | None:
+        return None
+
+
+def pending_approval() -> Approval:
+    return Approval(
+        id=ApprovalId("approval-checkpoint-1"),
+        tenant_id=TenantId("tenant-1"),
+        incident_id=IncidentId("incident-1"),
+        proposal_id=OpaqueIdentifier("proposal-checkpoint-1"),
+        proposal_version=1,
+        proposal_fingerprint=Sha256Digest("a" * 64),
+        policy_decision_id=OpaqueIdentifier("policy-checkpoint-1"),
+        policy_decision_fingerprint=Sha256Digest("b" * 64),
+        policy_input_fingerprint=Sha256Digest("c" * 64),
+        proposer_actor_id=ActorId("operator-1"),
+        risk_level=RiskLevel.HIGH,
+        independent_approver_required=True,
+        status=ApprovalStatus.PENDING,
+        version=AggregateVersion(1),
+        requested_at=NOW,
+        expires_at=NOW + timedelta(minutes=30),
+    )
+
+
+def approval_wait_state() -> ApprovalWaitState:
+    return ApprovalWaitState(
+        state_schema_version="1.0.0",
+        graph_version="1.0.0",
+        tenant_id="tenant-1",
+        incident_id="incident-1",
+        workflow_run_id="approval-run-1",
+        correlation_id="approval-correlation-1",
+        approval_id="approval-checkpoint-1",
+        proposal_fingerprint="a" * 64,
+        policy_decision_fingerprint="b" * 64,
+        phase=ApprovalGraphPhase.AWAITING_APPROVAL,
+        checkpoint_sequence=0,
+        updated_at=NOW,
+    )
+
+
+@pytest.mark.anyio
+async def test_new_worker_restores_approval_interrupt_and_reloads_authoritative_record(
+    checkpoint_postgres_url: str,
+) -> None:
+    initial = approval_wait_state()
+    config = approval_checkpoint_config(initial)
+    store = DurableApprovalStore(pending_approval())
+    runtime = ApprovalRuntimeContext(
+        approvals=store,
+        clock=lambda: NOW + timedelta(minutes=5),
+    )
+
+    async with postgres_approval_checkpointer(checkpoint_postgres_url) as saver:
+        graph = build_approval_graph(checkpointer=saver)
+        paused = await graph.ainvoke(initial, config, context=runtime)
+        assert paused["__interrupt__"][0].value["approval_id"] == "approval-checkpoint-1"
+        assert store.reads == 0
+
+    store.value = store.value.decide(
+        ApprovalStatus.APPROVED,
+        actor_id=ActorId("approver-1"),
+        reason=EventReason("approved after human review"),
+        at=NOW + timedelta(minutes=4),
+    )
+    async with postgres_approval_checkpointer(checkpoint_postgres_url) as recovered_saver:
+        recovered_graph = build_approval_graph(checkpointer=recovered_saver)
+        resumed = await recovered_graph.ainvoke(
+            Command[Any](resume={"action": "RECHECK"}),
+            config,
+            context=runtime,
+        )
+        snapshot = await recovered_graph.aget_state(config)
+
+    assert resumed["phase"] is ApprovalGraphPhase.READY_TO_EXECUTE
+    assert resumed["checkpoint_sequence"] == 1
+    assert snapshot.values["phase"] == ApprovalGraphPhase.READY_TO_EXECUTE.value
+    assert store.reads == 1

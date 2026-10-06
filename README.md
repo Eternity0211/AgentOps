@@ -61,6 +61,10 @@ Any accepted material proposal revision now creates an immutable approval-invali
 rejects version-only or identity-changing edits, and reruns strict schema validation, exact
 Evidence Gate admission, and complete Policy evaluation. Gate/Policy failure cannot revive the old
 approval, while a successful re-evaluation still requires a newly issued human Approval.
+The versioned [Approval interrupt graph](docs/APPROVAL_GRAPH.md) now persists a content-free human
+wait in PostgreSQL and accepts only a `RECHECK` resume directive. Every resume reloads the
+tenant-scoped Approval and invalidation marker; only an unexpired, non-invalidated, exact
+fingerprint match can become execution-ready, while all refusal routes remain non-executable.
 
 ## Why this project exists
 

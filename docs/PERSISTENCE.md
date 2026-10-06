@@ -124,6 +124,14 @@ interrupted, failed, and complete checkpoints without copying task errors or int
 Integration tests close and recreate the saver/graph after every Diagnosis node boundary and also
 cover the narrower effect-committed/checkpoint-not-yet-written failure window.
 
+The Phase 8 Approval wait graph uses a separately prefixed `approval-` thread identity while
+retaining the same strict serializer and PostgreSQL saver. Its checkpoint stores only bounded
+references and fingerprints. Resume cannot supply an approval decision: the graph accepts only a
+`RECHECK` directive, reloads the tenant-scoped Approval and invalidation marker, and advances only
+for an unexpired, non-invalidated, fingerprint-matched `APPROVED` record. A container integration
+test closes and recreates the saver and graph at the interrupt boundary to prove new-worker
+restoration and authoritative external-state reload.
+
 ## Versioned embedding metadata
 
 Revision `20261003_0002` enables the `vector` extension and adds

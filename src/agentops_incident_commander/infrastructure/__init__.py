@@ -2,9 +2,12 @@
 
 from .checkpoints import (
     DIAGNOSIS_CHECKPOINT_NAMESPACE,
+    ApprovalCheckpointIdentity,
     DiagnosisCheckpointIdentity,
+    approval_checkpoint_config,
     diagnosis_checkpoint_config,
     diagnosis_checkpoint_serializer,
+    postgres_approval_checkpointer,
     postgres_diagnosis_checkpointer,
 )
 from .diagnosis_runtime import (
@@ -30,6 +33,7 @@ from .mock_model import (
 __all__ = [
     "DIAGNOSIS_CHECKPOINT_NAMESPACE",
     "MOCK_MODEL_VERSION",
+    "ApprovalCheckpointIdentity",
     "CheckpointExecutionStatus",
     "DeterministicDiagnosisMockModel",
     "DeterministicIncidentMemoryEmbedder",
@@ -43,9 +47,11 @@ __all__ = [
     "MockModelResult",
     "MockModelScenario",
     "MockModelTimeout",
+    "approval_checkpoint_config",
     "checkpoint_observation",
     "compiled_diagnosis_runner",
     "diagnosis_checkpoint_config",
     "diagnosis_checkpoint_serializer",
+    "postgres_approval_checkpointer",
     "postgres_diagnosis_checkpointer",
 ]

@@ -1,5 +1,14 @@
 """Typed workflow state and, later, LangGraph orchestration adapters."""
 
+from .approval_graph import (
+    APPROVAL_GRAPH_STATE_SCHEMA_VERSION,
+    ApprovalGraphPhase,
+    ApprovalResumeStore,
+    ApprovalRuntimeContext,
+    ApprovalWaitState,
+    await_approval_node,
+    build_approval_graph,
+)
 from .diagnosis import (
     DIAGNOSIS_PLAN_SCHEMA_VERSION,
     DIAGNOSIS_REPORT_SCHEMA_VERSION,
@@ -65,6 +74,7 @@ from .state import (
 )
 
 __all__ = [
+    "APPROVAL_GRAPH_STATE_SCHEMA_VERSION",
     "DIAGNOSIS_GRAPH_STATE_SCHEMA_VERSION",
     "DIAGNOSIS_NODE_NAMES",
     "DIAGNOSIS_PLAN_SCHEMA_VERSION",
@@ -78,6 +88,10 @@ __all__ = [
     "MAX_STABILITY_WINDOW_SECONDS",
     "MIN_STABILITY_WINDOW_SECONDS",
     "REMEDIATION_PROPOSAL_SCHEMA_VERSION",
+    "ApprovalGraphPhase",
+    "ApprovalResumeStore",
+    "ApprovalRuntimeContext",
+    "ApprovalWaitState",
     "ContextLoadResult",
     "ContinueDiagnosisControl",
     "CounterEvidenceTreatment",
@@ -108,6 +122,8 @@ __all__ = [
     "RollbackVerificationConditions",
     "RootCauseCandidate",
     "WorkflowControl",
+    "await_approval_node",
+    "build_approval_graph",
     "build_diagnosis_graph",
     "canonical_graph_state_bytes",
     "evidence_gate_node",

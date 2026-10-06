@@ -60,9 +60,11 @@ Gate decision and rebuilds the complete Policy input from the replacement propos
 requester/context. Gate rejection or Policy denial leaves the old Approval invalidated. A passing
 Policy result can only request a brand-new Approval; the old approval is never copied forward.
 
-This lifecycle does not execute recovery. Later batches must resume the durable workflow and
-revalidate the exact Approval plus absence of an invalidation marker immediately before the
-deterministic Executor runs.
+This lifecycle does not execute recovery. The durable
+[Approval interrupt](APPROVAL_GRAPH.md) now reloads the exact Approval and invalidation marker
+after each resume and permits only a valid, unexpired, fingerprint-matched `APPROVED` record to
+reach execution readiness. A later Executor batch must independently repeat all required checks
+immediately before mutation.
 
 ## Verification
 
@@ -73,3 +75,6 @@ binding. Revision tests cover malformed schemas, identity/version tricks, versio
 material changes, duplicate invalidation, Gate rejection, Policy denial, and fresh-approval
 routing. PostgreSQL integration tests cover migration round trips, tenant-scoped reads, lifecycle
 history, invalidation markers, state/audit transactionality, and rollback on audit conflict.
+Approval-graph tests additionally cover forged resume data, pending re-interrupt, missing,
+cross-tenant, invalidated, mismatched, rejected, and expired records plus new-worker PostgreSQL
+checkpoint restoration.

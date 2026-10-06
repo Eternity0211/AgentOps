@@ -30,7 +30,7 @@ def proposal(**overrides: Any) -> RemediationProposal:
         "proposal_version": 1,
         "incident_id": "incident-1",
         "candidate_id": "candidate-deployment",
-        "evidence_gate_decision_id": "gate-decision-1",
+        "evidence_gate_input_fingerprint": "b" * 64,
         "evidence_gate_decision_fingerprint": "a" * 64,
         "action": RecoveryAction.ROLLBACK_SERVICE,
         "parameters": RollbackServiceParameters(

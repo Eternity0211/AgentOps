@@ -11,10 +11,16 @@ identifier and the Evidence ID that establishes the introducing deployment. Ther
 no command, URL, path, target version, Approval ID, or idempotency key. The stable predecessor and
 current deployment are resolved later from server-owned records, outside model authority.
 
-Every proposal binds its Incident, root-cause candidate, immutable Evidence Gate decision ID and
-fingerprint, proposal identity/version, and schema version. Canonical JSON over all fields produces
-a SHA-256 fingerprint; changing any material proposal field therefore changes the approval/policy
-binding used by later phases.
+Every proposal binds its Incident, root-cause candidate, immutable Evidence Gate input fingerprint
+and complete decision fingerprint, proposal identity/version, and schema version. Canonical JSON
+over all fields produces a SHA-256 fingerprint; changing any material proposal field therefore
+changes the approval/policy binding used by later phases.
+
+`RemediationEvidenceGate` is the only current admission path. It re-loads the decision through a
+tenant-, Incident-, candidate-, and input-fingerprint-scoped store port. The returned immutable
+decision must match that scope, have outcome `PASS`, and reproduce the proposal's complete decision
+fingerprint. Missing rows, failed decisions, cross-tenant lookups, stale inputs, changed decisions,
+and high-confidence failed candidates all fail closed before policy or execution can exist.
 
 ## Preconditions, verification, and failure
 
@@ -38,3 +44,6 @@ Schema tests cover strict JSON round trips, immutability, canonical fingerprint 
 collection and numeric bounds, unsafe text, type coercion, unknown actions, model-supplied execution
 targets, non-bypassable prerequisites, complete verification conditions, failure-route/budget
 consistency, and the non-compensable rollback invariant.
+Application and PostgreSQL integration tests additionally prove that a proposal is refused before
+the decision is durably recorded, admitted after the exact passing decision commits, and refused
+under another tenant.

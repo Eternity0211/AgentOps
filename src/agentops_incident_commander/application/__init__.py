@@ -35,6 +35,11 @@ from .planning import (
     tool_query_fingerprint,
 )
 from .prompt_registry import PromptLifecycleChange, PromptLifecycleManager, PromptLifecycleStore
+from .remediation_gate import (
+    EvidenceBoundRemediationProposal,
+    RemediationEvidenceGate,
+    RemediationEvidenceGateStore,
+)
 from .tool_gateway import (
     AuditWriter,
     ToolAdapter,
@@ -56,6 +61,7 @@ __all__ = [
     "CompiledInvestigationPlan",
     "CompiledToolCall",
     "DiagnosisPromptStore",
+    "EvidenceBoundRemediationProposal",
     "EvidenceReader",
     "EvidenceReferenceResolution",
     "IncidentMemoryEmbedder",
@@ -70,6 +76,8 @@ __all__ = [
     "PromptLifecycleManager",
     "PromptLifecycleStore",
     "ProposedToolCall",
+    "RemediationEvidenceGate",
+    "RemediationEvidenceGateStore",
     "SimilarIncidentRetriever",
     "ToolAdapter",
     "ToolAdapterContext",

@@ -44,7 +44,9 @@ Phase 8 begins with the strict [Remediation Agent proposal contract](docs/REMEDI
 It permits only a bounded `rollback_service` proposal, keeps deployment versions and execution
 credentials outside model authority, requires non-bypassable policy/approval/lock prerequisites,
 defines deterministic-verifier inputs and safe failure routing, and makes compensation eligibility
-structurally false for this recovery action.
+structurally false for this recovery action. A deterministic admission gate now re-resolves the
+exact tenant/Incident/candidate Evidence Gate record and accepts only a fingerprint-matching
+immutable `PASS`; absent, failed, stale, changed, or cross-tenant decisions cannot reach policy.
 
 ## Why this project exists
 

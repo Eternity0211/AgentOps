@@ -84,7 +84,7 @@ class RemediationProposal(StrictRemediationModel):
     proposal_version: int = Field(ge=1, le=1_000_000)
     incident_id: Identifier
     candidate_id: Identifier
-    evidence_gate_decision_id: Identifier
+    evidence_gate_input_fingerprint: Fingerprint
     evidence_gate_decision_fingerprint: Fingerprint
     action: Literal[RecoveryAction.ROLLBACK_SERVICE]
     parameters: RollbackServiceParameters

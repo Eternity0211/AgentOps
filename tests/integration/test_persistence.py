@@ -32,6 +32,7 @@ from agentops_incident_commander.application import (
     ModelCallTraceManager,
     PromptLifecycleChange,
     PromptLifecycleManager,
+    RemediationEvidenceGate,
     SimilarIncidentRetriever,
     ToolAdapterContext,
     ToolCallRequest,
@@ -165,6 +166,16 @@ from agentops_incident_commander.infrastructure.persistence import (
     PromptLifecycleEventRow,
     PromptLifecycleRepository,
     PromptVersionRow,
+)
+from agentops_incident_commander.workflows import (
+    REMEDIATION_PROPOSAL_SCHEMA_VERSION,
+    RecoveryAction,
+    RemediationFailureHandling,
+    RemediationFailureRoute,
+    RemediationProposal,
+    RollbackPrerequisites,
+    RollbackServiceParameters,
+    RollbackVerificationConditions,
 )
 
 NOW = datetime(2026, 10, 3, 8, 0, tzinfo=UTC)
@@ -2056,6 +2067,70 @@ async def test_evidence_gate_decision_and_audit_commit_or_rollback_together(
 
     async with sessions() as session:
         assert await session.scalar(select(func.count()).select_from(EvidenceGateDecisionRow)) == 0
+
+
+@pytest.mark.anyio
+async def test_remediation_admission_requires_exact_stored_passing_gate_decision(
+    engine: AsyncEngine,
+) -> None:
+    await add_incident(engine, "incident-gate-storage", tenant="tenant-1")
+    original_claim, evidence, rules, _ = gate_evaluation()
+    claim = replace(original_claim, missing_evidence=())
+    decision = evaluate_evidence_gate(
+        claim,
+        EvidenceReferenceResolution(evidence, ()),
+        rules=rules,
+        at=NOW + timedelta(minutes=3),
+    )
+    assert decision.outcome is EvidenceGateOutcome.PASS
+    proposal = RemediationProposal(
+        schema_version=REMEDIATION_PROPOSAL_SCHEMA_VERSION,
+        proposal_id="remediation-storage-1",
+        proposal_version=1,
+        incident_id=claim.incident_id.value,
+        candidate_id=claim.candidate_id,
+        evidence_gate_input_fingerprint=decision.input_fingerprint.value,
+        evidence_gate_decision_fingerprint=evidence_gate_decision_fingerprint(decision).value,
+        action=RecoveryAction.ROLLBACK_SERVICE,
+        parameters=RollbackServiceParameters(
+            service="orders",
+            introducing_deployment_evidence_id=evidence[0].id.value,
+        ),
+        prerequisites=RollbackPrerequisites(current_version_evidence_id=evidence[1].id.value),
+        verification_conditions=RollbackVerificationConditions(
+            max_error_rate_basis_points=100,
+            max_p95_latency_ms=500,
+            stability_window_seconds=300,
+        ),
+        failure_handling=RemediationFailureHandling(
+            route=RemediationFailureRoute.HUMAN_HANDOFF,
+            max_rediagnosis_attempts=0,
+        ),
+        risk_assumptions=("The current deployment is bound by fresh Evidence.",),
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+
+    async with sessions() as session:
+        gate = RemediationEvidenceGate(EvidenceGateRepository(session))
+        with pytest.raises(InvalidDomainValueError, match="stored passing"):
+            await gate.admit(proposal, tenant_id=TenantId("tenant-1"))
+
+    async with sessions.begin() as session:
+        await EvidenceGateRepository(session).record(
+            tenant_id=TenantId("tenant-1"),
+            claim=claim,
+            evidence=evidence,
+            rules=rules,
+            decision=decision,
+            audit_event=gate_audit("audit-gate-remediation", decision),
+        )
+
+    async with sessions() as session:
+        gate = RemediationEvidenceGate(EvidenceGateRepository(session))
+        admitted = await gate.admit(proposal, tenant_id=TenantId("tenant-1"))
+        assert admitted.evidence_gate_decision == decision
+        with pytest.raises(InvalidDomainValueError, match="stored passing"):
+            await gate.admit(proposal, tenant_id=TenantId("tenant-2"))
 
 
 def prompt_definition(

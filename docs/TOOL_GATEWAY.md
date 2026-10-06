@@ -135,6 +135,14 @@ checks, permits only `LOW` risk, and enforces aggregate step, parallelism, worst
 and integer cost budgets. The runtime workflow must execute only the resulting frozen calls. The
 gateway intentionally revalidates the same security boundary at dispatch.
 
+Phase 8 defines the versioned [`rollback_service`](ROLLBACK_SERVICE.md) write contract separately
+from the live read catalog. Its input requires only schema version, Incident ID, Approval ID, and
+idempotency key; service, environment, backend target, version, command, URL, and path are absent.
+The definition is high-risk, permission-gated, and requires durable result replay. A server-owned
+tenant/service/environment allowlist resolves the exact stable version and rejects unknown,
+unallowlisted, injected, or already-stable targets. No mutation adapter or real write route is
+registered by this batch.
+
 ## Verification
 
 Unit tests cover semantic ordering, canonical schema immutability/fingerprints, malformed and
@@ -168,3 +176,5 @@ strings never reach adapters, safe read calls still dispatch, and unknown versio
 The completed Phase 4 matrix additionally covers conservative schema compatibility, timeout and
 retry exhaustion, permission denial, input/output byte ceilings, malformed and adversarial
 payloads, exact version resolution, and hash-only rejection/success/failure audit events.
+The rollback contract suite covers its exact write metadata, typed and JSON Schema validation,
+cross-Incident binding, caller-controlled target refusal, and server allowlist resolution paths.

@@ -174,8 +174,8 @@ Exit: retrieval improves context experimentally without label/fact leakage; ever
 - [x] Implement approval request/approve/reject lifecycle, expiry, proposal-hash binding, and audit.
 - [x] Invalidate approval after any material proposal change and rerun schema/policy checks.
 - [x] Implement LangGraph Interrupt and durable resume for approval-required actions.
-- [ ] Define versioned typed `rollback_service` tool requiring Incident ID, Approval ID, and Idempotency Key.
-- [ ] Implement service/version resolution from server-owned allowlists; reject free-form commands/targets.
+- [x] Define versioned typed `rollback_service` tool requiring Incident ID, Approval ID, and Idempotency Key.
+- [x] Implement service/version resolution from server-owned allowlists; reject free-form commands/targets.
 - [ ] Implement Action Executor with execution locks, database uniqueness, idempotent result replay, before/after snapshots, timeout, and audit.
 - [ ] Recheck RBAC, policy, state, approval hash/expiry, and idempotency immediately before mutation.
 - [ ] Keep the real mutation route disabled behind a server-side capability flag until the Phase 9 verifier/failure-routing exit gate passes.

@@ -29,10 +29,12 @@ from .mock_model import (
     MockModelScenario,
     MockModelTimeout,
 )
+from .recovery_tools import ROLLBACK_SERVICE_VERSION, rollback_service_definition
 
 __all__ = [
     "DIAGNOSIS_CHECKPOINT_NAMESPACE",
     "MOCK_MODEL_VERSION",
+    "ROLLBACK_SERVICE_VERSION",
     "ApprovalCheckpointIdentity",
     "CheckpointExecutionStatus",
     "DeterministicDiagnosisMockModel",
@@ -54,4 +56,5 @@ __all__ = [
     "diagnosis_checkpoint_serializer",
     "postgres_approval_checkpointer",
     "postgres_diagnosis_checkpointer",
+    "rollback_service_definition",
 ]

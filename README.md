@@ -65,6 +65,11 @@ The versioned [Approval interrupt graph](docs/APPROVAL_GRAPH.md) now persists a 
 wait in PostgreSQL and accepts only a `RECHECK` resume directive. Every resume reloads the
 tenant-scoped Approval and invalidation marker; only an unexpired, non-invalidated, exact
 fingerprint match can become execution-ready, while all refusal routes remain non-executable.
+The strict [`rollback_service` v1 contract](docs/ROLLBACK_SERVICE.md) now requires Incident,
+Approval, and idempotency identities while excluding commands and caller-selected targets. Its
+tenant/service/environment target and stable version resolve only from a server-owned allowlist;
+the mutation adapter remains deliberately unregistered until the Executor and verifier safety
+gates are complete.
 
 ## Why this project exists
 
@@ -225,6 +230,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Remediation Agent proposal contract](docs/REMEDIATION_PROPOSAL.md)
 - [Deterministic Policy Engine contracts](docs/POLICY_ENGINE.md)
 - [Proposal-bound Approval lifecycle](docs/APPROVALS.md)
+- [Typed rollback_service contract](docs/ROLLBACK_SERVICE.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)

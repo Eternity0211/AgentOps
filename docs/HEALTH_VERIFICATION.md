@@ -25,9 +25,25 @@ the declared window. Every sample records integer-basis-point error rate, intege
 latency, health-endpoint status, deployed semantic version, and new-alert count.
 
 Five distinct Evidence IDs bind the error-rate series, latency series, health endpoint, deployed
-version, and alert query. Observation collection and expiry timestamps are explicit and UTC. The
-next Phase 9 application batch must resolve those references against immutable, owned, fresh
-Evidence and Artifact records before evaluation; IDs alone do not establish truth.
+version, and alert query. Observation collection and expiry timestamps are explicit and UTC.
+
+The application resolver treats these references as a non-bypassable prerequisite. Every ID must
+resolve in the same tenant and Incident to a direct, unexpired Evidence record and an authorized
+immutable Artifact whose bytes still match the recorded hash and size. The Evidence must cover the
+complete observation window, report an available source, carry no prompt-injection classification,
+and use the controlled source/tool/query purpose for its signal. Error rate and P95 use
+`METRIC/query_metrics`; health uses `TRACE/query_traces`; version uses
+`DEPLOYMENT/query_deployments`; and new alerts use `LOG/query_logs`.
+
+Each Artifact contains a canonical `health-verification-signal` document under schema `1.0.0`.
+It repeats the exact service, environment, signal, window bounds, and strictly ordered sample
+timestamps and values. The resolver compares the entire document to the typed observation; extra,
+missing, substituted, malformed, or reordered content fails closed. It returns typed reason codes
+for missing ownership, unavailable Artifact content, expiry, trust, injection, window, source,
+query, and value failures. The health evaluator is not called unless all five distinct series pass.
+The following integration batch still has to construct these canonical series from live bounded
+metric, trace, deployment, and log adapter results; Artifact binding alone is not a claim that a
+production backend was queried.
 
 ## Deterministic decision
 
@@ -59,5 +75,8 @@ Tests cover healthy release and memory-leak criteria, scenario-specific window f
 fingerprints, every individual reason in fixed order, intermediate flapping, missing coverage,
 excessive gaps, stale observations, invalid numeric/type/version bounds, duplicate Evidence
 references, time regression, non-successful actions, and cross-tenant/Incident/execution/service/
-environment/version substitution. The contract module maintains complete statement and branch
-coverage.
+environment/version substitution. Application tests additionally cover successful five-series
+resolution, missing and cross-scope Evidence, unavailable/tampered/malformed Artifacts, expiry,
+non-direct trust, quarantined input, incomplete windows, wrong source/tool/query purpose, and exact
+sample-value mismatch. The verifier contract and evidence-binding modules maintain complete
+statement and branch coverage.

@@ -90,8 +90,10 @@ It binds a successful ActionExecution to one of the two rollback-eligible scenar
 server-owned target scope, five distinct Evidence references, bounded per-sample observations, and
 a continuous stability window. Every sample must satisfy error-rate, P95 latency, health endpoint,
 stable-version, and zero-new-alert rules; stale, incomplete, gapped, flapping, or substituted input
-fails closed with stable reason codes. Evidence resolution/persistence, workflow routing, and real
-mutation enablement remain incomplete.
+fails closed with stable reason codes. The application path now resolves all five series through
+owned, fresh, direct Evidence and hash-verified immutable Artifacts, checks controlled source/query
+purpose, and compares every timestamp and value before it permits deterministic evaluation. Live
+signal collection, persistence, workflow routing, and real mutation enablement remain incomplete.
 
 ## Why this project exists
 

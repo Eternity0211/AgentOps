@@ -42,6 +42,16 @@ from .evidence_gate import (
     evidence_gate_input_snapshot,
     resolve_gate_evidence_references,
 )
+from .health_verification import (
+    HEALTH_VERIFICATION_SIGNAL_SCHEMA_VERSION,
+    EvidenceBoundHealthVerification,
+    HealthVerificationEvidenceReason,
+    HealthVerificationEvidenceReasonCode,
+    HealthVerificationEvidenceResolution,
+    HealthVerificationSignal,
+    evaluate_evidence_bound_health_verification,
+    resolve_health_verification_evidence,
+)
 from .memory_indexing import (
     IncidentMemoryEmbedder,
     IncidentMemoryIndexer,
@@ -93,6 +103,7 @@ from .tool_gateway import (
 
 __all__ = [
     "ACTION_EXECUTION_AUDIT_SCHEMA_VERSION",
+    "HEALTH_VERIFICATION_SIGNAL_SCHEMA_VERSION",
     "MAX_POLICY_SERVICES",
     "ActionSnapshotWriter",
     "ApprovalInvalidationStore",
@@ -110,11 +121,16 @@ __all__ = [
     "CurrentServiceVersionStore",
     "DiagnosisPromptStore",
     "DurableActionExecutionStore",
+    "EvidenceBoundHealthVerification",
     "EvidenceBoundRemediationProposal",
     "EvidenceReader",
     "EvidenceReferenceResolution",
     "ExecutionApprovalStore",
     "ExecutionIncidentStore",
+    "HealthVerificationEvidenceReason",
+    "HealthVerificationEvidenceReasonCode",
+    "HealthVerificationEvidenceResolution",
+    "HealthVerificationSignal",
     "IncidentMemoryEmbedder",
     "IncidentMemoryIndexStore",
     "IncidentMemoryIndexer",
@@ -153,6 +169,7 @@ __all__ = [
     "ToolResultLimitError",
     "ToolSchemaConfigurationError",
     "compile_investigation_plan",
+    "evaluate_evidence_bound_health_verification",
     "evaluate_evidence_characteristics",
     "evaluate_evidence_gate",
     "evaluate_remediation_policy",
@@ -161,6 +178,7 @@ __all__ = [
     "evidence_gate_input_snapshot",
     "model_call_trace_fingerprint",
     "resolve_gate_evidence_references",
+    "resolve_health_verification_evidence",
     "tool_query_fingerprint",
     "validate_diagnosis_tool_proposal",
 ]

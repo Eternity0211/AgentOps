@@ -78,6 +78,22 @@ This boundary produces bounded execution authority; it does not call a write ada
 Executor composition batch must run it together with the durable idempotency/target claim, replay
 audit, timeout classification, and disabled capability gate immediately before dispatch.
 
+## Bounded mutation dispatch
+
+`BoundedRollbackDispatcher` defines the only write invocation boundary without enabling a real
+adapter. Its server-side capability flag defaults to disabled. When explicitly enabled by test or
+future Phase 9 composition, it accepts only a started `ActionExecution` whose tenant, Incident,
+Approval, actor, idempotency key, proposal/Policy fingerprints, and resolved target exactly match
+the preflight authority.
+
+The dispatcher invokes the typed adapter exactly once under a positive maximum-five-minute timeout;
+the configured rollback contract remains 30 seconds and declares no write retries. A confirmed
+pre-effect refusal becomes `FAILED`, a deadline becomes `TIMED_OUT`, and an unclassified exception,
+wrong service/version result, or unavailable after Artifact becomes `UNCERTAIN`. Only an exact
+stable-version result plus a successfully persisted target-bound after snapshot becomes
+`SUCCEEDED`. This outcome means the mutation result is known; it does not declare service recovery,
+which remains exclusively owned by the Phase 9 deterministic Health Verifier.
+
 ## Verification
 
 Unit tests cover every lifecycle outcome, immutable/versioned transitions, canonical fingerprint
@@ -92,3 +108,7 @@ Preflight tests cover successful authoritative reconstruction, missing authentic
 cross-tenant refusal, missing or changed Incident state, absent/rejected/expired/invalidated
 Approval, proposal/Policy substitution, lost Evidence Gate admission, changed Policy rules,
 unavailable deployment observation, and already-stable target refusal.
+Dispatcher tests prove the default kill switch prevents invocation, authority mismatches and time
+regression fail before side effects, success calls once, writes receive no automatic retry, timeout
+and confirmed refusal remain distinct, unknown/mismatched results are uncertain, after-snapshot
+loss is uncertain, and task cancellation propagates to the safe-boundary owner.

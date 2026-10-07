@@ -80,7 +80,10 @@ dispatch, replay-audit orchestration, and the real mutation route remain disable
 framework-independent execution preflight now reloads Incident/Approval/invalidation authority,
 replays Evidence Gate and Policy, enforces execution RBAC and approval expiry/hash bindings, and
 resolves the observed current and stable versions only through server-owned ports; it still cannot
-dispatch a mutation until the remaining Executor and verifier gates are complete.
+dispatch a mutation until the remaining Executor and verifier gates are complete. A separate typed
+dispatcher now provides a disabled-by-default server kill switch, one bounded adapter attempt,
+strict authority/result matching, and explicit failed/timed-out/uncertain outcomes; no real adapter
+is registered and only the future deterministic verifier may declare recovery.
 
 ## Why this project exists
 

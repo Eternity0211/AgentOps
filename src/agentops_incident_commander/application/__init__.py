@@ -1,5 +1,13 @@
 """Deterministic application use cases and ports."""
 
+from .action_dispatch import (
+    ActionSnapshotWriter,
+    BoundedRollbackDispatcher,
+    ConfirmedRollbackFailure,
+    RecoveryMutationCapability,
+    RollbackAdapterResult,
+    RollbackWriteAdapter,
+)
 from .action_execution import (
     AuthorizedRollbackExecution,
     CurrentServiceVersionStore,
@@ -77,6 +85,7 @@ from .tool_gateway import (
 
 __all__ = [
     "MAX_POLICY_SERVICES",
+    "ActionSnapshotWriter",
     "ApprovalInvalidationStore",
     "ApprovalLifecycleChange",
     "ApprovalLifecycleManager",
@@ -84,8 +93,10 @@ __all__ = [
     "ApprovedDiagnosisPromptResolver",
     "AuditWriter",
     "AuthorizedRollbackExecution",
+    "BoundedRollbackDispatcher",
     "CompiledInvestigationPlan",
     "CompiledToolCall",
+    "ConfirmedRollbackFailure",
     "CurrentServiceVersionStore",
     "DiagnosisPromptStore",
     "EvidenceBoundRemediationProposal",
@@ -107,12 +118,15 @@ __all__ = [
     "PromptLifecycleManager",
     "PromptLifecycleStore",
     "ProposedToolCall",
+    "RecoveryMutationCapability",
     "RemediationEvidenceGate",
     "RemediationEvidenceGateStore",
     "RemediationRevisionResult",
     "RemediationRevisionService",
     "RevisionOutcome",
+    "RollbackAdapterResult",
     "RollbackExecutionPreflight",
+    "RollbackWriteAdapter",
     "SimilarIncidentRetriever",
     "ToolAdapter",
     "ToolAdapterContext",

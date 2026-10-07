@@ -181,6 +181,8 @@ Exit: retrieval improves context experimentally without label/fact leakage; ever
   - [x] Persist ActionExecution records and lifecycle events; enforce target locks, database idempotency uniqueness, concurrent claim serialization, terminal result replay, and atomic lock release.
   - [ ] Implement deterministic write-adapter dispatch, bounded timeout classification, and application-level replay audit orchestration.
 - [ ] Recheck RBAC, policy, state, approval hash/expiry, and idempotency immediately before mutation.
+  - [x] Define the deterministic preflight that reloads tenant Incident/Approval/invalidation state, replays Evidence Gate and Policy, checks expiry/hash/RBAC, and resolves the target from server-owned current-version/configuration ports.
+  - [ ] Compose preflight and the durable idempotency claim in the same Executor path immediately before bounded adapter dispatch.
 - [ ] Keep the real mutation route disabled behind a server-side capability flag until the Phase 9 verifier/failure-routing exit gate passes.
 - [ ] Add concurrent approval, rejection/expiry routing, mutation, replay, duplicate delivery, timeout, unauthorized role, and bypass tests.
 

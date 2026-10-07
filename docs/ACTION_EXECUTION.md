@@ -56,6 +56,27 @@ terminal event. A later application-service batch must add a distinct audit even
 observation before the complete Executor TODO can close; the persistence layer does not mislabel a
 replay as a new execution start.
 
+## Authoritative execution preflight
+
+`RollbackExecutionPreflight` is a framework-independent application boundary that runs before an
+execution can be claimed. It accepts only the strict typed rollback request and approval-bound
+proposal/Policy records, requires the authenticated tenant Operator execution permission, then
+reloads the Incident, Approval, and immutable invalidation marker through tenant-scoped ports. The
+Incident must still be `READY_TO_EXECUTE`; the Approval must still be `APPROVED`, unexpired, not
+invalidated, and exactly bound to the proposal, Policy input, Policy decision,
+risk, and current server Policy version.
+
+The preflight re-resolves the stored passing Evidence Gate decision and deterministically evaluates
+the current server-owned Policy rules with the approval-bound input. A decision that is no longer
+exactly reproducible is refused. Only after those checks does it ask a server-owned deployment
+observation port for the current version and resolve the service, environment, backend reference,
+and stable version from the immutable rollback target catalog. The request still cannot contain a
+service, version, command, URL, path, or provider target.
+
+This boundary produces bounded execution authority; it does not call a write adapter. The next
+Executor composition batch must run it together with the durable idempotency/target claim, replay
+audit, timeout classification, and disabled capability gate immediately before dispatch.
+
 ## Verification
 
 Unit tests cover every lifecycle outcome, immutable/versioned transitions, canonical fingerprint
@@ -65,3 +86,7 @@ completion ordering, stable-version proof, and duplicate terminal completion ref
 PostgreSQL integration tests cover migration round trips, initial claim, active-target exclusion,
 changed-request rejection, eight-way concurrent duplicate claiming, exact completion replay,
 terminal result replay, transactional lifecycle/audit writes, and target-lock release.
+Preflight tests cover successful authoritative reconstruction, missing authentication, Viewer and
+cross-tenant refusal, missing or changed Incident state, absent/rejected/expired/invalidated
+Approval, proposal/Policy substitution, lost Evidence Gate admission, changed Policy rules,
+unavailable deployment observation, and already-stable target refusal.

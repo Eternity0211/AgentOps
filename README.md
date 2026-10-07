@@ -75,7 +75,11 @@ server-resolved target, before/after Artifact snapshots, outcome, timing, and ca
 success requires snapshot proof of the configured stable version. PostgreSQL now persists execution
 and lifecycle records, serializes concurrent idempotency/target claims, replays stored terminal
 results, and atomically releases target locks on completion. Authorization rechecks, bounded adapter
-dispatch, replay-audit orchestration, and the real mutation route remain disabled work.
+dispatch, replay-audit orchestration, and the real mutation route remain disabled work. The
+framework-independent execution preflight now reloads Incident/Approval/invalidation authority,
+replays Evidence Gate and Policy, enforces execution RBAC and approval expiry/hash bindings, and
+resolves the observed current and stable versions only through server-owned ports; it still cannot
+dispatch a mutation until the remaining Executor and verifier gates are complete.
 
 ## Why this project exists
 

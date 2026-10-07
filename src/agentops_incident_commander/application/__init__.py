@@ -1,5 +1,12 @@
 """Deterministic application use cases and ports."""
 
+from .action_execution import (
+    AuthorizedRollbackExecution,
+    CurrentServiceVersionStore,
+    ExecutionApprovalStore,
+    ExecutionIncidentStore,
+    RollbackExecutionPreflight,
+)
 from .approvals import (
     ApprovalLifecycleChange,
     ApprovalLifecycleManager,
@@ -76,12 +83,16 @@ __all__ = [
     "ApprovalLifecycleStore",
     "ApprovedDiagnosisPromptResolver",
     "AuditWriter",
+    "AuthorizedRollbackExecution",
     "CompiledInvestigationPlan",
     "CompiledToolCall",
+    "CurrentServiceVersionStore",
     "DiagnosisPromptStore",
     "EvidenceBoundRemediationProposal",
     "EvidenceReader",
     "EvidenceReferenceResolution",
+    "ExecutionApprovalStore",
+    "ExecutionIncidentStore",
     "IncidentMemoryEmbedder",
     "IncidentMemoryIndexStore",
     "IncidentMemoryIndexer",
@@ -101,6 +112,7 @@ __all__ = [
     "RemediationRevisionResult",
     "RemediationRevisionService",
     "RevisionOutcome",
+    "RollbackExecutionPreflight",
     "SimilarIncidentRetriever",
     "ToolAdapter",
     "ToolAdapterContext",

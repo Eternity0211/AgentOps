@@ -75,15 +75,15 @@ server-resolved target, before/after Artifact snapshots, outcome, timing, and ca
 success requires snapshot proof of the configured stable version. PostgreSQL now persists execution
 and lifecycle records, serializes concurrent idempotency/target claims, replays stored terminal
 results, records each explicitly observed replay as a separate hash-bound audit event, and
-atomically releases target locks on completion. Authorization rechecks, bounded adapter
-dispatch, replay-audit orchestration, and the real mutation route remain disabled work. The
-framework-independent execution preflight now reloads Incident/Approval/invalidation authority,
-replays Evidence Gate and Policy, enforces execution RBAC and approval expiry/hash bindings, and
-resolves the observed current and stable versions only through server-owned ports; it still cannot
-dispatch a mutation until the remaining Executor and verifier gates are complete. A separate typed
-dispatcher now provides a disabled-by-default server kill switch, one bounded adapter attempt,
-strict authority/result matching, and explicit failed/timed-out/uncertain outcomes; no real adapter
-is registered and only the future deterministic verifier may declare recovery.
+atomically releases target locks on completion. The framework-independent execution preflight
+reloads Incident/Approval/invalidation authority, replays Evidence Gate and Policy, enforces
+execution RBAC and approval expiry/hash bindings, and resolves observed current and stable versions
+only through server-owned ports. The crash-safe Executor application path now composes that
+preflight with an idempotent before snapshot, a transaction-owning PostgreSQL claim, atomic replay
+audit, one bounded typed dispatch, and terminal persistence. A durable claim always commits before
+the adapter call; every concurrent or retried duplicate returns the stored execution without a
+second mutation. The server kill switch remains disabled by default, no real write adapter is
+registered, and only the future deterministic verifier may declare recovery.
 
 ## Why this project exists
 

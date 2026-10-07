@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
@@ -79,6 +80,7 @@ class BoundedRollbackDispatcher:
         capability: RecoveryMutationCapability,
         *,
         timeout_seconds: float,
+        clock: Callable[[], datetime],
     ) -> None:
         if (
             not isinstance(timeout_seconds, (int, float))
@@ -91,20 +93,24 @@ class BoundedRollbackDispatcher:
         self._snapshots = snapshots
         self._capability = capability
         self._timeout_seconds = float(timeout_seconds)
+        self._clock = clock
+
+    def ensure_enabled(self) -> None:
+        """Fail before a durable claim when the server capability remains disabled."""
+
+        if not self._capability.enabled:
+            raise InvalidDomainValueError("rollback mutation capability is disabled")
 
     async def dispatch(
         self,
         authority: AuthorizedRollbackExecution,
         execution: ActionExecution,
-        *,
-        completed_at: datetime,
     ) -> ActionExecution:
         if not isinstance(authority, AuthorizedRollbackExecution) or not isinstance(
             execution, ActionExecution
         ):
             raise InvalidDomainValueError("rollback dispatch inputs are invalid")
-        if not self._capability.enabled:
-            raise InvalidDomainValueError("rollback mutation capability is disabled")
+        self.ensure_enabled()
         if execution.status is not ActionExecutionStatus.STARTED or (
             execution.tenant_id != authority.incident.tenant_id
             or execution.incident_id != authority.incident.id
@@ -116,9 +122,7 @@ class BoundedRollbackDispatcher:
             or execution.target != authority.target
         ):
             raise InvalidDomainValueError("rollback execution does not match preflight authority")
-        finished_at = as_utc(completed_at)
-        if finished_at < execution.started_at:
-            raise InvalidDomainValueError("rollback completion cannot predate execution start")
+        self._completion_time(execution)
         try:
             result = await asyncio.wait_for(
                 self._adapter.rollback(authority),
@@ -127,18 +131,21 @@ class BoundedRollbackDispatcher:
         except asyncio.CancelledError:
             raise
         except TimeoutError:
+            finished_at = self._completion_time(execution)
             return execution.fail(
                 ActionExecutionStatus.TIMED_OUT,
                 failure_code="ADAPTER_TIMEOUT",
                 at=finished_at,
             )
         except ConfirmedRollbackFailure:
+            finished_at = self._completion_time(execution)
             return execution.fail(
                 ActionExecutionStatus.FAILED,
                 failure_code="ADAPTER_REJECTED",
                 at=finished_at,
             )
         except Exception:
+            finished_at = self._completion_time(execution)
             return execution.fail(
                 ActionExecutionStatus.UNCERTAIN,
                 failure_code="ADAPTER_RESULT_UNKNOWN",
@@ -149,11 +156,13 @@ class BoundedRollbackDispatcher:
             or result.service != authority.target.service
             or result.deployed_version != authority.target.stable_version
         ):
+            finished_at = self._completion_time(execution)
             return execution.fail(
                 ActionExecutionStatus.UNCERTAIN,
                 failure_code="ADAPTER_RESULT_MISMATCH",
                 at=finished_at,
             )
+        finished_at = self._completion_time(execution)
         try:
             after = await self._snapshots.persist_after_snapshot(
                 authority,
@@ -167,3 +176,9 @@ class BoundedRollbackDispatcher:
                 failure_code="AFTER_SNAPSHOT_UNAVAILABLE",
                 at=finished_at,
             )
+
+    def _completion_time(self, execution: ActionExecution) -> datetime:
+        finished_at = as_utc(self._clock())
+        if finished_at < execution.started_at:
+            raise InvalidDomainValueError("rollback completion cannot predate execution start")
+        return finished_at

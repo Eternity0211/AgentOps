@@ -1,5 +1,6 @@
 """SQLAlchemy persistence mappings and repositories."""
 
+from .action_execution_store import PostgresActionExecutionStore
 from .models import (
     ActionExecutionEventRow,
     ActionExecutionLockRow,
@@ -73,6 +74,7 @@ __all__ = [
     "ModelCallTraceRow",
     "OutboxEventRow",
     "OutboxRepository",
+    "PostgresActionExecutionStore",
     "PromptLifecycleEventRow",
     "PromptLifecycleRepository",
     "PromptVersionRow",

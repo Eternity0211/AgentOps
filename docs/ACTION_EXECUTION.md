@@ -1,9 +1,8 @@
 # Recovery ActionExecution lifecycle
 
-Phase 8 defines the immutable domain record and PostgreSQL persistence foundation used by the
-deterministic Action Executor. This is not an enabled Executor: authorization rechecks, bounded
-adapter dispatch, replay-audit orchestration, and the real mutation capability remain separate
-incomplete work.
+Phase 8 defines the immutable domain record, PostgreSQL persistence, and deterministic application
+composition used by the Action Executor. The real mutation capability remains disabled: no runtime
+write adapter is registered, and Phase 9 verifier/failure-routing gates must pass before enablement.
 
 ## States and bindings
 
@@ -74,9 +73,9 @@ observation port for the current version and resolve the service, environment, b
 and stable version from the immutable rollback target catalog. The request still cannot contain a
 service, version, command, URL, path, or provider target.
 
-This boundary produces bounded execution authority; it does not call a write adapter. The next
-Executor composition batch must run it together with the durable idempotency/target claim, replay
-audit, timeout classification, and disabled capability gate immediately before dispatch.
+This boundary produces bounded execution authority; it does not call a write adapter. The Executor
+composition runs it together with the durable idempotency/target claim, replay audit, timeout
+classification, and disabled capability gate immediately before dispatch.
 
 ## Bounded mutation dispatch
 
@@ -93,6 +92,27 @@ wrong service/version result, or unavailable after Artifact becomes `UNCERTAIN`.
 stable-version result plus a successfully persisted target-bound after snapshot becomes
 `SUCCEEDED`. This outcome means the mutation result is known; it does not declare service recovery,
 which remains exclusively owned by the Phase 9 deterministic Health Verifier.
+
+## Crash-safe Executor composition
+
+`RollbackActionExecutor` is the single application path from the strict rollback request to a
+stored ActionExecution result. It first checks the server capability flag, reruns authoritative
+preflight, and persists an idempotent target-bound before snapshot. It then constructs the bounded
+execution request and calls `PostgresActionExecutionStore`, whose claim transaction serializes the
+idempotency key and target, and atomically commits the `STARTED` lifecycle and audit records before
+any adapter invocation.
+
+When the claim is new, the Executor invokes the bounded dispatcher exactly once and commits the
+terminal result, lifecycle record, audit record, and target-lock release in a separate transaction.
+When the claim resolves to an existing in-progress or terminal execution, the same claim
+transaction appends the hash-bound `REPLAYED` lifecycle and audit records before returning; the
+dispatcher is never invoked. Keeping claim and replay audit in one transaction prevents a
+concurrent completion from invalidating the observed replay between those operations.
+
+Cancellation, worker loss after claim, or a terminal-commit failure cannot trigger automatic
+redispatch: a later identical delivery observes the durable `STARTED` record and records a replay.
+That conservative result remains available for the later deterministic failure-routing and stale
+execution recovery policy; the known faulty version is never inferred as a compensation target.
 
 ## Verification
 
@@ -112,3 +132,7 @@ Dispatcher tests prove the default kill switch prevents invocation, authority mi
 regression fail before side effects, success calls once, writes receive no automatic retry, timeout
 and confirmed refusal remain distinct, unknown/mismatched results are uncertain, after-snapshot
 loss is uncertain, and task cancellation propagates to the safe-boundary owner.
+Executor tests prove fixed preflight/claim/dispatch/finish ordering, disabled and rejected
+pre-effect refusal, terminal classification persistence, cancellation and finish-failure replay
+safety, atomic replay auditing, and eight-way PostgreSQL duplicate delivery with exactly one
+adapter dispatch.

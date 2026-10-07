@@ -176,15 +176,15 @@ Exit: retrieval improves context experimentally without label/fact leakage; ever
 - [x] Implement LangGraph Interrupt and durable resume for approval-required actions.
 - [x] Define versioned typed `rollback_service` tool requiring Incident ID, Approval ID, and Idempotency Key.
 - [x] Implement service/version resolution from server-owned allowlists; reject free-form commands/targets.
-- [ ] Implement Action Executor with execution locks, database uniqueness, idempotent result replay, before/after snapshots, timeout, and audit.
+- [x] Implement Action Executor with execution locks, database uniqueness, idempotent result replay, before/after snapshots, timeout, and audit.
   - [x] Define immutable ActionExecution lifecycle, terminal outcomes, snapshot bindings, and canonical fingerprint.
   - [x] Persist ActionExecution records and lifecycle events; enforce target locks, database idempotency uniqueness, concurrent claim serialization, terminal result replay, and atomic lock release.
   - [x] Persist each explicitly observed in-progress, completion, or terminal-result replay as a distinct hash-bound lifecycle and append-only audit event.
   - [x] Implement the disabled-by-default, single-attempt typed write dispatcher with bounded timeout and safe confirmed/timeout/uncertain classifications.
-  - [ ] Compose preflight, claim, replay audit, dispatch, after snapshot, and terminal persistence into the crash-safe Executor application path.
-- [ ] Recheck RBAC, policy, state, approval hash/expiry, and idempotency immediately before mutation.
+  - [x] Compose preflight, claim, replay audit, dispatch, after snapshot, and terminal persistence into the crash-safe Executor application path.
+- [x] Recheck RBAC, policy, state, approval hash/expiry, and idempotency immediately before mutation.
   - [x] Define the deterministic preflight that reloads tenant Incident/Approval/invalidation state, replays Evidence Gate and Policy, checks expiry/hash/RBAC, and resolves the target from server-owned current-version/configuration ports.
-  - [ ] Compose preflight and the durable idempotency claim in the same Executor path immediately before bounded adapter dispatch.
+  - [x] Compose preflight and the durable idempotency claim in the same Executor path immediately before bounded adapter dispatch.
 - [ ] Keep the real mutation route disabled behind a server-side capability flag until the Phase 9 verifier/failure-routing exit gate passes.
 - [ ] Add concurrent approval, rejection/expiry routing, mutation, replay, duplicate delivery, timeout, unauthorized role, and bypass tests.
 

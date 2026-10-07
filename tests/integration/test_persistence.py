@@ -10,6 +10,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from itertools import count, pairwise
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
@@ -30,11 +31,13 @@ from testcontainers.community.postgres import PostgresContainer
 from agentops_incident_commander.application import (
     ApprovalLifecycleChange,
     ApprovalLifecycleManager,
+    AuthorizedRollbackExecution,
     EvidenceReferenceResolution,
     ModelCallTraceManager,
     PromptLifecycleChange,
     PromptLifecycleManager,
     RemediationEvidenceGate,
+    RollbackActionExecutor,
     SimilarIncidentRetriever,
     ToolAdapterContext,
     ToolCallRequest,
@@ -192,6 +195,7 @@ from agentops_incident_commander.infrastructure.persistence import (
     ModelCallTraceRow,
     OutboxEventRow,
     OutboxRepository,
+    PostgresActionExecutionStore,
     PromptLifecycleEventRow,
     PromptLifecycleRepository,
     PromptVersionRow,
@@ -3159,6 +3163,199 @@ async def test_action_execution_claim_replay_finish_and_release_lock(engine: Asy
             )
             == 5
         )
+
+
+@pytest.mark.anyio
+async def test_postgres_action_execution_store_owns_each_durable_transaction(
+    engine: AsyncEngine,
+) -> None:
+    approved = await persisted_approved_action(engine, suffix="transaction-store")
+    started = action_execution(
+        approved,
+        execution_id="execution-transaction-store",
+        idempotency_key="rollback-transaction-store",
+        started_at=NOW + timedelta(minutes=12),
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    store = PostgresActionExecutionStore(sessions)
+
+    claimed, replayed = await store.claim(
+        started,
+        action_audit(started, event_id="audit-transaction-store-started"),
+        lambda stored: action_replay_audit(
+            started,
+            stored,
+            event_id="audit-transaction-store-unexpected-replay",
+            occurred_at=NOW + timedelta(minutes=12),
+        ),
+    )
+    assert claimed == started
+    assert not replayed
+    async with sessions() as session:
+        assert await session.scalar(select(func.count()).select_from(ActionExecutionRow)) == 1
+        assert await session.scalar(select(func.count()).select_from(ActionExecutionLockRow)) == 1
+
+    completed = started.fail(
+        ActionExecutionStatus.FAILED,
+        failure_code="ADAPTER_REJECTED",
+        at=NOW + timedelta(minutes=13),
+    )
+    assert (
+        await store.finish(
+            started,
+            completed,
+            action_audit(
+                completed,
+                event_id="audit-transaction-store-finished",
+                finished=True,
+                request_hash=started.fingerprint,
+            ),
+        )
+        == completed
+    )
+    async with sessions() as session:
+        assert await session.scalar(select(func.count()).select_from(ActionExecutionLockRow)) == 0
+
+    retry = action_execution(
+        approved,
+        execution_id="execution-transaction-store-retry",
+        idempotency_key="rollback-transaction-store",
+        started_at=NOW + timedelta(minutes=14),
+        before_observed_at=started.before_snapshot.observed_at,
+    )
+    stored, replayed = await store.claim(
+        retry,
+        action_audit(retry, event_id="audit-transaction-store-retry"),
+        lambda replayed_execution: action_replay_audit(
+            retry,
+            replayed_execution,
+            event_id="audit-transaction-store-replayed",
+            occurred_at=NOW + timedelta(minutes=14),
+        ),
+    )
+    assert stored == completed
+    assert replayed
+    async with sessions() as session:
+        assert await session.scalar(select(func.count()).select_from(ActionExecutionEventRow)) == 3
+
+
+@pytest.mark.anyio
+async def test_executor_concurrent_duplicate_delivery_dispatches_exactly_once(
+    engine: AsyncEngine,
+) -> None:
+    approved = await persisted_approved_action(engine, suffix="executor-concurrency")
+    execution_target = ResolvedRollbackTarget(
+        tenant_id=approved.tenant_id,
+        service="orders",
+        environment=PolicyEnvironment.PRODUCTION,
+        target_reference=OpaqueIdentifier("simulator-orders"),
+        expected_current_version=SemanticVersion("2.0.0"),
+        stable_version=SemanticVersion("1.0.0"),
+    )
+    authorized = cast(
+        AuthorizedRollbackExecution,
+        SimpleNamespace(
+            request=SimpleNamespace(
+                idempotency_key=IdempotencyKey("rollback-executor-concurrency")
+            ),
+            actor_id=ActorId("operator-action"),
+            incident=SimpleNamespace(
+                tenant_id=approved.tenant_id,
+                id=approved.incident_id,
+            ),
+            approval=SimpleNamespace(id=approved.id),
+            admitted=SimpleNamespace(
+                proposal=SimpleNamespace(fingerprint=approved.proposal_fingerprint)
+            ),
+            policy_decision=SimpleNamespace(fingerprint=approved.policy_decision_fingerprint),
+            target=execution_target,
+        ),
+    )
+
+    class ConcurrentPreflight:
+        async def authorize(self, *_: object, **__: object) -> AuthorizedRollbackExecution:
+            return authorized
+
+    class ConcurrentSnapshots:
+        async def persist_before_snapshot(
+            self,
+            _: AuthorizedRollbackExecution,
+            *,
+            observed_at: datetime,
+        ) -> ActionSnapshot:
+            assert observed_at == NOW + timedelta(minutes=15)
+            return ActionSnapshot(
+                artifact_id=ArtifactId("executor-concurrency-before"),
+                tenant_id=approved.tenant_id,
+                incident_id=approved.incident_id,
+                service=execution_target.service,
+                environment=execution_target.environment,
+                target_reference=execution_target.target_reference,
+                deployed_version=execution_target.expected_current_version,
+                observed_at=NOW + timedelta(minutes=14),
+                content_hash=Sha256Digest("8" * 64),
+            )
+
+    class ConcurrentDispatcher:
+        calls = 0
+
+        def ensure_enabled(self) -> None:
+            return None
+
+        async def dispatch(
+            self,
+            _: AuthorizedRollbackExecution,
+            execution: ActionExecution,
+        ) -> ActionExecution:
+            self.calls += 1
+            await asyncio.sleep(0.2)
+            return execution.fail(
+                ActionExecutionStatus.FAILED,
+                failure_code="ADAPTER_REJECTED",
+                at=NOW + timedelta(minutes=16),
+            )
+
+    execution_ids = count(1)
+    audit_ids = count(1)
+    dispatcher = ConcurrentDispatcher()
+    service = RollbackActionExecutor(
+        ConcurrentPreflight(),
+        ConcurrentSnapshots(),
+        PostgresActionExecutionStore(async_sessionmaker(engine, expire_on_commit=False)),
+        dispatcher,
+        execution_id_factory=lambda: OpaqueIdentifier(
+            f"executor-concurrency-{next(execution_ids)}"
+        ),
+        audit_event_id_factory=lambda: AuditEventId(
+            f"audit-executor-concurrency-{next(audit_ids)}"
+        ),
+        clock=lambda: NOW + timedelta(minutes=15),
+    )
+
+    async def execute() -> ActionExecution:
+        return await service.execute(
+            cast(Any, object()),
+            cast(Any, object()),
+            cast(Any, object()),
+            cast(Any, object()),
+            principal=None,
+            correlation_id=CorrelationId("correlation-executor-concurrency"),
+            causation_id=CausationId("causation-executor-concurrency"),
+        )
+
+    results = await asyncio.gather(*(execute() for _ in range(8)))
+    assert dispatcher.calls == 1
+    assert any(result.status is ActionExecutionStatus.FAILED for result in results)
+    assert all(
+        result.status in {ActionExecutionStatus.STARTED, ActionExecutionStatus.FAILED}
+        for result in results
+    )
+    assert len({result.id for result in results}) == 1
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions() as session:
+        assert await session.scalar(select(func.count()).select_from(ActionExecutionRow)) == 1
+        assert await session.scalar(select(func.count()).select_from(ActionExecutionEventRow)) == 9
+        assert await session.scalar(select(func.count()).select_from(ActionExecutionLockRow)) == 0
 
 
 @pytest.mark.anyio

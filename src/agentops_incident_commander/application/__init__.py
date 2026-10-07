@@ -15,6 +15,14 @@ from .action_execution import (
     ExecutionIncidentStore,
     RollbackExecutionPreflight,
 )
+from .action_executor import (
+    ACTION_EXECUTION_AUDIT_SCHEMA_VERSION,
+    BeforeActionSnapshotWriter,
+    DurableActionExecutionStore,
+    RollbackActionExecutor,
+    RollbackDispatcher,
+    RollbackPreflight,
+)
 from .approvals import (
     ApprovalLifecycleChange,
     ApprovalLifecycleManager,
@@ -84,6 +92,7 @@ from .tool_gateway import (
 )
 
 __all__ = [
+    "ACTION_EXECUTION_AUDIT_SCHEMA_VERSION",
     "MAX_POLICY_SERVICES",
     "ActionSnapshotWriter",
     "ApprovalInvalidationStore",
@@ -93,12 +102,14 @@ __all__ = [
     "ApprovedDiagnosisPromptResolver",
     "AuditWriter",
     "AuthorizedRollbackExecution",
+    "BeforeActionSnapshotWriter",
     "BoundedRollbackDispatcher",
     "CompiledInvestigationPlan",
     "CompiledToolCall",
     "ConfirmedRollbackFailure",
     "CurrentServiceVersionStore",
     "DiagnosisPromptStore",
+    "DurableActionExecutionStore",
     "EvidenceBoundRemediationProposal",
     "EvidenceReader",
     "EvidenceReferenceResolution",
@@ -124,8 +135,11 @@ __all__ = [
     "RemediationRevisionResult",
     "RemediationRevisionService",
     "RevisionOutcome",
+    "RollbackActionExecutor",
     "RollbackAdapterResult",
+    "RollbackDispatcher",
     "RollbackExecutionPreflight",
+    "RollbackPreflight",
     "RollbackWriteAdapter",
     "SimilarIncidentRetriever",
     "ToolAdapter",

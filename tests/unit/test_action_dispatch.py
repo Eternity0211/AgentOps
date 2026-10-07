@@ -179,6 +179,7 @@ def dispatcher(
         Snapshots() if snapshots is None else snapshots,
         RecoveryMutationCapability(enabled),
         timeout_seconds=timeout,
+        clock=lambda: NOW + timedelta(seconds=1),
     )
 
 
@@ -197,9 +198,7 @@ def test_dispatch_configuration_is_strict_and_disabled_by_default() -> None:
 async def test_disabled_dispatch_never_calls_adapter() -> None:
     adapter = Adapter(result())
     with pytest.raises(InvalidDomainValueError, match="capability is disabled"):
-        await dispatcher(adapter, enabled=False).dispatch(
-            authority(), execution(), completed_at=NOW + timedelta(seconds=1)
-        )
+        await dispatcher(adapter, enabled=False).dispatch(authority(), execution())
     assert adapter.calls == 0
 
 
@@ -211,16 +210,21 @@ async def test_dispatch_rejects_untyped_stale_or_time_regressed_input() -> None:
         await service.dispatch(
             cast(AuthorizedRollbackExecution, "invalid"),
             execution(),
-            completed_at=NOW + timedelta(seconds=1),
         )
     with pytest.raises(InvalidDomainValueError, match="does not match"):
         await service.dispatch(
             authority(),
             replace(execution(), actor_id=ActorId("other-operator")),
-            completed_at=NOW + timedelta(seconds=1),
         )
+    regressed = BoundedRollbackDispatcher(
+        adapter,
+        Snapshots(),
+        RecoveryMutationCapability(True),
+        timeout_seconds=1,
+        clock=lambda: NOW - timedelta(seconds=1),
+    )
     with pytest.raises(InvalidDomainValueError, match="cannot predate"):
-        await service.dispatch(authority(), execution(), completed_at=NOW - timedelta(seconds=1))
+        await regressed.dispatch(authority(), execution())
     assert adapter.calls == 0
 
 
@@ -228,9 +232,7 @@ async def test_dispatch_rejects_untyped_stale_or_time_regressed_input() -> None:
 async def test_success_dispatches_once_and_records_stable_after_snapshot() -> None:
     adapter = Adapter(result())
     snapshots = Snapshots()
-    completed = await dispatcher(adapter, snapshots).dispatch(
-        authority(), execution(), completed_at=NOW + timedelta(seconds=1)
-    )
+    completed = await dispatcher(adapter, snapshots).dispatch(authority(), execution())
     assert completed.status is ActionExecutionStatus.SUCCEEDED
     assert completed.after_snapshot == snapshot(
         version="1.0.0", observed_at=NOW + timedelta(seconds=1)
@@ -272,9 +274,7 @@ async def test_dispatch_classifies_failure_without_retry(
     failure_code: str,
 ) -> None:
     adapter = Adapter(outcome)
-    completed = await dispatcher(adapter, timeout=0.001).dispatch(
-        authority(), execution(), completed_at=NOW + timedelta(seconds=1)
-    )
+    completed = await dispatcher(adapter, timeout=0.001).dispatch(authority(), execution())
     assert completed.status is expected_status
     assert completed.failure_code == failure_code
     assert adapter.calls == 1
@@ -286,13 +286,11 @@ async def test_snapshot_failure_is_uncertain_and_cancellation_propagates() -> No
     completed = await dispatcher(
         adapter,
         Snapshots(error=RuntimeError("artifact unavailable")),
-    ).dispatch(authority(), execution(), completed_at=NOW + timedelta(seconds=1))
+    ).dispatch(authority(), execution())
     assert completed.status is ActionExecutionStatus.UNCERTAIN
     assert completed.failure_code == "AFTER_SNAPSHOT_UNAVAILABLE"
 
     cancelled = Adapter(asyncio.CancelledError())
     with pytest.raises(asyncio.CancelledError):
-        await dispatcher(cancelled).dispatch(
-            authority(), execution(), completed_at=NOW + timedelta(seconds=1)
-        )
+        await dispatcher(cancelled).dispatch(authority(), execution())
     assert cancelled.calls == 1

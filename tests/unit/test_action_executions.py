@@ -94,6 +94,15 @@ def test_started_action_is_immutable_versioned_and_fingerprinted() -> None:
     assert value.started_at == NOW
     assert len(value.fingerprint.value) == 64
     assert value.fingerprint == execution().fingerprint
+    assert value.request_fingerprint == execution().request_fingerprint
+    assert (
+        value.request_fingerprint
+        == replace(
+            value,
+            id=OpaqueIdentifier("execution-retry"),
+            started_at=NOW + timedelta(seconds=1),
+        ).request_fingerprint
+    )
     with pytest.raises(FrozenInstanceError):
         value.status = ActionExecutionStatus.SUCCEEDED  # type: ignore[misc]
 
@@ -309,3 +318,4 @@ def test_fingerprint_binds_actor_approval_policy_and_snapshots() -> None:
         replace(base, before_snapshot=snapshot(content_hash=Sha256Digest("f" * 64))),
     )
     assert all(item.fingerprint != base.fingerprint for item in variants)
+    assert all(item.request_fingerprint != base.request_fingerprint for item in variants)

@@ -1,8 +1,9 @@
 # Recovery ActionExecution lifecycle
 
-Phase 8 defines the immutable domain record used by the deterministic Action Executor. This is a
-foundation, not an enabled Executor: PostgreSQL locking, idempotent claiming, authorization
-rechecks, adapter dispatch, and the real mutation capability remain separate incomplete work.
+Phase 8 defines the immutable domain record and PostgreSQL persistence foundation used by the
+deterministic Action Executor. This is not an enabled Executor: authorization rechecks, bounded
+adapter dispatch, replay-audit orchestration, and the real mutation capability remain separate
+incomplete work.
 
 ## States and bindings
 
@@ -33,9 +34,34 @@ No execution state contains shell text, credentials, provider arguments, or a co
 In particular, the faulty before version is observation data and never an authorization to deploy
 it again.
 
+## Durable claim and completion
+
+Migration `20261006_0014` adds `action_executions`, `action_execution_locks`, and
+`action_execution_events`. The execution row stores the typed authority and server-resolved target,
+the before snapshot binding, terminal result, and a request fingerprint that intentionally excludes
+attempt identity and timing while retaining the Approval, actor, proposal, Policy decision, target,
+and before observation. Database uniqueness scopes an idempotency key to tenant, actor, Incident,
+and key, and permits an Approval to authorize only one action execution.
+
+Claiming takes transaction-scoped PostgreSQL advisory locks for both the idempotency scope and the
+server-resolved target before inspecting durable state. Concurrent identical claims therefore
+create one execution and return that stored record to all other callers. Reusing the key with a
+different authority, target, or before snapshot fails closed; a different key cannot acquire an
+already-active target. Completing an execution locks its row, writes exactly one terminal event,
+and removes the target lock in the same transaction. Exact completion retries and later identical
+claims return the stored terminal result without creating a second lifecycle transition.
+
+The append-only audit ledger is transactionally bound to the initial `STARTED` event and the one
+terminal event. A later application-service batch must add a distinct audit event for each replay
+observation before the complete Executor TODO can close; the persistence layer does not mislabel a
+replay as a new execution start.
+
 ## Verification
 
 Unit tests cover every lifecycle outcome, immutable/versioned transitions, canonical fingerprint
 bindings, UTC normalization, invalid field types and schema versions, before/after tenant,
 Incident, service, environment, target, version and time substitution, invalid error codes,
 completion ordering, stable-version proof, and duplicate terminal completion refusal.
+PostgreSQL integration tests cover migration round trips, initial claim, active-target exclusion,
+changed-request rejection, eight-way concurrent duplicate claiming, exact completion replay,
+terminal result replay, transactional lifecycle/audit writes, and target-lock release.

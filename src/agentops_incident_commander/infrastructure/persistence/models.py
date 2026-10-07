@@ -23,10 +23,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from agentops_incident_commander.domain import (
+    ACTION_EXECUTION_SCHEMA_VERSION,
     APPROVAL_INVALIDATION_SCHEMA_VERSION,
     APPROVAL_SCHEMA_VERSION,
     INCIDENT_MEMORY_SCHEMA_VERSION,
     MAX_PROMPT_CONTENT_BYTES,
+    ActionExecutionStatus,
     ApprovalStatus,
     EvidenceGateOutcome,
     EvidenceSourceType,
@@ -58,6 +60,7 @@ _MEMORY_OUTCOMES = ", ".join(f"'{value.value}'" for value in IncidentMemoryOutco
 _MEMORY_CONFIRMATIONS = ", ".join(f"'{value.value}'" for value in IncidentMemoryConfirmationSource)
 _APPROVAL_STATUSES = ", ".join(f"'{value.value}'" for value in ApprovalStatus)
 _RISK_LEVELS = ", ".join(f"'{value.value}'" for value in RiskLevel)
+_ACTION_EXECUTION_STATUSES = ", ".join(f"'{value.value}'" for value in ActionExecutionStatus)
 
 
 class Base(DeclarativeBase):
@@ -565,6 +568,155 @@ class ApprovalInvalidationRow(Base):
     schema_version: Mapped[str] = mapped_column(
         String(64), nullable=False, default=APPROVAL_INVALIDATION_SCHEMA_VERSION
     )
+
+
+class ActionExecutionRow(Base):
+    """Durable idempotent recovery execution with before/after Artifact references."""
+
+    __tablename__ = "action_executions"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["incident_id", "tenant_id"],
+            ["incidents.id", "incidents.tenant_id"],
+            name="fk_action_execution_incident_tenant",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["approval_id", "tenant_id"],
+            ["approvals.id", "approvals.tenant_id"],
+            name="fk_action_execution_approval_tenant",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            f"status IN ({_ACTION_EXECUTION_STATUSES})", name="ck_action_execution_status"
+        ),
+        CheckConstraint("version >= 1", name="ck_action_execution_version"),
+        CheckConstraint(
+            "proposal_fingerprint ~ '^[0-9a-f]{64}$' AND "
+            "policy_decision_fingerprint ~ '^[0-9a-f]{64}$' AND "
+            "request_fingerprint ~ '^[0-9a-f]{64}$' AND "
+            "before_content_hash ~ '^[0-9a-f]{64}$' AND "
+            "(after_content_hash IS NULL OR after_content_hash ~ '^[0-9a-f]{64}$')",
+            name="ck_action_execution_hashes",
+        ),
+        CheckConstraint(
+            "failure_code IS NULL OR failure_code ~ '^[A-Z][A-Z0-9_]{0,127}$'",
+            name="ck_action_execution_failure_code",
+        ),
+        CheckConstraint(
+            "(after_artifact_id IS NULL AND after_content_hash IS NULL "
+            "AND after_version IS NULL AND after_observed_at IS NULL) OR "
+            "(after_artifact_id IS NOT NULL AND after_content_hash IS NOT NULL "
+            "AND after_version IS NOT NULL AND after_observed_at IS NOT NULL)",
+            name="ck_action_execution_after_snapshot",
+        ),
+        CheckConstraint(
+            "(status = 'STARTED' AND completed_at IS NULL AND after_artifact_id IS NULL "
+            "AND after_content_hash IS NULL AND after_version IS NULL "
+            "AND after_observed_at IS NULL AND failure_code IS NULL) OR "
+            "(status = 'SUCCEEDED' AND completed_at >= started_at "
+            "AND after_artifact_id IS NOT NULL AND after_content_hash IS NOT NULL "
+            "AND after_version = stable_version AND after_observed_at BETWEEN started_at "
+            "AND completed_at AND failure_code IS NULL) OR "
+            "(status IN ('FAILED', 'TIMED_OUT', 'UNCERTAIN') AND completed_at >= started_at "
+            "AND failure_code IS NOT NULL)",
+            name="ck_action_execution_terminal_state",
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "actor_id",
+            "incident_id",
+            "idempotency_key",
+            name="uq_action_execution_idempotency",
+        ),
+        UniqueConstraint("tenant_id", "approval_id", name="uq_action_execution_approval"),
+        UniqueConstraint("id", "tenant_id", name="uq_action_execution_id_tenant"),
+        Index("ix_action_execution_incident", "tenant_id", "incident_id", "started_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    incident_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    approval_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    actor_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    proposal_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    policy_decision_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    request_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    target_service: Mapped[str] = mapped_column(String(128), nullable=False)
+    target_environment: Mapped[str] = mapped_column(String(32), nullable=False)
+    target_reference: Mapped[str] = mapped_column(String(128), nullable=False)
+    expected_current_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    stable_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    before_artifact_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    before_content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    before_observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    after_artifact_id: Mapped[str | None] = mapped_column(String(128))
+    after_content_hash: Mapped[str | None] = mapped_column(String(64))
+    after_version: Mapped[str | None] = mapped_column(String(64))
+    after_observed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    failure_code: Mapped[str | None] = mapped_column(String(128))
+    schema_version: Mapped[str] = mapped_column(
+        String(64), nullable=False, default=ACTION_EXECUTION_SCHEMA_VERSION
+    )
+
+
+class ActionExecutionLockRow(Base):
+    """One durable active execution owner for an exact backend target."""
+
+    __tablename__ = "action_execution_locks"
+    __table_args__ = (
+        CheckConstraint(
+            "target_key ~ '^[0-9a-f]{64}$'", name="ck_action_execution_lock_target_key"
+        ),
+    )
+
+    target_key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    execution_id: Mapped[str] = mapped_column(
+        String(128), ForeignKey("action_executions.id", ondelete="RESTRICT"), unique=True
+    )
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    service: Mapped[str] = mapped_column(String(128), nullable=False)
+    environment: Mapped[str] = mapped_column(String(32), nullable=False)
+    target_reference: Mapped[str] = mapped_column(String(128), nullable=False)
+    acquired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ActionExecutionEventRow(Base):
+    """Append-only start/finish fingerprint history for a recovery action."""
+
+    __tablename__ = "action_execution_events"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["execution_id", "tenant_id"],
+            ["action_executions.id", "action_executions.tenant_id"],
+            name="fk_action_execution_events_execution_tenant",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "before_fingerprint IS NULL OR before_fingerprint ~ '^[0-9a-f]{64}$'",
+            name="ck_action_execution_event_before_hash",
+        ),
+        CheckConstraint(
+            "after_fingerprint ~ '^[0-9a-f]{64}$'",
+            name="ck_action_execution_event_after_hash",
+        ),
+        UniqueConstraint("audit_event_id", name="uq_action_execution_event_audit"),
+        Index("ix_action_execution_events", "tenant_id", "execution_id", "sequence"),
+    )
+
+    sequence: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    execution_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    action: Mapped[str] = mapped_column(String(32), nullable=False)
+    before_fingerprint: Mapped[str | None] = mapped_column(String(64))
+    after_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    audit_event_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class ModelCallTraceRow(Base):

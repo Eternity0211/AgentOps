@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime, timedelta
 from math import isclose
 from typing import Any, cast
 
-from sqlalchemy import CursorResult, or_, select, text, update
+from sqlalchemy import CursorResult, delete, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentops_incident_commander.application import (
@@ -20,6 +22,9 @@ from agentops_incident_commander.application import (
     model_call_trace_fingerprint,
 )
 from agentops_incident_commander.domain import (
+    ActionExecution,
+    ActionExecutionStatus,
+    ActionSnapshot,
     ActorId,
     AggregateVersion,
     Alert,
@@ -52,6 +57,7 @@ from agentops_incident_commander.domain import (
     EvidenceLineage,
     EvidenceQuality,
     EvidenceSourceType,
+    IdempotencyKey,
     Incident,
     IncidentChange,
     IncidentId,
@@ -86,6 +92,7 @@ from agentops_incident_commander.domain import (
     OutboxEventId,
     OutboxLeaseError,
     OutboxPayload,
+    PolicyEnvironment,
     PromptDefinition,
     PromptId,
     PromptInjectionStatus,
@@ -97,6 +104,7 @@ from agentops_incident_commander.domain import (
     PromptVersionReference,
     QueryParameter,
     RedactionTransformId,
+    ResolvedRollbackTarget,
     RiskLevel,
     RootCauseEvidenceClaim,
     SemanticVersion,
@@ -112,6 +120,9 @@ from agentops_incident_commander.domain import (
 )
 
 from .models import (
+    ActionExecutionEventRow,
+    ActionExecutionLockRow,
+    ActionExecutionRow,
     AlertGroupRow,
     AlertRow,
     ApprovalInvalidationRow,
@@ -1280,6 +1291,319 @@ class ApprovalLifecycleRepository:
         )
         await AuditRepository(self._session).append(audit_event)
         await self._session.flush()
+
+
+def _action_snapshot_from_row(
+    row: ActionExecutionRow,
+    *,
+    after: bool,
+) -> ActionSnapshot | None:
+    artifact_id = row.after_artifact_id if after else row.before_artifact_id
+    if artifact_id is None:
+        return None
+    content_hash = row.after_content_hash if after else row.before_content_hash
+    deployed_version = row.after_version if after else row.expected_current_version
+    observed_at = row.after_observed_at if after else row.before_observed_at
+    assert content_hash is not None and deployed_version is not None and observed_at is not None
+    return ActionSnapshot(
+        artifact_id=ArtifactId(artifact_id),
+        tenant_id=TenantId(row.tenant_id),
+        incident_id=IncidentId(row.incident_id),
+        service=row.target_service,
+        environment=PolicyEnvironment(row.target_environment),
+        target_reference=OpaqueIdentifier(row.target_reference),
+        deployed_version=SemanticVersion(deployed_version),
+        observed_at=observed_at,
+        content_hash=Sha256Digest(content_hash),
+    )
+
+
+def _action_execution_from_row(row: ActionExecutionRow) -> ActionExecution:
+    before = _action_snapshot_from_row(row, after=False)
+    assert before is not None
+    execution = ActionExecution(
+        id=OpaqueIdentifier(row.id),
+        tenant_id=TenantId(row.tenant_id),
+        incident_id=IncidentId(row.incident_id),
+        approval_id=ApprovalId(row.approval_id),
+        idempotency_key=IdempotencyKey(row.idempotency_key),
+        actor_id=ActorId(row.actor_id),
+        proposal_fingerprint=Sha256Digest(row.proposal_fingerprint),
+        policy_decision_fingerprint=Sha256Digest(row.policy_decision_fingerprint),
+        target=ResolvedRollbackTarget(
+            tenant_id=TenantId(row.tenant_id),
+            service=row.target_service,
+            environment=PolicyEnvironment(row.target_environment),
+            target_reference=OpaqueIdentifier(row.target_reference),
+            expected_current_version=SemanticVersion(row.expected_current_version),
+            stable_version=SemanticVersion(row.stable_version),
+        ),
+        before_snapshot=before,
+        status=ActionExecutionStatus(row.status),
+        version=AggregateVersion(row.version),
+        started_at=row.started_at,
+        completed_at=row.completed_at,
+        after_snapshot=_action_snapshot_from_row(row, after=True),
+        failure_code=row.failure_code,
+        schema_version=row.schema_version,
+    )
+    if execution.request_fingerprint.value != row.request_fingerprint:
+        raise InvalidDomainValueError("stored action execution request fingerprint is invalid")
+    return execution
+
+
+def _action_target_key(execution: ActionExecution) -> Sha256Digest:
+    canonical = json.dumps(
+        {
+            "environment": execution.target.environment.value,
+            "service": execution.target.service,
+            "target_reference": execution.target.target_reference.value,
+            "tenant_id": execution.tenant_id.value,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return Sha256Digest(hashlib.sha256(canonical).hexdigest())
+
+
+def _validate_action_audit(
+    execution: ActionExecution,
+    audit_event: AuditEvent,
+    *,
+    event_type: str,
+    request_hash: Sha256Digest,
+    result_hash: Sha256Digest,
+) -> None:
+    if (
+        audit_event.tenant_id != execution.tenant_id
+        or audit_event.type != event_type
+        or audit_event.target != AuditTarget("action.execution", execution.id)
+        or audit_event.actor_id != execution.actor_id
+        or audit_event.request_hash != request_hash
+        or audit_event.result_hash != result_hash
+    ):
+        raise InvalidDomainValueError("action execution audit event is not hash-bound")
+
+
+class ActionExecutionRepository:
+    """Serialize target claims and atomically persist replayable action results."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get(
+        self,
+        execution_id: OpaqueIdentifier,
+        *,
+        tenant_id: TenantId,
+    ) -> ActionExecution | None:
+        row = await self._session.scalar(
+            select(ActionExecutionRow).where(
+                ActionExecutionRow.id == execution_id.value,
+                ActionExecutionRow.tenant_id == tenant_id.value,
+            )
+        )
+        return None if row is None else _action_execution_from_row(row)
+
+    async def claim(
+        self,
+        execution: ActionExecution,
+        audit_event: AuditEvent,
+    ) -> tuple[ActionExecution, bool]:
+        if execution.status is not ActionExecutionStatus.STARTED:
+            raise InvalidDomainValueError("only a started action execution can be claimed")
+        _validate_action_audit(
+            execution,
+            audit_event,
+            event_type="action.execution_started",
+            request_hash=execution.request_fingerprint,
+            result_hash=execution.fingerprint,
+        )
+        target_key = _action_target_key(execution)
+        lock_values = sorted(
+            (
+                target_key.value,
+                hashlib.sha256(
+                    (
+                        f"{execution.tenant_id.value}:{execution.actor_id.value}:"
+                        f"{execution.incident_id.value}:{execution.idempotency_key.value}"
+                    ).encode()
+                ).hexdigest(),
+            )
+        )
+        for value in lock_values:
+            lock_key = int.from_bytes(bytes.fromhex(value[:16]), signed=True)
+            await self._session.execute(
+                text("SELECT pg_advisory_xact_lock(:lock_key)"), {"lock_key": lock_key}
+            )
+        existing = await self._session.scalar(
+            select(ActionExecutionRow)
+            .where(
+                ActionExecutionRow.tenant_id == execution.tenant_id.value,
+                ActionExecutionRow.actor_id == execution.actor_id.value,
+                ActionExecutionRow.incident_id == execution.incident_id.value,
+                ActionExecutionRow.idempotency_key == execution.idempotency_key.value,
+            )
+            .with_for_update()
+        )
+        if existing is not None:
+            stored = _action_execution_from_row(existing)
+            if stored.request_fingerprint != execution.request_fingerprint:
+                raise InvalidDomainValueError(
+                    "action idempotency key was reused with a different request"
+                )
+            return stored, True
+        active_lock = await self._session.get(
+            ActionExecutionLockRow,
+            target_key.value,
+            with_for_update=True,
+        )
+        if active_lock is not None:
+            raise InvalidDomainValueError("rollback target already has an active execution")
+        approval_execution = await self._session.scalar(
+            select(ActionExecutionRow.id).where(
+                ActionExecutionRow.tenant_id == execution.tenant_id.value,
+                ActionExecutionRow.approval_id == execution.approval_id.value,
+            )
+        )
+        if approval_execution is not None:
+            raise InvalidDomainValueError("Approval already has an action execution")
+        before = execution.before_snapshot
+        target = execution.target
+        execution_row = ActionExecutionRow(
+            id=execution.id.value,
+            tenant_id=execution.tenant_id.value,
+            incident_id=execution.incident_id.value,
+            approval_id=execution.approval_id.value,
+            idempotency_key=execution.idempotency_key.value,
+            actor_id=execution.actor_id.value,
+            proposal_fingerprint=execution.proposal_fingerprint.value,
+            policy_decision_fingerprint=execution.policy_decision_fingerprint.value,
+            request_fingerprint=execution.request_fingerprint.value,
+            target_service=target.service,
+            target_environment=target.environment.value,
+            target_reference=target.target_reference.value,
+            expected_current_version=target.expected_current_version.value,
+            stable_version=target.stable_version.value,
+            before_artifact_id=before.artifact_id.value,
+            before_content_hash=before.content_hash.value,
+            before_observed_at=before.observed_at,
+            status=execution.status.value,
+            version=execution.version.value,
+            started_at=execution.started_at,
+            completed_at=None,
+            after_artifact_id=None,
+            after_content_hash=None,
+            after_version=None,
+            after_observed_at=None,
+            failure_code=None,
+            schema_version=execution.schema_version,
+        )
+        self._session.add(execution_row)
+        await self._session.flush()
+        self._session.add(
+            ActionExecutionLockRow(
+                target_key=target_key.value,
+                execution_id=execution.id.value,
+                tenant_id=execution.tenant_id.value,
+                service=target.service,
+                environment=target.environment.value,
+                target_reference=target.target_reference.value,
+                acquired_at=execution.started_at,
+            )
+        )
+        self._session.add(
+            ActionExecutionEventRow(
+                tenant_id=execution.tenant_id.value,
+                execution_id=execution.id.value,
+                action="STARTED",
+                before_fingerprint=None,
+                after_fingerprint=execution.fingerprint.value,
+                audit_event_id=audit_event.id.value,
+                occurred_at=execution.started_at,
+            )
+        )
+        await AuditRepository(self._session).append(audit_event)
+        await self._session.flush()
+        return execution, False
+
+    async def finish(
+        self,
+        expected: ActionExecution,
+        completed: ActionExecution,
+        audit_event: AuditEvent,
+    ) -> ActionExecution:
+        if expected.status is not ActionExecutionStatus.STARTED:
+            raise InvalidDomainValueError("expected action execution must be started")
+        reconstructed = replace(
+            completed,
+            status=ActionExecutionStatus.STARTED,
+            version=expected.version,
+            completed_at=None,
+            after_snapshot=None,
+            failure_code=None,
+        )
+        if reconstructed != expected:
+            raise InvalidDomainValueError("completed action execution immutable fields changed")
+        _validate_action_audit(
+            completed,
+            audit_event,
+            event_type="action.execution_finished",
+            request_hash=expected.fingerprint,
+            result_hash=completed.fingerprint,
+        )
+        row = await self._session.scalar(
+            select(ActionExecutionRow)
+            .where(
+                ActionExecutionRow.id == expected.id.value,
+                ActionExecutionRow.tenant_id == expected.tenant_id.value,
+            )
+            .with_for_update()
+        )
+        if row is None:
+            raise InvalidDomainValueError("action execution was not claimed")
+        stored = _action_execution_from_row(row)
+        if stored.status is not ActionExecutionStatus.STARTED:
+            if stored == completed:
+                return stored
+            raise InvalidDomainValueError("action execution already has a different result")
+        if stored != expected:
+            raise InvalidDomainValueError("stale action execution state")
+        after = completed.after_snapshot
+        row.status = completed.status.value
+        row.version = completed.version.value
+        row.completed_at = completed.completed_at
+        row.after_artifact_id = None if after is None else after.artifact_id.value
+        row.after_content_hash = None if after is None else after.content_hash.value
+        row.after_version = None if after is None else after.deployed_version.value
+        row.after_observed_at = None if after is None else after.observed_at
+        row.failure_code = completed.failure_code
+        target_key = _action_target_key(expected)
+        deleted = cast(
+            CursorResult[Any],
+            await self._session.execute(
+                delete(ActionExecutionLockRow).where(
+                    ActionExecutionLockRow.target_key == target_key.value,
+                    ActionExecutionLockRow.execution_id == expected.id.value,
+                )
+            ),
+        )
+        if deleted.rowcount != 1:
+            raise InvalidDomainValueError("action execution target lock is missing")
+        self._session.add(
+            ActionExecutionEventRow(
+                tenant_id=completed.tenant_id.value,
+                execution_id=completed.id.value,
+                action=completed.status.value,
+                before_fingerprint=expected.fingerprint.value,
+                after_fingerprint=completed.fingerprint.value,
+                audit_event_id=audit_event.id.value,
+                occurred_at=cast(datetime, completed.completed_at),
+            )
+        )
+        await AuditRepository(self._session).append(audit_event)
+        await self._session.flush()
+        return completed
 
 
 def _model_call_from_row(row: ModelCallTraceRow) -> ModelCallTrace:

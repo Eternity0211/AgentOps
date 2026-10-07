@@ -46,6 +46,9 @@ from agentops_incident_commander.application import (
 from agentops_incident_commander.apps.api import create_app
 from agentops_incident_commander.apps.config import ApiSettings
 from agentops_incident_commander.domain import (
+    ActionExecution,
+    ActionExecutionStatus,
+    ActionSnapshot,
     ActorId,
     AggregateVersion,
     Alert,
@@ -53,6 +56,7 @@ from agentops_incident_commander.domain import (
     AlertGroupId,
     AlertId,
     AlertTriageAction,
+    Approval,
     ApprovalId,
     ApprovalInvalidation,
     ApprovalStatus,
@@ -77,6 +81,7 @@ from agentops_incident_commander.domain import (
     EvidenceLineage,
     EvidenceQuality,
     EvidenceSourceType,
+    IdempotencyKey,
     Incident,
     IncidentChange,
     IncidentId,
@@ -134,6 +139,7 @@ from agentops_incident_commander.domain import (
     QueryParameter,
     RedactionStatus,
     RedactionTransformId,
+    ResolvedRollbackTarget,
     RetentionClass,
     RiskLevel,
     Role,
@@ -156,6 +162,10 @@ from agentops_incident_commander.domain import (
 from agentops_incident_commander.infrastructure import DeterministicIncidentMemoryEmbedder
 from agentops_incident_commander.infrastructure.artifacts import LocalArtifactStorage
 from agentops_incident_commander.infrastructure.persistence import (
+    ActionExecutionEventRow,
+    ActionExecutionLockRow,
+    ActionExecutionRepository,
+    ActionExecutionRow,
     AlertGroupRow,
     AlertRepository,
     AlertRow,
@@ -236,6 +246,7 @@ async def engine(migrated_url: str) -> AsyncIterator[AsyncEngine]:
                 "TRUNCATE alerts, alert_groups, incident_cancellation_requests, "
                 "incident_transitions, evidence, idempotency_records, outbox_events, jobs, "
                 "evidence_gate_decisions, model_call_traces, approval_invalidations, "
+                "action_execution_events, action_execution_locks, action_executions, "
                 "approval_lifecycle_events, approvals, prompt_lifecycle_events, "
                 "prompt_versions, "
                 "incidents RESTART IDENTITY CASCADE"
@@ -411,6 +422,9 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "approval_lifecycle_events",
         "approval_invalidations",
         "approvals",
+        "action_execution_events",
+        "action_execution_locks",
+        "action_executions",
         "audit_events",
         "evidence",
         "evidence_gate_decisions",
@@ -2862,4 +2876,496 @@ async def test_model_call_trace_repository_records_exact_metadata_and_atomic_aud
                 ),
                 actor_id=ActorId("diagnosis-worker"),
                 failure_code="provider_timeout",
+            )
+
+
+async def persisted_approved_action(engine: AsyncEngine, *, suffix: str) -> Approval:
+    incident_id = IncidentId(f"incident-action-{suffix}")
+    await add_incident(
+        engine,
+        str(incident_id),
+        tenant="tenant-1",
+        state=IncidentState.READY_TO_EXECUTE,
+    )
+    value = replace(
+        approval_policy_input(),
+        incident_id=incident_id,
+        proposal_id=OpaqueIdentifier(f"remediation-action-{suffix}"),
+    )
+    decision = replace(
+        approval_policy_decision(value),
+        id=OpaqueIdentifier(f"policy-action-{suffix}"),
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        requested = await approval_manager(
+            session,
+            at=NOW + timedelta(minutes=5),
+            approval_id=f"approval-action-{suffix}",
+            audit_id=f"audit-action-request-{suffix}",
+        ).request(
+            value,
+            decision,
+            principal=Principal(
+                ActorId("operator-approval-storage"),
+                TenantId("tenant-1"),
+                frozenset({Role.OPERATOR}),
+            ),
+            correlation_id=CorrelationId("correlation-action"),
+            causation_id=CausationId("request-action-approval"),
+        )
+    async with sessions.begin() as session:
+        return await approval_manager(
+            session,
+            at=NOW + timedelta(minutes=6),
+            approval_id=f"approval-action-{suffix}",
+            audit_id=f"audit-action-approved-{suffix}",
+        ).approve(
+            requested.id,
+            principal=Principal(
+                ActorId("approver-action"),
+                TenantId("tenant-1"),
+                frozenset({Role.APPROVER}),
+            ),
+            reason=EventReason("Approved for executor persistence test."),
+            correlation_id=CorrelationId("correlation-action"),
+            causation_id=CausationId("approve-action"),
+        )
+
+
+def action_execution(
+    approved: Approval,
+    *,
+    execution_id: str = "execution-storage-1",
+    idempotency_key: str = "rollback-storage-1",
+    proposal_fingerprint: Sha256Digest | None = None,
+    approval_id: ApprovalId | None = None,
+    started_at: datetime = NOW + timedelta(minutes=7),
+    before_observed_at: datetime | None = None,
+) -> ActionExecution:
+    target = ResolvedRollbackTarget(
+        tenant_id=approved.tenant_id,
+        service="orders",
+        environment=PolicyEnvironment.PRODUCTION,
+        target_reference=OpaqueIdentifier("simulator-orders"),
+        expected_current_version=SemanticVersion("2.0.0"),
+        stable_version=SemanticVersion("1.0.0"),
+    )
+    return ActionExecution(
+        id=OpaqueIdentifier(execution_id),
+        tenant_id=approved.tenant_id,
+        incident_id=approved.incident_id,
+        approval_id=approved.id if approval_id is None else approval_id,
+        idempotency_key=IdempotencyKey(idempotency_key),
+        actor_id=ActorId("operator-action"),
+        proposal_fingerprint=(
+            approved.proposal_fingerprint if proposal_fingerprint is None else proposal_fingerprint
+        ),
+        policy_decision_fingerprint=approved.policy_decision_fingerprint,
+        target=target,
+        before_snapshot=ActionSnapshot(
+            artifact_id=ArtifactId("action-before-artifact"),
+            tenant_id=approved.tenant_id,
+            incident_id=approved.incident_id,
+            service=target.service,
+            environment=target.environment,
+            target_reference=target.target_reference,
+            deployed_version=target.expected_current_version,
+            observed_at=(
+                started_at - timedelta(seconds=1)
+                if before_observed_at is None
+                else before_observed_at
+            ),
+            content_hash=Sha256Digest("1" * 64),
+        ),
+        status=ActionExecutionStatus.STARTED,
+        version=AggregateVersion(1),
+        started_at=started_at,
+    )
+
+
+def action_audit(
+    execution: ActionExecution,
+    *,
+    event_id: str,
+    finished: bool = False,
+    request_hash: Sha256Digest | None = None,
+) -> AuditEvent:
+    return AuditEvent(
+        id=AuditEventId(event_id),
+        tenant_id=execution.tenant_id,
+        type="action.execution_finished" if finished else "action.execution_started",
+        event_version=1,
+        payload_schema_version="action_execution/v1",
+        actor_id=execution.actor_id,
+        correlation_id=CorrelationId("correlation-action"),
+        causation_id=CausationId("execute-action"),
+        target=AuditTarget("action.execution", execution.id),
+        occurred_at=(cast(datetime, execution.completed_at) if finished else execution.started_at),
+        request_hash=(execution.request_fingerprint if request_hash is None else request_hash),
+        result_hash=execution.fingerprint,
+    )
+
+
+def action_after_snapshot(
+    execution: ActionExecution,
+    *,
+    artifact_id: str,
+    observed_at: datetime,
+    content_hash: str,
+) -> ActionSnapshot:
+    return ActionSnapshot(
+        artifact_id=ArtifactId(artifact_id),
+        tenant_id=execution.tenant_id,
+        incident_id=execution.incident_id,
+        service=execution.target.service,
+        environment=execution.target.environment,
+        target_reference=execution.target.target_reference,
+        deployed_version=execution.target.stable_version,
+        observed_at=observed_at,
+        content_hash=Sha256Digest(content_hash),
+    )
+
+
+@pytest.mark.anyio
+async def test_action_execution_claim_replay_finish_and_release_lock(engine: AsyncEngine) -> None:
+    approved = await persisted_approved_action(engine, suffix="lifecycle")
+    started = action_execution(approved)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        claimed, replayed = await ActionExecutionRepository(session).claim(
+            started, action_audit(started, event_id="audit-action-started")
+        )
+    assert claimed == started
+    assert not replayed
+
+    retry = action_execution(
+        approved,
+        execution_id="execution-storage-retry",
+        started_at=NOW + timedelta(minutes=8),
+        before_observed_at=started.before_snapshot.observed_at,
+    )
+    async with sessions.begin() as session:
+        replay, replayed = await ActionExecutionRepository(session).claim(
+            retry, action_audit(retry, event_id="audit-action-retry")
+        )
+    assert replay == started
+    assert replayed
+
+    after = action_after_snapshot(
+        started,
+        artifact_id="action-after-artifact",
+        observed_at=NOW + timedelta(minutes=9),
+        content_hash="2" * 64,
+    )
+    completed = started.succeed(after_snapshot=after, at=NOW + timedelta(minutes=10))
+    finish_audit = action_audit(
+        completed,
+        event_id="audit-action-finished",
+        finished=True,
+        request_hash=started.fingerprint,
+    )
+    async with sessions.begin() as session:
+        assert (
+            await ActionExecutionRepository(session).finish(started, completed, finish_audit)
+            == completed
+        )
+    async with sessions.begin() as session:
+        assert (
+            await ActionExecutionRepository(session).finish(started, completed, finish_audit)
+            == completed
+        )
+
+    completed_retry = action_execution(
+        approved,
+        execution_id="execution-storage-completed-retry",
+        started_at=NOW + timedelta(minutes=11),
+        before_observed_at=started.before_snapshot.observed_at,
+    )
+    async with sessions.begin() as session:
+        replay, replayed = await ActionExecutionRepository(session).claim(
+            completed_retry,
+            action_audit(completed_retry, event_id="audit-action-result-replay"),
+        )
+    assert replay == completed
+    assert replayed
+
+    async with sessions() as session:
+        repository = ActionExecutionRepository(session)
+        assert await repository.get(started.id, tenant_id=started.tenant_id) == completed
+        assert await repository.get(started.id, tenant_id=TenantId("tenant-other")) is None
+        assert await session.scalar(select(func.count()).select_from(ActionExecutionRow)) == 1
+        assert await session.scalar(select(func.count()).select_from(ActionExecutionLockRow)) == 0
+        assert await session.scalar(select(func.count()).select_from(ActionExecutionEventRow)) == 2
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(AuditEventRow)
+                .where(AuditEventRow.target_type == "action.execution")
+            )
+            == 2
+        )
+
+
+@pytest.mark.anyio
+async def test_action_execution_repository_fails_closed_on_invalid_or_stale_state(
+    engine: AsyncEngine,
+) -> None:
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+
+    approved = await persisted_approved_action(engine, suffix="defensive")
+    started = action_execution(
+        approved,
+        execution_id="execution-defensive",
+        idempotency_key="rollback-defensive",
+    )
+    invalid_audit = replace(
+        action_audit(started, event_id="audit-action-invalid-binding"),
+        actor_id=ActorId("wrong-actor"),
+    )
+    with pytest.raises(InvalidDomainValueError, match="not hash-bound"):
+        async with sessions.begin() as session:
+            await ActionExecutionRepository(session).claim(started, invalid_audit)
+
+    terminal = started.fail(
+        ActionExecutionStatus.FAILED,
+        failure_code="PROVIDER_REJECTED",
+        at=NOW + timedelta(minutes=8),
+    )
+    with pytest.raises(InvalidDomainValueError, match="only a started"):
+        async with sessions.begin() as session:
+            await ActionExecutionRepository(session).claim(
+                terminal,
+                action_audit(terminal, event_id="audit-action-terminal-claim"),
+            )
+
+    missing = action_execution(
+        approved,
+        execution_id="execution-never-claimed",
+        idempotency_key="rollback-never-claimed",
+    )
+    missing_result = missing.fail(
+        ActionExecutionStatus.FAILED,
+        failure_code="PROVIDER_REJECTED",
+        at=NOW + timedelta(minutes=8),
+    )
+    with pytest.raises(InvalidDomainValueError, match="was not claimed"):
+        async with sessions.begin() as session:
+            await ActionExecutionRepository(session).finish(
+                missing,
+                missing_result,
+                action_audit(
+                    missing_result,
+                    event_id="audit-action-missing-finish",
+                    finished=True,
+                    request_hash=missing.fingerprint,
+                ),
+            )
+
+    with pytest.raises(InvalidDomainValueError, match="must be started"):
+        async with sessions.begin() as session:
+            await ActionExecutionRepository(session).finish(
+                terminal,
+                terminal,
+                action_audit(
+                    terminal,
+                    event_id="audit-action-terminal-finish",
+                    finished=True,
+                    request_hash=terminal.fingerprint,
+                ),
+            )
+
+    changed_start = replace(started, actor_id=ActorId("different-actor"))
+    changed_result = changed_start.fail(
+        ActionExecutionStatus.FAILED,
+        failure_code="PROVIDER_REJECTED",
+        at=NOW + timedelta(minutes=8),
+    )
+    with pytest.raises(InvalidDomainValueError, match="immutable fields changed"):
+        async with sessions.begin() as session:
+            await ActionExecutionRepository(session).finish(
+                started,
+                changed_result,
+                action_audit(
+                    changed_result,
+                    event_id="audit-action-mutated-finish",
+                    finished=True,
+                    request_hash=started.fingerprint,
+                ),
+            )
+
+    async with sessions.begin() as session:
+        await ActionExecutionRepository(session).claim(
+            started,
+            action_audit(started, event_id="audit-action-defensive-started"),
+        )
+
+    stale = replace(started, actor_id=ActorId("stale-actor"))
+    stale_result = stale.fail(
+        ActionExecutionStatus.FAILED,
+        failure_code="PROVIDER_REJECTED",
+        at=NOW + timedelta(minutes=8),
+    )
+    with pytest.raises(InvalidDomainValueError, match="stale action execution"):
+        async with sessions.begin() as session:
+            await ActionExecutionRepository(session).finish(
+                stale,
+                stale_result,
+                action_audit(
+                    stale_result,
+                    event_id="audit-action-stale-finish",
+                    finished=True,
+                    request_hash=stale.fingerprint,
+                ),
+            )
+
+    completed = started.fail(
+        ActionExecutionStatus.FAILED,
+        failure_code="PROVIDER_REJECTED",
+        at=NOW + timedelta(minutes=8),
+    )
+    async with sessions.begin() as session:
+        await ActionExecutionRepository(session).finish(
+            started,
+            completed,
+            action_audit(
+                completed,
+                event_id="audit-action-defensive-finished",
+                finished=True,
+                request_hash=started.fingerprint,
+            ),
+        )
+
+    different_result = started.fail(
+        ActionExecutionStatus.TIMED_OUT,
+        failure_code="PROVIDER_TIMEOUT",
+        at=NOW + timedelta(minutes=9),
+    )
+    with pytest.raises(InvalidDomainValueError, match="different result"):
+        async with sessions.begin() as session:
+            await ActionExecutionRepository(session).finish(
+                started,
+                different_result,
+                action_audit(
+                    different_result,
+                    event_id="audit-action-different-finish",
+                    finished=True,
+                    request_hash=started.fingerprint,
+                ),
+            )
+
+    approval_reuse = action_execution(
+        approved,
+        execution_id="execution-approval-reuse",
+        idempotency_key="rollback-approval-reuse",
+        started_at=NOW + timedelta(minutes=10),
+    )
+    with pytest.raises(InvalidDomainValueError, match="Approval already"):
+        async with sessions.begin() as session:
+            await ActionExecutionRepository(session).claim(
+                approval_reuse,
+                action_audit(approval_reuse, event_id="audit-action-approval-reuse"),
+            )
+
+    async with sessions.begin() as session:
+        await session.execute(
+            text(
+                "UPDATE action_executions SET request_fingerprint = :fingerprint "
+                "WHERE id = :execution_id"
+            ),
+            {"fingerprint": "0" * 64, "execution_id": started.id.value},
+        )
+    async with sessions() as session:
+        with pytest.raises(InvalidDomainValueError, match="fingerprint is invalid"):
+            await ActionExecutionRepository(session).get(
+                started.id,
+                tenant_id=started.tenant_id,
+            )
+
+
+@pytest.mark.anyio
+async def test_action_execution_finish_requires_active_target_lock(engine: AsyncEngine) -> None:
+    approved = await persisted_approved_action(engine, suffix="missing-lock")
+    started = action_execution(
+        approved,
+        execution_id="execution-missing-lock",
+        idempotency_key="rollback-missing-lock",
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        await ActionExecutionRepository(session).claim(
+            started,
+            action_audit(started, event_id="audit-action-missing-lock-started"),
+        )
+    async with sessions.begin() as session:
+        await session.execute(
+            text("DELETE FROM action_execution_locks WHERE execution_id = :execution_id"),
+            {"execution_id": started.id.value},
+        )
+    completed = started.fail(
+        ActionExecutionStatus.UNCERTAIN,
+        failure_code="TARGET_STATE_UNKNOWN",
+        at=NOW + timedelta(minutes=8),
+    )
+    with pytest.raises(InvalidDomainValueError, match="target lock is missing"):
+        async with sessions.begin() as session:
+            await ActionExecutionRepository(session).finish(
+                started,
+                completed,
+                action_audit(
+                    completed,
+                    event_id="audit-action-missing-lock-finished",
+                    finished=True,
+                    request_hash=started.fingerprint,
+                ),
+            )
+
+
+@pytest.mark.anyio
+async def test_action_execution_serializes_duplicate_claims_and_rejects_conflicts(
+    engine: AsyncEngine,
+) -> None:
+    approved = await persisted_approved_action(engine, suffix="concurrency")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+
+    async def claim(index: int) -> tuple[ActionExecution, bool]:
+        value = action_execution(
+            approved,
+            execution_id=f"execution-concurrent-{index}",
+            started_at=NOW + timedelta(minutes=7, seconds=index),
+            before_observed_at=NOW + timedelta(minutes=6, seconds=59),
+        )
+        async with sessions.begin() as session:
+            return await ActionExecutionRepository(session).claim(
+                value,
+                action_audit(value, event_id=f"audit-action-concurrent-{index}"),
+            )
+
+    claims = await asyncio.gather(*(claim(index) for index in range(8)))
+    assert sum(replayed for _, replayed in claims) == 7
+    assert len({item.id for item, _ in claims}) == 1
+
+    conflicting = action_execution(
+        approved,
+        execution_id="execution-conflicting",
+        proposal_fingerprint=Sha256Digest("9" * 64),
+    )
+    with pytest.raises(InvalidDomainValueError, match="different request"):
+        async with sessions.begin() as session:
+            await ActionExecutionRepository(session).claim(
+                conflicting,
+                action_audit(conflicting, event_id="audit-action-conflicting"),
+            )
+
+    target_conflict = action_execution(
+        approved,
+        execution_id="execution-target-conflict",
+        idempotency_key="rollback-target-conflict",
+        approval_id=ApprovalId("approval-other"),
+    )
+    with pytest.raises(InvalidDomainValueError, match="active execution"):
+        async with sessions.begin() as session:
+            await ActionExecutionRepository(session).claim(
+                target_conflict,
+                action_audit(target_conflict, event_id="audit-action-target-conflict"),
             )

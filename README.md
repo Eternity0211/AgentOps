@@ -72,8 +72,10 @@ the mutation adapter remains deliberately unregistered until the Executor and ve
 gates are complete.
 The immutable [ActionExecution lifecycle](docs/ACTION_EXECUTION.md) now binds authority,
 server-resolved target, before/after Artifact snapshots, outcome, timing, and canonical fingerprint;
-success requires snapshot proof of the configured stable version. Persistence, locking, dispatch,
-and the real mutation route remain disabled work.
+success requires snapshot proof of the configured stable version. PostgreSQL now persists execution
+and lifecycle records, serializes concurrent idempotency/target claims, replays stored terminal
+results, and atomically releases target locks on completion. Authorization rechecks, bounded adapter
+dispatch, replay-audit orchestration, and the real mutation route remain disabled work.
 
 ## Why this project exists
 

@@ -223,3 +223,21 @@ canonical request hash and the completed status/body with UTC timestamps. The AP
 this row in the same transaction as the Incident update, lifecycle records, and audit append.
 Concurrent identical requests therefore produce one mutation and a durable replay; a changed
 payload under the same scope is rejected. See `API_V1.md` for the exposed contract.
+
+## Recovery action persistence
+
+Revision `20261006_0014` adds durable `action_executions`, active
+`action_execution_locks`, and append-only `action_execution_events`. Execution idempotency is
+scoped by tenant, actor, Incident, and caller key at the database level. The repository also takes
+ordered transaction-scoped advisory locks for that scope and the server-resolved target, so
+concurrent duplicates serialize before checking stored state and different keys cannot mutate the
+same active target.
+
+The persisted request fingerprint excludes attempt identity and start time but includes the exact
+Approval, actor, proposal and Policy fingerprints, resolved target, and immutable before-snapshot
+binding. Identical retries return the stored in-progress or terminal execution; changed-key reuse
+fails closed. Initial claim stores the execution, target lock, lifecycle event, and append-only
+audit atomically. Terminal completion updates the execution, records its after snapshot or stable
+failure code, appends its lifecycle/audit event, and releases the target lock in one transaction.
+Application-level authorization rechecks, adapter dispatch/timeout handling, and a distinct audit
+record for every replay remain required before the Action Executor is complete or enabled.

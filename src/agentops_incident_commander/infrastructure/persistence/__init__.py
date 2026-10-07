@@ -1,6 +1,9 @@
 """SQLAlchemy persistence mappings and repositories."""
 
 from .models import (
+    ActionExecutionEventRow,
+    ActionExecutionLockRow,
+    ActionExecutionRow,
     AlertGroupRow,
     AlertRow,
     ApprovalInvalidationRow,
@@ -23,6 +26,7 @@ from .models import (
     PromptVersionRow,
 )
 from .repositories import (
+    ActionExecutionRepository,
     AlertRepository,
     ApprovalLifecycleRepository,
     AuditRepository,
@@ -37,6 +41,10 @@ from .repositories import (
 )
 
 __all__ = [
+    "ActionExecutionEventRow",
+    "ActionExecutionLockRow",
+    "ActionExecutionRepository",
+    "ActionExecutionRow",
     "AlertGroupRow",
     "AlertRepository",
     "AlertRow",

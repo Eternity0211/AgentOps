@@ -154,7 +154,28 @@ class ActionExecution:
 
     @property
     def fingerprint(self) -> Sha256Digest:
-        document = {
+        document = self._document()
+        canonical = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
+        return Sha256Digest(hashlib.sha256(canonical).hexdigest())
+
+    @property
+    def request_fingerprint(self) -> Sha256Digest:
+        document = self._document()
+        for field in (
+            "after_snapshot",
+            "completed_at",
+            "failure_code",
+            "id",
+            "started_at",
+            "status",
+            "version",
+        ):
+            document.pop(field)
+        canonical = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
+        return Sha256Digest(hashlib.sha256(canonical).hexdigest())
+
+    def _document(self) -> dict[str, object]:
+        return {
             "after_snapshot": _snapshot_document(self.after_snapshot),
             "approval_id": self.approval_id.value,
             "actor_id": self.actor_id.value,
@@ -179,8 +200,6 @@ class ActionExecution:
             "tenant_id": self.tenant_id.value,
             "version": self.version.value,
         }
-        canonical = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
-        return Sha256Digest(hashlib.sha256(canonical).hexdigest())
 
     def succeed(self, *, after_snapshot: ActionSnapshot, at: datetime) -> ActionExecution:
         return self._finish(

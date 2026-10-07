@@ -192,7 +192,7 @@ Exit: exactly one allowlisted mutation occurs for concurrent/retried identical r
 
 ## Phase 9 — Deterministic verification, failure routing, and postmortem
 
-- [ ] Define versioned scenario-aware Health Verification criteria and observation-window contract.
+- [x] Define versioned scenario-aware Health Verification criteria and observation-window contract.
 - [ ] Verify error rate and P95 latency from real metric evidence.
 - [ ] Verify health endpoint, active service version, new alerts, and stable observation window.
 - [ ] Persist verification observations/evidence and deterministic decision reasons.

@@ -85,6 +85,14 @@ the adapter call; every concurrent or retried duplicate returns the stored execu
 second mutation. The server kill switch remains disabled by default, no real write adapter is
 registered, and only the future deterministic verifier may declare recovery.
 
+Phase 9 now has the first versioned [deterministic health-verification contract](docs/HEALTH_VERIFICATION.md).
+It binds a successful ActionExecution to one of the two rollback-eligible scenarios, exact
+server-owned target scope, five distinct Evidence references, bounded per-sample observations, and
+a continuous stability window. Every sample must satisfy error-rate, P95 latency, health endpoint,
+stable-version, and zero-new-alert rules; stale, incomplete, gapped, flapping, or substituted input
+fails closed with stable reason codes. Evidence resolution/persistence, workflow routing, and real
+mutation enablement remain incomplete.
+
 ## Why this project exists
 
 - Shorten time to diagnose microservice failures.
@@ -246,6 +254,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Proposal-bound Approval lifecycle](docs/APPROVALS.md)
 - [Typed rollback_service contract](docs/ROLLBACK_SERVICE.md)
 - [Recovery ActionExecution lifecycle](docs/ACTION_EXECUTION.md)
+- [Deterministic health verification](docs/HEALTH_VERIFICATION.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)

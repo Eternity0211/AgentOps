@@ -54,7 +54,8 @@ The append-only audit ledger is transactionally bound to the initial `STARTED` e
 terminal event. The repository also exposes an explicit replay operation that locks and verifies
 the authoritative stored result before appending a distinct `REPLAYED` lifecycle record and
 hash-bound audit event. It never mislabels a replay as a new start and never mutates the stored
-execution. The remaining Executor composition must call this operation on every replay path.
+execution. The Executor composition calls this operation within the same transaction that observes
+every replay path.
 
 ## Authoritative execution preflight
 

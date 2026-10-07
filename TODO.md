@@ -179,6 +179,7 @@ Exit: retrieval improves context experimentally without label/fact leakage; ever
 - [ ] Implement Action Executor with execution locks, database uniqueness, idempotent result replay, before/after snapshots, timeout, and audit.
   - [x] Define immutable ActionExecution lifecycle, terminal outcomes, snapshot bindings, and canonical fingerprint.
   - [x] Persist ActionExecution records and lifecycle events; enforce target locks, database idempotency uniqueness, concurrent claim serialization, terminal result replay, and atomic lock release.
+  - [x] Persist each explicitly observed in-progress, completion, or terminal-result replay as a distinct hash-bound lifecycle and append-only audit event.
   - [ ] Implement deterministic write-adapter dispatch, bounded timeout classification, and application-level replay audit orchestration.
 - [ ] Recheck RBAC, policy, state, approval hash/expiry, and idempotency immediately before mutation.
   - [x] Define the deterministic preflight that reloads tenant Incident/Approval/invalidation state, replays Evidence Gate and Policy, checks expiry/hash/RBAC, and resolves the target from server-owned current-version/configuration ports.

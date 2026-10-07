@@ -239,5 +239,8 @@ binding. Identical retries return the stored in-progress or terminal execution; 
 fails closed. Initial claim stores the execution, target lock, lifecycle event, and append-only
 audit atomically. Terminal completion updates the execution, records its after snapshot or stable
 failure code, appends its lifecycle/audit event, and releases the target lock in one transaction.
-Application-level authorization rechecks, adapter dispatch/timeout handling, and a distinct audit
-record for every replay remain required before the Action Executor is complete or enabled.
+An explicit replay append verifies both the incoming request fingerprint and currently stored
+result under row lock, then transactionally records a distinct `REPLAYED` lifecycle/audit pair
+without changing the execution. Application-level authorization rechecks, adapter dispatch/timeout
+handling, and mandatory invocation of that replay append on every replay route remain required
+before the Action Executor is complete or enabled.

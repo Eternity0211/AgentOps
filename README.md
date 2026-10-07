@@ -74,7 +74,8 @@ The immutable [ActionExecution lifecycle](docs/ACTION_EXECUTION.md) now binds au
 server-resolved target, before/after Artifact snapshots, outcome, timing, and canonical fingerprint;
 success requires snapshot proof of the configured stable version. PostgreSQL now persists execution
 and lifecycle records, serializes concurrent idempotency/target claims, replays stored terminal
-results, and atomically releases target locks on completion. Authorization rechecks, bounded adapter
+results, records each explicitly observed replay as a separate hash-bound audit event, and
+atomically releases target locks on completion. Authorization rechecks, bounded adapter
 dispatch, replay-audit orchestration, and the real mutation route remain disabled work. The
 framework-independent execution preflight now reloads Incident/Approval/invalidation authority,
 replays Evidence Gate and Policy, enforces execution RBAC and approval expiry/hash bindings, and

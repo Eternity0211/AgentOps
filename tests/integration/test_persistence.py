@@ -3027,6 +3027,29 @@ def action_after_snapshot(
     )
 
 
+def action_replay_audit(
+    incoming: ActionExecution,
+    stored: ActionExecution,
+    *,
+    event_id: str,
+    occurred_at: datetime,
+) -> AuditEvent:
+    return AuditEvent(
+        id=AuditEventId(event_id),
+        tenant_id=stored.tenant_id,
+        type="action.execution_replayed",
+        event_version=1,
+        payload_schema_version="action_execution/v1",
+        actor_id=incoming.actor_id,
+        correlation_id=CorrelationId("correlation-action"),
+        causation_id=CausationId("replay-action"),
+        target=AuditTarget("action.execution", stored.id),
+        occurred_at=occurred_at,
+        request_hash=incoming.request_fingerprint,
+        result_hash=stored.fingerprint,
+    )
+
+
 @pytest.mark.anyio
 async def test_action_execution_claim_replay_finish_and_release_lock(engine: AsyncEngine) -> None:
     approved = await persisted_approved_action(engine, suffix="lifecycle")
@@ -3046,8 +3069,19 @@ async def test_action_execution_claim_replay_finish_and_release_lock(engine: Asy
         before_observed_at=started.before_snapshot.observed_at,
     )
     async with sessions.begin() as session:
-        replay, replayed = await ActionExecutionRepository(session).claim(
+        repository = ActionExecutionRepository(session)
+        replay, replayed = await repository.claim(
             retry, action_audit(retry, event_id="audit-action-retry")
+        )
+        await repository.record_replay(
+            retry,
+            replay,
+            action_replay_audit(
+                retry,
+                replay,
+                event_id="audit-action-replayed-started",
+                occurred_at=NOW + timedelta(minutes=8),
+            ),
         )
     assert replay == started
     assert replayed
@@ -3066,9 +3100,18 @@ async def test_action_execution_claim_replay_finish_and_release_lock(engine: Asy
         request_hash=started.fingerprint,
     )
     async with sessions.begin() as session:
-        assert (
-            await ActionExecutionRepository(session).finish(started, completed, finish_audit)
-            == completed
+        repository = ActionExecutionRepository(session)
+        finish_replay = await repository.finish(started, completed, finish_audit)
+        assert finish_replay == completed
+        await repository.record_replay(
+            completed,
+            finish_replay,
+            action_replay_audit(
+                completed,
+                finish_replay,
+                event_id="audit-action-replayed-finish",
+                occurred_at=NOW + timedelta(minutes=10, seconds=1),
+            ),
         )
     async with sessions.begin() as session:
         assert (
@@ -3083,9 +3126,20 @@ async def test_action_execution_claim_replay_finish_and_release_lock(engine: Asy
         before_observed_at=started.before_snapshot.observed_at,
     )
     async with sessions.begin() as session:
-        replay, replayed = await ActionExecutionRepository(session).claim(
+        repository = ActionExecutionRepository(session)
+        replay, replayed = await repository.claim(
             completed_retry,
             action_audit(completed_retry, event_id="audit-action-result-replay"),
+        )
+        await repository.record_replay(
+            completed_retry,
+            replay,
+            action_replay_audit(
+                completed_retry,
+                replay,
+                event_id="audit-action-replayed-result",
+                occurred_at=NOW + timedelta(minutes=11),
+            ),
         )
     assert replay == completed
     assert replayed
@@ -3096,14 +3150,14 @@ async def test_action_execution_claim_replay_finish_and_release_lock(engine: Asy
         assert await repository.get(started.id, tenant_id=TenantId("tenant-other")) is None
         assert await session.scalar(select(func.count()).select_from(ActionExecutionRow)) == 1
         assert await session.scalar(select(func.count()).select_from(ActionExecutionLockRow)) == 0
-        assert await session.scalar(select(func.count()).select_from(ActionExecutionEventRow)) == 2
+        assert await session.scalar(select(func.count()).select_from(ActionExecutionEventRow)) == 5
         assert (
             await session.scalar(
                 select(func.count())
                 .select_from(AuditEventRow)
                 .where(AuditEventRow.target_type == "action.execution")
             )
-            == 2
+            == 5
         )
 
 
@@ -3199,6 +3253,69 @@ async def test_action_execution_repository_fails_closed_on_invalid_or_stale_stat
             started,
             action_audit(started, event_id="audit-action-defensive-started"),
         )
+
+    mismatched_replay = replace(started, actor_id=ActorId("replay-other-actor"))
+    with pytest.raises(InvalidDomainValueError, match="does not match"):
+        async with sessions.begin() as session:
+            await ActionExecutionRepository(session).record_replay(
+                mismatched_replay,
+                started,
+                action_replay_audit(
+                    mismatched_replay,
+                    started,
+                    event_id="audit-action-mismatched-replay",
+                    occurred_at=NOW + timedelta(minutes=7, seconds=1),
+                ),
+            )
+
+    invalid_replay_audit = replace(
+        action_replay_audit(
+            started,
+            started,
+            event_id="audit-action-invalid-replay",
+            occurred_at=NOW + timedelta(minutes=7, seconds=2),
+        ),
+        result_hash=Sha256Digest("9" * 64),
+    )
+    with pytest.raises(InvalidDomainValueError, match="not hash-bound"):
+        async with sessions.begin() as session:
+            await ActionExecutionRepository(session).record_replay(
+                started,
+                started,
+                invalid_replay_audit,
+            )
+
+    missing_stored = replace(started, id=OpaqueIdentifier("execution-replay-missing"))
+    with pytest.raises(InvalidDomainValueError, match="unavailable or stale"):
+        async with sessions.begin() as session:
+            await ActionExecutionRepository(session).record_replay(
+                started,
+                missing_stored,
+                action_replay_audit(
+                    started,
+                    missing_stored,
+                    event_id="audit-action-missing-replay",
+                    occurred_at=NOW + timedelta(minutes=7, seconds=3),
+                ),
+            )
+
+    stale_stored = started.fail(
+        ActionExecutionStatus.UNCERTAIN,
+        failure_code="TARGET_STATE_UNKNOWN",
+        at=NOW + timedelta(minutes=8),
+    )
+    with pytest.raises(InvalidDomainValueError, match="unavailable or stale"):
+        async with sessions.begin() as session:
+            await ActionExecutionRepository(session).record_replay(
+                started,
+                stale_stored,
+                action_replay_audit(
+                    started,
+                    stale_stored,
+                    event_id="audit-action-stale-replay",
+                    occurred_at=NOW + timedelta(minutes=8),
+                ),
+            )
 
     stale = replace(started, actor_id=ActorId("stale-actor"))
     stale_result = stale.fail(
@@ -3336,14 +3453,30 @@ async def test_action_execution_serializes_duplicate_claims_and_rejects_conflict
             before_observed_at=NOW + timedelta(minutes=6, seconds=59),
         )
         async with sessions.begin() as session:
-            return await ActionExecutionRepository(session).claim(
+            repository = ActionExecutionRepository(session)
+            stored, replayed = await repository.claim(
                 value,
                 action_audit(value, event_id=f"audit-action-concurrent-{index}"),
             )
+            if replayed:
+                await repository.record_replay(
+                    value,
+                    stored,
+                    action_replay_audit(
+                        value,
+                        stored,
+                        event_id=f"audit-action-concurrent-replay-{index}",
+                        occurred_at=NOW + timedelta(minutes=8, seconds=index),
+                    ),
+                )
+            return stored, replayed
 
     claims = await asyncio.gather(*(claim(index) for index in range(8)))
     assert sum(replayed for _, replayed in claims) == 7
     assert len({item.id for item, _ in claims}) == 1
+    async with sessions() as session:
+        assert await session.scalar(select(func.count()).select_from(ActionExecutionRow)) == 1
+        assert await session.scalar(select(func.count()).select_from(ActionExecutionEventRow)) == 8
 
     conflicting = action_execution(
         approved,

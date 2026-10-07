@@ -1605,6 +1605,45 @@ class ActionExecutionRepository:
         await self._session.flush()
         return completed
 
+    async def record_replay(
+        self,
+        incoming: ActionExecution,
+        stored: ActionExecution,
+        audit_event: AuditEvent,
+    ) -> None:
+        if incoming.request_fingerprint != stored.request_fingerprint:
+            raise InvalidDomainValueError("action replay request does not match stored execution")
+        _validate_action_audit(
+            replace(incoming, id=stored.id),
+            audit_event,
+            event_type="action.execution_replayed",
+            request_hash=incoming.request_fingerprint,
+            result_hash=stored.fingerprint,
+        )
+        row = await self._session.scalar(
+            select(ActionExecutionRow)
+            .where(
+                ActionExecutionRow.id == stored.id.value,
+                ActionExecutionRow.tenant_id == stored.tenant_id.value,
+            )
+            .with_for_update()
+        )
+        if row is None or _action_execution_from_row(row) != stored:
+            raise InvalidDomainValueError("stored action replay result is unavailable or stale")
+        self._session.add(
+            ActionExecutionEventRow(
+                tenant_id=stored.tenant_id.value,
+                execution_id=stored.id.value,
+                action="REPLAYED",
+                before_fingerprint=incoming.fingerprint.value,
+                after_fingerprint=stored.fingerprint.value,
+                audit_event_id=audit_event.id.value,
+                occurred_at=audit_event.occurred_at,
+            )
+        )
+        await AuditRepository(self._session).append(audit_event)
+        await self._session.flush()
+
 
 def _model_call_from_row(row: ModelCallTraceRow) -> ModelCallTrace:
     usage = (

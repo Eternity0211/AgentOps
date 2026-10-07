@@ -52,9 +52,10 @@ and removes the target lock in the same transaction. Exact completion retries an
 claims return the stored terminal result without creating a second lifecycle transition.
 
 The append-only audit ledger is transactionally bound to the initial `STARTED` event and the one
-terminal event. A later application-service batch must add a distinct audit event for each replay
-observation before the complete Executor TODO can close; the persistence layer does not mislabel a
-replay as a new execution start.
+terminal event. The repository also exposes an explicit replay operation that locks and verifies
+the authoritative stored result before appending a distinct `REPLAYED` lifecycle record and
+hash-bound audit event. It never mislabels a replay as a new start and never mutates the stored
+execution. The remaining Executor composition must call this operation on every replay path.
 
 ## Authoritative execution preflight
 
@@ -85,7 +86,8 @@ Incident, service, environment, target, version and time substitution, invalid e
 completion ordering, stable-version proof, and duplicate terminal completion refusal.
 PostgreSQL integration tests cover migration round trips, initial claim, active-target exclusion,
 changed-request rejection, eight-way concurrent duplicate claiming, exact completion replay,
-terminal result replay, transactional lifecycle/audit writes, and target-lock release.
+terminal result replay, per-observation replay audit, forged/missing/stale replay refusal,
+transactional lifecycle/audit writes, and target-lock release.
 Preflight tests cover successful authoritative reconstruction, missing authentication, Viewer and
 cross-tenant refusal, missing or changed Incident state, absent/rejected/expired/invalidated
 Approval, proposal/Policy substitution, lost Evidence Gate admission, changed Policy rules,

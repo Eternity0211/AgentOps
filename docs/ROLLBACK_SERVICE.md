@@ -63,6 +63,22 @@ match preflight. After mutation, the adapter result, observed version, and confi
 must all agree. Exact retries reuse the validated original snapshot, while changed scope or backend
 operation identity fails closed.
 
+## Local simulator backend
+
+`LocalSimulatorRollbackBackend` is a deliberately non-production adapter for the versioned local
+recovery E2E suite. It is constructed with one exact server-owned `ResolvedRollbackTarget` and a
+shared simulator deployment state. Its only mutation moves that state from the expected faulty
+version to the configured stable version and creates a deterministic opaque operation identity from
+the authorized scope and idempotency key. The simulator `/versionz` endpoint reads the same locked
+state, so later verification observes the actual transition rather than a test-only return value.
+
+An async serialization lock plus the typed idempotency map makes concurrent identical calls return
+one result after one state transition. A different key after the transition, changed target, stale
+current version, invalid state, or refused/mismatched transition fails closed. The backend exposes
+no command, URL, manifest, namespace, credential, arbitrary version, or production provider
+surface. It is not part of production process composition and does not change the default-disabled
+mutation capability.
+
 ## Verification
 
 Unit tests verify exact metadata and schemas, strict round trips, immutable values, caller-field
@@ -71,3 +87,6 @@ configuration invariant, exact stable-version resolution, tenant/environment iso
 and already-stable version refusal, and the absence of any caller-controlled service or target.
 Adapter tests prove exact target/idempotency delegation, typed result enforcement, and the absence
 of command, URL, manifest, or namespace arguments.
+Local simulator backend tests prove eight-way concurrent exactly-once transition, stable replay,
+HTTP-visible version change, every target-field substitution refusal, stale-state refusal, invalid
+transition classification, and the continued absence of a production-enabled write route.

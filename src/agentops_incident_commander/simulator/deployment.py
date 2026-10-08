@@ -6,6 +6,7 @@ import os
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
+from threading import RLock
 
 from agentops_incident_commander.simulator.app_types import ServiceName
 
@@ -65,3 +66,49 @@ class DeploymentMarker:
         if self.previous_version is not None:
             attributes["service.previous_version"] = self.previous_version
         return attributes
+
+
+class SimulatorDeploymentState:
+    """Thread-safe mutable deployment state reserved for local recovery E2E tests."""
+
+    def __init__(self, marker: DeploymentMarker) -> None:
+        if not isinstance(marker, DeploymentMarker):
+            raise ValueError("invalid simulator deployment marker")
+        self._marker = marker
+        self._transition_count = 0
+        self._lock = RLock()
+
+    def current(self) -> DeploymentMarker:
+        with self._lock:
+            return self._marker
+
+    @property
+    def transition_count(self) -> int:
+        with self._lock:
+            return self._transition_count
+
+    def transition(
+        self,
+        *,
+        service: str,
+        expected_version: str,
+        stable_version: str,
+        deployment_id: str,
+    ) -> DeploymentMarker:
+        expected = _validated(expected_version, VERSION_PATTERN, "expected version")
+        stable = _validated(stable_version, VERSION_PATTERN, "stable version")
+        operation = _validated(deployment_id, DEPLOYMENT_ID_PATTERN, "deployment ID")
+        with self._lock:
+            current = self._marker
+            if current.service != service:
+                raise ValueError("simulator rollback service does not match deployment state")
+            if current.version != expected:
+                raise ValueError("simulator rollback current version changed")
+            self._marker = DeploymentMarker(
+                service=current.service,
+                deployment_id=operation,
+                version=stable,
+                previous_version=current.version,
+            )
+            self._transition_count += 1
+            return self._marker

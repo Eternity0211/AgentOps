@@ -123,7 +123,9 @@ back the deployed semantic version; it exposes no command, URL, manifest, namesp
 or caller-selected target, and remains unregistered while the capability flag is off. Before and
 after deployment observations now persist as deterministic-identity, immutable, hash-bound Artifact
 snapshots; exact retries reuse validated content while version, scope, and operation substitutions
-fail closed.
+fail closed. A deterministic local-simulator-only deployment backend now provides exact-target,
+concurrent-idempotent state transition and live `/versionz` observation for the pending recovery
+E2E suite; it is not production composition and does not enable the default-off mutation switch.
 
 ## Why this project exists
 

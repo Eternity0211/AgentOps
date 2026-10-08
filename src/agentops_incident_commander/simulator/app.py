@@ -26,7 +26,10 @@ from agentops_incident_commander.simulator.dependencies import (
     PostgresOrderStore,
     RedisInventoryStore,
 )
-from agentops_incident_commander.simulator.deployment import DeploymentMarker
+from agentops_incident_commander.simulator.deployment import (
+    DeploymentMarker,
+    SimulatorDeploymentState,
+)
 from agentops_incident_commander.simulator.fault_behavior import FaultBehavior
 from agentops_incident_commander.simulator.memory_fault import BoundedMemoryRetention
 from agentops_incident_commander.simulator.models import CheckoutRequest
@@ -166,13 +169,18 @@ def create_app(
     correlation_factory: Callable[[], str] | None = None,
     telemetry: SimulatorTelemetry | None = None,
     deployment_marker: DeploymentMarker | None = None,
+    deployment_state: SimulatorDeploymentState | None = None,
     fault_behavior: FaultBehavior | None = None,
     sleeper: Callable[[float], Awaitable[None]] | None = None,
     memory_retention: BoundedMemoryRetention | None = None,
 ) -> FastAPI:
     """Create one role-specific simulator application."""
+    if deployment_marker is not None and deployment_state is not None:
+        raise ValueError("deployment marker and state are mutually exclusive")
     selected_telemetry = telemetry or create_telemetry(service)
-    selected_deployment = deployment_marker or DeploymentMarker.from_environment(service)
+    selected_deployment = deployment_state or SimulatorDeploymentState(
+        deployment_marker or DeploymentMarker.from_environment(service)
+    )
     selected_fault = fault_behavior or FaultBehavior.from_environment(service)
     selected_order_store = (
         (
@@ -200,7 +208,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> Any:
         try:
-            selected_telemetry.record_deployment(selected_deployment.attributes())
+            selected_telemetry.record_deployment(selected_deployment.current().attributes())
             yield
         finally:
             try:
@@ -290,12 +298,13 @@ def create_app(
 
     @app.get("/versionz")
     async def version(request: Request) -> dict[str, str | None]:
+        marker = selected_deployment.current()
         return {
-            "service": selected_deployment.service,
-            "deployment_id": selected_deployment.deployment_id,
-            "version": selected_deployment.version,
-            "previous_version": selected_deployment.previous_version,
-            "schema_version": selected_deployment.schema_version,
+            "service": marker.service,
+            "deployment_id": marker.deployment_id,
+            "version": marker.version,
+            "previous_version": marker.previous_version,
+            "schema_version": marker.schema_version,
             "correlation_id": _correlation_id(request),
         }
 

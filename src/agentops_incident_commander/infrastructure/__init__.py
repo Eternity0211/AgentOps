@@ -57,6 +57,7 @@ from .persisted_health_verification import (
 )
 from .recovery_tools import ROLLBACK_SERVICE_VERSION, rollback_service_definition
 from .rollback_adapter import DeploymentRollbackBackend, ServerBoundRollbackAdapter
+from .simulator_rollback import LocalSimulatorRollbackBackend, SimulatorDeploymentStatePort
 
 __all__ = [
     "ACTION_SNAPSHOT_CONTENT_SCHEMA_VERSION",
@@ -87,6 +88,7 @@ __all__ = [
     "HealthVerificationCollectionRequest",
     "ImmutableActionSnapshotWriter",
     "LiveHealthVerificationCollector",
+    "LocalSimulatorRollbackBackend",
     "MockDiagnosisRequest",
     "MockModelMalformedOutput",
     "MockModelRefusal",
@@ -98,6 +100,7 @@ __all__ = [
     "NewAlertCountSample",
     "PostgresPersistedHealthVerifier",
     "ServerBoundRollbackAdapter",
+    "SimulatorDeploymentStatePort",
     "approval_checkpoint_config",
     "checkpoint_observation",
     "compiled_diagnosis_runner",

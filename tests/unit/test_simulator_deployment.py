@@ -9,7 +9,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from agentops_incident_commander.simulator import app as simulator_app
-from agentops_incident_commander.simulator.deployment import DeploymentMarker
+from agentops_incident_commander.simulator.deployment import (
+    DeploymentMarker,
+    SimulatorDeploymentState,
+)
 
 
 def test_default_marker_is_stable_and_has_no_synthetic_predecessor() -> None:
@@ -103,3 +106,61 @@ def test_version_endpoint_and_startup_event_share_one_marker(
         if value.get("event.name") == "service.deployment.changed":
             deployment_events.append(value)
     assert deployment_events == [marker.attributes()]
+
+
+def test_mutable_deployment_state_is_visible_to_version_endpoint() -> None:
+    marker = DeploymentMarker("payment", "fault-release-2", "2.0.0", "1.0.0")
+    state = SimulatorDeploymentState(marker)
+    app = simulator_app.create_app("payment", deployment_state=state)
+
+    state.transition(
+        service="payment",
+        expected_version="2.0.0",
+        stable_version="1.0.0",
+        deployment_id="sim-rollback-operation",
+    )
+    with TestClient(app) as client:
+        response = client.get("/versionz")
+
+    assert response.json()["version"] == "1.0.0"
+    assert response.json()["previous_version"] == "2.0.0"
+    assert state.transition_count == 1
+
+
+def test_create_app_rejects_two_deployment_sources() -> None:
+    marker = DeploymentMarker("payment", "release-2", "2.0.0", "1.0.0")
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        simulator_app.create_app(
+            "payment",
+            deployment_marker=marker,
+            deployment_state=SimulatorDeploymentState(marker),
+        )
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"service": "payment"},
+        {"expected_version": "3.0.0"},
+        {"expected_version": "bad version"},
+        {"stable_version": "bad version"},
+        {"deployment_id": "bad deployment"},
+    ],
+)
+def test_deployment_state_rejects_invalid_transition(change: dict[str, str]) -> None:
+    state = SimulatorDeploymentState(DeploymentMarker("order", "release-2", "2.0.0", "1.0.0"))
+    values = {
+        "service": "order",
+        "expected_version": "2.0.0",
+        "stable_version": "1.0.0",
+        "deployment_id": "operation-1",
+        **change,
+    }
+    with pytest.raises(ValueError, match=r"invalid|does not match|changed"):
+        state.transition(**values)
+    assert state.transition_count == 0
+
+
+def test_deployment_state_rejects_untyped_marker() -> None:
+    with pytest.raises(ValueError, match="invalid simulator deployment marker"):
+        SimulatorDeploymentState("invalid")  # type: ignore[arg-type]

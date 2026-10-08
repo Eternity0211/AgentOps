@@ -145,6 +145,22 @@ This router has no write-adapter or compensation dependency and its target type 
 invalid proposal objects are rejected before routing. It therefore cannot restore the known faulty
 version or enter `COMPENSATING`.
 
+## Recovery orchestration boundary
+
+`RollbackRecoveryCoordinator` is the single application composition point from an authorized
+rollback execution to a persisted verification decision and exactly one terminal route. It does
+not enable or register a mutation adapter. A non-successful ActionExecution returns immediately;
+the verifier and both route handlers remain unreachable. A successful execution must retain the
+exact tenant, Incident, Approval, Idempotency Key, proposal fingerprint, policy-input fingerprint,
+and policy-decision fingerprint supplied to the attempt before verification can begin.
+
+The persisted decision must bind that exact tenant, Incident, ActionExecution ID, and execution
+fingerprint. `PASS` can call only the success router and must return the same Incident in `CLOSED`.
+`FAIL` can call only the failure router and must return the same Incident in `INVESTIGATING` or
+`NEEDS_HUMAN`. Untyped results, substituted scope, or any other state fail closed. Mutation
+success therefore never implies recovery, and a failed verification cannot accidentally enter a
+success, compensation, or faulty-version redeployment route.
+
 ## Verification
 
 Tests cover healthy release and memory-leak criteria, scenario-specific window floors, immutable
@@ -170,4 +186,6 @@ handoff, exact replay, proposal/decision/route substitution, wrong-state and aud
 corrupted stored routing, deferred cancellation at the first safe boundary, and the structural
 compensation/faulty-version prohibition. Together with collector whole-bundle timeout tests and
 the domain's intermediate-flapping/stability-window cases, these cover the Phase 9 verifier
-resilience matrix.
+resilience matrix. Coordinator tests additionally prove execution short-circuiting, complete
+authority and decision binding, exclusive PASS/FAIL dispatch, route-result scope and state
+validation, and rejection of every untyped or substituted boundary result.

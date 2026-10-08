@@ -109,7 +109,11 @@ while exhaustion or an explicit zero budget enters `NEEDS_HUMAN`; neither route 
 faulty version or enter compensation. The architecture gate also rejects executable compensation
 modules, controllers, functions, or tool identifiers from the MVP application, workflow, and
 infrastructure layers while retaining the explicitly future-only domain states. Production
-transport composition and real mutation enablement remain incomplete.
+transport composition and real mutation enablement remain incomplete. A single deterministic
+recovery coordinator now composes the authorized executor, persisted verifier, and exclusive
+success/failure routers without enabling the write switch: unsuccessful execution never reaches
+verification, every authority and decision fingerprint remains exact, `PASS` alone may close,
+and `FAIL` alone may re-diagnose or hand off.
 
 ## Why this project exists
 

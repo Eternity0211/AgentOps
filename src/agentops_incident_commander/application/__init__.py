@@ -88,6 +88,15 @@ from .planning import (
 )
 from .policy_engine import MAX_POLICY_SERVICES, PolicyRules, evaluate_remediation_policy
 from .prompt_registry import PromptLifecycleChange, PromptLifecycleManager, PromptLifecycleStore
+from .recovery_orchestration import (
+    FailingVerificationRouter,
+    PassingVerificationRouter,
+    PersistedRollbackHealthVerifier,
+    RollbackExecutor,
+    RollbackRecoveryCoordinator,
+    RollbackRecoveryOutcome,
+    RollbackRecoveryResult,
+)
 from .remediation_gate import (
     EvidenceBoundRemediationProposal,
     RemediationEvidenceGate,
@@ -144,6 +153,7 @@ __all__ = [
     "ExecutionApprovalStore",
     "ExecutionIncidentStore",
     "FailedHealthVerificationRouter",
+    "FailingVerificationRouter",
     "HealthVerificationClosureStore",
     "HealthVerificationEvidenceReason",
     "HealthVerificationEvidenceReasonCode",
@@ -156,6 +166,8 @@ __all__ = [
     "IncidentMemorySearchStore",
     "ModelCallTraceManager",
     "ModelCallTraceStore",
+    "PassingVerificationRouter",
+    "PersistedRollbackHealthVerifier",
     "PlanningBudgets",
     "PlanningUsage",
     "PolicyReevaluationContext",
@@ -174,7 +186,11 @@ __all__ = [
     "RollbackAdapterResult",
     "RollbackDispatcher",
     "RollbackExecutionPreflight",
+    "RollbackExecutor",
     "RollbackPreflight",
+    "RollbackRecoveryCoordinator",
+    "RollbackRecoveryOutcome",
+    "RollbackRecoveryResult",
     "RollbackWriteAdapter",
     "SimilarIncidentRetriever",
     "SuccessfulHealthVerificationRouter",

@@ -199,6 +199,7 @@ Exit: exactly one allowlisted mutation occurs for concurrent/retried identical r
 - [x] Verify health endpoint, active service version, new alerts, and stable observation window.
 - [x] Persist verification observations/evidence and deterministic decision reasons.
 - [ ] Enable the real mutation route only after verifier integration, non-compensable failure routing, and full rollback-service E2E tests pass.
+  - [x] Compose execution, persisted verification, and exclusive PASS/FAIL routing behind the disabled mutation capability.
 - [x] Route verification success to resolved/closed workflow states.
 - [x] Route failed `rollback_service` verification to bounded re-diagnosis or `NEEDS_HUMAN`; never restore the known faulty version.
 - [x] Keep generic compensation unreachable in the MVP unless a future write tool provides typed safe-inverse metadata plus independent policy/approval.

@@ -14,11 +14,13 @@ from sqlalchemy import CursorResult, delete, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentops_incident_commander.application import (
+    HEALTH_VERIFICATION_CLOSURE_AUDIT_SCHEMA_VERSION,
     ApprovalLifecycleChange,
     PromptLifecycleChange,
     evidence_gate_decision_fingerprint,
     evidence_gate_input_fingerprint,
     evidence_gate_input_snapshot,
+    health_verification_closure_fingerprint,
     model_call_trace_fingerprint,
 )
 from agentops_incident_commander.domain import (
@@ -46,6 +48,7 @@ from agentops_incident_commander.domain import (
     AuthorizationError,
     CausationId,
     CorrelationId,
+    EventMetadata,
     EventReason,
     Evidence,
     EvidenceGateDecision,
@@ -1864,6 +1867,115 @@ class HealthVerificationRepository:
             )
         )
         return None if row is None else _health_verification_from_row(row)
+
+    async def resolve_and_close(
+        self,
+        decision: HealthVerificationDecision,
+        *,
+        metadata: EventMetadata,
+        audit_event: AuditEvent,
+    ) -> Incident:
+        """Atomically apply an idempotent PASS route through RESOLVED to CLOSED."""
+        if not isinstance(decision, HealthVerificationDecision) or not isinstance(
+            metadata, EventMetadata
+        ):
+            raise InvalidDomainValueError("health verification closure inputs are invalid")
+        row = await self._session.scalar(
+            select(HealthVerificationRunRow)
+            .where(
+                HealthVerificationRunRow.id == decision.id.value,
+                HealthVerificationRunRow.tenant_id == decision.tenant_id.value,
+                HealthVerificationRunRow.incident_id == decision.incident_id.value,
+            )
+            .with_for_update()
+        )
+        if row is None or _health_verification_from_row(row)[1] != decision:
+            raise InvalidDomainValueError("passing health verification is not durably available")
+        if decision.outcome is not HealthVerificationOutcome.PASS:
+            raise InvalidDomainValueError(
+                "only a passing health verification can close an Incident"
+            )
+
+        incident_row = await self._session.scalar(
+            select(IncidentRow)
+            .where(
+                IncidentRow.id == decision.incident_id.value,
+                IncidentRow.tenant_id == decision.tenant_id.value,
+            )
+            .with_for_update()
+        )
+        if incident_row is None:  # pragma: no cover - protected by the verification Incident FK
+            raise InvalidDomainValueError("health verification Incident is not durably available")
+        incident = _incident_from_row(incident_row)
+        prior_route = tuple(
+            (
+                await self._session.scalars(
+                    select(IncidentTransitionRow)
+                    .where(
+                        IncidentTransitionRow.incident_id == decision.incident_id.value,
+                        IncidentTransitionRow.causation_id == decision.id.value,
+                    )
+                    .order_by(IncidentTransitionRow.new_version)
+                )
+            ).all()
+        )
+        if prior_route:
+            valid_replay = (
+                incident.state is IncidentState.CLOSED
+                and len(prior_route) == 2
+                and prior_route[0].prior_state == IncidentState.VERIFYING.value
+                and prior_route[0].new_state == IncidentState.RESOLVED.value
+                and prior_route[1].prior_state == IncidentState.RESOLVED.value
+                and prior_route[1].new_state == IncidentState.CLOSED.value
+                and prior_route[1].prior_version == prior_route[0].new_version
+            )
+            if not valid_replay:
+                raise InvalidDomainValueError("stored health verification closure route is invalid")
+            return incident
+        if incident.state is not IncidentState.VERIFYING:
+            raise InvalidDomainValueError("health verification Incident is not in VERIFYING")
+        audit_binding = (
+            audit_event.tenant_id,
+            audit_event.type,
+            audit_event.payload_schema_version,
+            audit_event.actor_id,
+            audit_event.correlation_id,
+            audit_event.causation_id,
+            audit_event.target,
+            audit_event.occurred_at,
+            audit_event.request_hash,
+            audit_event.result_hash,
+        )
+        if audit_binding != (
+            decision.tenant_id,
+            "health.verification_succeeded",
+            HEALTH_VERIFICATION_CLOSURE_AUDIT_SCHEMA_VERSION,
+            metadata.actor_id,
+            metadata.correlation_id,
+            metadata.causation_id,
+            AuditTarget("incident.lifecycle", decision.incident_id),
+            metadata.occurred_at,
+            decision.fingerprint,
+            health_verification_closure_fingerprint(decision),
+        ) or metadata.causation_id != CausationId(decision.id.value):
+            raise InvalidDomainValueError("health verification closure audit is not hash-bound")
+
+        repository = IncidentRepository(self._session)
+        resolved_change = incident.transition(
+            IncidentState.RESOLVED,
+            expected_version=incident.version,
+            metadata=metadata,
+        )
+        await repository.apply(resolved_change)
+        resolved = resolved_change.incident
+        closed_change = resolved.transition(
+            IncidentState.CLOSED,
+            expected_version=resolved.version,
+            metadata=metadata,
+        )
+        await repository.apply(closed_change)
+        await AuditRepository(self._session).append(audit_event)
+        return closed_change.incident
 
 
 def _model_call_from_row(row: ModelCallTraceRow) -> ModelCallTrace:

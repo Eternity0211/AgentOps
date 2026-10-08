@@ -97,9 +97,11 @@ bounded all-or-nothing collector now obtains aligned error-rate, P95, health-pro
 and new-alert samples through fixed read-only ports and emits the five canonical Evidence/Artifact
 series. PostgreSQL now persists each accepted observation and decision with same-scope foreign
 keys to the successful ActionExecution and all five Evidence records, exact replay semantics,
-ordered reasons, hash-bound audit, and corruption detection. Workflow routing, production
-transport composition, and real mutation
-enablement remain incomplete.
+ordered reasons, hash-bound audit, and corruption detection. An authorized deterministic success
+router now locks the persisted PASS and Incident, then atomically records the legal
+`VERIFYING -> RESOLVED -> CLOSED` transitions and a hash-bound audit; duplicate and concurrent
+delivery replay the same closure without extra transitions. Failed-verification routing,
+production transport composition, and real mutation enablement remain incomplete.
 
 ## Why this project exists
 

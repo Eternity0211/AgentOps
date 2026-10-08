@@ -98,6 +98,25 @@ Changed reuse fails closed. Reads recompute both immutable fingerprints so direc
 corruption is detected rather than returned as trusted verification data. Persistence remains
 descriptive: it neither changes Incident state nor invokes a write or compensation path.
 
+## Successful-verification routing
+
+`SuccessfulHealthVerificationRouter` is the only application path in this phase that consumes a
+persisted `PASS` to close an Incident. It requires an authorized same-tenant Operator, reloads the
+decision by tenant and Incident, and delegates to a transaction-scoped repository that locks both
+the verification and Incident rows. The repository rechecks the complete stored decision and
+permits only the legal `VERIFYING -> RESOLVED -> CLOSED` sequence. Both transitions carry the
+verification decision ID as causation and commit atomically with one
+`health.verification_succeeded` audit event whose request and result hashes bind the decision and
+final route.
+
+The decision ID is also the route's durable idempotency identity. Exact retries and concurrent
+delivery return the already-closed aggregate without adding transitions or another success audit.
+A partial, substituted, or conflicting route fails closed. A failed/missing/cross-tenant decision,
+an Incident outside `VERIFYING`, an unauthorized caller, time regression, or an unbound audit can
+never close the Incident. A deferred cancellation does not override an observed successful
+recovery: the atomic route completes through `RESOLVED` and `CLOSED`, as required by the lifecycle
+contract. Failed-verification routing remains a separate unfinished deterministic path.
+
 ## Verification
 
 Tests cover healthy release and memory-leak criteria, scenario-specific window floors, immutable
@@ -114,4 +133,7 @@ misaligned timestamps, invalid values, strict identities/time bounds, and whole-
 PostgreSQL integration tests additionally prove migration upgrade/full downgrade/re-upgrade,
 round-trip retrieval, exact replay, tenant/Incident isolation, missing Evidence refusal,
 non-reproducible decisions, audit substitution, durable ActionExecution substitution, identity
-conflicts, and observation/decision corruption detection.
+conflicts, and observation/decision corruption detection. Success-routing tests prove RBAC,
+same-tenant resolution, atomic resolved/closed transitions, hash-bound audit, exact retry,
+concurrent serialization, failed-verification refusal, wrong-state refusal, record substitution,
+and corrupted partial-route rejection.

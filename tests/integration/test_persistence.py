@@ -39,6 +39,7 @@ from agentops_incident_commander.application import (
     RemediationEvidenceGate,
     RollbackActionExecutor,
     SimilarIncidentRetriever,
+    SuccessfulHealthVerificationRouter,
     ToolAdapterContext,
     ToolCallRequest,
     ToolGateway,
@@ -87,6 +88,8 @@ from agentops_incident_commander.domain import (
     HealthVerificationCriteria,
     HealthVerificationDecision,
     HealthVerificationObservation,
+    HealthVerificationOutcome,
+    HealthVerificationReasonCode,
     HealthVerificationSample,
     HealthVerificationScenario,
     IdempotencyKey,
@@ -196,6 +199,7 @@ from agentops_incident_commander.infrastructure.persistence import (
     IncidentMemoryProjectionRow,
     IncidentMemoryRepository,
     IncidentRepository,
+    IncidentRow,
     IncidentTransitionRow,
     JobRepository,
     JobRow,
@@ -4017,4 +4021,266 @@ async def test_health_verification_repository_rejects_identity_conflict_and_corr
                 decision.id,
                 tenant_id=decision.tenant_id,
                 incident_id=decision.incident_id,
+            )
+
+
+async def persisted_verification_for_closure(
+    engine: AsyncEngine,
+    *,
+    suffix: str,
+    failed: bool = False,
+) -> HealthVerificationDecision:
+    execution = await persisted_successful_execution(engine, suffix=suffix)
+    criteria, observation, decision, evidence_pairs = verification_inputs(execution, suffix=suffix)
+    if failed:
+        observation = replace(
+            observation,
+            samples=(
+                observation.samples[0],
+                replace(observation.samples[1], p95_latency_ms=501),
+                observation.samples[2],
+            ),
+        )
+        decision = evaluate_health_verification(
+            execution,
+            criteria,
+            observation,
+            decision_id=decision.id,
+            evaluated_at=decision.evaluated_at,
+        )
+    await persist_verification_evidence(engine, evidence_pairs)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        await HealthVerificationRepository(session).record(
+            execution,
+            criteria,
+            observation,
+            decision,
+            verification_audit(decision, event_id=f"audit-health-closure-record-{suffix}"),
+        )
+        incidents = IncidentRepository(session)
+        incident = await incidents.get_for_tenant(execution.incident_id, execution.tenant_id)
+        assert incident is not None
+        executing = incident.transition(
+            IncidentState.EXECUTING,
+            expected_version=incident.version,
+            metadata=metadata(8),
+        )
+        await incidents.apply(executing)
+        verifying = executing.incident.transition(
+            IncidentState.VERIFYING,
+            expected_version=executing.incident.version,
+            metadata=metadata(9),
+        )
+        await incidents.apply(verifying)
+    return decision
+
+
+def verification_closure_router(
+    session: AsyncSession,
+    *,
+    audit_id: str,
+    at: datetime = NOW + timedelta(minutes=11),
+) -> SuccessfulHealthVerificationRouter:
+    return SuccessfulHealthVerificationRouter(
+        HealthVerificationRepository(session),
+        clock=lambda: at,
+        audit_event_id_factory=lambda: AuditEventId(audit_id),
+    )
+
+
+def closure_principal(*, tenant: str = "tenant-1") -> Principal:
+    return Principal(
+        ActorId("operator-health-closure"),
+        TenantId(tenant),
+        frozenset({Role.OPERATOR}),
+    )
+
+
+@pytest.mark.anyio
+async def test_successful_health_verification_closes_once_and_replays(
+    engine: AsyncEngine,
+) -> None:
+    decision = await persisted_verification_for_closure(engine, suffix="close-success")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        closed = await verification_closure_router(
+            session, audit_id="audit-health-closure-success"
+        ).close(
+            decision.id,
+            decision.incident_id,
+            principal=closure_principal(),
+            correlation_id=CorrelationId("correlation-health-closure"),
+        )
+        assert closed.state is IncidentState.CLOSED
+        assert closed.closed_at == NOW + timedelta(minutes=11)
+    async with sessions.begin() as session:
+        replayed = await verification_closure_router(
+            session,
+            audit_id="audit-health-closure-replay-not-written",
+            at=NOW + timedelta(minutes=12),
+        ).close(
+            decision.id,
+            decision.incident_id,
+            principal=closure_principal(),
+            correlation_id=CorrelationId("correlation-health-closure-replay"),
+        )
+        assert replayed == closed
+        route = (
+            await session.scalars(
+                select(IncidentTransitionRow)
+                .where(
+                    IncidentTransitionRow.incident_id == decision.incident_id.value,
+                    IncidentTransitionRow.causation_id == decision.id.value,
+                )
+                .order_by(IncidentTransitionRow.new_version)
+            )
+        ).all()
+        assert [(item.prior_state, item.new_state) for item in route] == [
+            (IncidentState.VERIFYING.value, IncidentState.RESOLVED.value),
+            (IncidentState.RESOLVED.value, IncidentState.CLOSED.value),
+        ]
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(AuditEventRow)
+                .where(AuditEventRow.event_type == "health.verification_succeeded")
+            )
+            == 1
+        )
+    async with sessions.begin() as session:
+        last_route = await session.scalar(
+            select(IncidentTransitionRow).where(
+                IncidentTransitionRow.incident_id == decision.incident_id.value,
+                IncidentTransitionRow.new_state == IncidentState.CLOSED.value,
+            )
+        )
+        assert last_route is not None
+        last_route.causation_id = "different-health-verification"
+    with pytest.raises(InvalidDomainValueError, match=r"stored.*route"):
+        async with sessions.begin() as session:
+            await verification_closure_router(
+                session, audit_id="audit-health-closure-corrupt-route"
+            ).close(
+                decision.id,
+                decision.incident_id,
+                principal=closure_principal(),
+                correlation_id=CorrelationId("correlation-health-corrupt-route"),
+            )
+
+
+@pytest.mark.anyio
+async def test_successful_health_verification_closure_serializes_concurrent_replays(
+    engine: AsyncEngine,
+) -> None:
+    decision = await persisted_verification_for_closure(engine, suffix="close-concurrent")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+
+    async def close(index: int) -> Incident:
+        async with sessions.begin() as session:
+            return await verification_closure_router(
+                session, audit_id=f"audit-health-closure-concurrent-{index}"
+            ).close(
+                decision.id,
+                decision.incident_id,
+                principal=closure_principal(),
+                correlation_id=CorrelationId(f"correlation-health-closure-{index}"),
+            )
+
+    first, second = await asyncio.gather(close(1), close(2))
+    assert first == second
+    assert first.state is IncidentState.CLOSED
+
+
+@pytest.mark.anyio
+async def test_health_verification_closure_refuses_failure_scope_and_invalid_bindings(
+    engine: AsyncEngine,
+) -> None:
+    failed = await persisted_verification_for_closure(engine, suffix="close-failed", failed=True)
+    assert failed.outcome is HealthVerificationOutcome.FAIL
+    assert failed.reasons == (HealthVerificationReasonCode.P95_LATENCY_ABOVE_LIMIT,)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    with pytest.raises(InvalidDomainValueError, match="passing"):
+        async with sessions.begin() as session:
+            await verification_closure_router(
+                session, audit_id="audit-health-closure-failed"
+            ).close(
+                failed.id,
+                failed.incident_id,
+                principal=closure_principal(),
+                correlation_id=CorrelationId("correlation-health-closure-failed"),
+            )
+    with pytest.raises(InvalidDomainValueError, match="passing"):
+        async with sessions.begin() as session:
+            await HealthVerificationRepository(session).resolve_and_close(
+                failed,
+                metadata=metadata(11),
+                audit_event=verification_audit(
+                    failed, event_id="audit-health-closure-failed-direct"
+                ),
+            )
+    with pytest.raises(InvalidDomainValueError, match="not found"):
+        async with sessions.begin() as session:
+            await verification_closure_router(
+                session, audit_id="audit-health-closure-cross-tenant"
+            ).close(
+                failed.id,
+                failed.incident_id,
+                principal=closure_principal(tenant="tenant-other"),
+                correlation_id=CorrelationId("correlation-health-closure-cross-tenant"),
+            )
+
+    passing = await persisted_verification_for_closure(engine, suffix="close-invalid")
+    with pytest.raises(InvalidDomainValueError, match="not durably available"):
+        async with sessions.begin() as session:
+            await HealthVerificationRepository(session).resolve_and_close(
+                replace(passing, evaluated_at=passing.evaluated_at + timedelta(seconds=1)),
+                metadata=metadata(11),
+                audit_event=verification_audit(
+                    passing, event_id="audit-health-closure-substituted"
+                ),
+            )
+    with pytest.raises(InvalidDomainValueError, match="not durably available"):
+        async with sessions.begin() as session:
+            await HealthVerificationRepository(session).resolve_and_close(
+                replace(passing, id=OpaqueIdentifier("verification-decision-missing")),
+                metadata=metadata(11),
+                audit_event=verification_audit(passing, event_id="audit-health-closure-missing"),
+            )
+    with pytest.raises(InvalidDomainValueError, match="audit"):
+        async with sessions.begin() as session:
+            await HealthVerificationRepository(session).resolve_and_close(
+                passing,
+                metadata=metadata(11),
+                audit_event=verification_audit(passing, event_id="audit-health-closure-unbound"),
+            )
+    with pytest.raises(InvalidDomainValueError, match="inputs"):
+        async with sessions.begin() as session:
+            await HealthVerificationRepository(session).resolve_and_close(
+                cast(HealthVerificationDecision, "bad"),
+                metadata=metadata(11),
+                audit_event=verification_audit(passing, event_id="audit-health-closure-invalid"),
+            )
+    with pytest.raises(InvalidDomainValueError, match="inputs"):
+        async with sessions.begin() as session:
+            await HealthVerificationRepository(session).resolve_and_close(
+                passing,
+                metadata=cast(EventMetadata, "bad"),
+                audit_event=verification_audit(
+                    passing, event_id="audit-health-closure-invalid-metadata"
+                ),
+            )
+    async with sessions.begin() as session:
+        incident_row = await session.get(IncidentRow, passing.incident_id.value)
+        assert incident_row is not None
+        incident_row.state = IncidentState.READY_TO_EXECUTE.value
+    with pytest.raises(InvalidDomainValueError, match="not in VERIFYING"):
+        async with sessions.begin() as session:
+            await verification_closure_router(
+                session, audit_id="audit-health-closure-wrong-state"
+            ).close(
+                passing.id,
+                passing.incident_id,
+                principal=closure_principal(),
+                correlation_id=CorrelationId("correlation-health-wrong-state"),
             )

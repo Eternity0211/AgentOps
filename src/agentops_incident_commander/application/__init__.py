@@ -52,6 +52,12 @@ from .health_verification import (
     evaluate_evidence_bound_health_verification,
     resolve_health_verification_evidence,
 )
+from .health_verification_routing import (
+    HEALTH_VERIFICATION_CLOSURE_AUDIT_SCHEMA_VERSION,
+    HealthVerificationClosureStore,
+    SuccessfulHealthVerificationRouter,
+    health_verification_closure_fingerprint,
+)
 from .memory_indexing import (
     IncidentMemoryEmbedder,
     IncidentMemoryIndexer,
@@ -103,6 +109,7 @@ from .tool_gateway import (
 
 __all__ = [
     "ACTION_EXECUTION_AUDIT_SCHEMA_VERSION",
+    "HEALTH_VERIFICATION_CLOSURE_AUDIT_SCHEMA_VERSION",
     "HEALTH_VERIFICATION_SIGNAL_SCHEMA_VERSION",
     "MAX_POLICY_SERVICES",
     "ActionSnapshotWriter",
@@ -127,6 +134,7 @@ __all__ = [
     "EvidenceReferenceResolution",
     "ExecutionApprovalStore",
     "ExecutionIncidentStore",
+    "HealthVerificationClosureStore",
     "HealthVerificationEvidenceReason",
     "HealthVerificationEvidenceReasonCode",
     "HealthVerificationEvidenceResolution",
@@ -158,6 +166,7 @@ __all__ = [
     "RollbackPreflight",
     "RollbackWriteAdapter",
     "SimilarIncidentRetriever",
+    "SuccessfulHealthVerificationRouter",
     "ToolAdapter",
     "ToolAdapterContext",
     "ToolAdapterFailure",
@@ -176,6 +185,7 @@ __all__ = [
     "evidence_gate_decision_fingerprint",
     "evidence_gate_input_fingerprint",
     "evidence_gate_input_snapshot",
+    "health_verification_closure_fingerprint",
     "model_call_trace_fingerprint",
     "resolve_gate_evidence_references",
     "resolve_health_verification_evidence",

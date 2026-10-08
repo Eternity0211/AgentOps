@@ -113,7 +113,9 @@ transport composition and real mutation enablement remain incomplete. A single d
 recovery coordinator now composes the authorized executor, persisted verifier, and exclusive
 success/failure routers without enabling the write switch: unsuccessful execution never reaches
 verification, every authority and decision fingerprint remains exact, `PASS` alone may close,
-and `FAIL` alone may re-diagnose or hand off.
+and `FAIL` alone may re-diagnose or hand off. PostgreSQL integration now proves both composed
+routes and exact replay without duplicate route audit; live verifier collection/persistence
+composition and the final mutation-enabled E2E gate remain open.
 
 ## Why this project exists
 

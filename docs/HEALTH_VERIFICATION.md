@@ -188,4 +188,6 @@ compensation/faulty-version prohibition. Together with collector whole-bundle ti
 the domain's intermediate-flapping/stability-window cases, these cover the Phase 9 verifier
 resilience matrix. Coordinator tests additionally prove execution short-circuiting, complete
 authority and decision binding, exclusive PASS/FAIL dispatch, route-result scope and state
-validation, and rejection of every untyped or substituted boundary result.
+validation, and rejection of every untyped or substituted boundary result. PostgreSQL integration
+tests compose the coordinator with durable verification reads and the real success/failure route
+repositories for both outcomes; exact replay returns the stored route without a second route audit.

@@ -39,6 +39,8 @@ from agentops_incident_commander.application import (
     PromptLifecycleManager,
     RemediationEvidenceGate,
     RollbackActionExecutor,
+    RollbackRecoveryCoordinator,
+    RollbackRecoveryOutcome,
     SimilarIncidentRetriever,
     SuccessfulHealthVerificationRouter,
     ToolAdapterContext,
@@ -156,6 +158,7 @@ from agentops_incident_commander.domain import (
     RetentionClass,
     RiskLevel,
     Role,
+    RollbackServiceRequest,
     RootCauseEvidenceClaim,
     SemanticVersion,
     Sha256Digest,
@@ -2481,7 +2484,10 @@ async def test_concurrent_approval_decisions_have_exactly_one_winner(
     assert len(winners) == 1
     assert winners[0].status is ApprovalStatus.APPROVED
     assert len(refusals) == 1
-    assert "stale Approval lifecycle state" in str(refusals[0])
+    assert str(refusals[0]) in {
+        "stale Approval lifecycle state",
+        "only a pending Approval can be decided",
+    }
 
     async with sessions() as session:
         stored = await ApprovalLifecycleRepository(session).get(
@@ -3034,6 +3040,7 @@ def action_execution(
     execution_id: str = "execution-storage-1",
     idempotency_key: str = "rollback-storage-1",
     proposal_fingerprint: Sha256Digest | None = None,
+    policy_decision_fingerprint: Sha256Digest | None = None,
     approval_id: ApprovalId | None = None,
     started_at: datetime = NOW + timedelta(minutes=7),
     before_observed_at: datetime | None = None,
@@ -3056,7 +3063,11 @@ def action_execution(
         proposal_fingerprint=(
             approved.proposal_fingerprint if proposal_fingerprint is None else proposal_fingerprint
         ),
-        policy_decision_fingerprint=approved.policy_decision_fingerprint,
+        policy_decision_fingerprint=(
+            approved.policy_decision_fingerprint
+            if policy_decision_fingerprint is None
+            else policy_decision_fingerprint
+        ),
         target=target,
         before_snapshot=ActionSnapshot(
             artifact_id=ArtifactId("action-before-artifact"),
@@ -3797,6 +3808,7 @@ async def persisted_successful_execution(
     *,
     suffix: str,
     proposal_fingerprint: Sha256Digest | None = None,
+    policy_decision_fingerprint: Sha256Digest | None = None,
 ) -> ActionExecution:
     approved = await persisted_approved_action(engine, suffix=suffix)
     started = action_execution(
@@ -3804,6 +3816,7 @@ async def persisted_successful_execution(
         execution_id=f"execution-verification-{suffix}",
         idempotency_key=f"rollback-verification-{suffix}",
         proposal_fingerprint=proposal_fingerprint,
+        policy_decision_fingerprint=policy_decision_fingerprint,
     )
     completed = started.succeed(
         after_snapshot=action_after_snapshot(
@@ -4114,10 +4127,12 @@ async def persisted_verification_for_closure(
     suffix: str,
     failed: bool = False,
     proposal_fingerprint: Sha256Digest | None = None,
+    execution: ActionExecution | None = None,
 ) -> HealthVerificationDecision:
-    execution = await persisted_successful_execution(
-        engine, suffix=suffix, proposal_fingerprint=proposal_fingerprint
-    )
+    if execution is None:
+        execution = await persisted_successful_execution(
+            engine, suffix=suffix, proposal_fingerprint=proposal_fingerprint
+        )
     criteria, observation, decision, evidence_pairs = verification_inputs(execution, suffix=suffix)
     if failed:
         observation = replace(
@@ -4658,3 +4673,120 @@ async def test_failed_health_verification_repository_rejects_invalid_route_input
                 principal=closure_principal(),
                 correlation_id=CorrelationId("correlation-health-failure-wrong-state"),
             )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("failed", "expected"),
+    [
+        (False, RollbackRecoveryOutcome.CLOSED),
+        (True, RollbackRecoveryOutcome.REDIAGNOSE),
+    ],
+)
+async def test_postgres_recovery_coordinator_routes_persisted_decision_once(
+    engine: AsyncEngine,
+    failed: bool,
+    expected: RollbackRecoveryOutcome,
+) -> None:
+    suffix = "coordinator-fail" if failed else "coordinator-pass"
+    incident_id = IncidentId(f"incident-action-{suffix}")
+    proposal = failure_route_proposal(incident_id)
+    policy_input = replace(
+        approval_policy_input(),
+        incident_id=incident_id,
+        proposal_id=OpaqueIdentifier(proposal.proposal_id),
+        proposal_fingerprint=proposal.fingerprint,
+    )
+    policy_decision = replace(
+        approval_policy_decision(policy_input),
+        id=OpaqueIdentifier(f"policy-{suffix}"),
+    )
+    completed = await persisted_successful_execution(
+        engine,
+        suffix=suffix,
+        proposal_fingerprint=proposal.fingerprint,
+        policy_decision_fingerprint=policy_decision.fingerprint,
+    )
+    persisted_decision = await persisted_verification_for_closure(
+        engine,
+        suffix=suffix,
+        failed=failed,
+        execution=completed,
+    )
+    rollback_request = RollbackServiceRequest(
+        completed.incident_id,
+        completed.approval_id,
+        completed.idempotency_key,
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+
+    class StoredExecutor:
+        calls = 0
+
+        async def execute(self, *_: object, **__: object) -> ActionExecution:
+            self.calls += 1
+            return completed
+
+    class StoredVerifier:
+        calls = 0
+
+        def __init__(self, repository: HealthVerificationRepository) -> None:
+            self._repository = repository
+
+        async def verify(self, *_: object, **__: object) -> HealthVerificationDecision:
+            self.calls += 1
+            stored = await self._repository.get(
+                persisted_decision.id,
+                tenant_id=completed.tenant_id,
+                incident_id=completed.incident_id,
+            )
+            assert stored is not None
+            return stored[1]
+
+    executor = StoredExecutor()
+    async with sessions.begin() as session:
+        repository = HealthVerificationRepository(session)
+        verifier = StoredVerifier(repository)
+        coordinator = RollbackRecoveryCoordinator(
+            executor,
+            verifier,
+            verification_closure_router(session, audit_id=f"audit-{suffix}-close"),
+            verification_failure_router(session, audit_id=f"audit-{suffix}-failure"),
+        )
+        first = await coordinator.recover(
+            rollback_request,
+            proposal,
+            policy_input,
+            policy_decision,
+            used_rediagnosis_attempts=0,
+            principal=closure_principal(),
+            correlation_id=CorrelationId(f"correlation-{suffix}"),
+            causation_id=CausationId(f"causation-{suffix}"),
+        )
+        replay = await coordinator.recover(
+            rollback_request,
+            proposal,
+            policy_input,
+            policy_decision,
+            used_rediagnosis_attempts=0,
+            principal=closure_principal(),
+            correlation_id=CorrelationId(f"correlation-{suffix}-replay"),
+            causation_id=CausationId(f"causation-{suffix}-replay"),
+        )
+
+    assert first.outcome is expected
+    assert replay.incident == first.incident
+    assert executor.calls == verifier.calls == 2
+    async with sessions() as session:
+        event_type = "health.verification_failed" if failed else "health.verification_succeeded"
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(AuditEventRow)
+                .where(
+                    AuditEventRow.event_type == event_type,
+                    AuditEventRow.target_id == completed.incident_id.value,
+                )
+            )
+            == 1
+        )

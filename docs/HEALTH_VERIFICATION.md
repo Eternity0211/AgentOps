@@ -203,3 +203,9 @@ Persisted-verifier tests additionally cover live PASS/FAIL collection, durable f
 records, exact decision replay, invalid execution/principal/plan identities, collection scope
 substitution, Artifact and Evidence conflicts, incomplete re-resolution, and audit identity
 rejection.
+The authorized local rollback E2E composes that verifier with the lifecycle-aware executor,
+server-bound simulator mutation, immutable action snapshots, and success router. It reaches
+`CLOSED` only after five live Evidence records produce one persisted `PASS`; exact replay returns
+the existing execution, verification, and closed Incident without a second mutation, collection,
+decision, or route transition. This test-only enablement does not change the production-default
+capability flag.

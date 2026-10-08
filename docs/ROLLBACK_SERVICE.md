@@ -1,9 +1,9 @@
 # Typed rollback_service contract
 
 Phase 8 defines the first and only MVP write-tool contract. `rollback_service` is a forward
-recovery action from a known faulty deployment to a server-configured stable version. This batch
-defines and validates the contract and resolution boundary. The typed adapter remains unregistered:
-this does not execute a rollback or enable a real write route.
+recovery action from a known faulty deployment to a server-configured stable version. The contract,
+resolution boundary, and server-bound adapter are validated through an explicitly enabled local
+simulator E2E. The adapter remains unregistered in production and the default capability stays off.
 
 ## Caller-controlled input
 
@@ -53,8 +53,9 @@ version. It exposes no shell command, URL, manifest, namespace, credential, or c
 target. The bounded dispatcher still owns timeout and uncertain-result classification.
 
 The adapter is not registered in production composition and the capability remains disabled by
-default. A concrete deployment backend plus the final full-chain E2E gate are still required
-before production enablement.
+default. The local simulator supplies the concrete test backend and full-chain E2E gate; a real
+production backend, transport composition, and an explicit production enablement decision are
+still required before production mutation is available.
 
 The shared deployment observation port also feeds `ImmutableActionSnapshotWriter`. It persists
 canonical before/after JSON as immutable hash-bound Artifacts under identities derived from the
@@ -90,3 +91,11 @@ of command, URL, manifest, or namespace arguments.
 Local simulator backend tests prove eight-way concurrent exactly-once transition, stable replay,
 HTTP-visible version change, every target-field substitution refusal, stale-state refusal, invalid
 transition classification, and the continued absence of a production-enabled write route.
+
+The authorized full-chain PostgreSQL E2E explicitly enables the capability only inside the test,
+uses a real persisted Approval-bound authority, and composes durable lifecycle execution with the
+server-bound adapter, shared simulator deployment state, immutable snapshots, live five-signal
+collection, persisted deterministic verification, and success routing. It asserts exactly one
+deployment transition, one ActionExecution, five Evidence records, one `PASS`, and the legal
+`READY_TO_EXECUTE -> EXECUTING -> VERIFYING -> RESOLVED -> CLOSED` path. Exact replay returns the
+same records without another mutation, collection, verification, or closure.

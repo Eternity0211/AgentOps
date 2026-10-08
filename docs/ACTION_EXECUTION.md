@@ -166,8 +166,12 @@ adapter dispatch. Together with Approval lifecycle/graph tests, the Phase 8 exit
 concurrent approval, rejection and lazy expiry routing, successful mutation classification,
 terminal replay, duplicate delivery, adapter timeout, unauthorized roles, and attempts to bypass
 Incident, Evidence Gate, Policy, Approval, target-resolution, or capability controls. The runtime
-mutation capability remains disabled by default pending the Phase 9 full-chain E2E gate.
+mutation capability remains disabled by default; the Phase 9 full-chain E2E enables it only inside
+the local test composition.
 Lifecycle-store integration additionally proves atomic execution/Incident transitions, exact
 completion replay without duplicate transitions, eight-way concurrent claim serialization,
 transaction rollback on invalid Incident state, success-to-verification routing, confirmed-failure
 re-diagnosis, and timeout/uncertainty human handoff.
+The full-chain integration additionally proves one persisted execution and one simulator mutation
+flow through five live Evidence records, one persisted `PASS`, and closure, while exact replay
+cannot recollect, redispatch, reverify, or duplicate an Incident transition.

@@ -206,6 +206,7 @@ Exit: exactly one allowlisted mutation occurs for concurrent/retried identical r
   - [x] Persist deterministic-identity before/after deployment snapshots as immutable, hash-bound Artifacts and reuse them safely on exact replay.
   - [x] Add a deterministic local-simulator deployment backend with exact-target validation, concurrent idempotency, and live version observation for recovery E2E.
   - [x] Atomically bind durable execution claim/completion to Incident `EXECUTING`, `VERIFYING`, safe re-diagnosis, or human-handoff states with replay-safe audit.
+  - [x] Prove the authorized local rollback full chain from durable execution through live persisted verification and closure, including exact replay without a second mutation.
 - [x] Route verification success to resolved/closed workflow states.
 - [x] Route failed `rollback_service` verification to bounded re-diagnosis or `NEEDS_HUMAN`; never restore the known faulty version.
 - [x] Keep generic compensation unreachable in the MVP unless a future write tool provides typed safe-inverse metadata plus independent policy/approval.

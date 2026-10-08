@@ -32,15 +32,19 @@ from agentops_incident_commander.application import (
     ApprovalLifecycleChange,
     ApprovalLifecycleManager,
     AuthorizedRollbackExecution,
+    BoundedRollbackDispatcher,
+    EvidenceBoundRemediationProposal,
     EvidenceReferenceResolution,
     FailedHealthVerificationRouter,
     ModelCallTraceManager,
     PromptLifecycleChange,
     PromptLifecycleManager,
+    RecoveryMutationCapability,
     RemediationEvidenceGate,
     RollbackActionExecutor,
     RollbackRecoveryCoordinator,
     RollbackRecoveryOutcome,
+    RollbackRecoveryResult,
     SimilarIncidentRetriever,
     SuccessfulHealthVerificationRouter,
     ToolAdapterContext,
@@ -184,10 +188,13 @@ from agentops_incident_commander.infrastructure import (
     HealthProbeSample,
     HealthVerificationCollectionIds,
     HealthVerificationCollectionRequest,
+    ImmutableActionSnapshotWriter,
     LiveHealthVerificationCollector,
+    LocalSimulatorRollbackBackend,
     NewAlertCountResult,
     NewAlertCountSample,
     PostgresPersistedHealthVerifier,
+    ServerBoundRollbackAdapter,
 )
 from agentops_incident_commander.infrastructure.artifacts import LocalArtifactStorage
 from agentops_incident_commander.infrastructure.collectors import MetricSample
@@ -235,6 +242,10 @@ from agentops_incident_commander.infrastructure.tool_adapters import (
     MetricBackendResult,
     MetricName,
     MetricQuery,
+)
+from agentops_incident_commander.simulator.deployment import (
+    DeploymentMarker,
+    SimulatorDeploymentState,
 )
 from agentops_incident_commander.workflows import (
     REMEDIATION_PROPOSAL_SCHEMA_VERSION,
@@ -5203,3 +5214,275 @@ async def test_live_health_verifier_persists_evidence_decision_and_replays(
             )
             == 1
         )
+
+
+@pytest.mark.anyio
+async def test_authorized_rollback_service_full_chain_closes_once_and_replays(
+    engine: AsyncEngine,
+    tmp_path: Path,
+) -> None:
+    incident_id = IncidentId("incident-rollback-full-chain")
+    proposal_template = failure_route_proposal(incident_id, maximum=0)
+    proposed = proposal_template.model_copy(
+        update={
+            "parameters": RollbackServiceParameters(
+                service="order",
+                introducing_deployment_evidence_id=(
+                    proposal_template.parameters.introducing_deployment_evidence_id
+                ),
+            )
+        }
+    )
+    evaluated_input = replace(
+        approval_policy_input(),
+        incident_id=incident_id,
+        proposal_id=OpaqueIdentifier(proposed.proposal_id),
+        proposal_fingerprint=proposed.fingerprint,
+        service="order",
+    )
+    evaluated = replace(
+        approval_policy_decision(evaluated_input),
+        id=OpaqueIdentifier("policy-rollback-full-chain"),
+    )
+    await add_incident(
+        engine,
+        incident_id.value,
+        tenant="tenant-1",
+        state=IncidentState.READY_TO_EXECUTE,
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    requester = Principal(
+        evaluated_input.requester_actor_id,
+        evaluated_input.tenant_id,
+        frozenset({Role.OPERATOR}),
+    )
+    async with sessions.begin() as session:
+        requested = await approval_manager(
+            session,
+            at=NOW + timedelta(minutes=5),
+            approval_id="approval-rollback-full-chain",
+            audit_id="audit-rollback-full-chain-request",
+        ).request(
+            evaluated_input,
+            evaluated,
+            principal=requester,
+            correlation_id=CorrelationId("correlation-rollback-full-chain-approval"),
+            causation_id=CausationId("causation-rollback-full-chain-request"),
+        )
+    async with sessions.begin() as session:
+        approved = await approval_manager(
+            session,
+            at=NOW + timedelta(minutes=6),
+            approval_id="approval-rollback-full-chain",
+            audit_id="audit-rollback-full-chain-approved",
+        ).approve(
+            requested.id,
+            principal=Principal(
+                ActorId("approver-rollback-full-chain"),
+                evaluated_input.tenant_id,
+                frozenset({Role.APPROVER}),
+            ),
+            reason=EventReason("Approved for the versioned local recovery E2E."),
+            correlation_id=CorrelationId("correlation-rollback-full-chain-approval"),
+            causation_id=CausationId("causation-rollback-full-chain-approved"),
+        )
+    async with sessions() as session:
+        incident = await IncidentRepository(session).get_for_tenant(
+            incident_id, evaluated_input.tenant_id
+        )
+    assert incident is not None
+
+    execution_target = ResolvedRollbackTarget(
+        evaluated_input.tenant_id,
+        "order",
+        PolicyEnvironment.PRODUCTION,
+        OpaqueIdentifier("simulator-orders"),
+        SemanticVersion("2.0.0"),
+        SemanticVersion("1.0.0"),
+    )
+    rollback_request = RollbackServiceRequest(
+        incident_id,
+        approved.id,
+        IdempotencyKey("rollback-full-chain"),
+    )
+    gate = EvidenceGateDecision(
+        incident_id,
+        proposed.candidate_id,
+        EvidenceGateOutcome.PASS,
+        (),
+        (
+            EvidenceId(proposed.parameters.introducing_deployment_evidence_id),
+            EvidenceId(proposed.prerequisites.current_version_evidence_id),
+        ),
+        "1.1.0",
+        Sha256Digest(proposed.evidence_gate_input_fingerprint),
+        NOW,
+        8_000,
+    )
+    authority = AuthorizedRollbackExecution(
+        rollback_request,
+        ActorId("operator-rollback-full-chain"),
+        incident,
+        approved,
+        EvidenceBoundRemediationProposal(evaluated_input.tenant_id, proposed, gate),
+        evaluated_input,
+        evaluated,
+        execution_target,
+        NOW + timedelta(minutes=6),
+    )
+
+    class BoundPreflight:
+        calls = 0
+
+        async def authorize(self, *_: object, **__: object) -> AuthorizedRollbackExecution:
+            self.calls += 1
+            return authority
+
+    deployment = SimulatorDeploymentState(
+        DeploymentMarker("order", "fault-release-2", "2.0.0", "1.0.0")
+    )
+    backend = LocalSimulatorRollbackBackend(deployment, execution_target)
+    artifacts = LocalArtifactStorage(tmp_path / "rollback-full-chain-artifacts")
+    snapshots = ImmutableActionSnapshotWriter(backend, artifacts)
+    dispatcher = BoundedRollbackDispatcher(
+        ServerBoundRollbackAdapter(backend),
+        snapshots,
+        RecoveryMutationCapability(True),
+        timeout_seconds=30,
+        clock=lambda: NOW + timedelta(minutes=7, seconds=next(execution_clock)),
+    )
+    execution_clock = count(2)
+    execution_ids = count(1)
+    execution_audit_ids = count(1)
+    preflight = BoundPreflight()
+    executor = RollbackActionExecutor(
+        preflight,
+        snapshots,
+        PostgresLifecycleActionExecutionStore(sessions),
+        dispatcher,
+        execution_id_factory=lambda: OpaqueIdentifier(
+            f"execution-rollback-full-chain-{next(execution_ids)}"
+        ),
+        audit_event_id_factory=lambda: AuditEventId(
+            f"audit-rollback-full-chain-execution-{next(execution_audit_ids)}"
+        ),
+        clock=lambda: NOW + timedelta(minutes=7, seconds=next(execution_clock)),
+    )
+
+    class LiveDeploymentVersionBackend:
+        async def read(
+            self,
+            *,
+            service: str,
+            environment: str,
+            sample_times: tuple[datetime, ...],
+        ) -> ActiveVersionResult:
+            assert (service, environment) == ("order", "production")
+            deployed = await backend.deployed_version(execution_target)
+            return ActiveVersionResult(
+                tuple(ActiveVersionSample(item, deployed) for item in sample_times),
+                True,
+            )
+
+    metrics = VerificationMetricsBackend(failed=False)
+    verification_requests: list[HealthVerificationCollectionRequest] = []
+
+    def verification_request(execution: ActionExecution) -> HealthVerificationCollectionRequest:
+        request_value = live_verification_request(execution, suffix="rollback-full-chain")
+        verification_requests.append(request_value)
+        return request_value
+
+    verifier_audit_ids = count(1)
+    verifier = PostgresPersistedHealthVerifier(
+        LiveHealthVerificationCollector(
+            metrics,
+            VerificationHealthBackend(),
+            LiveDeploymentVersionBackend(),
+            VerificationAlertBackend(),
+        ),
+        artifacts,
+        sessions,
+        request_factory=verification_request,
+        decision_id_factory=lambda _: OpaqueIdentifier("decision-rollback-full-chain"),
+        audit_event_id_factory=lambda: AuditEventId(
+            f"audit-rollback-full-chain-verification-{next(verifier_audit_ids)}"
+        ),
+        clock=lambda: NOW + timedelta(minutes=10, seconds=2),
+    )
+    operator = Principal(
+        authority.actor_id,
+        evaluated_input.tenant_id,
+        frozenset({Role.OPERATOR}),
+    )
+
+    async def recover(*, replay: bool) -> RollbackRecoveryResult:
+        suffix = "replay" if replay else "first"
+        async with sessions.begin() as session:
+            return await RollbackRecoveryCoordinator(
+                executor,
+                verifier,
+                verification_closure_router(
+                    session,
+                    audit_id=f"audit-rollback-full-chain-close-{suffix}",
+                    at=NOW + timedelta(minutes=11),
+                ),
+                verification_failure_router(
+                    session,
+                    audit_id=f"audit-rollback-full-chain-failure-{suffix}",
+                ),
+            ).recover(
+                rollback_request,
+                proposed,
+                evaluated_input,
+                evaluated,
+                used_rediagnosis_attempts=0,
+                principal=operator,
+                correlation_id=CorrelationId(f"correlation-rollback-full-chain-{suffix}"),
+                causation_id=CausationId(f"causation-rollback-full-chain-{suffix}"),
+            )
+
+    first = await recover(replay=False)
+    replay = await recover(replay=True)
+
+    assert first.outcome is RollbackRecoveryOutcome.CLOSED
+    assert replay.outcome is RollbackRecoveryOutcome.CLOSED
+    assert replay.execution == first.execution
+    assert replay.verification == first.verification
+    assert replay.incident == first.incident
+    assert deployment.current().version == "1.0.0"
+    assert deployment.transition_count == 1
+    assert preflight.calls == 2
+    assert metrics.calls == 2
+    assert len(verification_requests) == 1
+    async with sessions() as session:
+        assert await session.scalar(select(func.count()).select_from(ActionExecutionRow)) == 1
+        assert await session.scalar(select(func.count()).select_from(ActionExecutionEventRow)) == 3
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(EvidenceRow)
+                .where(EvidenceRow.incident_id == incident_id.value)
+            )
+            == 5
+        )
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(HealthVerificationRunRow)
+                .where(HealthVerificationRunRow.incident_id == incident_id.value)
+            )
+            == 1
+        )
+        transitions = (
+            await session.scalars(
+                select(IncidentTransitionRow)
+                .where(IncidentTransitionRow.incident_id == incident_id.value)
+                .order_by(IncidentTransitionRow.new_version)
+            )
+        ).all()
+        assert [(item.prior_state, item.new_state) for item in transitions] == [
+            (IncidentState.READY_TO_EXECUTE.value, IncidentState.EXECUTING.value),
+            (IncidentState.EXECUTING.value, IncidentState.VERIFYING.value),
+            (IncidentState.VERIFYING.value, IncidentState.RESOLVED.value),
+            (IncidentState.RESOLVED.value, IncidentState.CLOSED.value),
+        ]

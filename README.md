@@ -82,11 +82,11 @@ only through server-owned ports. The crash-safe Executor application path now co
 preflight with an idempotent before snapshot, a transaction-owning PostgreSQL claim, atomic replay
 audit, one bounded typed dispatch, and terminal persistence. A durable claim always commits before
 the adapter call; every concurrent or retried duplicate returns the stored execution without a
-second mutation. The server kill switch remains disabled by default, no real write adapter is
+second mutation. The server kill switch remains disabled by default, no production write adapter is
 registered, and only the deterministic verifier may declare recovery. The Phase 8 safety matrix
 now includes a PostgreSQL concurrent-approval race plus rejection/expiry, mutation
 classification, replay, duplicate delivery, timeout, authorization, and bypass coverage; its
-server-side mutation flag remains off until the Phase 9 full-chain E2E gate passes.
+server-side mutation flag remains off outside explicitly enabled test composition.
 
 Phase 9 now has the first versioned [deterministic health-verification contract](docs/HEALTH_VERIFICATION.md).
 It binds a successful ActionExecution to one of the two rollback-eligible scenarios, exact
@@ -117,7 +117,7 @@ and `FAIL` alone may re-diagnose or hand off. PostgreSQL integration now proves 
 routes and exact replay without duplicate route audit. The live persisted verifier now composes
 five-signal collection, immutable Artifact/Evidence persistence, full re-resolution,
 deterministic evaluation, hash-bound audit, and exact decision replay. Production backend
-transport wiring and the final mutation-enabled E2E gate remain open. A narrow server-bound
+transport wiring and production mutation enablement remain open. A narrow server-bound
 rollback adapter now admits only the preflight-resolved typed target and Idempotency Key and reads
 back the deployed semantic version; it exposes no command, URL, manifest, namespace, credential,
 or caller-selected target, and remains unregistered while the capability flag is off. Before and
@@ -130,6 +130,12 @@ The lifecycle-aware PostgreSQL execution store now commits a new action claim wi
 entry into `EXECUTING`, then commits the terminal execution with its deterministic next state:
 success enters `VERIFYING`, confirmed pre-effect failure re-diagnoses, and timeout or uncertainty
 requires a human. Exact replays cannot duplicate or rewind those audited transitions.
+The final authorized local E2E now explicitly enables the test-only capability and composes the
+server-bound adapter, simulator deployment state, immutable before/after snapshots, lifecycle-aware
+execution, live five-signal persistence, deterministic `PASS`, and success routing. It proves one
+deployment mutation, one ActionExecution, five Evidence records, one verification decision, and the
+four legal Incident transitions through `CLOSED`; exact replay reuses those results without a
+second mutation, collection, verification, or closure. The production flag remains off.
 
 ## Why this project exists
 

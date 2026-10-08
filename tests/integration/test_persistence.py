@@ -226,6 +226,7 @@ from agentops_incident_commander.infrastructure.persistence import (
     OutboxEventRow,
     OutboxRepository,
     PostgresActionExecutionStore,
+    PostgresLifecycleActionExecutionStore,
     PromptLifecycleEventRow,
     PromptLifecycleRepository,
     PromptVersionRow,
@@ -3357,6 +3358,219 @@ async def test_postgres_action_execution_store_owns_each_durable_transaction(
     assert replayed
     async with sessions() as session:
         assert await session.scalar(select(func.count()).select_from(ActionExecutionEventRow)) == 3
+
+
+@pytest.mark.anyio
+async def test_lifecycle_action_store_routes_success_to_verifying_once(
+    engine: AsyncEngine,
+) -> None:
+    approved = await persisted_approved_action(engine, suffix="lifecycle-success")
+    started = action_execution(
+        approved,
+        execution_id="execution-lifecycle-success",
+        idempotency_key="rollback-lifecycle-success",
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    store = PostgresLifecycleActionExecutionStore(sessions)
+
+    claimed, replayed = await store.claim(
+        started,
+        action_audit(started, event_id="audit-lifecycle-success-start"),
+        lambda stored: action_replay_audit(
+            started,
+            stored,
+            event_id="audit-lifecycle-success-replay-unexpected",
+            occurred_at=NOW + timedelta(minutes=8),
+        ),
+    )
+    assert claimed == started
+    assert not replayed
+    async with sessions() as session:
+        incident = await IncidentRepository(session).get_for_tenant(
+            started.incident_id, started.tenant_id
+        )
+        assert incident is not None and incident.state is IncidentState.EXECUTING
+
+    completed = started.succeed(
+        after_snapshot=action_after_snapshot(
+            started,
+            artifact_id="artifact-lifecycle-success-after",
+            observed_at=NOW + timedelta(minutes=8),
+            content_hash="7" * 64,
+        ),
+        at=NOW + timedelta(minutes=9),
+    )
+    finish_audit = action_audit(
+        completed,
+        event_id="audit-lifecycle-success-finish",
+        finished=True,
+        request_hash=started.fingerprint,
+    )
+    assert await store.finish(started, completed, finish_audit) == completed
+    assert (
+        await store.finish(
+            started,
+            completed,
+            replace(finish_audit, id=AuditEventId("audit-lifecycle-success-finish-retry")),
+        )
+        == completed
+    )
+
+    async with sessions() as session:
+        incident = await IncidentRepository(session).get_for_tenant(
+            started.incident_id, started.tenant_id
+        )
+        assert incident is not None and incident.state is IncidentState.VERIFYING
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(IncidentTransitionRow)
+                .where(IncidentTransitionRow.incident_id == started.incident_id.value)
+            )
+            == 2
+        )
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(AuditEventRow)
+                .where(AuditEventRow.event_type.like("action.execution_incident_%"))
+            )
+            == 2
+        )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("status", "failure_code", "expected_state"),
+    [
+        (ActionExecutionStatus.FAILED, "ADAPTER_REJECTED", IncidentState.INVESTIGATING),
+        (ActionExecutionStatus.TIMED_OUT, "ADAPTER_TIMEOUT", IncidentState.NEEDS_HUMAN),
+        (ActionExecutionStatus.UNCERTAIN, "ADAPTER_UNKNOWN", IncidentState.NEEDS_HUMAN),
+    ],
+)
+async def test_lifecycle_action_store_routes_non_success_to_safe_state(
+    engine: AsyncEngine,
+    status: ActionExecutionStatus,
+    failure_code: str,
+    expected_state: IncidentState,
+) -> None:
+    suffix = status.value.lower()
+    approved = await persisted_approved_action(engine, suffix=f"lifecycle-{suffix}")
+    started = action_execution(
+        approved,
+        execution_id=f"execution-lifecycle-{suffix}",
+        idempotency_key=f"rollback-lifecycle-{suffix}",
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    store = PostgresLifecycleActionExecutionStore(sessions)
+    await store.claim(
+        started,
+        action_audit(started, event_id=f"audit-lifecycle-{suffix}-start"),
+        lambda stored: action_replay_audit(
+            started,
+            stored,
+            event_id=f"audit-lifecycle-{suffix}-replay",
+            occurred_at=NOW + timedelta(minutes=8),
+        ),
+    )
+    completed = started.fail(
+        status,
+        failure_code=failure_code,
+        at=NOW + timedelta(minutes=9),
+    )
+    await store.finish(
+        started,
+        completed,
+        action_audit(
+            completed,
+            event_id=f"audit-lifecycle-{suffix}-finish",
+            finished=True,
+            request_hash=started.fingerprint,
+        ),
+    )
+
+    async with sessions() as session:
+        incident = await IncidentRepository(session).get_for_tenant(
+            started.incident_id, started.tenant_id
+        )
+        assert incident is not None and incident.state is expected_state
+
+
+@pytest.mark.anyio
+async def test_lifecycle_action_store_serializes_duplicate_claim_transition(
+    engine: AsyncEngine,
+) -> None:
+    approved = await persisted_approved_action(engine, suffix="lifecycle-concurrent")
+    started = action_execution(
+        approved,
+        execution_id="execution-lifecycle-concurrent",
+        idempotency_key="rollback-lifecycle-concurrent",
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    store = PostgresLifecycleActionExecutionStore(sessions)
+    audit_ids = count(1)
+
+    async def claim() -> tuple[ActionExecution, bool]:
+        attempt = next(audit_ids)
+        return await store.claim(
+            started,
+            action_audit(started, event_id=f"audit-lifecycle-concurrent-{attempt}"),
+            lambda stored: action_replay_audit(
+                started,
+                stored,
+                event_id=f"audit-lifecycle-concurrent-replay-{attempt}",
+                occurred_at=NOW + timedelta(minutes=8),
+            ),
+        )
+
+    results = await asyncio.gather(*(claim() for _ in range(8)))
+    assert sum(not replayed for _, replayed in results) == 1
+    assert len({item.id for item, _ in results}) == 1
+    async with sessions() as session:
+        incident = await IncidentRepository(session).get_for_tenant(
+            started.incident_id, started.tenant_id
+        )
+        assert incident is not None and incident.state is IncidentState.EXECUTING
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(IncidentTransitionRow)
+                .where(IncidentTransitionRow.incident_id == started.incident_id.value)
+            )
+            == 1
+        )
+
+
+@pytest.mark.anyio
+async def test_lifecycle_action_store_rolls_back_claim_for_invalid_incident_state(
+    engine: AsyncEngine,
+) -> None:
+    approved = await persisted_approved_action(engine, suffix="lifecycle-invalid-state")
+    started = action_execution(
+        approved,
+        execution_id="execution-lifecycle-invalid-state",
+        idempotency_key="rollback-lifecycle-invalid-state",
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        row = await session.get(IncidentRow, started.incident_id.value)
+        assert row is not None
+        row.state = IncidentState.POLICY_REVIEW.value
+
+    store = PostgresLifecycleActionExecutionStore(sessions)
+    with pytest.raises(InvalidDomainValueError, match="Incident state is invalid"):
+        await store.claim(
+            started,
+            action_audit(started, event_id="audit-lifecycle-invalid-state"),
+            lambda stored: action_replay_audit(
+                started,
+                stored,
+                event_id="audit-lifecycle-invalid-state-replay",
+                occurred_at=NOW + timedelta(minutes=8),
+            ),
+        )
+    async with sessions() as session:
+        assert await session.get(ActionExecutionRow, started.id.value) is None
 
 
 @pytest.mark.anyio

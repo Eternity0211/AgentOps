@@ -126,6 +126,10 @@ snapshots; exact retries reuse validated content while version, scope, and opera
 fail closed. A deterministic local-simulator-only deployment backend now provides exact-target,
 concurrent-idempotent state transition and live `/versionz` observation for the pending recovery
 E2E suite; it is not production composition and does not enable the default-off mutation switch.
+The lifecycle-aware PostgreSQL execution store now commits a new action claim with the Incident's
+entry into `EXECUTING`, then commits the terminal execution with its deterministic next state:
+success enters `VERIFYING`, confirmed pre-effect failure re-diagnoses, and timeout or uncertainty
+requires a human. Exact replays cannot duplicate or rewind those audited transitions.
 
 ## Why this project exists
 

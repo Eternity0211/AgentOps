@@ -123,6 +123,15 @@ transaction appends the hash-bound `REPLAYED` lifecycle and audit records before
 dispatcher is never invoked. Keeping claim and replay audit in one transaction prevents a
 concurrent completion from invalidating the observed replay between those operations.
 
+`PostgresLifecycleActionExecutionStore` is the recovery composition adapter for those durable
+boundaries. A new claim and the legal `READY_TO_EXECUTE -> EXECUTING` Incident transition commit in
+one transaction. Completion and its safe Incident route also commit together: `SUCCEEDED` enters
+`VERIFYING`; a confirmed pre-effect `FAILED` result returns to `INVESTIGATING`; `TIMED_OUT` and
+`UNCERTAIN` enter `NEEDS_HUMAN`. These execution outcomes can never resolve or close an Incident.
+Each state bridge adds a deterministic, hash-bound audit record, locks the tenant-owned Incident,
+and reuses that audit identity on exact replay so later workflow progress cannot be duplicated or
+rewound. A state mismatch rolls back the ActionExecution claim/completion transaction.
+
 Cancellation, worker loss after claim, or a terminal-commit failure cannot trigger automatic
 redispatch: a later identical delivery observes the durable `STARTED` record and records a replay.
 That conservative result remains available for the later deterministic failure-routing and stale
@@ -158,3 +167,7 @@ concurrent approval, rejection and lazy expiry routing, successful mutation clas
 terminal replay, duplicate delivery, adapter timeout, unauthorized roles, and attempts to bypass
 Incident, Evidence Gate, Policy, Approval, target-resolution, or capability controls. The runtime
 mutation capability remains disabled by default pending the Phase 9 full-chain E2E gate.
+Lifecycle-store integration additionally proves atomic execution/Incident transitions, exact
+completion replay without duplicate transitions, eight-way concurrent claim serialization,
+transaction rollback on invalid Incident state, success-to-verification routing, confirmed-failure
+re-diagnosis, and timeout/uncertainty human handoff.

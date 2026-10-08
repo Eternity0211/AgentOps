@@ -205,6 +205,7 @@ Exit: exactly one allowlisted mutation occurs for concurrent/retried identical r
   - [x] Add a narrow server-bound deployment adapter that accepts only the preflight-resolved target and idempotency key, with no command/URL/manifest surface.
   - [x] Persist deterministic-identity before/after deployment snapshots as immutable, hash-bound Artifacts and reuse them safely on exact replay.
   - [x] Add a deterministic local-simulator deployment backend with exact-target validation, concurrent idempotency, and live version observation for recovery E2E.
+  - [x] Atomically bind durable execution claim/completion to Incident `EXECUTING`, `VERIFYING`, safe re-diagnosis, or human-handoff states with replay-safe audit.
 - [x] Route verification success to resolved/closed workflow states.
 - [x] Route failed `rollback_service` verification to bounded re-diagnosis or `NEEDS_HUMAN`; never restore the known faulty version.
 - [x] Keep generic compensation unreachable in the MVP unless a future write tool provides typed safe-inverse metadata plus independent policy/approval.

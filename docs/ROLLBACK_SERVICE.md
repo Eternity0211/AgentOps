@@ -2,8 +2,8 @@
 
 Phase 8 defines the first and only MVP write-tool contract. `rollback_service` is a forward
 recovery action from a known faulty deployment to a server-configured stable version. This batch
-defines and validates the contract and resolution boundary only: it does not register a mutation
-adapter, execute a rollback, or enable a real write route.
+defines and validates the contract and resolution boundary. The typed adapter remains unregistered:
+this does not execute a rollback or enable a real write route.
 
 ## Caller-controlled input
 
@@ -44,9 +44,23 @@ then it must repeat RBAC, Incident state, Policy, Approval hash/expiry/invalidat
 and lock checks immediately before mutation. Defining this contract does not satisfy or bypass any
 of those requirements.
 
+## Server-bound deployment adapter
+
+`ServerBoundRollbackAdapter` maps the authorized execution record to a narrow deployment-control
+backend. That backend accepts only the server-resolved `ResolvedRollbackTarget` and typed
+Idempotency Key, then reports an opaque operation identity and the observed deployed semantic
+version. It exposes no shell command, URL, manifest, namespace, credential, or caller-selected
+target. The bounded dispatcher still owns timeout and uncertain-result classification.
+
+The adapter is not registered in production composition and the capability remains disabled by
+default. A concrete deployment backend plus the final full-chain E2E gate are still required
+before production enablement.
+
 ## Verification
 
 Unit tests verify exact metadata and schemas, strict round trips, immutable values, caller-field
 rejection, command/URL/path/target injection refusal, cross-Incident refusal, every allowlist
 configuration invariant, exact stable-version resolution, tenant/environment isolation, unknown
 and already-stable version refusal, and the absence of any caller-controlled service or target.
+Adapter tests prove exact target/idempotency delegation, typed result enforcement, and the absence
+of command, URL, manifest, or namespace arguments.

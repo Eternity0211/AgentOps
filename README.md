@@ -117,7 +117,10 @@ and `FAIL` alone may re-diagnose or hand off. PostgreSQL integration now proves 
 routes and exact replay without duplicate route audit. The live persisted verifier now composes
 five-signal collection, immutable Artifact/Evidence persistence, full re-resolution,
 deterministic evaluation, hash-bound audit, and exact decision replay. Production backend
-transport wiring and the final mutation-enabled E2E gate remain open.
+transport wiring and the final mutation-enabled E2E gate remain open. A narrow server-bound
+rollback adapter now admits only the preflight-resolved typed target and Idempotency Key and reads
+back the deployed semantic version; it exposes no command, URL, manifest, namespace, credential,
+or caller-selected target, and remains unregistered while the capability flag is off.
 
 ## Why this project exists
 

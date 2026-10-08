@@ -51,6 +51,7 @@ from .persisted_health_verification import (
     PostgresPersistedHealthVerifier,
 )
 from .recovery_tools import ROLLBACK_SERVICE_VERSION, rollback_service_definition
+from .rollback_adapter import DeploymentRollbackBackend, ServerBoundRollbackAdapter
 
 __all__ = [
     "DIAGNOSIS_CHECKPOINT_NAMESPACE",
@@ -65,6 +66,7 @@ __all__ = [
     "ApprovalCheckpointIdentity",
     "CheckpointExecutionStatus",
     "CollectedHealthVerification",
+    "DeploymentRollbackBackend",
     "DeterministicDiagnosisMockModel",
     "DeterministicIncidentMemoryEmbedder",
     "DiagnosisCheckpointIdentity",
@@ -87,6 +89,7 @@ __all__ = [
     "NewAlertCountResult",
     "NewAlertCountSample",
     "PostgresPersistedHealthVerifier",
+    "ServerBoundRollbackAdapter",
     "approval_checkpoint_config",
     "checkpoint_observation",
     "compiled_diagnosis_runner",

@@ -100,8 +100,11 @@ keys to the successful ActionExecution and all five Evidence records, exact repl
 ordered reasons, hash-bound audit, and corruption detection. An authorized deterministic success
 router now locks the persisted PASS and Incident, then atomically records the legal
 `VERIFYING -> RESOLVED -> CLOSED` transitions and a hash-bound audit; duplicate and concurrent
-delivery replay the same closure without extra transitions. Failed-verification routing,
-production transport composition, and real mutation enablement remain incomplete.
+delivery replay the same closure without extra transitions. Persisted FAIL decisions now follow a
+separate non-compensable route: one proposal-bound budgeted attempt returns to `INVESTIGATING`,
+while exhaustion or an explicit zero budget enters `NEEDS_HUMAN`; neither route can redeploy the
+faulty version or enter compensation. Production transport composition and real mutation
+enablement remain incomplete.
 
 ## Why this project exists
 

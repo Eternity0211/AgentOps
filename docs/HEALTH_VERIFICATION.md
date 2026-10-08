@@ -117,6 +117,28 @@ never close the Incident. A deferred cancellation does not override an observed 
 recovery: the atomic route completes through `RESOLVED` and `CLOSED`, as required by the lifecycle
 contract. Failed-verification routing remains a separate unfinished deterministic path.
 
+## Failed-verification routing
+
+`FailedHealthVerificationRouter` consumes only a persisted `FAIL` and the exact immutable
+`rollback_service` proposal whose fingerprint is stored on the successful ActionExecution. Its
+pure route decision binds the verification and proposal fingerprints, current and maximum
+re-diagnosis counts, consumed count, outcome, and target state. When the proposal's bounded budget
+has room, exactly one attempt is consumed and the Incident moves from `VERIFYING` to
+`INVESTIGATING`; an exhausted budget or explicit zero-budget handoff moves it to `NEEDS_HUMAN`.
+
+The transaction locks the verification, ActionExecution, and Incident, recomputes the route, and
+records one transition plus a hash-bound `health.verification_failed` audit event. The transition
+reason exposes the bounded count and explicitly records `compensation=forbidden`. The verification
+decision ID is the idempotency/causation identity, so concurrent or repeated delivery cannot
+consume another attempt or append another route. A changed proposal, decision, budget result,
+scope, Incident state, audit, or partial stored route fails closed.
+
+This router has no write-adapter or compensation dependency and its target type admits only
+`INVESTIGATING` or `NEEDS_HUMAN`. The typed remediation contract still fixes
+`compensation_eligible=false` and `redeploy_faulty_version=false`; even deliberately constructed
+invalid proposal objects are rejected before routing. It therefore cannot restore the known faulty
+version or enter `COMPENSATING`.
+
 ## Verification
 
 Tests cover healthy release and memory-leak criteria, scenario-specific window floors, immutable
@@ -137,3 +159,6 @@ conflicts, and observation/decision corruption detection. Success-routing tests 
 same-tenant resolution, atomic resolved/closed transitions, hash-bound audit, exact retry,
 concurrent serialization, failed-verification refusal, wrong-state refusal, record substitution,
 and corrupted partial-route rejection.
+Failure-routing tests additionally cover bounded attempt consumption, exhaustion and explicit
+handoff, exact replay, proposal/decision/route substitution, wrong-state and audit refusal,
+corrupted stored routing, and the structural compensation/faulty-version prohibition.

@@ -15,8 +15,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentops_incident_commander.application import (
     HEALTH_VERIFICATION_CLOSURE_AUDIT_SCHEMA_VERSION,
+    HEALTH_VERIFICATION_FAILURE_AUDIT_SCHEMA_VERSION,
     ApprovalLifecycleChange,
     PromptLifecycleChange,
+    VerificationFailureDecision,
+    decide_verification_failure_route,
     evidence_gate_decision_fingerprint,
     evidence_gate_input_fingerprint,
     evidence_gate_input_snapshot,
@@ -129,6 +132,7 @@ from agentops_incident_commander.domain import (
     evaluate_health_verification,
     select_alert_group,
 )
+from agentops_incident_commander.workflows import RemediationProposal
 
 from .models import (
     ActionExecutionEventRow,
@@ -1976,6 +1980,125 @@ class HealthVerificationRepository:
         await repository.apply(closed_change)
         await AuditRepository(self._session).append(audit_event)
         return closed_change.incident
+
+    async def route_failure(
+        self,
+        decision: HealthVerificationDecision,
+        proposal: RemediationProposal,
+        route: VerificationFailureDecision,
+        *,
+        metadata: EventMetadata,
+        audit_event: AuditEvent,
+    ) -> Incident:
+        """Atomically route a failed rollback verification without compensation."""
+        if not all(
+            (
+                isinstance(decision, HealthVerificationDecision),
+                isinstance(proposal, RemediationProposal),
+                isinstance(route, VerificationFailureDecision),
+                isinstance(metadata, EventMetadata),
+            )
+        ):
+            raise InvalidDomainValueError("health verification failure route inputs are invalid")
+        verification_row = await self._session.scalar(
+            select(HealthVerificationRunRow)
+            .where(
+                HealthVerificationRunRow.id == decision.id.value,
+                HealthVerificationRunRow.tenant_id == decision.tenant_id.value,
+                HealthVerificationRunRow.incident_id == decision.incident_id.value,
+            )
+            .with_for_update()
+        )
+        if (
+            verification_row is None
+            or _health_verification_from_row(verification_row)[1] != decision
+        ):
+            raise InvalidDomainValueError("failed health verification is not durably available")
+        expected_route = decide_verification_failure_route(
+            decision,
+            proposal,
+            used_rediagnosis_attempts=route.used_rediagnosis_attempts,
+        )
+        if expected_route != route:
+            raise InvalidDomainValueError("health verification failure route is not reproducible")
+        execution_row = await self._session.scalar(
+            select(ActionExecutionRow)
+            .where(
+                ActionExecutionRow.id == decision.action_execution_id.value,
+                ActionExecutionRow.tenant_id == decision.tenant_id.value,
+                ActionExecutionRow.incident_id == decision.incident_id.value,
+            )
+            .with_for_update()
+        )
+        if execution_row is None:  # pragma: no cover - protected by verification FK
+            raise InvalidDomainValueError("failure-route ActionExecution is unavailable")
+        if execution_row.proposal_fingerprint != proposal.fingerprint.value:
+            raise InvalidDomainValueError("failure-route proposal differs from execution authority")
+        incident_row = await self._session.scalar(
+            select(IncidentRow)
+            .where(
+                IncidentRow.id == decision.incident_id.value,
+                IncidentRow.tenant_id == decision.tenant_id.value,
+            )
+            .with_for_update()
+        )
+        if incident_row is None:  # pragma: no cover - protected by verification FK
+            raise InvalidDomainValueError("failure-route Incident is unavailable")
+        incident = _incident_from_row(incident_row)
+        prior_route = tuple(
+            (
+                await self._session.scalars(
+                    select(IncidentTransitionRow).where(
+                        IncidentTransitionRow.incident_id == decision.incident_id.value,
+                        IncidentTransitionRow.causation_id == decision.id.value,
+                    )
+                )
+            ).all()
+        )
+        if prior_route:
+            if not (
+                len(prior_route) == 1
+                and prior_route[0].prior_state == IncidentState.VERIFYING.value
+                and prior_route[0].new_state == route.target_state.value
+                and incident.state is route.target_state
+            ):
+                raise InvalidDomainValueError("stored health verification failure route is invalid")
+            return incident
+        if incident.state is not IncidentState.VERIFYING:
+            raise InvalidDomainValueError("failed verification Incident is not in VERIFYING")
+        binding = (
+            audit_event.tenant_id,
+            audit_event.type,
+            audit_event.payload_schema_version,
+            audit_event.actor_id,
+            audit_event.correlation_id,
+            audit_event.causation_id,
+            audit_event.target,
+            audit_event.occurred_at,
+            audit_event.request_hash,
+            audit_event.result_hash,
+        )
+        if binding != (
+            decision.tenant_id,
+            "health.verification_failed",
+            HEALTH_VERIFICATION_FAILURE_AUDIT_SCHEMA_VERSION,
+            metadata.actor_id,
+            metadata.correlation_id,
+            CausationId(decision.id.value),
+            AuditTarget("incident.lifecycle", decision.incident_id),
+            metadata.occurred_at,
+            decision.fingerprint,
+            route.fingerprint,
+        ):
+            raise InvalidDomainValueError("health verification failure audit is not hash-bound")
+        change = incident.transition(
+            route.target_state,
+            expected_version=incident.version,
+            metadata=metadata,
+        )
+        await IncidentRepository(self._session).apply(change)
+        await AuditRepository(self._session).append(audit_event)
+        return change.incident
 
 
 def _model_call_from_row(row: ModelCallTraceRow) -> ModelCallTrace:

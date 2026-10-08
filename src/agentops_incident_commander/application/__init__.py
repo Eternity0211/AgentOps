@@ -52,6 +52,14 @@ from .health_verification import (
     evaluate_evidence_bound_health_verification,
     resolve_health_verification_evidence,
 )
+from .health_verification_failure_routing import (
+    HEALTH_VERIFICATION_FAILURE_AUDIT_SCHEMA_VERSION,
+    FailedHealthVerificationRouter,
+    HealthVerificationFailureStore,
+    VerificationFailureDecision,
+    VerificationFailureOutcome,
+    decide_verification_failure_route,
+)
 from .health_verification_routing import (
     HEALTH_VERIFICATION_CLOSURE_AUDIT_SCHEMA_VERSION,
     HealthVerificationClosureStore,
@@ -110,6 +118,7 @@ from .tool_gateway import (
 __all__ = [
     "ACTION_EXECUTION_AUDIT_SCHEMA_VERSION",
     "HEALTH_VERIFICATION_CLOSURE_AUDIT_SCHEMA_VERSION",
+    "HEALTH_VERIFICATION_FAILURE_AUDIT_SCHEMA_VERSION",
     "HEALTH_VERIFICATION_SIGNAL_SCHEMA_VERSION",
     "MAX_POLICY_SERVICES",
     "ActionSnapshotWriter",
@@ -134,10 +143,12 @@ __all__ = [
     "EvidenceReferenceResolution",
     "ExecutionApprovalStore",
     "ExecutionIncidentStore",
+    "FailedHealthVerificationRouter",
     "HealthVerificationClosureStore",
     "HealthVerificationEvidenceReason",
     "HealthVerificationEvidenceReasonCode",
     "HealthVerificationEvidenceResolution",
+    "HealthVerificationFailureStore",
     "HealthVerificationSignal",
     "IncidentMemoryEmbedder",
     "IncidentMemoryIndexStore",
@@ -177,7 +188,10 @@ __all__ = [
     "ToolPayloadValidationError",
     "ToolResultLimitError",
     "ToolSchemaConfigurationError",
+    "VerificationFailureDecision",
+    "VerificationFailureOutcome",
     "compile_investigation_plan",
+    "decide_verification_failure_route",
     "evaluate_evidence_bound_health_verification",
     "evaluate_evidence_characteristics",
     "evaluate_evidence_gate",

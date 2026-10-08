@@ -200,7 +200,7 @@ Exit: exactly one allowlisted mutation occurs for concurrent/retried identical r
 - [x] Persist verification observations/evidence and deterministic decision reasons.
 - [ ] Enable the real mutation route only after verifier integration, non-compensable failure routing, and full rollback-service E2E tests pass.
 - [x] Route verification success to resolved/closed workflow states.
-- [ ] Route failed `rollback_service` verification to bounded re-diagnosis or `NEEDS_HUMAN`; never restore the known faulty version.
+- [x] Route failed `rollback_service` verification to bounded re-diagnosis or `NEEDS_HUMAN`; never restore the known faulty version.
 - [ ] Keep generic compensation unreachable in the MVP unless a future write tool provides typed safe-inverse metadata plus independent policy/approval.
 - [ ] Add verification timeout, flapping/stability-window, non-compensable failure, cancellation-safe-boundary, and re-diagnosis budget tests.
 - [ ] Implement constrained postmortem draft from confirmed facts and resolvable references only.

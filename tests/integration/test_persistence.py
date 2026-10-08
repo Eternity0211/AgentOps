@@ -33,6 +33,7 @@ from agentops_incident_commander.application import (
     ApprovalLifecycleManager,
     AuthorizedRollbackExecution,
     EvidenceReferenceResolution,
+    FailedHealthVerificationRouter,
     ModelCallTraceManager,
     PromptLifecycleChange,
     PromptLifecycleManager,
@@ -43,6 +44,7 @@ from agentops_incident_commander.application import (
     ToolAdapterContext,
     ToolCallRequest,
     ToolGateway,
+    decide_verification_failure_route,
     evaluate_evidence_gate,
     evidence_gate_decision_fingerprint,
     model_call_trace_fingerprint,
@@ -3714,12 +3716,18 @@ async def test_action_execution_serializes_duplicate_claims_and_rejects_conflict
             )
 
 
-async def persisted_successful_execution(engine: AsyncEngine, *, suffix: str) -> ActionExecution:
+async def persisted_successful_execution(
+    engine: AsyncEngine,
+    *,
+    suffix: str,
+    proposal_fingerprint: Sha256Digest | None = None,
+) -> ActionExecution:
     approved = await persisted_approved_action(engine, suffix=suffix)
     started = action_execution(
         approved,
         execution_id=f"execution-verification-{suffix}",
         idempotency_key=f"rollback-verification-{suffix}",
+        proposal_fingerprint=proposal_fingerprint,
     )
     completed = started.succeed(
         after_snapshot=action_after_snapshot(
@@ -4029,8 +4037,11 @@ async def persisted_verification_for_closure(
     *,
     suffix: str,
     failed: bool = False,
+    proposal_fingerprint: Sha256Digest | None = None,
 ) -> HealthVerificationDecision:
-    execution = await persisted_successful_execution(engine, suffix=suffix)
+    execution = await persisted_successful_execution(
+        engine, suffix=suffix, proposal_fingerprint=proposal_fingerprint
+    )
     criteria, observation, decision, evidence_pairs = verification_inputs(execution, suffix=suffix)
     if failed:
         observation = replace(
@@ -4283,4 +4294,228 @@ async def test_health_verification_closure_refuses_failure_scope_and_invalid_bin
                 passing.incident_id,
                 principal=closure_principal(),
                 correlation_id=CorrelationId("correlation-health-wrong-state"),
+            )
+
+
+def failure_route_proposal(
+    incident_id: IncidentId,
+    *,
+    maximum: int = 1,
+) -> RemediationProposal:
+    return RemediationProposal(
+        schema_version=REMEDIATION_PROPOSAL_SCHEMA_VERSION,
+        proposal_id=f"remediation-failure-{incident_id.value}",
+        proposal_version=1,
+        incident_id=incident_id.value,
+        candidate_id="candidate-failed-verification",
+        evidence_gate_input_fingerprint="4" * 64,
+        evidence_gate_decision_fingerprint="5" * 64,
+        action=RecoveryAction.ROLLBACK_SERVICE,
+        parameters=RollbackServiceParameters(
+            service="orders",
+            introducing_deployment_evidence_id="evidence-deployment-failure-route",
+        ),
+        prerequisites=RollbackPrerequisites(
+            current_version_evidence_id="evidence-current-failure-route"
+        ),
+        verification_conditions=RollbackVerificationConditions(
+            max_error_rate_basis_points=100,
+            max_p95_latency_ms=500,
+            stability_window_seconds=60,
+        ),
+        failure_handling=RemediationFailureHandling(
+            route=(
+                RemediationFailureRoute.BOUNDED_REDIAGNOSIS_THEN_HUMAN_HANDOFF
+                if maximum
+                else RemediationFailureRoute.HUMAN_HANDOFF
+            ),
+            max_rediagnosis_attempts=maximum,
+        ),
+        compensation_eligible=False,
+        risk_assumptions=("Failed verification requires a fresh diagnosis or human handoff.",),
+    )
+
+
+def verification_failure_router(
+    session: AsyncSession,
+    *,
+    audit_id: str,
+) -> FailedHealthVerificationRouter:
+    return FailedHealthVerificationRouter(
+        HealthVerificationRepository(session),
+        clock=lambda: NOW + timedelta(minutes=11),
+        audit_event_id_factory=lambda: AuditEventId(audit_id),
+    )
+
+
+@pytest.mark.anyio
+async def test_failed_health_verification_routes_to_bounded_rediagnosis_and_replays(
+    engine: AsyncEngine,
+) -> None:
+    incident_id = IncidentId("incident-action-failure-rediagnose")
+    proposal = failure_route_proposal(incident_id)
+    decision = await persisted_verification_for_closure(
+        engine,
+        suffix="failure-rediagnose",
+        failed=True,
+        proposal_fingerprint=proposal.fingerprint,
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        routed = await verification_failure_router(
+            session, audit_id="audit-health-failure-rediagnose"
+        ).route(
+            decision.id,
+            decision.incident_id,
+            proposal,
+            used_rediagnosis_attempts=0,
+            principal=closure_principal(),
+            correlation_id=CorrelationId("correlation-health-failure-rediagnose"),
+        )
+        assert routed.state is IncidentState.INVESTIGATING
+    async with sessions.begin() as session:
+        replayed = await verification_failure_router(
+            session, audit_id="audit-health-failure-replay"
+        ).route(
+            decision.id,
+            decision.incident_id,
+            proposal,
+            used_rediagnosis_attempts=0,
+            principal=closure_principal(),
+            correlation_id=CorrelationId("correlation-health-failure-replay"),
+        )
+        assert replayed == routed
+
+
+@pytest.mark.anyio
+async def test_failed_health_verification_exhaustion_hands_off_and_rejects_substitution(
+    engine: AsyncEngine,
+) -> None:
+    incident_id = IncidentId("incident-action-failure-handoff")
+    proposal = failure_route_proposal(incident_id, maximum=0)
+    decision = await persisted_verification_for_closure(
+        engine,
+        suffix="failure-handoff",
+        failed=True,
+        proposal_fingerprint=proposal.fingerprint,
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        handed_off = await verification_failure_router(
+            session, audit_id="audit-health-failure-handoff"
+        ).route(
+            decision.id,
+            decision.incident_id,
+            proposal,
+            used_rediagnosis_attempts=0,
+            principal=closure_principal(),
+            correlation_id=CorrelationId("correlation-health-failure-handoff"),
+        )
+        assert handed_off.state is IncidentState.NEEDS_HUMAN
+    substituted = failure_route_proposal(incident_id, maximum=1)
+    route = decide_verification_failure_route(decision, substituted, used_rediagnosis_attempts=0)
+    with pytest.raises(InvalidDomainValueError, match="proposal differs"):
+        async with sessions.begin() as session:
+            await HealthVerificationRepository(session).route_failure(
+                decision,
+                substituted,
+                route,
+                metadata=metadata(11),
+                audit_event=verification_audit(
+                    decision, event_id="audit-health-failure-substituted"
+                ),
+            )
+    async with sessions.begin() as session:
+        transition = await session.scalar(
+            select(IncidentTransitionRow).where(
+                IncidentTransitionRow.incident_id == decision.incident_id.value,
+                IncidentTransitionRow.causation_id == decision.id.value,
+            )
+        )
+        assert transition is not None
+        transition.new_state = IncidentState.INVESTIGATING.value
+    with pytest.raises(InvalidDomainValueError, match=r"stored.*route"):
+        async with sessions.begin() as session:
+            await verification_failure_router(
+                session, audit_id="audit-health-failure-corrupt-route"
+            ).route(
+                decision.id,
+                decision.incident_id,
+                proposal,
+                used_rediagnosis_attempts=0,
+                principal=closure_principal(),
+                correlation_id=CorrelationId("correlation-health-failure-corrupt-route"),
+            )
+
+
+@pytest.mark.anyio
+async def test_failed_health_verification_repository_rejects_invalid_route_inputs(
+    engine: AsyncEngine,
+) -> None:
+    incident_id = IncidentId("incident-action-failure-invalid")
+    proposal = failure_route_proposal(incident_id)
+    decision = await persisted_verification_for_closure(
+        engine,
+        suffix="failure-invalid",
+        failed=True,
+        proposal_fingerprint=proposal.fingerprint,
+    )
+    route = decide_verification_failure_route(decision, proposal, used_rediagnosis_attempts=0)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    with pytest.raises(InvalidDomainValueError, match="inputs"):
+        async with sessions.begin() as session:
+            await HealthVerificationRepository(session).route_failure(
+                cast(HealthVerificationDecision, "bad"),
+                proposal,
+                route,
+                metadata=metadata(11),
+                audit_event=verification_audit(
+                    decision, event_id="audit-health-failure-invalid-input"
+                ),
+            )
+    with pytest.raises(InvalidDomainValueError, match="not durably available"):
+        async with sessions.begin() as session:
+            await HealthVerificationRepository(session).route_failure(
+                replace(decision, id=OpaqueIdentifier("verification-failure-missing")),
+                proposal,
+                route,
+                metadata=metadata(11),
+                audit_event=verification_audit(decision, event_id="audit-health-failure-missing"),
+            )
+    mismatched_route = replace(route, proposal_fingerprint=Sha256Digest("0" * 64))
+    with pytest.raises(InvalidDomainValueError, match="not reproducible"):
+        async with sessions.begin() as session:
+            await HealthVerificationRepository(session).route_failure(
+                decision,
+                proposal,
+                mismatched_route,
+                metadata=metadata(11),
+                audit_event=verification_audit(
+                    decision, event_id="audit-health-failure-route-mismatch"
+                ),
+            )
+    with pytest.raises(InvalidDomainValueError, match="audit"):
+        async with sessions.begin() as session:
+            await HealthVerificationRepository(session).route_failure(
+                decision,
+                proposal,
+                route,
+                metadata=metadata(11),
+                audit_event=verification_audit(decision, event_id="audit-health-failure-unbound"),
+            )
+    async with sessions.begin() as session:
+        incident_row = await session.get(IncidentRow, decision.incident_id.value)
+        assert incident_row is not None
+        incident_row.state = IncidentState.EXECUTING.value
+    with pytest.raises(InvalidDomainValueError, match="not in VERIFYING"):
+        async with sessions.begin() as session:
+            await verification_failure_router(
+                session, audit_id="audit-health-failure-wrong-state"
+            ).route(
+                decision.id,
+                decision.incident_id,
+                proposal,
+                used_rediagnosis_attempts=0,
+                principal=closure_principal(),
+                correlation_id=CorrelationId("correlation-health-failure-wrong-state"),
             )

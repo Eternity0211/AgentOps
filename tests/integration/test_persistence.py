@@ -4388,6 +4388,69 @@ async def test_failed_health_verification_routes_to_bounded_rediagnosis_and_repl
 
 
 @pytest.mark.anyio
+async def test_failed_health_verification_honors_deferred_cancel_at_safe_boundary(
+    engine: AsyncEngine,
+) -> None:
+    incident_id = IncidentId("incident-action-failure-cancel")
+    proposal = failure_route_proposal(incident_id)
+    decision = await persisted_verification_for_closure(
+        engine,
+        suffix="failure-cancel",
+        failed=True,
+        proposal_fingerprint=proposal.fingerprint,
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        incidents = IncidentRepository(session)
+        current = await incidents.get_for_tenant(decision.incident_id, decision.tenant_id)
+        assert current is not None
+        deferred = current.request_cancellation(
+            expected_version=current.version,
+            metadata=metadata(10),
+        )
+        await incidents.apply(deferred)
+        assert deferred.incident.state is IncidentState.VERIFYING
+    async with sessions.begin() as session:
+        cancelled = await verification_failure_router(
+            session, audit_id="audit-health-failure-cancel"
+        ).route(
+            decision.id,
+            decision.incident_id,
+            proposal,
+            used_rediagnosis_attempts=0,
+            principal=closure_principal(),
+            correlation_id=CorrelationId("correlation-health-failure-cancel"),
+        )
+        assert cancelled.state is IncidentState.CANCELLED
+    async with sessions.begin() as session:
+        replayed = await verification_failure_router(
+            session, audit_id="audit-health-failure-cancel-replay"
+        ).route(
+            decision.id,
+            decision.incident_id,
+            proposal,
+            used_rediagnosis_attempts=0,
+            principal=closure_principal(),
+            correlation_id=CorrelationId("correlation-health-failure-cancel-replay"),
+        )
+        assert replayed == cancelled
+        route = (
+            await session.scalars(
+                select(IncidentTransitionRow)
+                .where(
+                    IncidentTransitionRow.incident_id == decision.incident_id.value,
+                    IncidentTransitionRow.causation_id == decision.id.value,
+                )
+                .order_by(IncidentTransitionRow.new_version)
+            )
+        ).all()
+        assert [(item.prior_state, item.new_state) for item in route] == [
+            (IncidentState.VERIFYING.value, IncidentState.INVESTIGATING.value),
+            (IncidentState.INVESTIGATING.value, IncidentState.CANCELLED.value),
+        ]
+
+
+@pytest.mark.anyio
 async def test_failed_health_verification_exhaustion_hands_off_and_rejects_substitution(
     engine: AsyncEngine,
 ) -> None:

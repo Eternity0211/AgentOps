@@ -2056,12 +2056,18 @@ class HealthVerificationRepository:
             ).all()
         )
         if prior_route:
-            if not (
-                len(prior_route) == 1
-                and prior_route[0].prior_state == IncidentState.VERIFYING.value
+            primary = (
+                prior_route[0].prior_state == IncidentState.VERIFYING.value
                 and prior_route[0].new_state == route.target_state.value
-                and incident.state is route.target_state
-            ):
+            )
+            direct = len(prior_route) == 1 and incident.state is route.target_state
+            deferred_cancel = (
+                len(prior_route) == 2
+                and prior_route[1].prior_state == route.target_state.value
+                and prior_route[1].new_state == IncidentState.CANCELLED.value
+                and incident.state is IncidentState.CANCELLED
+            )
+            if not (primary and (direct or deferred_cancel)):
                 raise InvalidDomainValueError("stored health verification failure route is invalid")
             return incident
         if incident.state is not IncidentState.VERIFYING:

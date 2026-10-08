@@ -133,6 +133,12 @@ decision ID is the idempotency/causation identity, so concurrent or repeated del
 consume another attempt or append another route. A changed proposal, decision, budget result,
 scope, Incident state, audit, or partial stored route fails closed.
 
+If cancellation was requested while verification was running, the failure result is recorded
+first. Once the route reaches cancellable `INVESTIGATING` or `NEEDS_HUMAN`, the Incident aggregate
+immediately appends the deferred `CANCELLED` transition in the same transaction. Replay accepts
+only that exact two-transition sequence; cancellation can neither interrupt observation nor erase
+the deterministic failure outcome.
+
 This router has no write-adapter or compensation dependency and its target type admits only
 `INVESTIGATING` or `NEEDS_HUMAN`. The typed remediation contract still fixes
 `compensation_eligible=false` and `redeploy_faulty_version=false`; even deliberately constructed
@@ -161,4 +167,7 @@ concurrent serialization, failed-verification refusal, wrong-state refusal, reco
 and corrupted partial-route rejection.
 Failure-routing tests additionally cover bounded attempt consumption, exhaustion and explicit
 handoff, exact replay, proposal/decision/route substitution, wrong-state and audit refusal,
-corrupted stored routing, and the structural compensation/faulty-version prohibition.
+corrupted stored routing, deferred cancellation at the first safe boundary, and the structural
+compensation/faulty-version prohibition. Together with collector whole-bundle timeout tests and
+the domain's intermediate-flapping/stability-window cases, these cover the Phase 9 verifier
+resilience matrix.

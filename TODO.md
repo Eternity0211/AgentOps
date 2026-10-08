@@ -197,7 +197,7 @@ Exit: exactly one allowlisted mutation occurs for concurrent/retried identical r
   content and fail closed before evaluation on any scope, source, query, or value mismatch.
 - [x] Verify error rate and P95 latency from real metric evidence.
 - [x] Verify health endpoint, active service version, new alerts, and stable observation window.
-- [ ] Persist verification observations/evidence and deterministic decision reasons.
+- [x] Persist verification observations/evidence and deterministic decision reasons.
 - [ ] Enable the real mutation route only after verifier integration, non-compensable failure routing, and full rollback-service E2E tests pass.
 - [ ] Route verification success to resolved/closed workflow states.
 - [ ] Route failed `rollback_service` verification to bounded re-diagnosis or `NEEDS_HUMAN`; never restore the known faulty version.

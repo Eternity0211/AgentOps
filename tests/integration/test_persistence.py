@@ -84,6 +84,11 @@ from agentops_incident_commander.domain import (
     EvidenceLineage,
     EvidenceQuality,
     EvidenceSourceType,
+    HealthVerificationCriteria,
+    HealthVerificationDecision,
+    HealthVerificationObservation,
+    HealthVerificationSample,
+    HealthVerificationScenario,
     IdempotencyKey,
     Incident,
     IncidentChange,
@@ -161,6 +166,7 @@ from agentops_incident_commander.domain import (
     ToolSchema,
     TrustClassification,
     WorkflowRunId,
+    evaluate_health_verification,
 )
 from agentops_incident_commander.infrastructure import DeterministicIncidentMemoryEmbedder
 from agentops_incident_commander.infrastructure.artifacts import LocalArtifactStorage
@@ -182,6 +188,8 @@ from agentops_incident_commander.infrastructure.persistence import (
     EvidenceGateRepository,
     EvidenceRepository,
     EvidenceRow,
+    HealthVerificationRepository,
+    HealthVerificationRunRow,
     IdempotencyRecordRow,
     IncidentCancellationRequestRow,
     IncidentMemoryEmbeddingRow,
@@ -248,7 +256,8 @@ async def engine(migrated_url: str) -> AsyncIterator[AsyncEngine]:
         await connection.execute(
             text(
                 "TRUNCATE alerts, alert_groups, incident_cancellation_requests, "
-                "incident_transitions, evidence, idempotency_records, outbox_events, jobs, "
+                "incident_transitions, health_verification_runs, evidence, "
+                "idempotency_records, outbox_events, jobs, "
                 "evidence_gate_decisions, model_call_traces, approval_invalidations, "
                 "action_execution_events, action_execution_locks, action_executions, "
                 "approval_lifecycle_events, approvals, prompt_lifecycle_events, "
@@ -3698,4 +3707,314 @@ async def test_action_execution_serializes_duplicate_claims_and_rejects_conflict
             await ActionExecutionRepository(session).claim(
                 target_conflict,
                 action_audit(target_conflict, event_id="audit-action-target-conflict"),
+            )
+
+
+async def persisted_successful_execution(engine: AsyncEngine, *, suffix: str) -> ActionExecution:
+    approved = await persisted_approved_action(engine, suffix=suffix)
+    started = action_execution(
+        approved,
+        execution_id=f"execution-verification-{suffix}",
+        idempotency_key=f"rollback-verification-{suffix}",
+    )
+    completed = started.succeed(
+        after_snapshot=action_after_snapshot(
+            started,
+            artifact_id=f"after-verification-{suffix}",
+            observed_at=NOW + timedelta(minutes=8),
+            content_hash="7" * 64,
+        ),
+        at=NOW + timedelta(minutes=8),
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        repository = ActionExecutionRepository(session)
+        await repository.claim(
+            started, action_audit(started, event_id=f"audit-verification-start-{suffix}")
+        )
+        await repository.finish(
+            started,
+            completed,
+            action_audit(
+                completed,
+                event_id=f"audit-verification-finish-{suffix}",
+                finished=True,
+                request_hash=started.fingerprint,
+            ),
+        )
+    return completed
+
+
+def verification_inputs(
+    execution: ActionExecution,
+    *,
+    suffix: str,
+    observation_id: str | None = None,
+    decision_id: str | None = None,
+) -> tuple[
+    HealthVerificationCriteria,
+    HealthVerificationObservation,
+    HealthVerificationDecision,
+    tuple[tuple[Evidence, Artifact], ...],
+]:
+    started_at = NOW + timedelta(minutes=9)
+    samples = tuple(
+        HealthVerificationSample(
+            started_at + timedelta(seconds=offset),
+            50,
+            400,
+            True,
+            execution.target.stable_version,
+            0,
+        )
+        for offset in (0, 30, 60)
+    )
+    names = ("error", "p95", "health", "version", "alerts")
+    evidence_pairs: list[tuple[Evidence, Artifact]] = []
+    for index, name in enumerate(names):
+        artifact = replace(
+            evidence_artifact(incident=execution.incident_id.value),
+            id=ArtifactId(f"verification-artifact-{suffix}-{name}"),
+            locator=f"local-artifact:v1:verification-artifact-{suffix}-{name}",
+        )
+        evidence_pairs.append(
+            (
+                replace(
+                    evidence_record(incident=execution.incident_id.value),
+                    id=EvidenceId(f"verification-evidence-{suffix}-{name}"),
+                    artifact_id=artifact.id,
+                    content_hash=artifact.content_hash,
+                    lineage=EvidenceLineage(
+                        ToolCallId(f"verification-call-{suffix}-{index}"),
+                        WorkflowRunId(f"verification-workflow-{suffix}"),
+                        None,
+                    ),
+                ),
+                artifact,
+            )
+        )
+    criteria = HealthVerificationCriteria(
+        execution.tenant_id,
+        execution.incident_id,
+        execution.id,
+        HealthVerificationScenario.RELEASE_HTTP_500,
+        execution.target.service,
+        execution.target.environment,
+        execution.target.stable_version,
+        100,
+        500,
+        0,
+        60,
+        30,
+    )
+    observation = HealthVerificationObservation(
+        id=OpaqueIdentifier(observation_id or f"verification-observation-{suffix}"),
+        tenant_id=execution.tenant_id,
+        incident_id=execution.incident_id,
+        action_execution_id=execution.id,
+        service=execution.target.service,
+        environment=execution.target.environment,
+        expected_stable_version=execution.target.stable_version,
+        window_started_at=started_at,
+        window_ended_at=started_at + timedelta(seconds=60),
+        samples=samples,
+        error_rate_evidence_id=evidence_pairs[0][0].id,
+        p95_latency_evidence_id=evidence_pairs[1][0].id,
+        health_endpoint_evidence_id=evidence_pairs[2][0].id,
+        deployed_version_evidence_id=evidence_pairs[3][0].id,
+        new_alerts_evidence_id=evidence_pairs[4][0].id,
+        collected_at=started_at + timedelta(seconds=61),
+        expires_at=started_at + timedelta(minutes=5),
+    )
+    decision = evaluate_health_verification(
+        execution,
+        criteria,
+        observation,
+        decision_id=OpaqueIdentifier(decision_id or f"verification-decision-{suffix}"),
+        evaluated_at=started_at + timedelta(seconds=62),
+    )
+    return criteria, observation, decision, tuple(evidence_pairs)
+
+
+def verification_audit(decision: HealthVerificationDecision, *, event_id: str) -> AuditEvent:
+    return AuditEvent(
+        AuditEventId(event_id),
+        decision.tenant_id,
+        "health.verification_decided",
+        1,
+        "health_verification/v1",
+        ActorId("worker-health-verifier"),
+        CorrelationId("correlation-health-verifier"),
+        CausationId("action-health-verifier"),
+        AuditTarget("health.verification", decision.id),
+        decision.evaluated_at,
+        decision.input_fingerprint,
+        decision.fingerprint,
+    )
+
+
+async def persist_verification_evidence(
+    engine: AsyncEngine, evidence_pairs: tuple[tuple[Evidence, Artifact], ...]
+) -> None:
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        repository = EvidenceRepository(session)
+        for evidence, artifact in evidence_pairs:
+            await repository.add(evidence, artifact)
+
+
+@pytest.mark.anyio
+async def test_health_verification_repository_round_trip_replay_and_scope(
+    engine: AsyncEngine,
+) -> None:
+    execution = await persisted_successful_execution(engine, suffix="round-trip")
+    criteria, observation, decision, evidence_pairs = verification_inputs(
+        execution, suffix="round-trip"
+    )
+    await persist_verification_evidence(engine, evidence_pairs)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    audit = verification_audit(decision, event_id="audit-health-verification-round-trip")
+    async with sessions.begin() as session:
+        repository = HealthVerificationRepository(session)
+        assert await repository.record(execution, criteria, observation, decision, audit) == (
+            observation,
+            decision,
+        )
+    async with sessions.begin() as session:
+        repository = HealthVerificationRepository(session)
+        assert await repository.record(execution, criteria, observation, decision, audit) == (
+            observation,
+            decision,
+        )
+        assert await repository.get(
+            decision.id, tenant_id=execution.tenant_id, incident_id=execution.incident_id
+        ) == (observation, decision)
+        assert (
+            await repository.get(
+                decision.id,
+                tenant_id=TenantId("tenant-other"),
+                incident_id=execution.incident_id,
+            )
+            is None
+        )
+        assert await session.scalar(select(func.count()).select_from(HealthVerificationRunRow)) == 1
+
+
+@pytest.mark.anyio
+async def test_health_verification_repository_rejects_unbound_inputs(
+    engine: AsyncEngine,
+) -> None:
+    execution = await persisted_successful_execution(engine, suffix="reject")
+    criteria, observation, decision, evidence_pairs = verification_inputs(
+        execution, suffix="reject"
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    audit = verification_audit(decision, event_id="audit-health-verification-reject")
+    with pytest.raises(InvalidDomainValueError, match="Evidence"):
+        async with sessions.begin() as session:
+            await HealthVerificationRepository(session).record(
+                execution, criteria, observation, decision, audit
+            )
+    await persist_verification_evidence(engine, evidence_pairs)
+    with pytest.raises(InvalidDomainValueError, match="not reproducible"):
+        async with sessions.begin() as session:
+            await HealthVerificationRepository(session).record(
+                execution,
+                criteria,
+                observation,
+                replace(decision, input_fingerprint=Sha256Digest("8" * 64)),
+                audit,
+            )
+    with pytest.raises(InvalidDomainValueError, match="audit"):
+        async with sessions.begin() as session:
+            await HealthVerificationRepository(session).record(
+                execution,
+                criteria,
+                observation,
+                decision,
+                replace(audit, result_hash=Sha256Digest("9" * 64)),
+            )
+    substituted_execution = replace(execution, actor_id=ActorId("substituted-actor"))
+    substituted_decision = evaluate_health_verification(
+        substituted_execution,
+        criteria,
+        observation,
+        decision_id=decision.id,
+        evaluated_at=decision.evaluated_at,
+    )
+    with pytest.raises(InvalidDomainValueError, match="execution"):
+        async with sessions.begin() as session:
+            await HealthVerificationRepository(session).record(
+                substituted_execution,
+                criteria,
+                observation,
+                substituted_decision,
+                verification_audit(
+                    substituted_decision,
+                    event_id="audit-health-verification-substituted",
+                ),
+            )
+
+
+@pytest.mark.anyio
+async def test_health_verification_repository_rejects_identity_conflict_and_corruption(
+    engine: AsyncEngine,
+) -> None:
+    execution = await persisted_successful_execution(engine, suffix="conflict")
+    criteria, observation, decision, evidence_pairs = verification_inputs(
+        execution, suffix="conflict"
+    )
+    await persist_verification_evidence(engine, evidence_pairs)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        await HealthVerificationRepository(session).record(
+            execution,
+            criteria,
+            observation,
+            decision,
+            verification_audit(decision, event_id="audit-health-verification-conflict"),
+        )
+    changed_observation = replace(
+        observation, id=OpaqueIdentifier("verification-observation-conflicting")
+    )
+    changed_decision = evaluate_health_verification(
+        execution,
+        criteria,
+        changed_observation,
+        decision_id=decision.id,
+        evaluated_at=decision.evaluated_at,
+    )
+    with pytest.raises(InvalidDomainValueError, match="conflicts"):
+        async with sessions.begin() as session:
+            await HealthVerificationRepository(session).record(
+                execution,
+                criteria,
+                changed_observation,
+                changed_decision,
+                verification_audit(
+                    changed_decision, event_id="audit-health-verification-conflicting"
+                ),
+            )
+    async with sessions.begin() as session:
+        row = await session.get(HealthVerificationRunRow, decision.id.value)
+        assert row is not None
+        row.observation_fingerprint = "0" * 64
+    with pytest.raises(InvalidDomainValueError, match="observation is corrupted"):
+        async with sessions() as session:
+            await HealthVerificationRepository(session).get(
+                decision.id,
+                tenant_id=decision.tenant_id,
+                incident_id=decision.incident_id,
+            )
+    async with sessions.begin() as session:
+        row = await session.get(HealthVerificationRunRow, decision.id.value)
+        assert row is not None
+        row.observation_fingerprint = decision.observation_fingerprint.value
+        row.decision_fingerprint = "0" * 64
+    with pytest.raises(InvalidDomainValueError, match="decision is corrupted"):
+        async with sessions() as session:
+            await HealthVerificationRepository(session).get(
+                decision.id,
+                tenant_id=decision.tenant_id,
+                incident_id=decision.incident_id,
             )

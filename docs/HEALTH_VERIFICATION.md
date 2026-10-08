@@ -81,6 +81,23 @@ This decision describes observed post-action health only. It does not transition
 enable the real mutation route, create compensation, or redeploy the known faulty version. Those
 application routes remain separate deterministic work.
 
+## Durable verification record
+
+PostgreSQL stores each accepted observation and deterministic decision as one immutable
+`health_verification_runs` record. The record binds tenant, Incident, successful ActionExecution,
+scenario, complete sample window, the five Evidence IDs, every criteria/observation/execution/input
+fingerprint, ordered outcome reasons, evaluation time, rules version, and schema version. Composite
+foreign keys keep the ActionExecution and each Evidence reference in the same tenant and Incident;
+dangling or cross-scope references cannot be committed.
+
+The repository recomputes the decision before writing, reloads the exact durable successful
+ActionExecution, confirms all five Evidence records exist in scope, and validates a hash-bound
+`health.verification_decided` audit event. A repeated decision ID, observation ID, or identical
+execution/input pair is accepted only when the complete stored observation and decision match.
+Changed reuse fails closed. Reads recompute both immutable fingerprints so direct storage
+corruption is detected rather than returned as trusted verification data. Persistence remains
+descriptive: it neither changes Incident state nor invokes a write or compensation path.
+
 ## Verification
 
 Tests cover healthy release and memory-leak criteria, scenario-specific window floors, immutable
@@ -94,3 +111,7 @@ sample-value mismatch. The verifier contract and evidence-binding modules mainta
 statement and branch coverage. Live-collection tests additionally cover exact backend requests,
 unit conversion, end-to-end Artifact re-resolution, incomplete/dropped/substituted series,
 misaligned timestamps, invalid values, strict identities/time bounds, and whole-bundle timeout.
+PostgreSQL integration tests additionally prove migration upgrade/full downgrade/re-upgrade,
+round-trip retrieval, exact replay, tenant/Incident isolation, missing Evidence refusal,
+non-reproducible decisions, audit substitution, durable ActionExecution substitution, identity
+conflicts, and observation/decision corruption detection.

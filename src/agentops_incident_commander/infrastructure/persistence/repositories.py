@@ -57,6 +57,13 @@ from agentops_incident_commander.domain import (
     EvidenceLineage,
     EvidenceQuality,
     EvidenceSourceType,
+    HealthVerificationCriteria,
+    HealthVerificationDecision,
+    HealthVerificationObservation,
+    HealthVerificationOutcome,
+    HealthVerificationReasonCode,
+    HealthVerificationSample,
+    HealthVerificationScenario,
     IdempotencyKey,
     Incident,
     IncidentChange,
@@ -116,6 +123,7 @@ from agentops_incident_commander.domain import (
     TrustClassification,
     WorkflowRunId,
     as_utc,
+    evaluate_health_verification,
     select_alert_group,
 )
 
@@ -131,6 +139,7 @@ from .models import (
     AuditEventRow,
     EvidenceGateDecisionRow,
     EvidenceRow,
+    HealthVerificationRunRow,
     IncidentCancellationRequestRow,
     IncidentMemoryEmbeddingRow,
     IncidentMemoryProjectionRow,
@@ -1643,6 +1652,218 @@ class ActionExecutionRepository:
         )
         await AuditRepository(self._session).append(audit_event)
         await self._session.flush()
+
+
+def _health_verification_from_row(
+    row: HealthVerificationRunRow,
+) -> tuple[HealthVerificationObservation, HealthVerificationDecision]:
+    observation = HealthVerificationObservation(
+        id=OpaqueIdentifier(row.observation_id),
+        tenant_id=TenantId(row.tenant_id),
+        incident_id=IncidentId(row.incident_id),
+        action_execution_id=OpaqueIdentifier(row.action_execution_id),
+        service=row.service,
+        environment=PolicyEnvironment(row.environment),
+        expected_stable_version=SemanticVersion(row.expected_stable_version),
+        window_started_at=row.window_started_at,
+        window_ended_at=row.window_ended_at,
+        samples=tuple(
+            HealthVerificationSample(
+                observed_at=datetime.fromisoformat(cast(str, item["observed_at"])),
+                error_rate_basis_points=cast(int, item["error_rate_basis_points"]),
+                p95_latency_ms=cast(int, item["p95_latency_ms"]),
+                health_endpoint_healthy=cast(bool, item["health_endpoint_healthy"]),
+                deployed_version=SemanticVersion(cast(str, item["deployed_version"])),
+                new_alert_count=cast(int, item["new_alert_count"]),
+            )
+            for item in row.samples
+        ),
+        error_rate_evidence_id=EvidenceId(row.error_rate_evidence_id),
+        p95_latency_evidence_id=EvidenceId(row.p95_latency_evidence_id),
+        health_endpoint_evidence_id=EvidenceId(row.health_endpoint_evidence_id),
+        deployed_version_evidence_id=EvidenceId(row.deployed_version_evidence_id),
+        new_alerts_evidence_id=EvidenceId(row.new_alerts_evidence_id),
+        collected_at=row.collected_at,
+        expires_at=row.expires_at,
+        schema_version=row.schema_version,
+    )
+    decision = HealthVerificationDecision(
+        id=OpaqueIdentifier(row.id),
+        tenant_id=TenantId(row.tenant_id),
+        incident_id=IncidentId(row.incident_id),
+        action_execution_id=OpaqueIdentifier(row.action_execution_id),
+        scenario=HealthVerificationScenario(row.scenario),
+        outcome=HealthVerificationOutcome(row.outcome),
+        reasons=tuple(HealthVerificationReasonCode(item) for item in row.reasons),
+        criteria_fingerprint=Sha256Digest(row.criteria_fingerprint),
+        observation_fingerprint=Sha256Digest(row.observation_fingerprint),
+        execution_fingerprint=Sha256Digest(row.execution_fingerprint),
+        input_fingerprint=Sha256Digest(row.input_fingerprint),
+        evaluated_at=row.evaluated_at,
+        rules_version=SemanticVersion(row.rules_version),
+        schema_version=row.schema_version,
+    )
+    if observation.fingerprint.value != row.observation_fingerprint:
+        raise InvalidDomainValueError("stored health verification observation is corrupted")
+    if decision.fingerprint.value != row.decision_fingerprint:
+        raise InvalidDomainValueError("stored health verification decision is corrupted")
+    return observation, decision
+
+
+class HealthVerificationRepository:
+    """Persist one immutable evidence-bound verifier result and append-only audit event."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def record(
+        self,
+        execution: ActionExecution,
+        criteria: HealthVerificationCriteria,
+        observation: HealthVerificationObservation,
+        decision: HealthVerificationDecision,
+        audit_event: AuditEvent,
+    ) -> tuple[HealthVerificationObservation, HealthVerificationDecision]:
+        expected = evaluate_health_verification(
+            execution,
+            criteria,
+            observation,
+            decision_id=decision.id,
+            evaluated_at=decision.evaluated_at,
+        )
+        if expected != decision:
+            raise InvalidDomainValueError("health verification decision is not reproducible")
+        audit_binding = (
+            audit_event.tenant_id,
+            audit_event.type,
+            audit_event.payload_schema_version,
+            audit_event.target,
+            audit_event.request_hash,
+            audit_event.result_hash,
+            audit_event.occurred_at,
+        )
+        if audit_binding != (
+            decision.tenant_id,
+            "health.verification_decided",
+            "health_verification/v1",
+            AuditTarget("health.verification", decision.id),
+            decision.input_fingerprint,
+            decision.fingerprint,
+            decision.evaluated_at,
+        ):
+            raise InvalidDomainValueError("health verification audit event is not hash-bound")
+        stored_execution = await self._session.scalar(
+            select(ActionExecutionRow).where(
+                ActionExecutionRow.id == execution.id.value,
+                ActionExecutionRow.tenant_id == execution.tenant_id.value,
+                ActionExecutionRow.incident_id == execution.incident_id.value,
+            )
+        )
+        if stored_execution is None or _action_execution_from_row(stored_execution) != execution:
+            raise InvalidDomainValueError("successful action execution is not durably available")
+        evidence_ids = (
+            observation.error_rate_evidence_id,
+            observation.p95_latency_evidence_id,
+            observation.health_endpoint_evidence_id,
+            observation.deployed_version_evidence_id,
+            observation.new_alerts_evidence_id,
+        )
+        persisted_ids = set(
+            (
+                await self._session.scalars(
+                    select(EvidenceRow.id).where(
+                        EvidenceRow.tenant_id == observation.tenant_id.value,
+                        EvidenceRow.incident_id == observation.incident_id.value,
+                        EvidenceRow.id.in_(item.value for item in evidence_ids),
+                    )
+                )
+            ).all()
+        )
+        if persisted_ids != {item.value for item in evidence_ids}:
+            raise InvalidDomainValueError("health verification Evidence is not durably available")
+        existing = await self._session.scalar(
+            select(HealthVerificationRunRow).where(
+                HealthVerificationRunRow.tenant_id == decision.tenant_id.value,
+                or_(
+                    HealthVerificationRunRow.id == decision.id.value,
+                    HealthVerificationRunRow.observation_id == observation.id.value,
+                    (
+                        (HealthVerificationRunRow.action_execution_id == execution.id.value)
+                        & (
+                            HealthVerificationRunRow.input_fingerprint
+                            == decision.input_fingerprint.value
+                        )
+                    ),
+                ),
+            )
+        )
+        if existing is not None:
+            stored = _health_verification_from_row(existing)
+            if stored != (observation, decision):
+                raise InvalidDomainValueError("health verification identity conflicts with storage")
+            return stored
+        self._session.add(
+            HealthVerificationRunRow(
+                id=decision.id.value,
+                tenant_id=decision.tenant_id.value,
+                incident_id=decision.incident_id.value,
+                action_execution_id=decision.action_execution_id.value,
+                observation_id=observation.id.value,
+                scenario=decision.scenario.value,
+                service=observation.service,
+                environment=observation.environment.value,
+                expected_stable_version=observation.expected_stable_version.value,
+                window_started_at=observation.window_started_at,
+                window_ended_at=observation.window_ended_at,
+                samples=[
+                    {
+                        "observed_at": item.observed_at.isoformat(),
+                        "error_rate_basis_points": item.error_rate_basis_points,
+                        "p95_latency_ms": item.p95_latency_ms,
+                        "health_endpoint_healthy": item.health_endpoint_healthy,
+                        "deployed_version": item.deployed_version.value,
+                        "new_alert_count": item.new_alert_count,
+                    }
+                    for item in observation.samples
+                ],
+                error_rate_evidence_id=observation.error_rate_evidence_id.value,
+                p95_latency_evidence_id=observation.p95_latency_evidence_id.value,
+                health_endpoint_evidence_id=observation.health_endpoint_evidence_id.value,
+                deployed_version_evidence_id=observation.deployed_version_evidence_id.value,
+                new_alerts_evidence_id=observation.new_alerts_evidence_id.value,
+                collected_at=observation.collected_at,
+                expires_at=observation.expires_at,
+                outcome=decision.outcome.value,
+                reasons=[item.value for item in decision.reasons],
+                criteria_fingerprint=decision.criteria_fingerprint.value,
+                observation_fingerprint=decision.observation_fingerprint.value,
+                execution_fingerprint=decision.execution_fingerprint.value,
+                input_fingerprint=decision.input_fingerprint.value,
+                decision_fingerprint=decision.fingerprint.value,
+                evaluated_at=decision.evaluated_at,
+                rules_version=decision.rules_version.value,
+                schema_version=decision.schema_version,
+            )
+        )
+        await self._session.flush()
+        await AuditRepository(self._session).append(audit_event)
+        return observation, decision
+
+    async def get(
+        self,
+        decision_id: OpaqueIdentifier,
+        *,
+        tenant_id: TenantId,
+        incident_id: IncidentId,
+    ) -> tuple[HealthVerificationObservation, HealthVerificationDecision] | None:
+        row = await self._session.scalar(
+            select(HealthVerificationRunRow).where(
+                HealthVerificationRunRow.id == decision_id.value,
+                HealthVerificationRunRow.tenant_id == tenant_id.value,
+                HealthVerificationRunRow.incident_id == incident_id.value,
+            )
+        )
+        return None if row is None else _health_verification_from_row(row)
 
 
 def _model_call_from_row(row: ModelCallTraceRow) -> ModelCallTrace:

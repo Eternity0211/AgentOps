@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 
 from pgvector.sqlalchemy import VECTOR
@@ -32,6 +33,9 @@ from agentops_incident_commander.domain import (
     ApprovalStatus,
     EvidenceGateOutcome,
     EvidenceSourceType,
+    HealthVerificationOutcome,
+    HealthVerificationReasonCode,
+    HealthVerificationScenario,
     IncidentMemoryConfirmationSource,
     IncidentMemoryOutcome,
     IncidentState,
@@ -61,6 +65,13 @@ _MEMORY_CONFIRMATIONS = ", ".join(f"'{value.value}'" for value in IncidentMemory
 _APPROVAL_STATUSES = ", ".join(f"'{value.value}'" for value in ApprovalStatus)
 _RISK_LEVELS = ", ".join(f"'{value.value}'" for value in RiskLevel)
 _ACTION_EXECUTION_STATUSES = ", ".join(f"'{value.value}'" for value in ActionExecutionStatus)
+_HEALTH_VERIFICATION_OUTCOMES = ", ".join(f"'{value.value}'" for value in HealthVerificationOutcome)
+_HEALTH_VERIFICATION_REASONS_JSON = json.dumps(
+    [value.value for value in HealthVerificationReasonCode], separators=(",", ":")
+)
+_HEALTH_VERIFICATION_SCENARIOS = ", ".join(
+    f"'{value.value}'" for value in HealthVerificationScenario
+)
 
 
 class Base(DeclarativeBase):
@@ -284,6 +295,7 @@ class EvidenceRow(Base):
         CheckConstraint("collected_at >= observed_to", name="ck_evidence_collection_order"),
         CheckConstraint("expires_at > collected_at", name="ck_evidence_expiry_order"),
         UniqueConstraint("artifact_id", name="uq_evidence_artifact"),
+        UniqueConstraint("id", "tenant_id", "incident_id", name="uq_evidence_id_tenant_incident"),
         Index("ix_evidence_incident_collected", "tenant_id", "incident_id", "collected_at"),
         Index("ix_evidence_expiry", "expires_at"),
     )
@@ -717,6 +729,116 @@ class ActionExecutionEventRow(Base):
     after_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
     audit_event_id: Mapped[str] = mapped_column(String(128), nullable=False)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class HealthVerificationRunRow(Base):
+    """Immutable evidence-bound deterministic verification observation and decision."""
+
+    __tablename__ = "health_verification_runs"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["incident_id", "tenant_id"],
+            ["incidents.id", "incidents.tenant_id"],
+            name="fk_health_verification_incident_tenant",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["action_execution_id", "tenant_id"],
+            ["action_executions.id", "action_executions.tenant_id"],
+            name="fk_health_verification_execution_tenant",
+            ondelete="RESTRICT",
+        ),
+        *(
+            ForeignKeyConstraint(
+                [field, "tenant_id", "incident_id"],
+                ["evidence.id", "evidence.tenant_id", "evidence.incident_id"],
+                name=f"fk_health_verification_{name}_evidence",
+                ondelete="RESTRICT",
+            )
+            for field, name in (
+                ("error_rate_evidence_id", "error_rate"),
+                ("p95_latency_evidence_id", "p95_latency"),
+                ("health_endpoint_evidence_id", "health_endpoint"),
+                ("deployed_version_evidence_id", "deployed_version"),
+                ("new_alerts_evidence_id", "new_alerts"),
+            )
+        ),
+        CheckConstraint(
+            f"scenario IN ({_HEALTH_VERIFICATION_SCENARIOS})",
+            name="ck_health_verification_scenario",
+        ),
+        CheckConstraint(
+            f"outcome IN ({_HEALTH_VERIFICATION_OUTCOMES})",
+            name="ck_health_verification_outcome",
+        ),
+        CheckConstraint(
+            f"jsonb_typeof(reasons) = 'array' AND "
+            f"reasons <@ '{_HEALTH_VERIFICATION_REASONS_JSON}'::jsonb",
+            name="ck_health_verification_reasons",
+        ),
+        CheckConstraint(
+            "(outcome = 'PASS' AND jsonb_array_length(reasons) = 0) OR "
+            "(outcome = 'FAIL' AND jsonb_array_length(reasons) > 0)",
+            name="ck_health_verification_outcome_reasons",
+        ),
+        CheckConstraint(
+            "criteria_fingerprint ~ '^[0-9a-f]{64}$' AND "
+            "observation_fingerprint ~ '^[0-9a-f]{64}$' AND "
+            "execution_fingerprint ~ '^[0-9a-f]{64}$' AND "
+            "input_fingerprint ~ '^[0-9a-f]{64}$' AND "
+            "decision_fingerprint ~ '^[0-9a-f]{64}$'",
+            name="ck_health_verification_hashes",
+        ),
+        CheckConstraint(
+            "window_started_at < window_ended_at AND window_ended_at <= collected_at "
+            "AND collected_at < expires_at AND evaluated_at >= collected_at",
+            name="ck_health_verification_times",
+        ),
+        UniqueConstraint("tenant_id", "observation_id", name="uq_health_verification_observation"),
+        UniqueConstraint(
+            "tenant_id",
+            "action_execution_id",
+            "input_fingerprint",
+            name="uq_health_verification_execution_input",
+        ),
+        UniqueConstraint("id", "tenant_id", name="uq_health_verification_id_tenant"),
+        Index(
+            "ix_health_verification_incident_time",
+            "tenant_id",
+            "incident_id",
+            "evaluated_at",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    incident_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    action_execution_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    observation_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    scenario: Mapped[str] = mapped_column(String(32), nullable=False)
+    service: Mapped[str] = mapped_column(String(128), nullable=False)
+    environment: Mapped[str] = mapped_column(String(32), nullable=False)
+    expected_stable_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    window_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    window_ended_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    samples: Mapped[list[dict[str, object]]] = mapped_column(JSONB, nullable=False)
+    error_rate_evidence_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    p95_latency_evidence_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    health_endpoint_evidence_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    deployed_version_evidence_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    new_alerts_evidence_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    collected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(8), nullable=False)
+    reasons: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    criteria_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    observation_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    execution_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    input_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    decision_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    rules_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
 class ModelCallTraceRow(Base):

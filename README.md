@@ -95,7 +95,10 @@ owned, fresh, direct Evidence and hash-verified immutable Artifacts, checks cont
 purpose, and compares every timestamp and value before it permits deterministic evaluation. A
 bounded all-or-nothing collector now obtains aligned error-rate, P95, health-probe, active-version,
 and new-alert samples through fixed read-only ports and emits the five canonical Evidence/Artifact
-series. Persistence, workflow routing, production transport composition, and real mutation
+series. PostgreSQL now persists each accepted observation and decision with same-scope foreign
+keys to the successful ActionExecution and all five Evidence records, exact replay semantics,
+ordered reasons, hash-bound audit, and corruption detection. Workflow routing, production
+transport composition, and real mutation
 enablement remain incomplete.
 
 ## Why this project exists

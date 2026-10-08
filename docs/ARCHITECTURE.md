@@ -180,6 +180,8 @@ Approval binds `(incident_id, proposal_hash, policy_decision_id, actor, expiry)`
 
 `rollback_service` is a forward recovery action to a known stable version. Its pre-action faulty version is not a safe compensation target. Failed verification therefore routes to bounded re-diagnosis or human handoff. A future action can enter `COMPENSATING` only when the tool declares a typed safe inverse and a separate policy decision/approval authorizes it; compensation success restores a safe baseline but still returns to investigation or human handling rather than resolving the incident.
 
+The MVP keeps that future vocabulary in the domain model and diagrams, but no executable compensation surface is reachable. The repository architecture check parses the `application`, `workflows`, and `infrastructure` packages and fails closed if a compensation module, class, function, or tool identifier is introduced. Enabling one therefore requires the future reversible-tool contract, independent policy and approval controls, verification, tests, and a superseding ADR rather than an accidental route or adapter registration.
+
 ## API outline
 
 The initial API surface will be versioned under `/api/v1` and cover authentication principal resolution, incidents, timelines, investigation control, evidence/artifacts, hypotheses, approvals, actions, verification, audit, prompts, tools, and evaluations. Commands use idempotency keys and optimistic concurrency/version fields. Read APIs paginate and enforce incident-level authorization.

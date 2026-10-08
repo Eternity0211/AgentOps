@@ -14,6 +14,8 @@ def create_source_tree(tmp_path: Path, source: str = "") -> tuple[Path, Path]:
     source_root = tmp_path / "src"
     domain_root = source_root / "agentops_incident_commander" / "domain"
     domain_root.mkdir(parents=True)
+    for layer in ("application", "workflows", "infrastructure"):
+        (source_root / "agentops_incident_commander" / layer).mkdir()
     (domain_root / "sample.py").write_text(source, encoding="utf-8")
     return source_root, domain_root
 
@@ -23,6 +25,81 @@ def test_repository_domain_has_no_forbidden_imports() -> None:
     source_root = architecture.repository_root() / "src"
 
     assert architecture.find_domain_import_violations(source_root) == ()
+    assert architecture.find_mvp_compensation_violations(source_root) == ()
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "source", "symbol"),
+    [
+        ("application/compensation.py", "VALUE = 1\n", "compensation"),
+        (
+            "workflows/route.py",
+            "class CompensationController:\n    pass\n",
+            "CompensationController",
+        ),
+        (
+            "infrastructure/adapter.py",
+            "async def dispatch_compensation():\n    pass\n",
+            "dispatch_compensation",
+        ),
+        (
+            "infrastructure/tool.py",
+            'TOOL_NAME = "compensate_service"\n',
+            "compensate_service",
+        ),
+    ],
+)
+def test_mvp_compensation_surfaces_are_rejected(
+    tmp_path: Path, relative_path: str, source: str, symbol: str
+) -> None:
+    source_root, _ = create_source_tree(tmp_path)
+    path = source_root / "agentops_incident_commander" / relative_path
+    path.write_text(source, encoding="utf-8")
+
+    violations = architecture.find_mvp_compensation_violations(source_root)
+
+    assert any(violation.symbol == symbol for violation in violations)
+    assert "ADR 0005" in violations[-1].render(source_root)
+
+
+def test_future_domain_states_and_forbidden_reason_text_remain_allowed(tmp_path: Path) -> None:
+    source_root, domain_root = create_source_tree(
+        tmp_path,
+        'COMPENSATING = "COMPENSATING"\nVERIFYING_COMPENSATION = "VERIFYING_COMPENSATION"\n',
+    )
+    application = source_root / "agentops_incident_commander" / "application" / "route.py"
+    application.write_text('REASON = "failed route; compensation=forbidden"\n', encoding="utf-8")
+
+    assert domain_root.is_dir()
+    assert architecture.find_mvp_compensation_violations(source_root) == ()
+
+
+def test_missing_compensation_check_root_fails_closed(tmp_path: Path) -> None:
+    """The executable-surface guard cannot silently skip a required layer."""
+    source_root, _ = create_source_tree(tmp_path)
+    missing_root = source_root / "agentops_incident_commander" / "workflows"
+    missing_root.rename(missing_root.with_name("missing-workflows"))
+
+    with pytest.raises(architecture.BoundaryConfigurationError, match="do not exist"):
+        architecture.find_mvp_compensation_violations(source_root)
+
+
+def test_missing_compensation_source_root_fails_closed(tmp_path: Path) -> None:
+    """A missing source tree cannot be mistaken for an empty safe tree."""
+    missing_source = tmp_path / "missing"
+
+    with pytest.raises(architecture.BoundaryConfigurationError, match="source root does not exist"):
+        architecture.find_mvp_compensation_violations(missing_source)
+
+
+def test_unparseable_compensation_check_source_fails_closed(tmp_path: Path) -> None:
+    """Syntax errors cannot hide executable compensation surfaces."""
+    source_root, _ = create_source_tree(tmp_path)
+    checked_file = source_root / "agentops_incident_commander" / "application" / "broken.py"
+    checked_file.write_text("def ???\n", encoding="utf-8")
+
+    with pytest.raises(architecture.BoundaryConfigurationError, match="cannot parse"):
+        architecture.find_mvp_compensation_violations(source_root)
 
 
 @pytest.mark.parametrize(
@@ -201,6 +278,20 @@ def test_cli_reports_violations(tmp_path: Path, capsys: pytest.CaptureFixture[st
     assert architecture.main(("--source-root", str(source_root))) == 1
     error = capsys.readouterr().err
     assert "sample.py:1" in error
+    assert "failed violations=1" in error
+
+
+def test_cli_reports_forbidden_compensation_surface(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The shared CLI enforces the MVP compensation boundary."""
+    source_root, _ = create_source_tree(tmp_path)
+    checked_file = source_root / "agentops_incident_commander" / "workflows" / "compensation.py"
+    checked_file.write_text("VALUE = 1\n", encoding="utf-8")
+
+    assert architecture.main(("--source-root", str(source_root))) == 1
+    error = capsys.readouterr().err
+    assert "forbidden MVP compensation surface" in error
     assert "failed violations=1" in error
 
 

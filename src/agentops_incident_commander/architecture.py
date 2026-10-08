@@ -32,6 +32,23 @@ class ImportViolation:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class MvpCompensationViolation:
+    """One executable compensation surface forbidden by the MVP ADRs."""
+
+    path: Path
+    line: int
+    symbol: str
+
+    def render(self, source_root: Path) -> str:
+        """Render a stable diagnostic for the forbidden executable surface."""
+        relative_path = self.path.relative_to(source_root).as_posix()
+        return (
+            f"{relative_path}:{self.line}: forbidden MVP compensation surface "
+            f"'{self.symbol}' (ADR 0005 requires a future reversible tool and superseding controls)"
+        )
+
+
 FORBIDDEN_IMPORTS: tuple[tuple[str, str], ...] = (
     ("fastapi", "domain must not depend on the web framework"),
     ("sqlalchemy", "domain must not depend on the ORM"),
@@ -152,6 +169,42 @@ def find_domain_import_violations(
     return tuple(violations)
 
 
+def find_mvp_compensation_violations(
+    source_root: Path,
+) -> tuple[MvpCompensationViolation, ...]:
+    """Reject executable compensation entry points while retaining future domain states."""
+    source_root = source_root.resolve()
+    package_root = source_root / "agentops_incident_commander"
+    checked_roots = tuple(
+        package_root / name for name in ("application", "workflows", "infrastructure")
+    )
+    if not source_root.is_dir():
+        raise BoundaryConfigurationError(f"source root does not exist: {source_root}")
+    missing_roots = tuple(root for root in checked_roots if not root.is_dir())
+    if missing_roots:
+        missing = ", ".join(str(root) for root in missing_roots)
+        raise BoundaryConfigurationError(f"compensation check roots do not exist: {missing}")
+    violations: list[MvpCompensationViolation] = []
+    for root in checked_roots:
+        for path in sorted(root.rglob("*.py")):
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            except (OSError, UnicodeError, SyntaxError) as error:
+                raise BoundaryConfigurationError(f"cannot parse {path}: {error}") from error
+            if "compensat" in path.stem.lower():
+                violations.append(MvpCompensationViolation(path, 1, path.stem))
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and (
+                    "compensat" in node.name.lower()
+                ):
+                    violations.append(MvpCompensationViolation(path, node.lineno, node.name))
+                elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+                    value = node.value.lower()
+                    if value.startswith(("compensate_", "compensation_")):
+                        violations.append(MvpCompensationViolation(path, node.lineno, node.value))
+    return tuple(violations)
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the architecture-check CLI parser."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -168,7 +221,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Check the configured domain boundary and return a stable exit code."""
     arguments = build_parser().parse_args(argv)
     try:
-        violations = find_domain_import_violations(arguments.source_root)
+        violations: tuple[ImportViolation | MvpCompensationViolation, ...] = (
+            *find_domain_import_violations(arguments.source_root),
+            *find_mvp_compensation_violations(arguments.source_root),
+        )
     except BoundaryConfigurationError as error:
         print(f"[architecture] configuration-error reason={error}", file=sys.stderr)
         return 2

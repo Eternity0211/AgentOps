@@ -103,8 +103,10 @@ router now locks the persisted PASS and Incident, then atomically records the le
 delivery replay the same closure without extra transitions. Persisted FAIL decisions now follow a
 separate non-compensable route: one proposal-bound budgeted attempt returns to `INVESTIGATING`,
 while exhaustion or an explicit zero budget enters `NEEDS_HUMAN`; neither route can redeploy the
-faulty version or enter compensation. Production transport composition and real mutation
-enablement remain incomplete.
+faulty version or enter compensation. The architecture gate also rejects executable compensation
+modules, controllers, functions, or tool identifiers from the MVP application, workflow, and
+infrastructure layers while retaining the explicitly future-only domain states. Production
+transport composition and real mutation enablement remain incomplete.
 
 ## Why this project exists
 

@@ -231,7 +231,7 @@ def normalized(
     evidence_id = getattr(observed, id_field)
     query = {
         "end": observed.window_ended_at.isoformat(),
-        "environment": observed.environment.value,
+        "environment": observed.environment.value.lower(),
         "service": observed.service,
         "start": observed.window_started_at.isoformat(),
     }
@@ -267,7 +267,7 @@ def normalized(
     }
     request_values.update(evidence_overrides or {})
     payload: dict[str, Any] = {
-        "environment": observed.environment.value,
+        "environment": observed.environment.value.lower(),
         "kind": "health-verification-signal",
         "samples": [
             {"observed_at": item.observed_at.isoformat(), "value": value(item)}

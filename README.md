@@ -92,8 +92,11 @@ a continuous stability window. Every sample must satisfy error-rate, P95 latency
 stable-version, and zero-new-alert rules; stale, incomplete, gapped, flapping, or substituted input
 fails closed with stable reason codes. The application path now resolves all five series through
 owned, fresh, direct Evidence and hash-verified immutable Artifacts, checks controlled source/query
-purpose, and compares every timestamp and value before it permits deterministic evaluation. Live
-signal collection, persistence, workflow routing, and real mutation enablement remain incomplete.
+purpose, and compares every timestamp and value before it permits deterministic evaluation. A
+bounded all-or-nothing collector now obtains aligned error-rate, P95, health-probe, active-version,
+and new-alert samples through fixed read-only ports and emits the five canonical Evidence/Artifact
+series. Persistence, workflow routing, production transport composition, and real mutation
+enablement remain incomplete.
 
 ## Why this project exists
 

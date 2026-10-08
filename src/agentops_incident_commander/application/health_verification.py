@@ -274,7 +274,7 @@ def _metadata_failure(
         return HealthVerificationEvidenceReasonCode.SOURCE_MISMATCH
     query = evidence.normalized_query.as_dict()
     required = {
-        "environment": observation.environment.value,
+        "environment": observation.environment.value.lower(),
         "service": observation.service,
         "start": observation.window_started_at.isoformat(),
         "end": observation.window_ended_at.isoformat(),
@@ -297,7 +297,7 @@ def _payload_failure(
     except (UnicodeDecodeError, json.JSONDecodeError):
         return HealthVerificationEvidenceReasonCode.OBSERVATION_MISMATCH
     expected = {
-        "environment": observation.environment.value,
+        "environment": observation.environment.value.lower(),
         "kind": "health-verification-signal",
         "samples": [
             {"observed_at": sample.observed_at.isoformat(), "value": value}

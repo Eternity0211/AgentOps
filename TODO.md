@@ -195,8 +195,8 @@ Exit: exactly one allowlisted mutation occurs for concurrent/retried identical r
 - [x] Define versioned scenario-aware Health Verification criteria and observation-window contract.
 - [x] Bind every verification sample to owned, fresh, direct, hash-verified Evidence/Artifact
   content and fail closed before evaluation on any scope, source, query, or value mismatch.
-- [ ] Verify error rate and P95 latency from real metric evidence.
-- [ ] Verify health endpoint, active service version, new alerts, and stable observation window.
+- [x] Verify error rate and P95 latency from real metric evidence.
+- [x] Verify health endpoint, active service version, new alerts, and stable observation window.
 - [ ] Persist verification observations/evidence and deterministic decision reasons.
 - [ ] Enable the real mutation route only after verifier integration, non-compensable failure routing, and full rollback-service E2E tests pass.
 - [ ] Route verification success to resolved/closed workflow states.

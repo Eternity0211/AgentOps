@@ -41,9 +41,21 @@ timestamps and values. The resolver compares the entire document to the typed ob
 missing, substituted, malformed, or reordered content fails closed. It returns typed reason codes
 for missing ownership, unavailable Artifact content, expiry, trust, injection, window, source,
 query, and value failures. The health evaluator is not called unless all five distinct series pass.
-The following integration batch still has to construct these canonical series from live bounded
-metric, trace, deployment, and log adapter results; Artifact binding alone is not a claim that a
-production backend was queried.
+The read-only `LiveHealthVerificationCollector` now constructs these canonical series from five
+deployment-injected backend ports. It queries the existing bounded metrics port twice with fixed
+`http_request_error_rate` and `http_request_duration_p95` names, exact service/environment/window,
+and a server-controlled step. Three dedicated verifier ports return health-probe, active-version,
+and cumulative new-alert samples at the same fixed timestamps. They expose no URL, query language,
+command, credential, or caller-selected backend target.
+
+All five calls share one timeout and complete as an all-or-nothing bundle. The collector rejects
+incomplete or dropped metric windows, wrong metric names or labels, missing/reordered timestamps,
+incomplete probe/version/alert series, negative or non-finite values, and converted values outside
+the domain bounds. Error-rate ratios become integer basis points and P95 seconds become integer
+milliseconds using deterministic half-up rounding. The result contains the typed observation and
+five direct, complete, immutable Evidence/Artifact records; the evidence resolver independently
+rechecks that bundle before evaluation. Concrete production transports remain deployment adapters
+and are not claimed by this repository-local contract test.
 
 ## Deterministic decision
 
@@ -79,4 +91,6 @@ environment/version substitution. Application tests additionally cover successfu
 resolution, missing and cross-scope Evidence, unavailable/tampered/malformed Artifacts, expiry,
 non-direct trust, quarantined input, incomplete windows, wrong source/tool/query purpose, and exact
 sample-value mismatch. The verifier contract and evidence-binding modules maintain complete
-statement and branch coverage.
+statement and branch coverage. Live-collection tests additionally cover exact backend requests,
+unit conversion, end-to-end Artifact re-resolution, incomplete/dropped/substituted series,
+misaligned timestamps, invalid values, strict identities/time bounds, and whole-bundle timeout.

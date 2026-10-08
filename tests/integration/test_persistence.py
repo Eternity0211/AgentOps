@@ -176,8 +176,21 @@ from agentops_incident_commander.domain import (
     WorkflowRunId,
     evaluate_health_verification,
 )
-from agentops_incident_commander.infrastructure import DeterministicIncidentMemoryEmbedder
+from agentops_incident_commander.infrastructure import (
+    ActiveVersionResult,
+    ActiveVersionSample,
+    DeterministicIncidentMemoryEmbedder,
+    HealthProbeResult,
+    HealthProbeSample,
+    HealthVerificationCollectionIds,
+    HealthVerificationCollectionRequest,
+    LiveHealthVerificationCollector,
+    NewAlertCountResult,
+    NewAlertCountSample,
+    PostgresPersistedHealthVerifier,
+)
 from agentops_incident_commander.infrastructure.artifacts import LocalArtifactStorage
+from agentops_incident_commander.infrastructure.collectors import MetricSample
 from agentops_incident_commander.infrastructure.persistence import (
     ActionExecutionEventRow,
     ActionExecutionLockRow,
@@ -216,6 +229,11 @@ from agentops_incident_commander.infrastructure.persistence import (
     PromptLifecycleEventRow,
     PromptLifecycleRepository,
     PromptVersionRow,
+)
+from agentops_incident_commander.infrastructure.tool_adapters import (
+    MetricBackendResult,
+    MetricName,
+    MetricQuery,
 )
 from agentops_incident_commander.workflows import (
     REMEDIATION_PROPOSAL_SCHEMA_VERSION,
@@ -4787,6 +4805,187 @@ async def test_postgres_recovery_coordinator_routes_persisted_decision_once(
                     AuditEventRow.event_type == event_type,
                     AuditEventRow.target_id == completed.incident_id.value,
                 )
+            )
+            == 1
+        )
+
+
+class VerificationMetricsBackend:
+    def __init__(self, *, failed: bool) -> None:
+        self.failed = failed
+        self.calls = 0
+
+    async def query_range(self, query: MetricQuery) -> MetricBackendResult:
+        self.calls += 1
+        started = datetime.fromisoformat(query.start)
+        ended = datetime.fromisoformat(query.end)
+        sample_times = tuple(
+            started + timedelta(seconds=offset)
+            for offset in range(
+                0,
+                int((ended - started).total_seconds()) + 1,
+                query.step_seconds,
+            )
+        )
+        value = (
+            0.6
+            if self.failed and query.metric is MetricName.HTTP_DURATION_P95
+            else 0.4
+            if query.metric is MetricName.HTTP_DURATION_P95
+            else 0.005
+        )
+        labels = (("environment", query.environment), ("service", query.service))
+        return MetricBackendResult(
+            tuple(MetricSample(query.metric.value, item, value, labels) for item in sample_times),
+            True,
+            0,
+        )
+
+
+class VerificationHealthBackend:
+    async def read(
+        self, *, service: str, environment: str, sample_times: tuple[datetime, ...]
+    ) -> HealthProbeResult:
+        del service, environment
+        return HealthProbeResult(
+            tuple(HealthProbeSample(item, True) for item in sample_times), True
+        )
+
+
+class VerificationVersionBackend:
+    async def read(
+        self, *, service: str, environment: str, sample_times: tuple[datetime, ...]
+    ) -> ActiveVersionResult:
+        del service, environment
+        return ActiveVersionResult(
+            tuple(ActiveVersionSample(item, SemanticVersion("1.0.0")) for item in sample_times),
+            True,
+        )
+
+
+class VerificationAlertBackend:
+    async def read(
+        self,
+        *,
+        service: str,
+        environment: str,
+        window_started_at: datetime,
+        sample_times: tuple[datetime, ...],
+    ) -> NewAlertCountResult:
+        del service, environment, window_started_at
+        return NewAlertCountResult(
+            tuple(NewAlertCountSample(item, 0) for item in sample_times), True
+        )
+
+
+def live_verification_request(
+    execution: ActionExecution, *, suffix: str
+) -> HealthVerificationCollectionRequest:
+    criteria = HealthVerificationCriteria(
+        execution.tenant_id,
+        execution.incident_id,
+        execution.id,
+        HealthVerificationScenario.RELEASE_HTTP_500,
+        execution.target.service,
+        execution.target.environment,
+        execution.target.stable_version,
+        100,
+        500,
+        0,
+        60,
+        30,
+    )
+    prefixes = (
+        "error_rate",
+        "p95_latency",
+        "health_endpoint",
+        "deployed_version",
+        "new_alerts",
+    )
+    identity_values: dict[str, object] = {}
+    for prefix in prefixes:
+        identity_values[f"{prefix}_evidence_id"] = EvidenceId(f"evidence-live-{suffix}-{prefix}")
+        identity_values[f"{prefix}_artifact_id"] = ArtifactId(f"artifact-live-{suffix}-{prefix}")
+        identity_values[f"{prefix}_tool_call_id"] = ToolCallId(f"call-live-{suffix}-{prefix}")
+    ids = HealthVerificationCollectionIds(
+        OpaqueIdentifier(f"observation-live-{suffix}"),
+        WorkflowRunId(f"workflow-live-{suffix}"),
+        **cast(Any, identity_values),
+    )
+    started = NOW + timedelta(minutes=9)
+    return HealthVerificationCollectionRequest(
+        criteria,
+        ids,
+        started,
+        30,
+        started + timedelta(seconds=61),
+        started + timedelta(minutes=5),
+        started + timedelta(minutes=6),
+    )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("failed", "outcome"),
+    [
+        (False, HealthVerificationOutcome.PASS),
+        (True, HealthVerificationOutcome.FAIL),
+    ],
+)
+async def test_live_health_verifier_persists_evidence_decision_and_replays(
+    engine: AsyncEngine,
+    tmp_path: Path,
+    failed: bool,
+    outcome: HealthVerificationOutcome,
+) -> None:
+    suffix = "live-fail" if failed else "live-pass"
+    completed = await persisted_successful_execution(engine, suffix=suffix)
+    metrics = VerificationMetricsBackend(failed=failed)
+    request = live_verification_request(completed, suffix=suffix)
+    verifier = PostgresPersistedHealthVerifier(
+        LiveHealthVerificationCollector(
+            metrics,
+            VerificationHealthBackend(),
+            VerificationVersionBackend(),
+            VerificationAlertBackend(),
+        ),
+        LocalArtifactStorage(tmp_path / suffix),
+        async_sessionmaker(engine, expire_on_commit=False),
+        request_factory=lambda _: request,
+        decision_id_factory=lambda _: OpaqueIdentifier(f"decision-live-{suffix}"),
+        audit_event_id_factory=lambda: AuditEventId(f"audit-live-{suffix}"),
+        clock=lambda: request.window_started_at + timedelta(seconds=62),
+    )
+    principal = closure_principal()
+    first = await verifier.verify(
+        completed,
+        principal=principal,
+        correlation_id=CorrelationId(f"correlation-live-{suffix}"),
+    )
+    replay = await verifier.verify(
+        completed,
+        principal=principal,
+        correlation_id=CorrelationId(f"correlation-live-{suffix}-replay"),
+    )
+
+    assert first.outcome is outcome
+    assert replay == first
+    assert metrics.calls == 2
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions() as session:
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(EvidenceRow)
+                .where(EvidenceRow.incident_id == completed.incident_id.value)
+            )
+            == 5
+        )
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(HealthVerificationRunRow)
+                .where(HealthVerificationRunRow.incident_id == completed.incident_id.value)
             )
             == 1
         )

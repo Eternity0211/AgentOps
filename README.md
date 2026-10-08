@@ -114,8 +114,10 @@ recovery coordinator now composes the authorized executor, persisted verifier, a
 success/failure routers without enabling the write switch: unsuccessful execution never reaches
 verification, every authority and decision fingerprint remains exact, `PASS` alone may close,
 and `FAIL` alone may re-diagnose or hand off. PostgreSQL integration now proves both composed
-routes and exact replay without duplicate route audit; live verifier collection/persistence
-composition and the final mutation-enabled E2E gate remain open.
+routes and exact replay without duplicate route audit. The live persisted verifier now composes
+five-signal collection, immutable Artifact/Evidence persistence, full re-resolution,
+deterministic evaluation, hash-bound audit, and exact decision replay. Production backend
+transport wiring and the final mutation-enabled E2E gate remain open.
 
 ## Why this project exists
 

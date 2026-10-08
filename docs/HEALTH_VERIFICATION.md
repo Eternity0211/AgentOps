@@ -57,6 +57,14 @@ five direct, complete, immutable Evidence/Artifact records; the evidence resolve
 rechecks that bundle before evaluation. Concrete production transports remain deployment adapters
 and are not claimed by this repository-local contract test.
 
+`PostgresPersistedHealthVerifier` composes that collector with immutable Artifact storage,
+tenant/Incident-scoped Evidence persistence, full Artifact re-resolution, deterministic
+evaluation, and the PostgreSQL verification record. It accepts only a successful execution and a
+server-produced plan bound to the exact execution scope and stable target. Exact decision replay
+returns before collection. Existing Artifact/Evidence identities are reusable only when their
+complete metadata and bytes are unchanged; any conflict fails closed. The resulting audit binds
+the execution causation, deterministic input fingerprint, and decision fingerprint.
+
 ## Deterministic decision
 
 `evaluate_health_verification` accepts only a `SUCCEEDED` ActionExecution and exact-scope criteria
@@ -191,3 +199,7 @@ authority and decision binding, exclusive PASS/FAIL dispatch, route-result scope
 validation, and rejection of every untyped or substituted boundary result. PostgreSQL integration
 tests compose the coordinator with durable verification reads and the real success/failure route
 repositories for both outcomes; exact replay returns the stored route without a second route audit.
+Persisted-verifier tests additionally cover live PASS/FAIL collection, durable five-Evidence
+records, exact decision replay, invalid execution/principal/plan identities, collection scope
+substitution, Artifact and Evidence conflicts, incomplete re-resolution, and audit identity
+rejection.

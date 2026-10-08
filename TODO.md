@@ -201,6 +201,7 @@ Exit: exactly one allowlisted mutation occurs for concurrent/retried identical r
 - [ ] Enable the real mutation route only after verifier integration, non-compensable failure routing, and full rollback-service E2E tests pass.
   - [x] Compose execution, persisted verification, and exclusive PASS/FAIL routing behind the disabled mutation capability.
   - [x] Prove PostgreSQL-backed PASS/FAIL orchestration and exact replay without duplicate route audit.
+  - [x] Compose live five-signal collection, immutable Artifact/Evidence persistence, re-resolution, deterministic evaluation, decision audit, and exact replay.
 - [x] Route verification success to resolved/closed workflow states.
 - [x] Route failed `rollback_service` verification to bounded re-diagnosis or `NEEDS_HUMAN`; never restore the known faulty version.
 - [x] Keep generic compensation unreachable in the MVP unless a future write tool provides typed safe-inverse metadata plus independent policy/approval.

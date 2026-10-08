@@ -46,11 +46,16 @@ from .mock_model import (
     MockModelScenario,
     MockModelTimeout,
 )
+from .persisted_health_verification import (
+    HEALTH_VERIFICATION_DECISION_AUDIT_SCHEMA_VERSION,
+    PostgresPersistedHealthVerifier,
+)
 from .recovery_tools import ROLLBACK_SERVICE_VERSION, rollback_service_definition
 
 __all__ = [
     "DIAGNOSIS_CHECKPOINT_NAMESPACE",
     "HEALTH_VERIFICATION_COLLECTION_SCHEMA_VERSION",
+    "HEALTH_VERIFICATION_DECISION_AUDIT_SCHEMA_VERSION",
     "MAX_VERIFICATION_COLLECTION_TIMEOUT_SECONDS",
     "MOCK_MODEL_VERSION",
     "ROLLBACK_SERVICE_VERSION",
@@ -81,6 +86,7 @@ __all__ = [
     "NewAlertCountBackend",
     "NewAlertCountResult",
     "NewAlertCountSample",
+    "PostgresPersistedHealthVerifier",
     "approval_checkpoint_config",
     "checkpoint_observation",
     "compiled_diagnosis_runner",

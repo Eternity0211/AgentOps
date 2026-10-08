@@ -33,6 +33,19 @@ No execution state contains shell text, credentials, provider arguments, or a co
 In particular, the faulty before version is observation data and never an authorization to deploy
 it again.
 
+`ImmutableActionSnapshotWriter` implements both snapshot ports against the Artifact Store. Before
+storage it reads the server-resolved deployment target and requires the observed version to remain
+the preflight version. After dispatch it requires the adapter result, a second deployment read, and
+the configured stable version to agree. Canonical JSON binds the snapshot phase, full target scope,
+observation time, deployed version, and—only for the after snapshot—the opaque backend operation
+identity. Its content hash is the `ActionSnapshot` hash binding.
+
+Artifact identities derive deterministically from tenant, Incident, actor, caller idempotency key,
+and snapshot phase. An exact retry therefore reloads and validates the original immutable snapshot
+before any new deployment observation. A changed target or operation identity cannot reuse it, and
+a concurrent identical create returns only the content-identical winner. The writer exposes no
+path, URL, command, manifest, credential, or caller-selected deployment target.
+
 ## Durable claim and completion
 
 Migration `20261006_0014` adds `action_executions`, `action_execution_locks`, and
@@ -133,6 +146,10 @@ Dispatcher tests prove the default kill switch prevents invocation, authority mi
 regression fail before side effects, success calls once, writes receive no automatic retry, timeout
 and confirmed refusal remain distinct, unknown/mismatched results are uncertain, after-snapshot
 loss is uncertain, and task cancellation propagates to the safe-boundary owner.
+Snapshot-writer tests prove before/after version confirmation, canonical Artifact content and hash
+bindings, deterministic exact replay without a second deployment read, concurrent-create reuse,
+operation/scope substitution refusal, malformed stored-content refusal, and storage-metadata
+substitution refusal.
 Executor tests prove fixed preflight/claim/dispatch/finish ordering, disabled and rejected
 pre-effect refusal, terminal classification persistence, cancellation and finish-failure replay
 safety, atomic replay auditing, and eight-way PostgreSQL duplicate delivery with exactly one

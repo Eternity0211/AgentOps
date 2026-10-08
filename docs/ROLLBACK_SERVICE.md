@@ -56,6 +56,13 @@ The adapter is not registered in production composition and the capability remai
 default. A concrete deployment backend plus the final full-chain E2E gate are still required
 before production enablement.
 
+The shared deployment observation port also feeds `ImmutableActionSnapshotWriter`. It persists
+canonical before/after JSON as immutable hash-bound Artifacts under identities derived from the
+authorized idempotency scope and snapshot phase. Before mutation, the observed version must still
+match preflight. After mutation, the adapter result, observed version, and configured stable version
+must all agree. Exact retries reuse the validated original snapshot, while changed scope or backend
+operation identity fails closed.
+
 ## Verification
 
 Unit tests verify exact metadata and schemas, strict round trips, immutable values, caller-field

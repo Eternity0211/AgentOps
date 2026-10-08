@@ -120,7 +120,10 @@ deterministic evaluation, hash-bound audit, and exact decision replay. Productio
 transport wiring and the final mutation-enabled E2E gate remain open. A narrow server-bound
 rollback adapter now admits only the preflight-resolved typed target and Idempotency Key and reads
 back the deployed semantic version; it exposes no command, URL, manifest, namespace, credential,
-or caller-selected target, and remains unregistered while the capability flag is off.
+or caller-selected target, and remains unregistered while the capability flag is off. Before and
+after deployment observations now persist as deterministic-identity, immutable, hash-bound Artifact
+snapshots; exact retries reuse validated content while version, scope, and operation substitutions
+fail closed.
 
 ## Why this project exists
 

@@ -13,8 +13,10 @@ metadata schema is version `1.0.0`. `TRANSIENT` objects require an expiry; `INCI
 objects may use an explicit expiry or an administrator-managed lifecycle.
 
 The local adapter stores content by SHA-256 and creates a separate immutable metadata document
-for each Artifact ID. Reusing an ID is rejected, including concurrent creation. Reusing identical
-content under a different ID is safe and deduplicates the content-addressed blob. Reads recompute
+for each Artifact ID. A blob is fully written and synchronized under a unique temporary name before
+an atomic create-only link publishes it, so a concurrent loser cannot observe a partially written
+winner. Reusing an ID is rejected, including concurrent creation. Reusing identical content under a
+different ID is safe and deduplicates the content-addressed blob. Reads recompute
 both hash and size, so missing or altered bytes fail integrity verification.
 
 ## Authorization and path safety

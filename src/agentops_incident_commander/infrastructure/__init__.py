@@ -1,5 +1,10 @@
 """Infrastructure adapters implementing domain-facing persistence and integrations."""
 
+from .action_snapshots import (
+    ACTION_SNAPSHOT_CONTENT_SCHEMA_VERSION,
+    DeploymentVersionObserver,
+    ImmutableActionSnapshotWriter,
+)
 from .checkpoints import (
     DIAGNOSIS_CHECKPOINT_NAMESPACE,
     ApprovalCheckpointIdentity,
@@ -54,6 +59,7 @@ from .recovery_tools import ROLLBACK_SERVICE_VERSION, rollback_service_definitio
 from .rollback_adapter import DeploymentRollbackBackend, ServerBoundRollbackAdapter
 
 __all__ = [
+    "ACTION_SNAPSHOT_CONTENT_SCHEMA_VERSION",
     "DIAGNOSIS_CHECKPOINT_NAMESPACE",
     "HEALTH_VERIFICATION_COLLECTION_SCHEMA_VERSION",
     "HEALTH_VERIFICATION_DECISION_AUDIT_SCHEMA_VERSION",
@@ -67,6 +73,7 @@ __all__ = [
     "CheckpointExecutionStatus",
     "CollectedHealthVerification",
     "DeploymentRollbackBackend",
+    "DeploymentVersionObserver",
     "DeterministicDiagnosisMockModel",
     "DeterministicIncidentMemoryEmbedder",
     "DiagnosisCheckpointIdentity",
@@ -78,6 +85,7 @@ __all__ = [
     "HealthProbeSample",
     "HealthVerificationCollectionIds",
     "HealthVerificationCollectionRequest",
+    "ImmutableActionSnapshotWriter",
     "LiveHealthVerificationCollector",
     "MockDiagnosisRequest",
     "MockModelMalformedOutput",

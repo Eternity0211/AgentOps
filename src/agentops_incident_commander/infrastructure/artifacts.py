@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Final
@@ -141,12 +142,27 @@ class LocalArtifactStorage:
             os.fsync(stream.fileno())
 
     def _write_blob_once(self, path: Path, content: bytes) -> None:
+        descriptor, temporary_name = tempfile.mkstemp(
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+        )
+        temporary = Path(temporary_name)
         try:
-            self._write_once(path, content)
-        except FileExistsError:
-            existing = path.read_bytes()
-            if hashlib.sha256(existing).digest() != hashlib.sha256(content).digest():
-                raise ArtifactIntegrityError("content-addressed blob collision detected") from None
+            with os.fdopen(descriptor, "wb") as stream:
+                stream.write(content)
+                stream.flush()
+                os.fsync(stream.fileno())
+            try:
+                os.link(temporary, path)
+            except FileExistsError:
+                existing = path.read_bytes()
+                if hashlib.sha256(existing).digest() != hashlib.sha256(content).digest():
+                    raise ArtifactIntegrityError(
+                        "content-addressed blob collision detected"
+                    ) from None
+        finally:
+            temporary.unlink(missing_ok=True)
 
     @staticmethod
     def _encode_metadata(artifact: Artifact) -> bytes:

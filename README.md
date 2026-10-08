@@ -83,7 +83,10 @@ preflight with an idempotent before snapshot, a transaction-owning PostgreSQL cl
 audit, one bounded typed dispatch, and terminal persistence. A durable claim always commits before
 the adapter call; every concurrent or retried duplicate returns the stored execution without a
 second mutation. The server kill switch remains disabled by default, no real write adapter is
-registered, and only the future deterministic verifier may declare recovery.
+registered, and only the deterministic verifier may declare recovery. The Phase 8 safety matrix
+now includes a PostgreSQL concurrent-approval race plus rejection/expiry, mutation
+classification, replay, duplicate delivery, timeout, authorization, and bypass coverage; its
+server-side mutation flag remains off until the Phase 9 full-chain E2E gate passes.
 
 Phase 9 now has the first versioned [deterministic health-verification contract](docs/HEALTH_VERIFICATION.md).
 It binds a successful ActionExecution to one of the two rollback-eligible scenarios, exact

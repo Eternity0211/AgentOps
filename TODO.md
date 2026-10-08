@@ -185,8 +185,8 @@ Exit: retrieval improves context experimentally without label/fact leakage; ever
 - [x] Recheck RBAC, policy, state, approval hash/expiry, and idempotency immediately before mutation.
   - [x] Define the deterministic preflight that reloads tenant Incident/Approval/invalidation state, replays Evidence Gate and Policy, checks expiry/hash/RBAC, and resolves the target from server-owned current-version/configuration ports.
   - [x] Compose preflight and the durable idempotency claim in the same Executor path immediately before bounded adapter dispatch.
-- [ ] Keep the real mutation route disabled behind a server-side capability flag until the Phase 9 verifier/failure-routing exit gate passes.
-- [ ] Add concurrent approval, rejection/expiry routing, mutation, replay, duplicate delivery, timeout, unauthorized role, and bypass tests.
+- [x] Keep the real mutation route disabled behind a server-side capability flag until the Phase 9 verifier/failure-routing exit gate passes.
+- [x] Add concurrent approval, rejection/expiry routing, mutation, replay, duplicate delivery, timeout, unauthorized role, and bypass tests.
 
 Exit: exactly one allowlisted mutation occurs for concurrent/retried identical requests, and no invalid or stale approval can execute.
 

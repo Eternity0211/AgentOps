@@ -74,7 +74,9 @@ self-approval refusal, configurable low-risk separation, invariants, immutabilit
 binding. Revision tests cover malformed schemas, identity/version tricks, version-only edits,
 material changes, duplicate invalidation, Gate rejection, Policy denial, and fresh-approval
 routing. PostgreSQL integration tests cover migration round trips, tenant-scoped reads, lifecycle
-history, invalidation markers, state/audit transactionality, and rollback on audit conflict.
+history, invalidation markers, state/audit transactionality, rollback on audit conflict, and a
+two-approver race in which row locking permits exactly one terminal decision and one matching
+audit event.
 Approval-graph tests additionally cover forged resume data, pending re-interrupt, missing,
 cross-tenant, invalidated, mismatched, rejected, and expired records plus new-worker PostgreSQL
 checkpoint restoration.

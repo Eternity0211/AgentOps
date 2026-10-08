@@ -2426,6 +2426,82 @@ async def test_approval_lifecycle_persists_state_history_and_audit_atomically(
 
 
 @pytest.mark.anyio
+async def test_concurrent_approval_decisions_have_exactly_one_winner(
+    engine: AsyncEngine,
+) -> None:
+    """Row locking prevents two human decisions from authorizing the same proposal."""
+    await add_incident(
+        engine,
+        "incident-approval-storage",
+        tenant="tenant-1",
+        state=IncidentState.POLICY_REVIEW,
+    )
+    value = approval_policy_input()
+    decision = approval_policy_decision(value)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        requested = await approval_manager(
+            session,
+            at=NOW + timedelta(minutes=5),
+            approval_id="approval-race-1",
+            audit_id="audit-approval-race-request",
+        ).request(
+            value,
+            decision,
+            principal=Principal(
+                ActorId("operator-approval-storage"),
+                TenantId("tenant-1"),
+                frozenset({Role.OPERATOR}),
+            ),
+            correlation_id=CorrelationId("correlation-approval-race"),
+            causation_id=CausationId("request-approval-race"),
+        )
+
+    async def decide(index: int) -> Approval:
+        async with sessions.begin() as session:
+            return await approval_manager(
+                session,
+                at=NOW + timedelta(minutes=6),
+                audit_id=f"audit-approval-race-{index}",
+            ).approve(
+                requested.id,
+                principal=Principal(
+                    ActorId(f"approver-approval-race-{index}"),
+                    TenantId("tenant-1"),
+                    frozenset({Role.APPROVER}),
+                ),
+                reason=EventReason("Concurrent approval decision."),
+                correlation_id=CorrelationId("correlation-approval-race"),
+                causation_id=CausationId(f"approve-race-{index}"),
+            )
+
+    outcomes = await asyncio.gather(decide(1), decide(2), return_exceptions=True)
+    winners = tuple(item for item in outcomes if isinstance(item, Approval))
+    refusals = tuple(item for item in outcomes if isinstance(item, InvalidDomainValueError))
+    assert len(winners) == 1
+    assert winners[0].status is ApprovalStatus.APPROVED
+    assert len(refusals) == 1
+    assert "stale Approval lifecycle state" in str(refusals[0])
+
+    async with sessions() as session:
+        stored = await ApprovalLifecycleRepository(session).get(
+            requested.id, tenant_id=TenantId("tenant-1")
+        )
+        assert stored == winners[0]
+        assert (
+            await session.scalar(select(func.count()).select_from(ApprovalLifecycleEventRow)) == 2
+        )
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(AuditEventRow)
+                .where(AuditEventRow.target_id == requested.id.value)
+            )
+            == 2
+        )
+
+
+@pytest.mark.anyio
 async def test_approval_and_audit_rollback_together_on_duplicate_audit(
     engine: AsyncEngine,
 ) -> None:

@@ -136,4 +136,8 @@ loss is uncertain, and task cancellation propagates to the safe-boundary owner.
 Executor tests prove fixed preflight/claim/dispatch/finish ordering, disabled and rejected
 pre-effect refusal, terminal classification persistence, cancellation and finish-failure replay
 safety, atomic replay auditing, and eight-way PostgreSQL duplicate delivery with exactly one
-adapter dispatch.
+adapter dispatch. Together with Approval lifecycle/graph tests, the Phase 8 exit matrix covers
+concurrent approval, rejection and lazy expiry routing, successful mutation classification,
+terminal replay, duplicate delivery, adapter timeout, unauthorized roles, and attempts to bypass
+Incident, Evidence Gate, Policy, Approval, target-resolution, or capability controls. The runtime
+mutation capability remains disabled by default pending the Phase 9 full-chain E2E gate.

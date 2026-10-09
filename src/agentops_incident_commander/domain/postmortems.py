@@ -12,10 +12,13 @@ from .errors import InvalidDomainValueError
 from .prompts import PromptVersionReference
 from .values import (
     ActorId,
+    AggregateVersion,
+    EventReason,
     EvidenceId,
     IncidentId,
     ModelCallId,
     PostmortemFactId,
+    PostmortemId,
     Sha256Digest,
     TenantId,
     as_utc,
@@ -26,6 +29,8 @@ POSTMORTEM_DRAFT_SCHEMA_VERSION = "1.0.0"
 MAX_POSTMORTEM_FACTS = 64
 MAX_FACT_EVIDENCE_REFERENCES = 16
 MAX_FACT_STATEMENT_LENGTH = 512
+POSTMORTEM_REVISION_SCHEMA_VERSION = "1.0.0"
+MAX_POSTMORTEM_CONTENT_BYTES = 65_536
 
 
 class PostmortemFactKind(StrEnum):
@@ -222,3 +227,121 @@ class PostmortemDraft:
                 lines.append(f"- {fact.statement} [Evidence: {references}]")
             lines.append("")
         return "\n".join(lines).rstrip() + "\n"
+
+
+@dataclass(frozen=True, slots=True)
+class PostmortemRevision:
+    """One immutable generated or human-authored postmortem version."""
+
+    postmortem_id: PostmortemId
+    tenant_id: TenantId
+    incident_id: IncidentId
+    version: AggregateVersion
+    source_draft_fingerprint: Sha256Digest
+    parent_revision_fingerprint: Sha256Digest | None
+    author_id: ActorId
+    content: str
+    change_summary: EventReason
+    fact_ids: tuple[PostmortemFactId, ...]
+    evidence_ids: tuple[EvidenceId, ...]
+    created_at: datetime
+    schema_version: str = POSTMORTEM_REVISION_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.postmortem_id, PostmortemId)
+            or not isinstance(self.tenant_id, TenantId)
+            or not isinstance(self.incident_id, IncidentId)
+            or not isinstance(self.version, AggregateVersion)
+            or not isinstance(self.source_draft_fingerprint, Sha256Digest)
+            or not isinstance(self.author_id, ActorId)
+            or not isinstance(self.change_summary, EventReason)
+        ):
+            raise InvalidDomainValueError("postmortem revision identity is invalid")
+        if self.version == AggregateVersion.initial():
+            if self.parent_revision_fingerprint is not None:
+                raise InvalidDomainValueError("initial postmortem revision cannot have a parent")
+        elif not isinstance(self.parent_revision_fingerprint, Sha256Digest):
+            raise InvalidDomainValueError(
+                "later postmortem revision requires its parent fingerprint"
+            )
+        if not isinstance(self.content, str):
+            raise InvalidDomainValueError("postmortem revision content must be text")
+        normalized = self.content.strip()
+        if (
+            not normalized
+            or "\x00" in normalized
+            or len(normalized.encode("utf-8")) > MAX_POSTMORTEM_CONTENT_BYTES
+        ):
+            raise InvalidDomainValueError(
+                "postmortem revision content must be nonempty and bounded"
+            )
+        object.__setattr__(self, "content", normalized + "\n")
+        if (
+            not isinstance(self.fact_ids, tuple)
+            or not self.fact_ids
+            or len(self.fact_ids) > MAX_POSTMORTEM_FACTS
+            or any(not isinstance(item, PostmortemFactId) for item in self.fact_ids)
+            or len(set(self.fact_ids)) != len(self.fact_ids)
+        ):
+            raise InvalidDomainValueError("postmortem revision fact references are invalid")
+        if (
+            not isinstance(self.evidence_ids, tuple)
+            or not self.evidence_ids
+            or any(not isinstance(item, EvidenceId) for item in self.evidence_ids)
+            or len(set(self.evidence_ids)) != len(self.evidence_ids)
+        ):
+            raise InvalidDomainValueError("postmortem revision Evidence references are invalid")
+        object.__setattr__(self, "created_at", as_utc(self.created_at))
+        if self.schema_version != POSTMORTEM_REVISION_SCHEMA_VERSION:
+            raise InvalidDomainValueError("postmortem revision schema version is unsupported")
+
+    @property
+    def fingerprint(self) -> Sha256Digest:
+        payload = {
+            "author_id": self.author_id.value,
+            "change_summary": self.change_summary.value,
+            "content": self.content,
+            "created_at": self.created_at.isoformat(),
+            "evidence_ids": [item.value for item in self.evidence_ids],
+            "fact_ids": [item.value for item in self.fact_ids],
+            "incident_id": self.incident_id.value,
+            "parent_revision_fingerprint": (
+                None
+                if self.parent_revision_fingerprint is None
+                else self.parent_revision_fingerprint.value
+            ),
+            "postmortem_id": self.postmortem_id.value,
+            "schema_version": self.schema_version,
+            "source_draft_fingerprint": self.source_draft_fingerprint.value,
+            "tenant_id": self.tenant_id.value,
+            "version": self.version.value,
+        }
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        return Sha256Digest(hashlib.sha256(encoded).hexdigest())
+
+    def revise(
+        self,
+        *,
+        author_id: ActorId,
+        content: str,
+        change_summary: EventReason,
+        created_at: datetime,
+    ) -> PostmortemRevision:
+        """Create the next immutable version while preserving authoritative references."""
+        if as_utc(created_at) < self.created_at:
+            raise InvalidDomainValueError("postmortem revision cannot predate its parent")
+        return PostmortemRevision(
+            self.postmortem_id,
+            self.tenant_id,
+            self.incident_id,
+            self.version.next(),
+            self.source_draft_fingerprint,
+            self.fingerprint,
+            author_id,
+            content,
+            change_summary,
+            self.fact_ids,
+            self.evidence_ids,
+            created_at,
+        )

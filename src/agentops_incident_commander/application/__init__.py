@@ -102,6 +102,13 @@ from .postmortem import (
     PostmortemModelResult,
     PostmortemPromptReader,
 )
+from .postmortem_revisions import (
+    CreatePostmortemRecord,
+    PostmortemRevisionIncidentReader,
+    PostmortemRevisionManager,
+    PostmortemRevisionStore,
+    RevisePostmortem,
+)
 from .prompt_registry import PromptLifecycleChange, PromptLifecycleManager, PromptLifecycleStore
 from .recovery_orchestration import (
     FailingVerificationRouter,
@@ -161,6 +168,7 @@ __all__ = [
     "CompiledToolCall",
     "ConfirmedRollbackFailure",
     "ConstrainedPostmortemGenerator",
+    "CreatePostmortemRecord",
     "CurrentServiceVersionStore",
     "DiagnosisPromptStore",
     "DurableActionExecutionStore",
@@ -200,6 +208,9 @@ __all__ = [
     "PostmortemModelRequest",
     "PostmortemModelResult",
     "PostmortemPromptReader",
+    "PostmortemRevisionIncidentReader",
+    "PostmortemRevisionManager",
+    "PostmortemRevisionStore",
     "PromptLifecycleChange",
     "PromptLifecycleManager",
     "PromptLifecycleStore",
@@ -209,6 +220,7 @@ __all__ = [
     "RemediationEvidenceGateStore",
     "RemediationRevisionResult",
     "RemediationRevisionService",
+    "RevisePostmortem",
     "RevisionOutcome",
     "RollbackActionExecutor",
     "RollbackAdapterResult",

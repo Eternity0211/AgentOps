@@ -142,6 +142,9 @@ from agentops_incident_commander.domain import (
     PolicyOutcome,
     PolicyReason,
     PolicyReasonCode,
+    PostmortemFactId,
+    PostmortemId,
+    PostmortemRevision,
     Principal,
     PromptDefinition,
     PromptId,
@@ -234,6 +237,9 @@ from agentops_incident_commander.infrastructure.persistence import (
     OutboxRepository,
     PostgresActionExecutionStore,
     PostgresLifecycleActionExecutionStore,
+    PostmortemRevisionRepository,
+    PostmortemRevisionRow,
+    PostmortemRow,
     PromptLifecycleEventRow,
     PromptLifecycleRepository,
     PromptVersionRow,
@@ -294,7 +300,8 @@ async def engine(migrated_url: str) -> AsyncIterator[AsyncEngine]:
     async with value.begin() as connection:
         await connection.execute(
             text(
-                "TRUNCATE alerts, alert_groups, incident_cancellation_requests, "
+                "TRUNCATE postmortem_revisions, postmortems, alerts, alert_groups, "
+                "incident_cancellation_requests, "
                 "incident_transitions, health_verification_runs, evidence, "
                 "idempotency_records, outbox_events, jobs, "
                 "evidence_gate_decisions, model_call_traces, approval_invalidations, "
@@ -491,6 +498,8 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "outbox_events",
         "prompt_lifecycle_events",
         "prompt_versions",
+        "postmortem_revisions",
+        "postmortems",
     } <= names
     async with engine.connect() as connection:
         assert await connection.scalar(
@@ -5486,3 +5495,275 @@ async def test_authorized_rollback_service_full_chain_closes_once_and_replays(
             (IncidentState.VERIFYING.value, IncidentState.RESOLVED.value),
             (IncidentState.RESOLVED.value, IncidentState.CLOSED.value),
         ]
+
+
+def persisted_postmortem_revision(
+    incident_id: str,
+    *,
+    postmortem_id: str = "postmortem-persisted",
+    tenant: str = "tenant-postmortem",
+    at: datetime = NOW + timedelta(hours=3),
+) -> PostmortemRevision:
+    return PostmortemRevision(
+        PostmortemId(postmortem_id),
+        TenantId(tenant),
+        IncidentId(incident_id),
+        AggregateVersion.initial(),
+        Sha256Digest("d" * 64),
+        None,
+        ActorId("postmortem-editor"),
+        "# Initial postmortem\n\nConfirmed fact. [Evidence: evidence-postmortem]",
+        EventReason("Initialize revision history"),
+        (PostmortemFactId("fact-postmortem"),),
+        (EvidenceId("evidence-postmortem"),),
+        at,
+    )
+
+
+def postmortem_audit(
+    revision: PostmortemRevision,
+    event_id: str,
+    event_type: str,
+) -> AuditEvent:
+    return AuditEvent(
+        AuditEventId(event_id),
+        revision.tenant_id,
+        event_type,
+        1,
+        "postmortem_revision/v1",
+        revision.author_id,
+        CorrelationId(f"correlation-{event_id}"),
+        CausationId(f"cause-{event_id}"),
+        AuditTarget("postmortem.record", revision.postmortem_id),
+        revision.created_at,
+        Sha256Digest("e" * 64),
+        revision.fingerprint,
+    )
+
+
+async def add_closed_postmortem_incident(
+    session: AsyncSession, incident_id: str, *, tenant: str = "tenant-postmortem"
+) -> None:
+    await IncidentRepository(session).add(
+        Incident(
+            IncidentId(incident_id),
+            TenantId(tenant),
+            IncidentSeverity.SEV2,
+            NOW,
+            NOW + timedelta(hours=1),
+            IncidentState.CLOSED,
+            AggregateVersion(4),
+            closed_at=NOW + timedelta(hours=1),
+        )
+    )
+
+
+@pytest.mark.anyio
+async def test_postmortem_revision_repository_persists_history_authorship_and_audit(
+    engine: AsyncEngine,
+) -> None:
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    initial = persisted_postmortem_revision("incident-postmortem-history")
+    first_audit = postmortem_audit(initial, "audit-postmortem-created", "postmortem.created")
+    async with sessions.begin() as session:
+        await add_closed_postmortem_incident(session, initial.incident_id.value)
+        await PostmortemRevisionRepository(session).create(initial, first_audit)
+
+    revised = initial.revise(
+        author_id=ActorId("human-editor-2"),
+        content="# Revised postmortem\n\nHuman clarification.",
+        change_summary=EventReason("Clarify impact"),
+        created_at=initial.created_at + timedelta(minutes=1),
+    )
+    second_audit = postmortem_audit(revised, "audit-postmortem-revised", "postmortem.revised")
+    async with sessions.begin() as session:
+        repository = PostmortemRevisionRepository(session)
+        assert await repository.latest(initial.tenant_id, initial.incident_id) == initial
+        await repository.append(initial, revised, second_audit)
+
+    async with sessions() as session:
+        repository = PostmortemRevisionRepository(session)
+        assert await repository.latest(initial.tenant_id, initial.incident_id) == revised
+        assert await repository.list(initial.tenant_id, initial.incident_id) == (initial, revised)
+        assert await repository.latest(TenantId("tenant-other"), initial.incident_id) is None
+        head = await session.scalar(
+            select(PostmortemRow).where(PostmortemRow.id == initial.postmortem_id.value)
+        )
+        assert head is not None and head.latest_version == 2
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(AuditEventRow)
+                .where(AuditEventRow.target_id == initial.postmortem_id.value)
+            )
+            == 2
+        )
+
+
+@pytest.mark.anyio
+async def test_postmortem_revision_repository_rejects_stale_and_rolls_back_audit_failure(
+    engine: AsyncEngine,
+) -> None:
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    initial = persisted_postmortem_revision(
+        "incident-postmortem-stale", postmortem_id="postmortem-stale"
+    )
+    create_audit = postmortem_audit(initial, "audit-postmortem-stale", "postmortem.created")
+    async with sessions.begin() as session:
+        await add_closed_postmortem_incident(session, initial.incident_id.value)
+        await PostmortemRevisionRepository(session).create(initial, create_audit)
+
+    winner = initial.revise(
+        author_id=ActorId("winner"),
+        content="Winner revision",
+        change_summary=EventReason("Winner"),
+        created_at=initial.created_at + timedelta(minutes=1),
+    )
+    async with sessions.begin() as session:
+        await PostmortemRevisionRepository(session).append(
+            initial,
+            winner,
+            postmortem_audit(winner, "audit-postmortem-winner", "postmortem.revised"),
+        )
+
+    stale = initial.revise(
+        author_id=ActorId("stale"),
+        content="Stale revision",
+        change_summary=EventReason("Stale"),
+        created_at=initial.created_at + timedelta(minutes=2),
+    )
+    async with sessions() as session:
+        with pytest.raises(InvalidDomainValueError, match="stale"):
+            await PostmortemRevisionRepository(session).append(
+                initial,
+                stale,
+                postmortem_audit(stale, "audit-postmortem-loser", "postmortem.revised"),
+            )
+        await session.rollback()
+
+    third = winner.revise(
+        author_id=ActorId("third"),
+        content="Third revision",
+        change_summary=EventReason("Third"),
+        created_at=winner.created_at + timedelta(minutes=1),
+    )
+    async with sessions() as session:
+        with pytest.raises(IntegrityError):
+            await PostmortemRevisionRepository(session).append(
+                winner,
+                third,
+                postmortem_audit(third, create_audit.id.value, "postmortem.revised"),
+            )
+            await session.commit()
+        await session.rollback()
+    async with sessions() as session:
+        repository = PostmortemRevisionRepository(session)
+        assert await repository.latest(initial.tenant_id, initial.incident_id) == winner
+        assert len(await repository.list(initial.tenant_id, initial.incident_id)) == 2
+
+
+@pytest.mark.anyio
+async def test_postmortem_revision_rows_are_append_only_and_audit_binding_is_required(
+    engine: AsyncEngine,
+) -> None:
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    initial = persisted_postmortem_revision(
+        "incident-postmortem-immutable", postmortem_id="postmortem-immutable"
+    )
+    audit = postmortem_audit(initial, "audit-postmortem-immutable", "postmortem.created")
+    async with sessions.begin() as session:
+        await add_closed_postmortem_incident(session, initial.incident_id.value)
+        with pytest.raises(InvalidDomainValueError, match="audit binding"):
+            await PostmortemRevisionRepository(session).create(
+                initial,
+                replace(audit, actor_id=ActorId("forged-author")),
+            )
+        await PostmortemRevisionRepository(session).create(initial, audit)
+
+    valid_next = initial.revise(
+        author_id=ActorId("next-editor"),
+        content="Next version",
+        change_summary=EventReason("Next"),
+        created_at=initial.created_at + timedelta(minutes=1),
+    )
+    async with sessions() as session:
+        repository = PostmortemRevisionRepository(session)
+        with pytest.raises(InvalidDomainValueError, match="version one"):
+            await repository.create(
+                valid_next,
+                postmortem_audit(
+                    valid_next, "audit-postmortem-wrong-initial", "postmortem.created"
+                ),
+            )
+        with pytest.raises(InvalidDomainValueError, match="does not extend"):
+            substituted = replace(
+                valid_next,
+                evidence_ids=(EvidenceId("evidence-substituted"),),
+            )
+            await repository.append(
+                initial,
+                substituted,
+                postmortem_audit(substituted, "audit-postmortem-substituted", "postmortem.revised"),
+            )
+        forged_expected = replace(initial, content="Forged expected content")
+        forged_next = forged_expected.revise(
+            author_id=ActorId("forged-editor"),
+            content="Forged next",
+            change_summary=EventReason("Forged"),
+            created_at=initial.created_at + timedelta(minutes=1),
+        )
+        with pytest.raises(InvalidDomainValueError, match="does not match expected"):
+            await repository.append(
+                forged_expected,
+                forged_next,
+                postmortem_audit(
+                    forged_next, "audit-postmortem-forged-expected", "postmortem.revised"
+                ),
+            )
+        await session.rollback()
+
+    with pytest.raises(DBAPIError):
+        async with engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "UPDATE postmortem_revisions SET author_id = 'attacker' "
+                    "WHERE postmortem_id = 'postmortem-immutable'"
+                )
+            )
+    async with sessions() as session:
+        stored = await PostmortemRevisionRepository(session).latest(
+            initial.tenant_id, initial.incident_id
+        )
+        assert stored == initial
+        row = await session.scalar(
+            select(PostmortemRevisionRow).where(
+                PostmortemRevisionRow.postmortem_id == initial.postmortem_id.value
+            )
+        )
+        assert row is not None and row.author_id == initial.author_id.value
+
+    async with engine.begin() as connection:
+        await connection.execute(
+            text(
+                "ALTER TABLE postmortem_revisions "
+                "DISABLE TRIGGER postmortem_revisions_reject_row_mutation"
+            )
+        )
+        await connection.execute(
+            text(
+                "UPDATE postmortem_revisions SET revision_fingerprint = :digest "
+                "WHERE postmortem_id = :postmortem_id"
+            ),
+            {"digest": "f" * 64, "postmortem_id": initial.postmortem_id.value},
+        )
+        await connection.execute(
+            text(
+                "ALTER TABLE postmortem_revisions "
+                "ENABLE TRIGGER postmortem_revisions_reject_row_mutation"
+            )
+        )
+    async with sessions() as session:
+        with pytest.raises(InvalidDomainValueError, match="fingerprint is corrupt"):
+            await PostmortemRevisionRepository(session).latest(
+                initial.tenant_id, initial.incident_id
+            )

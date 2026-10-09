@@ -111,6 +111,11 @@ class PostmortemFactId(OpaqueIdentifier):
 
 
 @dataclass(frozen=True, slots=True)
+class PostmortemId(OpaqueIdentifier):
+    """Identity of one versioned postmortem aggregate."""
+
+
+@dataclass(frozen=True, slots=True)
 class ToolCallId(OpaqueIdentifier):
     """Identity of the Tool Gateway call that produced an observation."""
 

@@ -54,12 +54,34 @@ Incident, Prompt version and fingerprint, model-call trace, exact confirmed fact
 schema version, and a deterministic fingerprint. It exposes the ordered fact and Evidence IDs and
 renders Markdown without model-authored factual prose.
 
-Persistence of versioned human revisions, editor authorization, authorship, and revision audit is
-the next Phase 9 batch. This draft contract does not claim that those capabilities are complete.
+## Versioned human revisions
+
+An Operator with the explicit `postmortem:edit` permission can register the generated draft as
+version 1 and create later human revisions. Viewer, Approver, and Admin roles do not receive edit
+authority implicitly. Authentication, tenant ownership, and the Incident's `CLOSED` state are
+rechecked before each write; the author is taken from the authenticated Principal rather than a
+caller field.
+
+Every revision is immutable and records the Postmortem ID, positive consecutive version, source
+draft fingerprint, parent revision fingerprint, author, UTC creation time, bounded content, change
+summary, schema version, exact fact IDs, exact Evidence IDs, and its own canonical fingerprint.
+Human prose may change, but the application copies source fact/Evidence references from the current
+stored revision. The edit command has no field through which a caller can replace or invent them.
+
+PostgreSQL stores one mutable version head and append-only revision rows. The repository locks the
+head, compares the complete expected version and fingerprint, verifies the stored parent, and then
+adds exactly one next version. Concurrent or stale edits fail rather than overwrite history. Row
+triggers reject revision `UPDATE` and `DELETE`; tenant/Incident foreign keys and unique constraints
+protect scope and ordering. Each creation or revision and its content-free `postmortem.created` or
+`postmortem.revised` AuditEvent commit in the same caller-owned transaction. Audit stores hashes,
+identity, correlation, and causation—not the report body.
 
 ## Verification
 
 Unit coverage exercises successful exact rendering and tracing; closed-Incident and authorization
 requirements; Prompt/schema binding; fact bounds and scope; Evidence ownership, trust, freshness,
 injection, expiry, and hash integrity; malformed and fabricated model output; timeout/refusal
-classification; deterministic mock scenarios; and domain/schema invariants.
+classification; deterministic mock scenarios; domain/schema invariants; unauthorized and
+cross-tenant edits; stale versions; immutable source references; and forged parent/fingerprint
+input. Testcontainers covers migration round trips, history reads, author retention, optimistic
+conflicts, audit rollback, append-only database protection, and corruption detection.

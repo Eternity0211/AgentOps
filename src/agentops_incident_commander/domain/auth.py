@@ -25,6 +25,7 @@ class Permission(StrEnum):
     REMEDIATION_REQUEST = "remediation:request"
     APPROVAL_DECIDE = "approval:decide"
     APPROVED_ACTION_EXECUTE = "approved_action:execute"
+    POSTMORTEM_EDIT = "postmortem:edit"
     ADMIN_MANAGE = "admin:manage"
 
 
@@ -37,6 +38,7 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
         Permission.INVESTIGATION_CANCEL,
         Permission.REMEDIATION_REQUEST,
         Permission.APPROVED_ACTION_EXECUTE,
+        Permission.POSTMORTEM_EDIT,
     },
     Role.APPROVER: _READ | {Permission.APPROVAL_DECIDE},
     Role.ADMIN: _READ | {Permission.ADMIN_MANAGE},

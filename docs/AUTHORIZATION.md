@@ -19,6 +19,11 @@ Every resource authorization checks Tenant ID before permission. Medium/high-ris
 an Approver in the same tenant whose Actor ID differs from the proposer; role union cannot bypass
 that separation-of-duties check.
 
+Operators also receive the explicit `postmortem:edit` permission for versioned human revisions of
+closed-Incident postmortems. Viewer, Approver, and Admin roles remain read-only for postmortems
+unless combined with Operator through an explicit role assignment. The service derives authorship
+from the authenticated Principal and rejects anonymous, cross-tenant, or caller-forged authors.
+
 Tests exhaust the role map and prove rejection of anonymous, roleless, underprivileged, cross-tenant,
 self-approval, wrong-role approval, and cross-tenant approval requests. The `/api/v1` endpoint
 dependencies now enforce these contracts; the deployment-owned authentication adapter remains

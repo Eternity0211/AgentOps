@@ -183,6 +183,13 @@ from confirmed facts and rendered with Evidence IDs. The node is bound to an act
 `POSTMORTEM` Prompt and a complete model-call trace. It is not an agent and has no tool, state
 transition, or execution authority. See [Constrained Postmortem Drafting](POSTMORTEM.md).
 
+Human postmortem editing is a separate deterministic application service. An explicitly authorized
+Operator appends a new immutable version against the locked current version and fingerprint;
+authorship is server-derived and confirmed Fact/Evidence references cannot be supplied or replaced
+by the edit command. PostgreSQL stores the new revision and append-only hash-only audit event in one
+transaction. Stale, concurrent, cross-tenant, unauthorized, and source-substitution attempts fail
+closed without rewriting prior versions.
+
 ## Control plane safety sequence
 
 Approval binds `(incident_id, proposal_hash, policy_decision_id, actor, expiry)`. Immediately before execution, the server re-loads all records, verifies RBAC, state, hashes, expiry, policy version, and idempotency key, then acquires a target/action lock. Any material proposal edit creates a new version and invalidates the old approval. Append-only events capture request and result hashes plus before/after state.

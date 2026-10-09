@@ -143,7 +143,10 @@ but cannot author factual prose; the server rejects fabricated, omitted, duplica
 historical, stale, injected, or tampered references and renders the exact confirmed statements and
 Evidence IDs deterministically. Prompt identity, request/response hashes, status, token/cost
 metadata, actor, and workflow correlation are traced. Versioned human revisions and their
-authorship/audit remain the next Phase 9 capability.
+authorship/audit are persisted as immutable consecutive history with server-derived Operator
+authorship, inherited source Fact/Evidence references, optimistic concurrency, append-only database
+protection, and atomic hash-only audit. Anonymous, read-only, cross-tenant, stale, forged-parent,
+substituted-reference, and corrupt-history paths fail closed.
 
 ## Why this project exists
 
@@ -307,7 +310,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Typed rollback_service contract](docs/ROLLBACK_SERVICE.md)
 - [Recovery ActionExecution lifecycle](docs/ACTION_EXECUTION.md)
 - [Deterministic health verification](docs/HEALTH_VERIFICATION.md)
-- [Constrained postmortem drafting](docs/POSTMORTEM.md)
+- [Constrained postmortem drafting and versioned human revisions](docs/POSTMORTEM.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)

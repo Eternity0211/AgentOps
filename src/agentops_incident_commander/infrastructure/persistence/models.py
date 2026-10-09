@@ -28,7 +28,9 @@ from agentops_incident_commander.domain import (
     APPROVAL_INVALIDATION_SCHEMA_VERSION,
     APPROVAL_SCHEMA_VERSION,
     INCIDENT_MEMORY_SCHEMA_VERSION,
+    MAX_POSTMORTEM_CONTENT_BYTES,
     MAX_PROMPT_CONTENT_BYTES,
+    POSTMORTEM_REVISION_SCHEMA_VERSION,
     ActionExecutionStatus,
     ApprovalStatus,
     EvidenceGateOutcome,
@@ -1210,3 +1212,109 @@ class IncidentMemoryEmbeddingRow(Base):
     embedding: Mapped[list[float]] = mapped_column(VECTOR(), nullable=False)
     reindex_required: Mapped[bool] = mapped_column(nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class PostmortemRow(Base):
+    """Mutable head pointer for one Incident's immutable postmortem revisions."""
+
+    __tablename__ = "postmortems"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["incident_id", "tenant_id"],
+            ["incidents.id", "incidents.tenant_id"],
+            name="fk_postmortems_incident_tenant",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("latest_version >= 1", name="ck_postmortems_latest_version"),
+        CheckConstraint(
+            "source_draft_fingerprint ~ '^[0-9a-f]{64}$'",
+            name="ck_postmortems_draft_hash",
+        ),
+        UniqueConstraint("id", "tenant_id", name="uq_postmortems_id_tenant"),
+        UniqueConstraint("tenant_id", "incident_id", name="uq_postmortems_incident"),
+    )
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    incident_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_draft_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    latest_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_by: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class PostmortemRevisionRow(Base):
+    """Append-only generated or human-authored postmortem version."""
+
+    __tablename__ = "postmortem_revisions"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["postmortem_id", "tenant_id"],
+            ["postmortems.id", "postmortems.tenant_id"],
+            name="fk_postmortem_revisions_postmortem_tenant",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["incident_id", "tenant_id"],
+            ["incidents.id", "incidents.tenant_id"],
+            name="fk_postmortem_revisions_incident_tenant",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("version >= 1", name="ck_postmortem_revisions_version"),
+        CheckConstraint(
+            "source_draft_fingerprint ~ '^[0-9a-f]{64}$' AND "
+            "revision_fingerprint ~ '^[0-9a-f]{64}$' AND "
+            "(parent_revision_fingerprint IS NULL OR "
+            "parent_revision_fingerprint ~ '^[0-9a-f]{64}$')",
+            name="ck_postmortem_revisions_hashes",
+        ),
+        CheckConstraint(
+            "(version = 1 AND parent_revision_fingerprint IS NULL) OR "
+            "(version > 1 AND parent_revision_fingerprint IS NOT NULL)",
+            name="ck_postmortem_revisions_parent",
+        ),
+        CheckConstraint(
+            f"octet_length(content) BETWEEN 1 AND {MAX_POSTMORTEM_CONTENT_BYTES}",
+            name="ck_postmortem_revisions_content",
+        ),
+        CheckConstraint(
+            "jsonb_typeof(fact_ids) = 'array' AND jsonb_array_length(fact_ids) BETWEEN 1 AND 64",
+            name="ck_postmortem_revisions_fact_ids",
+        ),
+        CheckConstraint(
+            "jsonb_typeof(evidence_ids) = 'array' "
+            "AND jsonb_array_length(evidence_ids) BETWEEN 1 AND 1024",
+            name="ck_postmortem_revisions_evidence_ids",
+        ),
+        CheckConstraint(
+            f"schema_version = '{POSTMORTEM_REVISION_SCHEMA_VERSION}'",
+            name="ck_postmortem_revisions_schema",
+        ),
+        UniqueConstraint("postmortem_id", "version", name="uq_postmortem_revision_version"),
+        UniqueConstraint("revision_fingerprint", name="uq_postmortem_revision_fingerprint"),
+        UniqueConstraint("audit_event_id", name="uq_postmortem_revision_audit"),
+        Index(
+            "ix_postmortem_revisions_incident",
+            "tenant_id",
+            "incident_id",
+            "version",
+        ),
+    )
+
+    sequence: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    postmortem_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    incident_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    source_draft_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    parent_revision_fingerprint: Mapped[str | None] = mapped_column(String(64))
+    revision_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    author_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    content: Mapped[str] = mapped_column(String(MAX_POSTMORTEM_CONTENT_BYTES), nullable=False)
+    change_summary: Mapped[str] = mapped_column(String(512), nullable=False)
+    fact_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    evidence_ids: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    audit_event_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)

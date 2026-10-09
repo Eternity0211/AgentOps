@@ -33,6 +33,7 @@ def test_every_role_has_an_explicit_least_privilege_matrix() -> None:
     }
     assert Permission.APPROVAL_DECIDE in ROLE_PERMISSIONS[Role.APPROVER]
     assert Permission.APPROVED_ACTION_EXECUTE in ROLE_PERMISSIONS[Role.OPERATOR]
+    assert Permission.POSTMORTEM_EDIT in ROLE_PERMISSIONS[Role.OPERATOR]
     assert ROLE_PERMISSIONS[Role.ADMIN] - ROLE_PERMISSIONS[Role.VIEWER] == {Permission.ADMIN_MANAGE}
 
 

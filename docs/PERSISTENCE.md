@@ -66,6 +66,16 @@ fingerprints, actor, time, and unique audit event. The repository row-locks and 
 Approval before atomically adding the marker and `approval.invalidated` event. The historical human
 decision is retained, while the marker becomes an independent non-reuse guard for later execution.
 
+Revision `20261009_0016` adds tenant/Incident-scoped `postmortems` and append-only
+`postmortem_revisions`. The head stores the source draft fingerprint and latest optimistic version;
+each immutable revision stores its parent fingerprint, author, bounded content, change summary,
+exact confirmed Fact/Evidence IDs, schema version, and canonical fingerprint. The repository locks
+and compares the head plus complete stored parent before appending one consecutive version, so stale
+or concurrent edits cannot overwrite history. Creation/revision and their hash-only AuditEvent
+commit atomically. Database triggers reject revision updates/deletes, while composite foreign keys,
+unique version/fingerprint/audit bindings, and content/reference checks reject cross-scope or
+malformed writes.
+
 ## Repository concurrency
 
 `IncidentRepository` updates with `WHERE id = ... AND version = ...`. A zero-row update raises the

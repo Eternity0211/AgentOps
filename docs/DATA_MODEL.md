@@ -22,7 +22,7 @@ This is the conceptual model. SQLAlchemy/Alembic implementation must preserve th
 | VerificationRun | action, criteria version, observation window, metric/health/version/alert Evidence, deterministic result. |
 | CompensationExecution | future-only safe inverse for an explicitly reversible action; original action/verification, independent policy/approval, idempotency key, before/after state, and result. It is not created for failed `rollback_service`. |
 | GroundTruthScenario | evaluator-only scenario/version, root cause, expected evidence, automation eligibility, expected safe outcome/handoff, recovery action, verification, cleanup procedure, and future-tool requirement. |
-| Postmortem | A constrained generated draft binds a closed Incident, exact confirmed facts, resolvable Evidence IDs, active Prompt fingerprint, model-call trace, schema version, and deterministic fingerprint. Versioned human revisions and authorship are a separate mutable aggregate still pending in Phase 9. |
+| Postmortem | A constrained generated draft binds a closed Incident, exact confirmed facts, resolvable Evidence IDs, active Prompt fingerprint, model-call trace, schema version, and deterministic fingerprint. A mutable optimistic head points to immutable consecutive human revisions with parent/source fingerprints, exact inherited Fact/Evidence IDs, author, time, change summary, content, and audit binding. |
 | AuditEvent | append-only sequence, event type/version, actor, correlation/causation IDs, target, request/result hashes, timestamp. |
 
 ## Platform configuration and memory
@@ -56,6 +56,9 @@ This is the conceptual model. SQLAlchemy/Alembic implementation must preserve th
 - A generated postmortem draft may contain only bounded confirmed fact statements copied verbatim
   after same-scope Evidence and Artifact resolution. The model output can contain section kinds and
   fact IDs only; it cannot supply factual prose. See [Constrained Postmortem Drafting](POSTMORTEM.md).
+- Human postmortem edits append a new version and never mutate historical content. Authorship comes
+  from the authenticated Principal, source references are copied from the stored parent, and the
+  revision plus its hash-only AuditEvent commit atomically.
 
 ## State ownership and liveness invariants
 

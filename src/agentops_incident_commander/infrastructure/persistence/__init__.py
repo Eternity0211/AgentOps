@@ -28,9 +28,12 @@ from .models import (
     JobRow,
     ModelCallTraceRow,
     OutboxEventRow,
+    PostmortemRevisionRow,
+    PostmortemRow,
     PromptLifecycleEventRow,
     PromptVersionRow,
 )
+from .postmortem_repository import PostmortemRevisionRepository
 from .repositories import (
     ActionExecutionRepository,
     AlertRepository,
@@ -85,6 +88,9 @@ __all__ = [
     "OutboxRepository",
     "PostgresActionExecutionStore",
     "PostgresLifecycleActionExecutionStore",
+    "PostmortemRevisionRepository",
+    "PostmortemRevisionRow",
+    "PostmortemRow",
     "PromptLifecycleEventRow",
     "PromptLifecycleRepository",
     "PromptVersionRow",

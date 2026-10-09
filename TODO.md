@@ -212,8 +212,8 @@ Exit: exactly one allowlisted mutation occurs for concurrent/retried identical r
 - [x] Keep generic compensation unreachable in the MVP unless a future write tool provides typed safe-inverse metadata plus independent policy/approval.
 - [x] Add verification timeout, flapping/stability-window, non-compensable failure, cancellation-safe-boundary, and re-diagnosis budget tests.
 - [x] Implement constrained postmortem draft from confirmed facts and resolvable references only.
-- [ ] Support versioned human postmortem revisions with authorship/audit.
-- [ ] Add false-fact/reference and unauthorized-edit tests.
+- [x] Support versioned human postmortem revisions with authorship/audit.
+- [x] Add false-fact/reference and unauthorized-edit tests.
 
 Exit: the system never self-declares recovery; observed success closes the incident, while failed verification safely re-diagnoses or transfers to a human without reverting to a known faulty version.
 

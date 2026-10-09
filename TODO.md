@@ -211,7 +211,7 @@ Exit: exactly one allowlisted mutation occurs for concurrent/retried identical r
 - [x] Route failed `rollback_service` verification to bounded re-diagnosis or `NEEDS_HUMAN`; never restore the known faulty version.
 - [x] Keep generic compensation unreachable in the MVP unless a future write tool provides typed safe-inverse metadata plus independent policy/approval.
 - [x] Add verification timeout, flapping/stability-window, non-compensable failure, cancellation-safe-boundary, and re-diagnosis budget tests.
-- [ ] Implement constrained postmortem draft from confirmed facts and resolvable references only.
+- [x] Implement constrained postmortem draft from confirmed facts and resolvable references only.
 - [ ] Support versioned human postmortem revisions with authorship/audit.
 - [ ] Add false-fact/reference and unauthorized-edit tests.
 

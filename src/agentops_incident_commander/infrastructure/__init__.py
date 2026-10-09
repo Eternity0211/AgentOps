@@ -55,6 +55,11 @@ from .persisted_health_verification import (
     HEALTH_VERIFICATION_DECISION_AUDIT_SCHEMA_VERSION,
     PostgresPersistedHealthVerifier,
 )
+from .postmortem_mock import (
+    POSTMORTEM_MOCK_MODEL_VERSION,
+    DeterministicPostmortemMockModel,
+    PostmortemMockScenario,
+)
 from .recovery_tools import ROLLBACK_SERVICE_VERSION, rollback_service_definition
 from .rollback_adapter import DeploymentRollbackBackend, ServerBoundRollbackAdapter
 from .simulator_rollback import LocalSimulatorRollbackBackend, SimulatorDeploymentStatePort
@@ -66,6 +71,7 @@ __all__ = [
     "HEALTH_VERIFICATION_DECISION_AUDIT_SCHEMA_VERSION",
     "MAX_VERIFICATION_COLLECTION_TIMEOUT_SECONDS",
     "MOCK_MODEL_VERSION",
+    "POSTMORTEM_MOCK_MODEL_VERSION",
     "ROLLBACK_SERVICE_VERSION",
     "ActiveVersionBackend",
     "ActiveVersionResult",
@@ -77,6 +83,7 @@ __all__ = [
     "DeploymentVersionObserver",
     "DeterministicDiagnosisMockModel",
     "DeterministicIncidentMemoryEmbedder",
+    "DeterministicPostmortemMockModel",
     "DiagnosisCheckpointIdentity",
     "DiagnosisCheckpointObservation",
     "DiagnosisRunOutcome",
@@ -99,6 +106,7 @@ __all__ = [
     "NewAlertCountResult",
     "NewAlertCountSample",
     "PostgresPersistedHealthVerifier",
+    "PostmortemMockScenario",
     "ServerBoundRollbackAdapter",
     "SimulatorDeploymentStatePort",
     "approval_checkpoint_config",

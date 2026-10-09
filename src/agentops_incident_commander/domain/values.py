@@ -106,6 +106,11 @@ class ModelCallId(OpaqueIdentifier):
 
 
 @dataclass(frozen=True, slots=True)
+class PostmortemFactId(OpaqueIdentifier):
+    """Immutable identity of one confirmed fact available to a postmortem."""
+
+
+@dataclass(frozen=True, slots=True)
 class ToolCallId(OpaqueIdentifier):
     """Identity of the Tool Gateway call that produced an observation."""
 

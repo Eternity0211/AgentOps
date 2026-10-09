@@ -136,6 +136,14 @@ execution, live five-signal persistence, deterministic `PASS`, and success routi
 deployment mutation, one ActionExecution, five Evidence records, one verification decision, and the
 four legal Incident transitions through `CLOSED`; exact replay reuses those results without a
 second mutation, collection, verification, or closure. The production flag remains off.
+Phase 9 also includes [constrained postmortem drafting](docs/POSTMORTEM.md) for closed Incidents.
+It accepts only bounded, pre-confirmed facts backed by resolvable current-Incident Evidence and
+hash-verified Artifacts. The registered postmortem model may arrange fact IDs into typed sections
+but cannot author factual prose; the server rejects fabricated, omitted, duplicated, cross-scoped,
+historical, stale, injected, or tampered references and renders the exact confirmed statements and
+Evidence IDs deterministically. Prompt identity, request/response hashes, status, token/cost
+metadata, actor, and workflow correlation are traced. Versioned human revisions and their
+authorship/audit remain the next Phase 9 capability.
 
 ## Why this project exists
 
@@ -299,6 +307,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Typed rollback_service contract](docs/ROLLBACK_SERVICE.md)
 - [Recovery ActionExecution lifecycle](docs/ACTION_EXECUTION.md)
 - [Deterministic health verification](docs/HEALTH_VERIFICATION.md)
+- [Constrained postmortem drafting](docs/POSTMORTEM.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)

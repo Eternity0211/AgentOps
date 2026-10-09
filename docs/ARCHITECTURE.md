@@ -174,6 +174,15 @@ telemetry/deployments (untrusted)
 
 Historical incidents use a separate trust label. Similarity search results include source incident, age, outcome status, and Artifact links; they can suggest a query but cannot satisfy evidence requirements for the current incident.
 
+After deterministic closure, the postmortem node may arrange only server-supplied confirmed fact
+IDs into typed sections. Before invocation, the application resolves every supporting reference to
+same-tenant, same-Incident, unexpired direct or derived Evidence and verifies its immutable Artifact
+hash. Historical memory, Ground Truth, prompt-injection content, and unresolved or substituted
+references are rejected. The model cannot return narrative fields; final prose is copied exactly
+from confirmed facts and rendered with Evidence IDs. The node is bound to an active versioned
+`POSTMORTEM` Prompt and a complete model-call trace. It is not an agent and has no tool, state
+transition, or execution authority. See [Constrained Postmortem Drafting](POSTMORTEM.md).
+
 ## Control plane safety sequence
 
 Approval binds `(incident_id, proposal_hash, policy_decision_id, actor, expiry)`. Immediately before execution, the server re-loads all records, verifies RBAC, state, hashes, expiry, policy version, and idempotency key, then acquires a target/action lock. Any material proposal edit creates a new version and invalidates the old approval. Append-only events capture request and result hashes plus before/after state.

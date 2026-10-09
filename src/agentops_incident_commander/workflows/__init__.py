@@ -49,6 +49,13 @@ from .diagnosis_graph import (
     route_after_gate,
     route_after_plan,
 )
+from .postmortem import (
+    MAX_POSTMORTEM_FACT_REFERENCES,
+    MAX_POSTMORTEM_SECTIONS,
+    POSTMORTEM_OUTLINE_SCHEMA_VERSION,
+    PostmortemOutline,
+    PostmortemOutlineSection,
+)
 from .remediation import (
     MAX_REDIAGNOSIS_ATTEMPTS,
     MAX_REMEDIATION_RISK_ASSUMPTIONS,
@@ -82,11 +89,14 @@ __all__ = [
     "MAX_CANDIDATE_EVIDENCE",
     "MAX_INVESTIGATION_STEPS",
     "MAX_MISSING_EVIDENCE",
+    "MAX_POSTMORTEM_FACT_REFERENCES",
+    "MAX_POSTMORTEM_SECTIONS",
     "MAX_REDIAGNOSIS_ATTEMPTS",
     "MAX_REMEDIATION_RISK_ASSUMPTIONS",
     "MAX_ROOT_CAUSE_CANDIDATES",
     "MAX_STABILITY_WINDOW_SECONDS",
     "MIN_STABILITY_WINDOW_SECONDS",
+    "POSTMORTEM_OUTLINE_SCHEMA_VERSION",
     "REMEDIATION_PROPOSAL_SCHEMA_VERSION",
     "ApprovalGraphPhase",
     "ApprovalResumeStore",
@@ -113,6 +123,8 @@ __all__ = [
     "InvestigationPlan",
     "InvestigationStep",
     "PlanNodeResult",
+    "PostmortemOutline",
+    "PostmortemOutlineSection",
     "RecoveryAction",
     "RemediationFailureHandling",
     "RemediationFailureRoute",

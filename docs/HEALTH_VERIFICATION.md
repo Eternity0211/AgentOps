@@ -208,4 +208,8 @@ server-bound simulator mutation, immutable action snapshots, and success router.
 `CLOSED` only after five live Evidence records produce one persisted `PASS`; exact replay returns
 the existing execution, verification, and closed Incident without a second mutation, collection,
 decision, or route transition. This test-only enablement does not change the production-default
-capability flag.
+capability flag. The worker-owned composition root is now available after this gate: it keeps that
+flag false by default, rejects before any effect while disabled, and can explicitly compose an
+injected typed deployment backend with the same Executor, verifier, and transaction-owning
+PASS/FAIL routes. It does not add a model-call path, API mutation endpoint, compensation route, or
+production Kubernetes provider.

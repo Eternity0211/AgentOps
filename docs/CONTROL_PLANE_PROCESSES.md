@@ -13,6 +13,15 @@ opaque `AGENTOPS_WORKER_ID`, poll interval, concurrency limit, and shutdown grac
 either process begins serving. Error messages name the setting but never echo its value, so a
 credential-bearing database URL is not disclosed.
 
+The worker also owns the only recovery-write composition boundary. The capability remains off
+unless `AGENTOPS_RECOVERY_MUTATION_ENABLED=true` is supplied exactly; malformed boolean values
+fail startup, and `AGENTOPS_RECOVERY_DISPATCH_TIMEOUT_SECONDS` is bounded to 0.1–300 seconds. The
+composition accepts only a typed server-owned deployment backend and wires preflight, immutable
+snapshots, PostgreSQL lifecycle execution, the bounded dispatcher, persisted verification, and
+transaction-owning PASS/FAIL routers into one `RollbackRecoveryCoordinator`. Disabling the flag
+rejects before preflight, snapshot creation, durable claim, or backend invocation. This setting
+does not create an API write endpoint or make the model an execution authority.
+
 The API lifespan starts no background worker and has no worker route. The worker module imports no
 FastAPI or Uvicorn surface. Its default source intentionally yields no work until workflow handlers
 exist. The worker requests no more jobs than its available concurrency capacity and rejects a
@@ -26,7 +35,12 @@ Phase 6 Diagnosis runtime now provides the handler-side checkpoint-aware runner:
 worker resumes an existing PostgreSQL thread rather than replacing its state, while exact operation
 identities let service adapters replay effects committed before a worker exit.
 
+The repository deliberately does not ship a production Kubernetes provider. A deployment adapter
+must be injected by the trusted worker deployment and still receives only the preflight-resolved
+typed target and idempotency key. The reference local simulator backend remains test-only.
+
 Tests verify independent settings, fail-closed startup, the API health contract, absence of worker
 routes/tasks, the HTTP-free worker source, concurrency saturation, cancellation before and during
 work, capacity-contract violation, cooperative signal shutdown, grace-period expiry, both CLI
-entry points, and keyboard interruption.
+entry points, keyboard interruption, default-off recovery configuration, malformed/unsafe setting
+rejection, transaction-owned PASS/FAIL routing, and the explicitly enabled full rollback chain.

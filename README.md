@@ -82,11 +82,11 @@ only through server-owned ports. The crash-safe Executor application path now co
 preflight with an idempotent before snapshot, a transaction-owning PostgreSQL claim, atomic replay
 audit, one bounded typed dispatch, and terminal persistence. A durable claim always commits before
 the adapter call; every concurrent or retried duplicate returns the stored execution without a
-second mutation. The server kill switch remains disabled by default, no production write adapter is
-registered, and only the deterministic verifier may declare recovery. The Phase 8 safety matrix
+second mutation. The server kill switch remains disabled by default, and only the deterministic
+verifier may declare recovery. The Phase 8 safety matrix
 now includes a PostgreSQL concurrent-approval race plus rejection/expiry, mutation
 classification, replay, duplicate delivery, timeout, authorization, and bypass coverage; its
-server-side mutation flag remains off outside explicitly enabled test composition.
+server-side mutation flag remains off unless trusted worker configuration explicitly enables it.
 
 Phase 9 now has the first versioned [deterministic health-verification contract](docs/HEALTH_VERIFICATION.md).
 It binds a successful ActionExecution to one of the two rollback-eligible scenarios, exact
@@ -108,24 +108,22 @@ separate non-compensable route: one proposal-bound budgeted attempt returns to `
 while exhaustion or an explicit zero budget enters `NEEDS_HUMAN`; neither route can redeploy the
 faulty version or enter compensation. The architecture gate also rejects executable compensation
 modules, controllers, functions, or tool identifiers from the MVP application, workflow, and
-infrastructure layers while retaining the explicitly future-only domain states. Production
-transport composition and real mutation enablement remain incomplete. A single deterministic
+infrastructure layers while retaining the explicitly future-only domain states. A single deterministic
 recovery coordinator now composes the authorized executor, persisted verifier, and exclusive
-success/failure routers without enabling the write switch: unsuccessful execution never reaches
+success/failure routers: unsuccessful execution never reaches
 verification, every authority and decision fingerprint remains exact, `PASS` alone may close,
 and `FAIL` alone may re-diagnose or hand off. PostgreSQL integration now proves both composed
 routes and exact replay without duplicate route audit. The live persisted verifier now composes
 five-signal collection, immutable Artifact/Evidence persistence, full re-resolution,
-deterministic evaluation, hash-bound audit, and exact decision replay. Production backend
-transport wiring and production mutation enablement remain open. A narrow server-bound
+deterministic evaluation, hash-bound audit, and exact decision replay. A narrow server-bound
 rollback adapter now admits only the preflight-resolved typed target and Idempotency Key and reads
 back the deployed semantic version; it exposes no command, URL, manifest, namespace, credential,
-or caller-selected target, and remains unregistered while the capability flag is off. Before and
+or caller-selected target. Before and
 after deployment observations now persist as deterministic-identity, immutable, hash-bound Artifact
 snapshots; exact retries reuse validated content while version, scope, and operation substitutions
 fail closed. A deterministic local-simulator-only deployment backend now provides exact-target,
-concurrent-idempotent state transition and live `/versionz` observation for the pending recovery
-E2E suite; it is not production composition and does not enable the default-off mutation switch.
+concurrent-idempotent state transition and live `/versionz` observation for the recovery E2E
+suite; it is not a production provider and does not enable the default-off mutation switch.
 The lifecycle-aware PostgreSQL execution store now commits a new action claim with the Incident's
 entry into `EXECUTING`, then commits the terminal execution with its deterministic next state:
 success enters `VERIFYING`, confirmed pre-effect failure re-diagnoses, and timeout or uncertainty
@@ -135,7 +133,11 @@ server-bound adapter, simulator deployment state, immutable before/after snapsho
 execution, live five-signal persistence, deterministic `PASS`, and success routing. It proves one
 deployment mutation, one ActionExecution, five Evidence records, one verification decision, and the
 four legal Incident transitions through `CLOSED`; exact replay reuses those results without a
-second mutation, collection, verification, or closure. The production flag remains off.
+second mutation, collection, verification, or closure. After that gate, the worker-owned recovery
+composition now wires an injected typed deployment backend through the same Executor, verifier,
+and transaction-owning PASS/FAIL routers. `AGENTOPS_RECOVERY_MUTATION_ENABLED` remains false by
+default and a disabled attempt stops before preflight or any effect; the repository intentionally
+ships no production Kubernetes controller or API write endpoint.
 Phase 9 also includes [constrained postmortem drafting](docs/POSTMORTEM.md) for closed Incidents.
 It accepts only bounded, pre-confirmed facts backed by resolvable current-Incident Evidence and
 hash-verified Artifacts. The registered postmortem model may arrange fact IDs into typed sections

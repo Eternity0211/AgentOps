@@ -37,6 +37,8 @@ def test_worker_settings_load_typed_values() -> None:
             "AGENTOPS_DATABASE_URL": DATABASE_URL,
             "AGENTOPS_WORKER_ID": "worker-1",
             "AGENTOPS_WORKER_POLL_SECONDS": "0.25",
+            "AGENTOPS_RECOVERY_MUTATION_ENABLED": "true",
+            "AGENTOPS_RECOVERY_DISPATCH_TIMEOUT_SECONDS": "12.5",
         }
     )
 
@@ -44,6 +46,25 @@ def test_worker_settings_load_typed_values() -> None:
     assert settings.poll_interval_seconds == 0.25
     assert settings.max_concurrency == 4
     assert settings.shutdown_grace_seconds == 30
+    assert settings.recovery_mutation_enabled is True
+    assert settings.recovery_dispatch_timeout_seconds == 12.5
+
+
+def test_worker_recovery_mutation_defaults_disabled() -> None:
+    settings = config.WorkerSettings.load(
+        {"AGENTOPS_DATABASE_URL": DATABASE_URL, "AGENTOPS_WORKER_ID": "worker-1"}
+    )
+    explicit = config.WorkerSettings.load(
+        {
+            "AGENTOPS_DATABASE_URL": DATABASE_URL,
+            "AGENTOPS_WORKER_ID": "worker-1",
+            "AGENTOPS_RECOVERY_MUTATION_ENABLED": "false",
+        }
+    )
+
+    assert settings.recovery_mutation_enabled is False
+    assert explicit.recovery_mutation_enabled is False
+    assert settings.recovery_dispatch_timeout_seconds == 30
 
 
 @pytest.mark.parametrize(
@@ -103,6 +124,24 @@ def test_worker_settings_load_typed_values() -> None:
                 "AGENTOPS_DATABASE_URL": DATABASE_URL,
                 "AGENTOPS_WORKER_ID": "worker-1",
                 "AGENTOPS_WORKER_SHUTDOWN_GRACE_SECONDS": "0",
+            },
+            "between 0.1 and 300",
+        ),
+        (
+            config.WorkerSettings.load,
+            {
+                "AGENTOPS_DATABASE_URL": DATABASE_URL,
+                "AGENTOPS_WORKER_ID": "worker-1",
+                "AGENTOPS_RECOVERY_MUTATION_ENABLED": "yes",
+            },
+            "must be true or false",
+        ),
+        (
+            config.WorkerSettings.load,
+            {
+                "AGENTOPS_DATABASE_URL": DATABASE_URL,
+                "AGENTOPS_WORKER_ID": "worker-1",
+                "AGENTOPS_RECOVERY_DISPATCH_TIMEOUT_SECONDS": "301",
             },
             "between 0.1 and 300",
         ),

@@ -198,7 +198,7 @@ Exit: exactly one allowlisted mutation occurs for concurrent/retried identical r
 - [x] Verify error rate and P95 latency from real metric evidence.
 - [x] Verify health endpoint, active service version, new alerts, and stable observation window.
 - [x] Persist verification observations/evidence and deterministic decision reasons.
-- [ ] Enable the real mutation route only after verifier integration, non-compensable failure routing, and full rollback-service E2E tests pass.
+- [x] Enable the real mutation route only after verifier integration, non-compensable failure routing, and full rollback-service E2E tests pass.
   - [x] Compose execution, persisted verification, and exclusive PASS/FAIL routing behind the disabled mutation capability.
   - [x] Prove PostgreSQL-backed PASS/FAIL orchestration and exact replay without duplicate route audit.
   - [x] Compose live five-signal collection, immutable Artifact/Evidence persistence, re-resolution, deterministic evaluation, decision audit, and exact replay.

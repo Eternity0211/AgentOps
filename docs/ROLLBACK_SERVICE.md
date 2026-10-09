@@ -3,7 +3,8 @@
 Phase 8 defines the first and only MVP write-tool contract. `rollback_service` is a forward
 recovery action from a known faulty deployment to a server-configured stable version. The contract,
 resolution boundary, and server-bound adapter are validated through an explicitly enabled local
-simulator E2E. The adapter remains unregistered in production and the default capability stays off.
+simulator E2E. The worker-owned composition can now wire the complete recovery route to an injected
+typed deployment backend, while the default capability stays off.
 
 ## Caller-controlled input
 
@@ -52,10 +53,13 @@ Idempotency Key, then reports an opaque operation identity and the observed depl
 version. It exposes no shell command, URL, manifest, namespace, credential, or caller-selected
 target. The bounded dispatcher still owns timeout and uncertain-result classification.
 
-The adapter is not registered in production composition and the capability remains disabled by
-default. The local simulator supplies the concrete test backend and full-chain E2E gate; a real
-production backend, transport composition, and an explicit production enablement decision are
-still required before production mutation is available.
+`compose_rollback_recovery_runtime` is the trusted worker composition boundary. It connects this
+adapter to immutable snapshot persistence, the lifecycle-aware PostgreSQL Executor, persisted
+five-signal verification, and transaction-owning PASS/FAIL routers. The server flag is parsed
+strictly and remains disabled by default; when disabled, execution stops before preflight or any
+durable/mutation effect. Enabling it is an explicit worker-deployment decision and still requires
+an injected implementation of the narrow deployment backend. The repository intentionally ships
+no production Kubernetes controller and exposes no recovery write endpoint.
 
 The shared deployment observation port also feeds `ImmutableActionSnapshotWriter`. It persists
 canonical before/after JSON as immutable hash-bound Artifacts under identities derived from the
@@ -99,3 +103,7 @@ collection, persisted deterministic verification, and success routing. It assert
 deployment transition, one ActionExecution, five Evidence records, one `PASS`, and the legal
 `READY_TO_EXECUTE -> EXECUTING -> VERIFYING -> RESOLVED -> CLOSED` path. Exact replay returns the
 same records without another mutation, collection, verification, or closure.
+The same test now uses the worker composition root, first proving the default-disabled route has no
+preflight, snapshot, database, or deployment side effect, and then proving explicit enablement and
+exact replay through the complete safety chain. Separate PostgreSQL integration cases exercise the
+transaction-owning PASS and non-compensable FAIL adapters.

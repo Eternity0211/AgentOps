@@ -32,14 +32,12 @@ from agentops_incident_commander.application import (
     ApprovalLifecycleChange,
     ApprovalLifecycleManager,
     AuthorizedRollbackExecution,
-    BoundedRollbackDispatcher,
     EvidenceBoundRemediationProposal,
     EvidenceReferenceResolution,
     FailedHealthVerificationRouter,
     ModelCallTraceManager,
     PromptLifecycleChange,
     PromptLifecycleManager,
-    RecoveryMutationCapability,
     RemediationEvidenceGate,
     RollbackActionExecutor,
     RollbackRecoveryCoordinator,
@@ -56,7 +54,8 @@ from agentops_incident_commander.application import (
     model_call_trace_fingerprint,
 )
 from agentops_incident_commander.apps.api import create_app
-from agentops_incident_commander.apps.config import ApiSettings
+from agentops_incident_commander.apps.config import ApiSettings, WorkerSettings
+from agentops_incident_commander.apps.recovery import compose_rollback_recovery_runtime
 from agentops_incident_commander.domain import (
     ActionExecution,
     ActionExecutionStatus,
@@ -191,13 +190,11 @@ from agentops_incident_commander.infrastructure import (
     HealthProbeSample,
     HealthVerificationCollectionIds,
     HealthVerificationCollectionRequest,
-    ImmutableActionSnapshotWriter,
     LiveHealthVerificationCollector,
     LocalSimulatorRollbackBackend,
     NewAlertCountResult,
     NewAlertCountSample,
     PostgresPersistedHealthVerifier,
-    ServerBoundRollbackAdapter,
 )
 from agentops_incident_commander.infrastructure.artifacts import LocalArtifactStorage
 from agentops_incident_commander.infrastructure.collectors import MetricSample
@@ -236,7 +233,9 @@ from agentops_incident_commander.infrastructure.persistence import (
     OutboxEventRow,
     OutboxRepository,
     PostgresActionExecutionStore,
+    PostgresFailedHealthVerificationRouter,
     PostgresLifecycleActionExecutionStore,
+    PostgresSuccessfulHealthVerificationRouter,
     PostmortemRevisionRepository,
     PostmortemRevisionRow,
     PostmortemRow,
@@ -4982,49 +4981,58 @@ async def test_postgres_recovery_coordinator_routes_persisted_decision_once(
     class StoredVerifier:
         calls = 0
 
-        def __init__(self, repository: HealthVerificationRepository) -> None:
-            self._repository = repository
-
         async def verify(self, *_: object, **__: object) -> HealthVerificationDecision:
             self.calls += 1
-            stored = await self._repository.get(
-                persisted_decision.id,
-                tenant_id=completed.tenant_id,
-                incident_id=completed.incident_id,
-            )
+            async with sessions() as session:
+                stored = await HealthVerificationRepository(session).get(
+                    persisted_decision.id,
+                    tenant_id=completed.tenant_id,
+                    incident_id=completed.incident_id,
+                )
             assert stored is not None
             return stored[1]
 
     executor = StoredExecutor()
-    async with sessions.begin() as session:
-        repository = HealthVerificationRepository(session)
-        verifier = StoredVerifier(repository)
-        coordinator = RollbackRecoveryCoordinator(
-            executor,
-            verifier,
-            verification_closure_router(session, audit_id=f"audit-{suffix}-close"),
-            verification_failure_router(session, audit_id=f"audit-{suffix}-failure"),
-        )
-        first = await coordinator.recover(
-            rollback_request,
-            proposal,
-            policy_input,
-            policy_decision,
-            used_rediagnosis_attempts=0,
-            principal=closure_principal(),
-            correlation_id=CorrelationId(f"correlation-{suffix}"),
-            causation_id=CausationId(f"causation-{suffix}"),
-        )
-        replay = await coordinator.recover(
-            rollback_request,
-            proposal,
-            policy_input,
-            policy_decision,
-            used_rediagnosis_attempts=0,
-            principal=closure_principal(),
-            correlation_id=CorrelationId(f"correlation-{suffix}-replay"),
-            causation_id=CausationId(f"causation-{suffix}-replay"),
-        )
+    verifier = StoredVerifier()
+    audit_ids = count(1)
+    coordinator = RollbackRecoveryCoordinator(
+        executor,
+        verifier,
+        PostgresSuccessfulHealthVerificationRouter(
+            sessions,
+            clock=lambda: NOW + timedelta(minutes=11),
+            audit_event_id_factory=lambda: AuditEventId(
+                f"audit-{suffix}-success-{next(audit_ids)}"
+            ),
+        ),
+        PostgresFailedHealthVerificationRouter(
+            sessions,
+            clock=lambda: NOW + timedelta(minutes=11),
+            audit_event_id_factory=lambda: AuditEventId(
+                f"audit-{suffix}-failure-{next(audit_ids)}"
+            ),
+        ),
+    )
+    first = await coordinator.recover(
+        rollback_request,
+        proposal,
+        policy_input,
+        policy_decision,
+        used_rediagnosis_attempts=0,
+        principal=closure_principal(),
+        correlation_id=CorrelationId(f"correlation-{suffix}"),
+        causation_id=CausationId(f"causation-{suffix}"),
+    )
+    replay = await coordinator.recover(
+        rollback_request,
+        proposal,
+        policy_input,
+        policy_decision,
+        used_rediagnosis_attempts=0,
+        principal=closure_principal(),
+        correlation_id=CorrelationId(f"correlation-{suffix}-replay"),
+        causation_id=CausationId(f"causation-{suffix}-replay"),
+    )
 
     assert first.outcome is expected
     assert replay.incident == first.incident
@@ -5352,31 +5360,13 @@ async def test_authorized_rollback_service_full_chain_closes_once_and_replays(
     )
     backend = LocalSimulatorRollbackBackend(deployment, execution_target)
     artifacts = LocalArtifactStorage(tmp_path / "rollback-full-chain-artifacts")
-    snapshots = ImmutableActionSnapshotWriter(backend, artifacts)
-    dispatcher = BoundedRollbackDispatcher(
-        ServerBoundRollbackAdapter(backend),
-        snapshots,
-        RecoveryMutationCapability(True),
-        timeout_seconds=30,
-        clock=lambda: NOW + timedelta(minutes=7, seconds=next(execution_clock)),
+    execution_clock = iter(
+        NOW + timedelta(minutes=7, seconds=offset)
+        for offset in (0, 1, 2, 3, 240, 300, 301, 302, 303)
     )
-    execution_clock = count(2)
     execution_ids = count(1)
-    execution_audit_ids = count(1)
+    runtime_audit_ids = count(1)
     preflight = BoundPreflight()
-    executor = RollbackActionExecutor(
-        preflight,
-        snapshots,
-        PostgresLifecycleActionExecutionStore(sessions),
-        dispatcher,
-        execution_id_factory=lambda: OpaqueIdentifier(
-            f"execution-rollback-full-chain-{next(execution_ids)}"
-        ),
-        audit_event_id_factory=lambda: AuditEventId(
-            f"audit-rollback-full-chain-execution-{next(execution_audit_ids)}"
-        ),
-        clock=lambda: NOW + timedelta(minutes=7, seconds=next(execution_clock)),
-    )
 
     class LiveDeploymentVersionBackend:
         async def read(
@@ -5423,32 +5413,68 @@ async def test_authorized_rollback_service_full_chain_closes_once_and_replays(
         evaluated_input.tenant_id,
         frozenset({Role.OPERATOR}),
     )
+    disabled_runtime = compose_rollback_recovery_runtime(
+        WorkerSettings(
+            database_url="postgresql+asyncpg://runtime",
+            worker_id="recovery-worker",
+            poll_interval_seconds=1,
+        ),
+        sessions=sessions,
+        preflight=preflight,
+        backend=backend,
+        artifact_storage=artifacts,
+        verifier=verifier,
+        execution_id_factory=lambda: OpaqueIdentifier("must-not-create-execution"),
+        audit_event_id_factory=lambda: AuditEventId("must-not-create-audit"),
+        clock=lambda: NOW,
+    )
+    with pytest.raises(InvalidDomainValueError, match="capability is disabled"):
+        await disabled_runtime.coordinator.recover(
+            rollback_request,
+            proposed,
+            evaluated_input,
+            evaluated,
+            used_rediagnosis_attempts=0,
+            principal=operator,
+            correlation_id=CorrelationId("correlation-rollback-full-chain-disabled"),
+            causation_id=CausationId("causation-rollback-full-chain-disabled"),
+        )
+    assert preflight.calls == deployment.transition_count == 0
+
+    runtime = compose_rollback_recovery_runtime(
+        WorkerSettings(
+            database_url="postgresql+asyncpg://runtime",
+            worker_id="recovery-worker",
+            poll_interval_seconds=1,
+            recovery_mutation_enabled=True,
+        ),
+        sessions=sessions,
+        preflight=preflight,
+        backend=backend,
+        artifact_storage=artifacts,
+        verifier=verifier,
+        execution_id_factory=lambda: OpaqueIdentifier(
+            f"execution-rollback-full-chain-{next(execution_ids)}"
+        ),
+        audit_event_id_factory=lambda: AuditEventId(
+            f"audit-rollback-full-chain-runtime-{next(runtime_audit_ids)}"
+        ),
+        clock=lambda: next(execution_clock),
+    )
+    assert runtime.capability.enabled is True
 
     async def recover(*, replay: bool) -> RollbackRecoveryResult:
         suffix = "replay" if replay else "first"
-        async with sessions.begin() as session:
-            return await RollbackRecoveryCoordinator(
-                executor,
-                verifier,
-                verification_closure_router(
-                    session,
-                    audit_id=f"audit-rollback-full-chain-close-{suffix}",
-                    at=NOW + timedelta(minutes=11),
-                ),
-                verification_failure_router(
-                    session,
-                    audit_id=f"audit-rollback-full-chain-failure-{suffix}",
-                ),
-            ).recover(
-                rollback_request,
-                proposed,
-                evaluated_input,
-                evaluated,
-                used_rediagnosis_attempts=0,
-                principal=operator,
-                correlation_id=CorrelationId(f"correlation-rollback-full-chain-{suffix}"),
-                causation_id=CausationId(f"causation-rollback-full-chain-{suffix}"),
-            )
+        return await runtime.coordinator.recover(
+            rollback_request,
+            proposed,
+            evaluated_input,
+            evaluated,
+            used_rediagnosis_attempts=0,
+            principal=operator,
+            correlation_id=CorrelationId(f"correlation-rollback-full-chain-{suffix}"),
+            causation_id=CausationId(f"causation-rollback-full-chain-{suffix}"),
+        )
 
     first = await recover(replay=False)
     replay = await recover(replay=True)

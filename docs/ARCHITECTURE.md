@@ -198,6 +198,14 @@ Approval binds `(incident_id, proposal_hash, policy_decision_id, actor, expiry)`
 
 The MVP keeps that future vocabulary in the domain model and diagrams, but no executable compensation surface is reachable. The repository architecture check parses the `application`, `workflows`, and `infrastructure` packages and fails closed if a compensation module, class, function, or tool identifier is introduced. Enabling one therefore requires the future reversible-tool contract, independent policy and approval controls, verification, tests, and a superseding ADR rather than an accidental route or adapter registration.
 
+After the complete Phase 9 safety gate, the worker composition root may explicitly enable the
+single `rollback_service` route. The setting is false by default and the disabled path exits before
+preflight or effects. The enabled composition accepts only a server-injected typed deployment
+backend, then fixes the route through preflight, immutable snapshots, lifecycle-aware PostgreSQL
+execution, deterministic persisted verification, and transaction-owning PASS/FAIL routing. It
+does not expose an API write endpoint, arbitrary transport parameters, or a production Kubernetes
+controller.
+
 ## API outline
 
 The initial API surface will be versioned under `/api/v1` and cover authentication principal resolution, incidents, timelines, investigation control, evidence/artifacts, hypotheses, approvals, actions, verification, audit, prompts, tools, and evaluations. Commands use idempotency keys and optimistic concurrency/version fields. Read APIs paginate and enforce incident-level authorization.

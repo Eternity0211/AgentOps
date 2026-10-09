@@ -5,6 +5,10 @@ from .action_execution_store import (
     PostgresActionExecutionStore,
     PostgresLifecycleActionExecutionStore,
 )
+from .health_verification_routing import (
+    PostgresFailedHealthVerificationRouter,
+    PostgresSuccessfulHealthVerificationRouter,
+)
 from .models import (
     ActionExecutionEventRow,
     ActionExecutionLockRow,
@@ -87,7 +91,9 @@ __all__ = [
     "OutboxEventRow",
     "OutboxRepository",
     "PostgresActionExecutionStore",
+    "PostgresFailedHealthVerificationRouter",
     "PostgresLifecycleActionExecutionStore",
+    "PostgresSuccessfulHealthVerificationRouter",
     "PostmortemRevisionRepository",
     "PostmortemRevisionRow",
     "PostmortemRow",

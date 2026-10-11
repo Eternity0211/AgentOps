@@ -1,0 +1,46 @@
+name: Console Quality
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: console-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: console
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Node.js
+        uses: actions/setup-node@6044e13b5c2a70f5121b00aa3ef84f183bcf7564 # v6.2.0
+        with:
+          node-version: 22.17.0
+          cache: npm
+          cache-dependency-path: console/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify console
+        run: npm run verify
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser tests
+        run: npm run test:browser

@@ -172,6 +172,17 @@ An LLM can propose; it cannot execute arbitrary commands, mutate infrastructure 
 
 Python 3.12, FastAPI, LangGraph, Pydantic, SQLAlchemy, Alembic, PostgreSQL/pgvector, OpenTelemetry, Prometheus, Loki, Tempo, Docker Compose, Pytest, Testcontainers, and a small Next.js/React console.
 
+## Administration console
+
+The console scaffold lives in `console/` and is pinned to Node.js 22.17.0, npm 10.9.2, and exact
+package versions in `package-lock.json`. It remains a presentation and intent-capture layer: the
+API continues to own authentication, RBAC, policy, approval, execution, and verification.
+
+From `console/`, use `npm ci` for a locked install, `npm run verify` for formatting, linting,
+strict type checks, unit coverage, and a production build, and `npm run test:browser` for the
+desktop/mobile Chromium smoke contract. See [console development](console/README.md) for setup and
+the `/api/v1` base URL contract.
+
 ## Python 3.12 bootstrap
 
 The project is pinned to Python 3.12.14 in `.python-version`; Python 3.14 is not an accepted substitute. `uv` is the bootstrap tool. A normal developer/CI setup is:

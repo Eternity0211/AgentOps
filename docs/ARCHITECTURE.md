@@ -210,6 +210,12 @@ controller.
 
 The initial API surface will be versioned under `/api/v1` and cover authentication principal resolution, incidents, timelines, investigation control, evidence/artifacts, hypotheses, approvals, actions, verification, audit, prompts, tools, and evaluations. Commands use idempotency keys and optimistic concurrency/version fields. Read APIs paginate and enforce incident-level authorization.
 
+The `console/` package is an independently locked Next.js/React client. Its browser-visible API
+base defaults to same-origin `/api/v1` and accepts only clean paths or HTTP(S) URLs. The console may
+render backend decisions and collect operator intent, but it does not duplicate authorization,
+policy, approval, execution, or recovery-success decisions. Unit coverage, static checks, a
+production build, and desktop/mobile browser smoke tests form its initial quality boundary.
+
 ## Deployment topology
 
 The reference Compose topology separates `api`, `worker`, `console`, control-plane `postgres`, observability backends, OTel Collector, and simulator services. The simulator includes its own PostgreSQL and Redis as diagnosed dependencies. Redis is not a control-plane queue or cache in the MVP. The runtime and Ground Truth evaluator use different Compose profiles/networks/credentials so runtime containers cannot read evaluation labels.

@@ -1,5 +1,5 @@
 {
-  "sha256": "3225e048f1f610da3d81adc67a9ace9c0cf732c2bf12bd57b45a7becd74debf3",
+  "sha256": "885696a6bee75beeabd96056f81de84015f697977ad040cb8faa459287d6ba1e",
   "paths": {
     "/api/v1/audit": ["get"],
     "/api/v1/incidents": ["get"],
@@ -9,7 +9,8 @@
     "/api/v1/incidents/{incident_id}/evidence/{evidence_id}/artifact": ["get"],
     "/api/v1/incidents/{incident_id}/controls/cancel": ["post"],
     "/api/v1/incidents/{incident_id}/controls/start-investigation": ["post"],
-    "/api/v1/incidents/{incident_id}/timeline": ["get"]
+    "/api/v1/incidents/{incident_id}/timeline": ["get"],
+    "/api/v1/session": ["get"]
   },
   "schemas": [
     "AuditEventView",
@@ -22,6 +23,7 @@
     "IncidentView",
     "InvalidParameter",
     "ProblemDetail",
+    "SessionView",
     "TimelineEventView",
     "TimelinePage"
   ]

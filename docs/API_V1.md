@@ -21,6 +21,7 @@ receive operator authority.
 
 | Method and path | Purpose | Required permission |
 | --- | --- | --- |
+| `GET /api/v1/session` | Return the server-resolved Actor ID, Tenant ID, roles, and derived permissions | authenticated principal |
 | `GET /api/v1/incidents` | List tenant incidents in stable newest-first order | `incident:read` |
 | `GET /api/v1/incidents/{incident_id}` | Read one tenant incident | `incident:read` |
 | `GET /api/v1/incidents/{incident_id}/timeline` | Read lifecycle transitions and cancellation requests | `incident:read` |
@@ -78,6 +79,12 @@ The generated OpenAPI contract documents the problem media type, `X-Request-ID`,
 `Idempotency-Key`, and the `Idempotency-Replayed` response header. A reviewable snapshot in
 `tests/snapshots/openapi_v1.json` records the complete canonical-schema digest plus paths and model
 names; any schema drift fails tests and requires an intentional snapshot review.
+
+`GET /api/v1/session` is the console bootstrap contract. It never accepts identity or roles from
+the request body or caller-controlled identity headers; it serializes only the Principal produced
+by the deployment-owned resolver. Roles and derived permissions are sorted for deterministic
+clients. An absent resolver or anonymous result returns the same typed `401` as every business
+endpoint.
 
 ## Verification
 

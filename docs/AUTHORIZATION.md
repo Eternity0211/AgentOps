@@ -13,6 +13,11 @@ The deterministic permission matrix is least-privilege and additive:
 | Approver | Viewer permissions; approve or reject eligible proposals |
 | Admin | Viewer permissions; manage administrative configuration |
 
+The authenticated console reads this server-derived authority through `GET /api/v1/session`.
+Navigation visibility is an operator-experience aid only: every destination and command still
+rechecks permission and tenant ownership in the API/application boundary. Invalid session payloads,
+anonymous responses, and transport failures keep console business content hidden.
+
 Admin does not implicitly approve or execute recovery. A person requiring multiple responsibilities
 must receive multiple explicit roles, and downstream policy still enforces action risk and state.
 Every resource authorization checks Tenant ID before permission. Medium/high-risk approval requires

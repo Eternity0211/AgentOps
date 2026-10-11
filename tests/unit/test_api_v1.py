@@ -220,6 +220,35 @@ def endpoint(
 
 
 @pytest.mark.anyio
+async def test_session_exposes_only_server_derived_identity_and_authority() -> None:
+    route = endpoint("/api/v1/session", "GET")
+    principal = Principal(
+        ActorId("operator-approver"),
+        TenantId("tenant-api"),
+        frozenset({Role.OPERATOR, Role.APPROVER}),
+    )
+
+    session = await route(principal=principal)
+
+    assert session.model_dump() == {
+        "actor_id": "operator-approver",
+        "tenant_id": "tenant-api",
+        "roles": ["APPROVER", "OPERATOR"],
+        "permissions": [
+            "approval:decide",
+            "approved_action:execute",
+            "audit:read",
+            "evidence:read",
+            "incident:read",
+            "investigation:cancel",
+            "investigation:start",
+            "postmortem:edit",
+            "remediation:request",
+        ],
+    }
+
+
+@pytest.mark.anyio
 async def test_evidence_routes_are_scoped_paginated_and_report_expiry() -> None:
     list_route = endpoint("/api/v1/incidents/{incident_id}/evidence", "GET")
     first = evidence_row("evidence-b")

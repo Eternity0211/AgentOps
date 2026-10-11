@@ -120,13 +120,39 @@ def test_problem_details_are_stable_correlated_and_do_not_echo_invalid_input() -
 def test_authentication_problem_and_method_error_use_same_envelope() -> None:
     with app_for(None) as client:
         unauthenticated = client.get("/api/v1/incidents")
+        unauthenticated_session = client.get("/api/v1/session")
         method = client.delete("/api/v1/incidents")
 
     assert unauthenticated.status_code == 401
     assert unauthenticated.json()["code"] == "AUTHENTICATION_REQUIRED"
+    assert unauthenticated_session.status_code == 401
+    assert unauthenticated_session.json()["code"] == "AUTHENTICATION_REQUIRED"
     assert method.status_code == 405
     assert method.json()["code"] == "METHOD_NOT_ALLOWED"
     assert "allow" in method.headers
+
+
+def test_session_returns_server_resolved_principal() -> None:
+    principal = Principal(
+        ActorId("approver-contract"),
+        TenantId("tenant-contract"),
+        frozenset({Role.APPROVER}),
+    )
+    with app_for(principal) as client:
+        response = client.get("/api/v1/session")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "actor_id": "approver-contract",
+        "tenant_id": "tenant-contract",
+        "roles": ["APPROVER"],
+        "permissions": [
+            "approval:decide",
+            "audit:read",
+            "evidence:read",
+            "incident:read",
+        ],
+    }
 
 
 def test_unexpected_errors_are_generic_and_http_fallback_remains_typed() -> None:

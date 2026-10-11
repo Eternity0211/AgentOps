@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import { AuthenticatedShell } from "@/components/authenticated-shell";
+
 import "./styles.css";
 
 export const metadata: Metadata = {
@@ -14,7 +16,9 @@ export default function RootLayout({
 }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AuthenticatedShell>{children}</AuthenticatedShell>
+      </body>
     </html>
   );
 }

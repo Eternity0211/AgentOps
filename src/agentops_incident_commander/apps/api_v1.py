@@ -77,6 +77,13 @@ class IncidentView(ApiModel):
     cancellation_requested_at: datetime | None
 
 
+class SessionView(ApiModel):
+    actor_id: str
+    tenant_id: str
+    roles: list[str]
+    permissions: list[str]
+
+
 class IncidentPage(ApiModel):
     items: list[IncidentView]
     next_cursor: str | None
@@ -285,6 +292,15 @@ def build_api_v1_router(
             pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
         ),
     ]
+
+    @router.get("/session", response_model=SessionView)
+    async def get_session(principal: Authenticated) -> SessionView:
+        return SessionView(
+            actor_id=principal.actor_id.value,
+            tenant_id=principal.tenant_id.value,
+            roles=sorted(role.value for role in principal.roles),
+            permissions=sorted(permission.value for permission in principal.permissions),
+        )
 
     @router.get("/incidents", response_model=IncidentPage)
     async def list_incidents(

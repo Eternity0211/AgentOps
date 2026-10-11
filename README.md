@@ -177,6 +177,8 @@ Python 3.12, FastAPI, LangGraph, Pydantic, SQLAlchemy, Alembic, PostgreSQL/pgvec
 The console scaffold lives in `console/` and is pinned to Node.js 22.17.0, npm 10.9.2, and exact
 package versions in `package-lock.json`. It remains a presentation and intent-capture layer: the
 API continues to own authentication, RBAC, policy, approval, execution, and verification.
+The authenticated shell bootstraps exclusively from the server-resolved `/api/v1/session` response,
+renders navigation from its derived permissions, and fails closed on missing or invalid identity.
 
 From `console/`, use `npm ci` for a locked install, `npm run verify` for formatting, linting,
 strict type checks, unit coverage, and a production build, and `npm run test:browser` for the

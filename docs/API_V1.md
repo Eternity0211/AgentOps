@@ -24,6 +24,7 @@ receive operator authority.
 | `GET /api/v1/session` | Return the server-resolved Actor ID, Tenant ID, roles, and derived permissions | authenticated principal |
 | `GET /api/v1/incidents` | List tenant incidents in stable newest-first order | `incident:read` |
 | `GET /api/v1/incidents/{incident_id}` | Read one tenant incident | `incident:read` |
+| `GET /api/v1/incidents/{incident_id}/investigation` | Read the latest bounded Diagnosis progress projection | `incident:read` |
 | `GET /api/v1/incidents/{incident_id}/timeline` | Read lifecycle transitions and cancellation requests | `incident:read` |
 | `GET /api/v1/incidents/{incident_id}/evidence` | List incident-owned Evidence metadata | `evidence:read` |
 | `GET /api/v1/incidents/{incident_id}/evidence/{evidence_id}` | Read one Evidence metadata record | `evidence:read` |
@@ -52,6 +53,16 @@ correlation, and causation metadata; kind-specific fields describe the prior/new
 state/disposition of a cancellation request. The console validates this discriminated response
 and replays `next_cursor` unchanged. It does not reconstruct missing events or infer current state
 from the timeline.
+
+`GET /api/v1/incidents/{incident_id}/investigation` first proves Incident ownership, then returns
+the most recently updated run or an explicit `run: null` when no Diagnosis projection exists. A run
+contains graph/projection versions, phase/status, checkpoint sequence, exact used/maximum/remaining
+counters for steps, replans, tools, model calls, tokens, and integer-nanounit cost, plus ordered
+plan attempts, per-step read-tool progress, bounded replan history, and stable failure codes. It
+never exposes tool arguments/results, raw telemetry, prompt content, or checkpoint payloads. The
+server revalidates the stored schema, tenant/Incident/run bindings, duplicated relational fields,
+and canonical fingerprint on every read; corruption returns the typed
+`INVESTIGATION_PROGRESS_INTEGRITY_FAILED` conflict rather than partial data.
 
 Evidence lists use the same opaque newest-first cursor convention, ordered by collection time and
 Evidence ID. Metadata includes source/query provenance, observation and collection ranges, quality

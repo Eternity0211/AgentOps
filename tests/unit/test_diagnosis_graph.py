@@ -14,7 +14,7 @@ from langgraph.types import Command
 from pydantic import ValidationError
 
 from agentops_incident_commander.application import ToolGatewayError
-from agentops_incident_commander.domain import InvalidDomainValueError
+from agentops_incident_commander.domain import EvidenceSourceType, InvalidDomainValueError
 from agentops_incident_commander.infrastructure import (
     MockModelMalformedOutput,
     MockModelRefusal,
@@ -33,7 +33,11 @@ from agentops_incident_commander.workflows import (
     GraphPhase,
     GraphPromptReference,
     HypothesisNodeResult,
+    InvestigationPlan,
+    InvestigationStep,
     PlanNodeResult,
+    PlanToolCallReference,
+    ToolProgressStatus,
     WorkflowControl,
     build_diagnosis_graph,
     execute_read_tools_node,
@@ -54,6 +58,51 @@ NOW = datetime(2026, 10, 5, 8, 0, tzinfo=UTC)
 Q1 = "1" * 64
 Q2 = "2" * 64
 Q3 = "3" * 64
+
+
+def plan_result(
+    model_call_id: str,
+    tool_call_ids: tuple[str, ...],
+    query_fingerprints: tuple[str, ...],
+    model_tokens: int,
+    cost_nanounits: int,
+) -> PlanNodeResult:
+    steps = tuple(
+        InvestigationStep(
+            step_id=f"step-{index}",
+            objective=f"Collect source {index}",
+            expected_source=EvidenceSourceType.METRIC,
+            parallel_group=0,
+        )
+        for index, _ in enumerate(tool_call_ids, start=1)
+    )
+    plan = InvestigationPlan(
+        schema_version="1.0.0",
+        plan_id=f"plan-{model_call_id}",
+        summary="Collect bounded operational evidence",
+        steps=steps,
+    )
+    calls = tuple(
+        PlanToolCallReference(
+            call_id=call_id,
+            step_id=step.step_id,
+            tool_name="query_metrics",
+            tool_version="1.0.0",
+        )
+        for step, call_id in zip(steps, tool_call_ids, strict=True)
+    )
+    return PlanNodeResult(
+        model_call_id,
+        plan,
+        calls,
+        query_fingerprints,
+        len(tool_call_ids),
+        model_tokens,
+        cost_nanounits,
+    )
+
+
+ONE_PLAN_RESULT = plan_result("base", ("tool",), (Q1,), 0, 0)
 
 
 def state(**overrides: object) -> DiagnosisGraphState:
@@ -113,9 +162,7 @@ class FakeServices:
         gates: list[GateNodeResult] | None = None,
         batches: list[tuple[tuple[str, ...], ...]] | None = None,
     ) -> None:
-        self.plans = plans or [
-            PlanNodeResult("model-plan-1", ("tool-1", "tool-2"), (Q1, Q2), 2, 10, 2)
-        ]
+        self.plans = plans or [plan_result("model-plan-1", ("tool-1", "tool-2"), (Q1, Q2), 10, 2)]
         self.gates = gates or [GateNodeResult("b" * 64, GateRoute.PASS)]
         self.batches = batches or []
         self.executed: list[str] = []
@@ -205,6 +252,52 @@ class RejectingPrompts:
         raise InvalidDomainValueError("Prompt is not approved")
 
 
+class RecordingProgress:
+    def __init__(self) -> None:
+        self.states: list[DiagnosisGraphState] = []
+        self.tool_statuses: list[tuple[str, ToolProgressStatus]] = []
+        self.plan_count = 0
+        self.replan_count = 0
+
+    async def record_plan(
+        self,
+        graph_state: DiagnosisGraphState,
+        *,
+        plan: InvestigationPlan,
+        calls: tuple[PlanToolCallReference, ...],
+        model_call_id: str,
+        next_state: DiagnosisGraphState,
+        operation_id: str,
+    ) -> None:
+        self.plan_count += 1
+
+    async def record_tool_status(
+        self,
+        graph_state: DiagnosisGraphState,
+        *,
+        tool_call_id: str,
+        status: ToolProgressStatus,
+        failure_code: str | None,
+        occurred_at: datetime,
+        operation_id: str,
+    ) -> None:
+        self.tool_statuses.append((tool_call_id, status))
+
+    async def record_replan(
+        self,
+        graph_state: DiagnosisGraphState,
+        *,
+        decision_fingerprint: str,
+        reason_code: str,
+        next_state: DiagnosisGraphState,
+        operation_id: str,
+    ) -> None:
+        self.replan_count += 1
+
+    async def record_state(self, graph_state: DiagnosisGraphState, *, operation_id: str) -> None:
+        self.states.append(graph_state)
+
+
 class WaveServices(FakeServices):
     def __init__(self) -> None:
         super().__init__(batches=[(("tool-1", "tool-2"), ("tool-3",))])
@@ -264,9 +357,10 @@ class ModelFailureServices(FakeServices):
 
 
 def context(services: FakeServices, control: Any = None) -> DiagnosisRuntimeContext:
+    progress = RecordingProgress()
     if control is None:
-        return DiagnosisRuntimeContext(services, ApprovedPrompts(), Clock())
-    return DiagnosisRuntimeContext(services, ApprovedPrompts(), Clock(), control)
+        return DiagnosisRuntimeContext(services, ApprovedPrompts(), progress, Clock())
+    return DiagnosisRuntimeContext(services, ApprovedPrompts(), progress, Clock(), control)
 
 
 class StaticControl:
@@ -313,7 +407,7 @@ class PauseAtControl:
 async def test_graph_pass_path_parallelizes_reads_and_returns_only_references() -> None:
     services = FakeServices()
     prompt_checks = ApprovedPrompts()
-    graph_context = DiagnosisRuntimeContext(services, prompt_checks, Clock())
+    graph_context = DiagnosisRuntimeContext(services, prompt_checks, RecordingProgress(), Clock())
     result = await build_diagnosis_graph().ainvoke(state(), context=graph_context)
 
     assert result["phase"] is GraphPhase.COMPLETE
@@ -442,8 +536,8 @@ async def test_model_timeout_refusal_and_malformed_output_stop_downstream_work(
 async def test_graph_replans_once_then_passes_with_cumulative_budgets() -> None:
     services = FakeServices(
         plans=[
-            PlanNodeResult("model-plan-1", ("tool-1",), (Q1,), 1, 10, 1),
-            PlanNodeResult("model-plan-2", ("tool-2",), (Q3,), 1, 12, 2),
+            plan_result("model-plan-1", ("tool-1",), (Q1,), 10, 1),
+            plan_result("model-plan-2", ("tool-2",), (Q3,), 12, 2),
         ],
         gates=[
             GateNodeResult("c" * 64, GateRoute.REPLAN, "MORE_EVIDENCE_REQUIRED"),
@@ -472,11 +566,10 @@ async def test_graph_hands_off_before_dispatch_for_equivalent_queries(
     initial_fingerprints: tuple[str, ...],
 ) -> None:
     plans = [
-        PlanNodeResult(
+        plan_result(
             "model-plan-repeat",
             ("tool-new-1", "tool-new-2"),
             (Q1, Q1) if not initial_fingerprints else (Q1, Q2),
-            2,
             10,
             1,
         )
@@ -523,11 +616,65 @@ async def test_graph_handoff_routes_are_terminal_and_recorded(
     ("factory", "message"),
     [
         (lambda: ContextLoadResult(("same", "same")), "context evidence"),
-        (lambda: PlanNodeResult("model", (), (), 0, 0, 0), "planned tool"),
-        (lambda: PlanNodeResult("model", ("tool",), (), 1, 0, 0), "fingerprints"),
-        (lambda: PlanNodeResult("model", ("tool",), (Q1,), 2, 0, 0), "steps"),
-        (lambda: PlanNodeResult("model", ("tool",), (Q1,), 1, -1, 0), "usage"),
-        (lambda: PlanNodeResult("model", ("tool",), (Q1, Q2), 1, 0, 0), "must match"),
+        (
+            lambda: PlanNodeResult("model", ONE_PLAN_RESULT.plan, (), (), 0, 0, 0),
+            "planned tool",
+        ),
+        (
+            lambda: PlanNodeResult(
+                "model",
+                cast(InvestigationPlan, object()),
+                ONE_PLAN_RESULT.calls,
+                (Q1,),
+                1,
+                0,
+                0,
+            ),
+            "typed investigation plan",
+        ),
+        (
+            lambda: PlanNodeResult(
+                "model",
+                ONE_PLAN_RESULT.plan,
+                (
+                    PlanToolCallReference(
+                        call_id="tool-1",
+                        step_id="wrong-step",
+                        tool_name="query_metrics",
+                        tool_version="1.0.0",
+                    ),
+                ),
+                (Q1,),
+                1,
+                0,
+                0,
+            ),
+            "investigation steps",
+        ),
+        (
+            lambda: PlanNodeResult(
+                "model", ONE_PLAN_RESULT.plan, ONE_PLAN_RESULT.calls, (), 1, 0, 0
+            ),
+            "fingerprints",
+        ),
+        (
+            lambda: PlanNodeResult(
+                "model", ONE_PLAN_RESULT.plan, ONE_PLAN_RESULT.calls, (Q1,), 2, 0, 0
+            ),
+            "steps",
+        ),
+        (
+            lambda: PlanNodeResult(
+                "model", ONE_PLAN_RESULT.plan, ONE_PLAN_RESULT.calls, (Q1,), 1, -1, 0
+            ),
+            "usage",
+        ),
+        (
+            lambda: PlanNodeResult(
+                "model", ONE_PLAN_RESULT.plan, ONE_PLAN_RESULT.calls, (Q1, Q2), 1, 0, 0
+            ),
+            "must match",
+        ),
         (lambda: EvidencePersistenceResult(()), "persisted evidence"),
         (lambda: HypothesisNodeResult("", 0, 0), "hypothesis model"),
         (lambda: HypothesisNodeResult("model", True, 0), "usage"),
@@ -702,7 +849,9 @@ async def test_prompt_authorization_precedes_control_and_node_effects() -> None:
     services = FakeServices()
     control = StaticControl(WorkflowControl.CONTINUE)
     runtime = Runtime(
-        context=DiagnosisRuntimeContext(services, RejectingPrompts(), Clock(), control)
+        context=DiagnosisRuntimeContext(
+            services, RejectingPrompts(), RecordingProgress(), Clock(), control
+        )
     )
 
     with pytest.raises(InvalidDomainValueError, match="not approved"):

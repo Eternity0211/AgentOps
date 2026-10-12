@@ -35,11 +35,14 @@ derives authorization from list contents. Filters reset cursor history, and prev
 available only for pages visited in the current client session. Loading, empty, and dependency
 failure states remain read-only, while the table is horizontally contained on narrow screens.
 
-`/incidents/{incident_id}` concurrently requests the tenant-scoped Incident and its first timeline
-page. The lifecycle summary shows the server-owned service, severity, state, optimistic version,
-and opened/updated/closure/cancellation timestamps. The ordered history distinguishes state
+`/incidents/{incident_id}` concurrently requests the tenant-scoped Incident, its first timeline
+page, and its latest Diagnosis progress projection. The lifecycle summary shows the server-owned
+service, severity, state, optimistic version, and opened/updated/closure/cancellation timestamps.
+The investigation section shows server-persisted plan attempts, read-tool status and dependencies,
+used/maximum/remaining budgets, bounded replan decisions, exhaustion, failures, and human handoff;
+it does not reconstruct progress from the timeline. The ordered history distinguishes state
 transitions from cancellation requests and preserves their actor, reason, version, correlation,
 causation, and disposition metadata. Additional pages replay the server-provided opaque cursor
 unchanged. Initial failures fail the whole view closed; later-page failures preserve already
 validated events and offer a read-only retry. Navigation or replacement requests abort stale
-reads, and neither response path mutates an Incident or derives workflow authority in the browser.
+reads, and no response path mutates an Incident or derives workflow authority in the browser.

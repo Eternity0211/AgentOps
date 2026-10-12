@@ -31,6 +31,7 @@ from agentops_incident_commander.domain import (
     IncidentId,
     IncidentSeverity,
     IncidentState,
+    InvalidDomainValueError,
     Principal,
     RedactionStatus,
     RetentionClass,
@@ -40,6 +41,7 @@ from agentops_incident_commander.domain import (
 )
 from agentops_incident_commander.infrastructure.persistence.models import (
     AuditEventRow,
+    DiagnosisProgressRow,
     EvidenceRow,
     IdempotencyRecordRow,
     IncidentCancellationRequestRow,
@@ -459,6 +461,76 @@ async def test_read_route_return_paths_and_pagination() -> None:
             incident_id="missing", session=FakeSession(scalar_values=[None]), principal=VIEWER
         )
     assert missing.value.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_investigation_route_handles_missing_empty_valid_and_corrupt_runs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import agentops_incident_commander.apps.api_v1 as api_v1
+
+    route = endpoint("/api/v1/incidents/{incident_id}/investigation", "GET")
+    with pytest.raises(HTTPException) as missing:
+        await route(
+            incident_id="missing",
+            session=FakeSession(scalar_values=[None]),
+            principal=VIEWER,
+        )
+    assert missing.value.status_code == 404
+
+    empty = await route(
+        incident_id="incident-a",
+        session=FakeSession(scalar_values=["incident-a", None]),
+        principal=VIEWER,
+    )
+    assert empty.run is None
+
+    progress_row = DiagnosisProgressRow(workflow_run_id="run-a")
+    view = api_v1.InvestigationProgressView.model_validate(
+        {
+            "schema_version": "1.0.0",
+            "workflow_run_id": "run-a",
+            "graph_version": "1.0.0",
+            "phase": "INVESTIGATING",
+            "status": "ACTIVE",
+            "budgets": {
+                name: {"used": 0, "maximum": 1, "remaining": 1}
+                for name in (
+                    "steps",
+                    "replans",
+                    "tool_calls",
+                    "model_calls",
+                    "tokens",
+                    "cost_nanounits",
+                )
+            },
+            "plans": [],
+            "replans": [],
+            "checkpoint_sequence": 1,
+            "error_code": None,
+            "updated_at": NOW,
+        }
+    )
+    monkeypatch.setattr(api_v1, "_investigation_progress_view", lambda _: view)
+    visible = await route(
+        incident_id="incident-a",
+        session=FakeSession(scalar_values=["incident-a", progress_row]),
+        principal=VIEWER,
+    )
+    assert visible.run == view
+
+    def corrupt(_: DiagnosisProgressRow) -> api_v1.InvestigationProgressView:
+        raise InvalidDomainValueError("corrupt progress")
+
+    monkeypatch.setattr(api_v1, "_investigation_progress_view", corrupt)
+    with pytest.raises(ApiProblem) as integrity:
+        await route(
+            incident_id="incident-a",
+            session=FakeSession(scalar_values=["incident-a", progress_row]),
+            principal=VIEWER,
+        )
+    assert integrity.value.status_code == 409
+    assert integrity.value.code == "INVESTIGATION_PROGRESS_INTEGRITY_FAILED"
 
 
 @pytest.mark.anyio

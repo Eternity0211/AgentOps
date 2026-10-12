@@ -82,6 +82,15 @@ from their linked Alert Group service using a deterministic aggregate. The migra
 Incident lacks that provenance; it never guesses a service. A database check mirrors the bounded
 identifier grammar enforced by the domain and API.
 
+Revision `20261012_0018` adds `diagnosis_progress`, one replay-safe current read projection per
+workflow run. It stores only the validated plan structure, Tool Call references and status,
+resource counters, bounded replan decisions, graph/checkpoint identity, failure codes, and UTC
+timestamps; tool arguments/results, raw telemetry, prompts, secrets, and checkpoint payloads are
+excluded. A composite foreign key binds the projection to the tenant-owned Incident. Every update
+row-locks the run, validates legal forward or exact-replay transitions, and refreshes a canonical
+SHA-256 fingerprint duplicated alongside the JSON snapshot. Reads revalidate the complete schema,
+relational bindings, and fingerprint before returning any operator view.
+
 ## Repository concurrency
 
 `IncidentRepository` updates with `WHERE id = ... AND version = ...`. A zero-row update raises the

@@ -212,6 +212,7 @@ from agentops_incident_commander.infrastructure.persistence import (
     ApprovalRow,
     AuditEventRow,
     AuditRepository,
+    DiagnosisProgressRow,
     EvidenceGateDecisionRow,
     EvidenceGateRepository,
     EvidenceRepository,
@@ -233,6 +234,7 @@ from agentops_incident_commander.infrastructure.persistence import (
     OutboxEventRow,
     OutboxRepository,
     PostgresActionExecutionStore,
+    PostgresDiagnosisProgressRecorder,
     PostgresFailedHealthVerificationRouter,
     PostgresLifecycleActionExecutionStore,
     PostgresSuccessfulHealthVerificationRouter,
@@ -242,6 +244,7 @@ from agentops_incident_commander.infrastructure.persistence import (
     PromptLifecycleEventRow,
     PromptLifecycleRepository,
     PromptVersionRow,
+    diagnosis_progress_from_row,
 )
 from agentops_incident_commander.infrastructure.tool_adapters import (
     MetricBackendResult,
@@ -253,7 +256,16 @@ from agentops_incident_commander.simulator.deployment import (
     SimulatorDeploymentState,
 )
 from agentops_incident_commander.workflows import (
+    DIAGNOSIS_PROGRESS_SCHEMA_VERSION,
     REMEDIATION_PROPOSAL_SCHEMA_VERSION,
+    DiagnosisGraphState,
+    DiagnosisProgressStatus,
+    GraphBudgetState,
+    GraphPhase,
+    GraphPromptReference,
+    InvestigationPlan,
+    InvestigationStep,
+    PlanToolCallReference,
     RecoveryAction,
     RemediationFailureHandling,
     RemediationFailureRoute,
@@ -261,6 +273,7 @@ from agentops_incident_commander.workflows import (
     RollbackPrerequisites,
     RollbackServiceParameters,
     RollbackVerificationConditions,
+    ToolProgressStatus,
 )
 
 NOW = datetime(2026, 10, 3, 8, 0, tzinfo=UTC)
@@ -300,6 +313,7 @@ async def engine(migrated_url: str) -> AsyncIterator[AsyncEngine]:
         await connection.execute(
             text(
                 "TRUNCATE postmortem_revisions, postmortems, alerts, alert_groups, "
+                "diagnosis_progress, "
                 "incident_cancellation_requests, "
                 "incident_transitions, health_verification_runs, evidence, "
                 "idempotency_records, outbox_events, jobs, "
@@ -462,6 +476,78 @@ async def add_incident(
     return item
 
 
+def diagnosis_state(
+    *,
+    run: str = "run-progress",
+    phase: GraphPhase = GraphPhase.PLANNING,
+    sequence: int = 1,
+    used_steps: int = 0,
+    used_replans: int = 0,
+    used_tool_calls: int = 0,
+    used_model_calls: int = 0,
+    used_tokens: int = 0,
+    used_cost: int = 0,
+    error_code: str | None = None,
+) -> DiagnosisGraphState:
+    return DiagnosisGraphState(
+        state_schema_version="1.3.0",
+        graph_version="1.0.0",
+        tenant_id="tenant-api",
+        incident_id="incident-progress",
+        workflow_run_id=run,
+        correlation_id="correlation-progress",
+        causation_id="cause-progress",
+        phase=phase,
+        budgets=GraphBudgetState(
+            max_steps=4,
+            used_steps=used_steps,
+            max_replans=1,
+            used_replans=used_replans,
+            max_tool_calls=4,
+            used_tool_calls=used_tool_calls,
+            max_model_calls=6,
+            used_model_calls=used_model_calls,
+            max_tokens=1_000,
+            used_tokens=used_tokens,
+            max_cost_nanounits=100,
+            used_cost_nanounits=used_cost,
+        ),
+        prompt=GraphPromptReference(
+            prompt_id="diagnosis",
+            version="1.0.0",
+            content_fingerprint="a" * 64,
+        ),
+        checkpoint_sequence=sequence,
+        error_code=error_code,
+        updated_at=NOW + timedelta(minutes=sequence),
+    )
+
+
+def investigation_plan(attempt: int) -> tuple[InvestigationPlan, tuple[PlanToolCallReference, ...]]:
+    step_id = f"step-{attempt}"
+    plan = InvestigationPlan(
+        schema_version="1.0.0",
+        plan_id=f"plan-{attempt}",
+        summary=f"Bounded investigation attempt {attempt}",
+        steps=(
+            InvestigationStep(
+                step_id=step_id,
+                objective=f"Collect metric evidence for attempt {attempt}",
+                expected_source=EvidenceSourceType.METRIC,
+                parallel_group=0,
+            ),
+        ),
+    )
+    return plan, (
+        PlanToolCallReference(
+            call_id=f"tool-{attempt}",
+            step_id=step_id,
+            tool_name="query_metrics",
+            tool_version="1.0.0",
+        ),
+    )
+
+
 @pytest.mark.anyio
 async def test_migration_created_expected_tables_and_constraints(engine: AsyncEngine) -> None:
     """The upgraded schema contains all initial operational tables."""
@@ -489,6 +575,7 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "audit_events",
         "evidence",
         "evidence_gate_decisions",
+        "diagnosis_progress",
         "incidents",
         "incident_transitions",
         "incident_cancellation_requests",
@@ -528,6 +615,215 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
                 "AND indexname='ix_incidents_tenant_service_opened')"
             )
         )
+
+
+@pytest.mark.anyio
+async def test_diagnosis_progress_is_replay_safe_tenant_scoped_and_api_visible(
+    engine: AsyncEngine,
+) -> None:
+    await add_incident(engine, "incident-progress", state=IncidentState.INVESTIGATING)
+    await add_incident(engine, "incident-without-progress")
+    await add_incident(engine, "incident-other-tenant", tenant="tenant-other")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    recorder = PostgresDiagnosisProgressRecorder(sessions)
+    plan_one, calls_one = investigation_plan(1)
+    before_plan = diagnosis_state()
+    after_plan = diagnosis_state(
+        phase=GraphPhase.INVESTIGATING,
+        sequence=2,
+        used_steps=1,
+        used_model_calls=1,
+        used_tokens=10,
+        used_cost=1,
+    )
+    await recorder.record_plan(
+        before_plan,
+        plan=plan_one,
+        calls=calls_one,
+        model_call_id="model-plan-1",
+        next_state=after_plan,
+        operation_id="1" * 64,
+    )
+    await recorder.record_plan(
+        before_plan,
+        plan=plan_one,
+        calls=calls_one,
+        model_call_id="model-plan-1",
+        next_state=after_plan,
+        operation_id="1" * 64,
+    )
+    await recorder.record_tool_status(
+        after_plan,
+        tool_call_id="tool-1",
+        status=ToolProgressStatus.RUNNING,
+        failure_code=None,
+        occurred_at=NOW + timedelta(minutes=3),
+        operation_id="2" * 64,
+    )
+    await recorder.record_tool_status(
+        after_plan,
+        tool_call_id="tool-1",
+        status=ToolProgressStatus.SUCCEEDED,
+        failure_code=None,
+        occurred_at=NOW + timedelta(minutes=4),
+        operation_id="2" * 64,
+    )
+    # A replay begins with RUNNING again and must not regress a terminal result.
+    await recorder.record_tool_status(
+        after_plan,
+        tool_call_id="tool-1",
+        status=ToolProgressStatus.RUNNING,
+        failure_code=None,
+        occurred_at=NOW + timedelta(minutes=5),
+        operation_id="2" * 64,
+    )
+    await recorder.record_tool_status(
+        after_plan,
+        tool_call_id="tool-1",
+        status=ToolProgressStatus.SUCCEEDED,
+        failure_code=None,
+        occurred_at=NOW + timedelta(minutes=5),
+        operation_id="2" * 64,
+    )
+    after_tools = diagnosis_state(
+        phase=GraphPhase.INVESTIGATING,
+        sequence=3,
+        used_steps=1,
+        used_tool_calls=1,
+        used_model_calls=1,
+        used_tokens=10,
+        used_cost=1,
+    )
+    await recorder.record_state(after_tools, operation_id="3" * 64)
+    await recorder.record_state(after_plan, operation_id="3" * 64)
+    before_replan = diagnosis_state(
+        phase=GraphPhase.EVIDENCE_REVIEW,
+        sequence=5,
+        used_steps=1,
+        used_tool_calls=1,
+        used_model_calls=2,
+        used_tokens=20,
+        used_cost=2,
+    )
+    await recorder.record_state(before_replan, operation_id="4" * 64)
+    after_replan = diagnosis_state(
+        phase=GraphPhase.PLANNING,
+        sequence=6,
+        used_steps=1,
+        used_replans=1,
+        used_tool_calls=1,
+        used_model_calls=2,
+        used_tokens=20,
+        used_cost=2,
+    )
+    await recorder.record_replan(
+        before_replan,
+        decision_fingerprint="b" * 64,
+        reason_code="MORE_EVIDENCE_REQUIRED",
+        next_state=after_replan,
+        operation_id="5" * 64,
+    )
+    await recorder.record_replan(
+        before_replan,
+        decision_fingerprint="b" * 64,
+        reason_code="MORE_EVIDENCE_REQUIRED",
+        next_state=after_replan,
+        operation_id="5" * 64,
+    )
+    plan_two, calls_two = investigation_plan(2)
+    second_plan = diagnosis_state(
+        phase=GraphPhase.INVESTIGATING,
+        sequence=7,
+        used_steps=2,
+        used_replans=1,
+        used_tool_calls=1,
+        used_model_calls=3,
+        used_tokens=30,
+        used_cost=3,
+    )
+    await recorder.record_plan(
+        after_replan,
+        plan=plan_two,
+        calls=calls_two,
+        model_call_id="model-plan-2",
+        next_state=second_plan,
+        operation_id="6" * 64,
+    )
+    await recorder.record_tool_status(
+        second_plan,
+        tool_call_id="tool-2",
+        status=ToolProgressStatus.RUNNING,
+        failure_code=None,
+        occurred_at=NOW + timedelta(minutes=8),
+        operation_id="7" * 64,
+    )
+    await recorder.record_tool_status(
+        second_plan,
+        tool_call_id="tool-2",
+        status=ToolProgressStatus.FAILED,
+        failure_code="TOOL_TIMEOUT",
+        occurred_at=NOW + timedelta(minutes=9),
+        operation_id="7" * 64,
+    )
+
+    async with sessions() as session:
+        row = await session.get(DiagnosisProgressRow, "run-progress")
+        assert row is not None
+        stored = diagnosis_progress_from_row(row)
+    assert stored.schema_version == DIAGNOSIS_PROGRESS_SCHEMA_VERSION
+    assert stored.status is DiagnosisProgressStatus.FAILED
+    assert [item.plan_id for item in stored.plans] == ["plan-1", "plan-2"]
+    assert stored.replans[0].reason_code == "MORE_EVIDENCE_REQUIRED"
+    assert stored.plans[0].steps[0].status is ToolProgressStatus.SUCCEEDED
+    assert stored.plans[1].steps[0].failure_code == "TOOL_TIMEOUT"
+
+    viewer = api_app(engine, principal(roles=frozenset({Role.VIEWER})))
+    async with AsyncClient(transport=ASGITransport(app=viewer), base_url="http://test") as client:
+        response = await client.get("/api/v1/incidents/incident-progress/investigation")
+        empty = await client.get("/api/v1/incidents/incident-without-progress/investigation")
+        hidden = await client.get("/api/v1/incidents/incident-other-tenant/investigation")
+    assert response.status_code == 200
+    body = response.json()["run"]
+    assert body["status"] == "FAILED"
+    assert body["budgets"]["replans"] == {"used": 1, "maximum": 1, "remaining": 0}
+    assert body["plans"][1]["steps"][0]["status"] == "FAILED"
+    assert body["replans"][0]["next_attempt"] == 2
+    assert empty.status_code == 200 and empty.json() == {"run": None}
+    assert hidden.status_code == 404
+
+    denied = api_app(engine, None)
+    async with AsyncClient(transport=ASGITransport(app=denied), base_url="http://test") as client:
+        forbidden = await client.get("/api/v1/incidents/incident-progress/investigation")
+    assert forbidden.status_code == 401
+
+    with pytest.raises(InvalidDomainValueError, match="terminal"):
+        await recorder.record_tool_status(
+            second_plan,
+            tool_call_id="tool-2",
+            status=ToolProgressStatus.SUCCEEDED,
+            failure_code=None,
+            occurred_at=NOW + timedelta(minutes=10),
+            operation_id="7" * 64,
+        )
+    with pytest.raises(InvalidDomainValueError, match="not planned"):
+        await recorder.record_tool_status(
+            second_plan,
+            tool_call_id="unknown-tool",
+            status=ToolProgressStatus.RUNNING,
+            failure_code=None,
+            occurred_at=NOW + timedelta(minutes=10),
+            operation_id="8" * 64,
+        )
+
+    async with sessions.begin() as session:
+        row = await session.get(DiagnosisProgressRow, "run-progress", with_for_update=True)
+        assert row is not None
+        row.snapshot_fingerprint = "0" * 64
+    corrupt = api_app(engine, principal(roles=frozenset({Role.VIEWER})))
+    async with AsyncClient(transport=ASGITransport(app=corrupt), base_url="http://test") as client:
+        integrity = await client.get("/api/v1/incidents/incident-progress/investigation")
+    assert integrity.status_code == 409
+    assert integrity.json()["code"] == "INVESTIGATION_PROGRESS_INTEGRITY_FAILED"
 
 
 async def _seed_legacy_service_migration_rows(postgres_url: str) -> None:

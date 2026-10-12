@@ -50,6 +50,7 @@ from agentops_incident_commander.domain import (
     RiskLevel,
     TrustClassification,
 )
+from agentops_incident_commander.workflows import DiagnosisProgressStatus, GraphPhase
 
 _STATES = ", ".join(f"'{state.value}'" for state in IncidentState)
 _SEVERITIES = "'SEV1', 'SEV2', 'SEV3', 'SEV4'"
@@ -74,6 +75,8 @@ _HEALTH_VERIFICATION_REASONS_JSON = json.dumps(
 _HEALTH_VERIFICATION_SCENARIOS = ", ".join(
     f"'{value.value}'" for value in HealthVerificationScenario
 )
+_DIAGNOSIS_PROGRESS_STATUSES = ", ".join(f"'{value.value}'" for value in DiagnosisProgressStatus)
+_GRAPH_PHASES = ", ".join(f"'{value.value}'" for value in GraphPhase)
 
 
 class Base(DeclarativeBase):
@@ -946,6 +949,59 @@ class ModelCallTraceRow(Base):
     metering_unavailable_reason: Mapped[str | None] = mapped_column(String(64))
     failure_code: Mapped[str | None] = mapped_column(String(128))
     schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class DiagnosisProgressRow(Base):
+    """Validated current read projection for one durable Diagnosis run."""
+
+    __tablename__ = "diagnosis_progress"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["incident_id", "tenant_id"],
+            ["incidents.id", "incidents.tenant_id"],
+            name="fk_diagnosis_progress_incident_tenant",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(f"phase IN ({_GRAPH_PHASES})", name="ck_diagnosis_progress_phase"),
+        CheckConstraint(
+            f"status IN ({_DIAGNOSIS_PROGRESS_STATUSES})",
+            name="ck_diagnosis_progress_status",
+        ),
+        CheckConstraint("checkpoint_sequence >= 0", name="ck_diagnosis_progress_sequence"),
+        CheckConstraint(
+            "jsonb_typeof(snapshot) = 'object'",
+            name="ck_diagnosis_progress_snapshot_object",
+        ),
+        CheckConstraint(
+            "snapshot_fingerprint ~ '^[0-9a-f]{64}$'",
+            name="ck_diagnosis_progress_fingerprint",
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "incident_id",
+            "workflow_run_id",
+            name="uq_diagnosis_progress_scope",
+        ),
+        Index(
+            "ix_diagnosis_progress_incident_time",
+            "tenant_id",
+            "incident_id",
+            "updated_at",
+            "workflow_run_id",
+        ),
+    )
+
+    workflow_run_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    incident_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    graph_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    phase: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    checkpoint_sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    snapshot: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    snapshot_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class IdempotencyRecordRow(Base):

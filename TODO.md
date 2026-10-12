@@ -223,7 +223,7 @@ Exit: the system never self-declares recovery; observed success closes the incid
 - [x] Implement authenticated shell, RBAC-aware navigation, and accessible error/loading states.
 - [x] Implement incident list with filters, severity/state/service, and pagination.
 - [x] Implement incident detail and state/workflow timeline.
-- [ ] Show investigation plan, tool progress, budgets, and bounded-replan history.
+- [x] Show investigation plan, tool progress, budgets, and bounded-replan history.
 - [ ] Implement Evidence/Artifact view with provenance, query/time/hash/version/quality/expiry/trust.
 - [ ] Show ranked root causes, supporting evidence, counter-evidence, missing evidence, and gate result.
 - [ ] Implement approval center with immutable proposal diff, risk/policy reasons, expiry, separation-of-duties feedback, approve/reject.

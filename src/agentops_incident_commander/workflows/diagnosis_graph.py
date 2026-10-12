@@ -19,6 +19,13 @@ from langgraph.types import interrupt
 
 from agentops_incident_commander.domain import InvalidDomainValueError, utc_now
 
+from .diagnosis import InvestigationPlan
+from .diagnosis_progress import (
+    DiagnosisProgressRecorder,
+    PlanToolCallReference,
+    ToolProgressStatus,
+    valid_failure_code,
+)
 from .state import DiagnosisGraphState, GraphBudgetState, GraphPhase
 
 DIAGNOSIS_NODE_NAMES = frozenset(
@@ -80,7 +87,8 @@ class PlanNodeResult:
     """References produced after a model plan is compiled and stored."""
 
     model_call_id: str
-    tool_call_ids: tuple[str, ...]
+    plan: InvestigationPlan
+    calls: tuple[PlanToolCallReference, ...]
     query_fingerprints: tuple[str, ...]
     used_steps: int
     model_tokens: int
@@ -88,17 +96,30 @@ class PlanNodeResult:
 
     def __post_init__(self) -> None:
         _validate_identifiers((self.model_call_id,), field_name="planning model call")
-        _validate_identifiers(self.tool_call_ids, field_name="planned tool call", allow_empty=False)
+        if not isinstance(self.plan, InvestigationPlan):
+            raise InvalidDomainValueError("planning result requires a typed investigation plan")
+        if not isinstance(self.calls, tuple) or not self.calls:
+            raise InvalidDomainValueError("planned tool call references are invalid")
+        tool_call_ids = self.tool_call_ids
+        _validate_identifiers(tool_call_ids, field_name="planned tool call", allow_empty=False)
         _validate_fingerprints(self.query_fingerprints, field_name="planned query")
         _validate_non_negative(
             (self.used_steps, self.model_tokens, self.cost_nanounits), field_name="planning usage"
         )
-        if self.used_steps == 0 or self.used_steps != len(self.tool_call_ids):
+        if self.used_steps == 0 or self.used_steps != len(tool_call_ids):
             raise InvalidDomainValueError("planning steps must match planned tool calls")
-        if len(self.query_fingerprints) != len(self.tool_call_ids):
+        if len(self.query_fingerprints) != len(tool_call_ids):
             raise InvalidDomainValueError(
                 "planning query fingerprints must match planned tool calls"
             )
+        if tuple(call.step_id for call in self.calls) != tuple(
+            step.step_id for step in self.plan.steps
+        ):
+            raise InvalidDomainValueError("planned tool calls must match investigation steps")
+
+    @property
+    def tool_call_ids(self) -> tuple[str, ...]:
+        return tuple(call.call_id for call in self.calls)
 
 
 @dataclass(frozen=True, slots=True)
@@ -185,6 +206,7 @@ class DiagnosisWorkflowServices(Protocol):
 class DiagnosisRuntimeContext:
     services: DiagnosisWorkflowServices
     prompts: DiagnosisPromptAuthorizationPort
+    progress: DiagnosisProgressRecorder
     clock: Callable[[], datetime] = field(default=utc_now)
     control: DiagnosisControlPort = field(default_factory=ContinueDiagnosisControl)
 
@@ -197,9 +219,10 @@ async def load_context_node(
     if control is not None:
         return control
     result = await runtime.context.services.load_context(state, operation_id=operation_id)
-    return _transition(
+    return await _transition(
         state,
         runtime,
+        operation_id=operation_id,
         phase=GraphPhase.PLANNING,
         evidence_ids=_append_unique(state.evidence_ids, result.evidence_ids, "evidence"),
     )
@@ -229,14 +252,15 @@ async def plan_node(
     repeated = set(result.query_fingerprints) & set(state.tool_query_fingerprints)
     repeated_within_plan = len(set(result.query_fingerprints)) != len(result.query_fingerprints)
     if repeated or repeated_within_plan:
-        return _transition(
+        return await _transition(
             state,
             runtime,
+            operation_id=operation_id,
             phase=GraphPhase.HUMAN_HANDOFF,
             error_code="REPEATED_EQUIVALENT_QUERY",
             **common_updates,
         )
-    return _transition(
+    next_state, update = _transition_state(
         state,
         runtime,
         phase=GraphPhase.INVESTIGATING,
@@ -247,6 +271,16 @@ async def plan_node(
         error_code=None,
         **common_updates,
     )
+    await runtime.context.progress.record_plan(
+        state,
+        plan=result.plan,
+        calls=result.calls,
+        model_call_id=result.model_call_id,
+        next_state=next_state,
+        operation_id=operation_id,
+    )
+    await runtime.context.progress.record_state(next_state, operation_id=operation_id)
+    return update
 
 
 async def execute_read_tools_node(
@@ -263,15 +297,11 @@ async def execute_read_tools_node(
         async with asyncio.TaskGroup() as tasks:
             for tool_call_id in batch:
                 tasks.create_task(
-                    runtime.context.services.execute_read_tool(
-                        state,
-                        tool_call_id,
-                        operation_id=node_operation_id(state, f"execute_read_tools:{tool_call_id}"),
-                    ),
+                    _execute_read_tool_with_progress(state, runtime, tool_call_id),
                     name=f"diagnosis-tool:{tool_call_id}",
                 )
     budgets = _consume_budget(state.budgets, used_tool_calls=len(pending_ids))
-    return _transition(state, runtime, budgets=budgets)
+    return await _transition(state, runtime, operation_id=operation_id, budgets=budgets)
 
 
 async def persist_evidence_node(
@@ -284,9 +314,10 @@ async def persist_evidence_node(
     if control is not None:
         return control
     result = await runtime.context.services.persist_evidence(state, operation_id=operation_id)
-    return _transition(
+    return await _transition(
         state,
         runtime,
+        operation_id=operation_id,
         phase=GraphPhase.HYPOTHESIS,
         evidence_ids=_append_unique(state.evidence_ids, result.evidence_ids, "evidence"),
     )
@@ -306,9 +337,10 @@ async def hypothesis_node(
         used_tokens=result.model_tokens,
         used_cost_nanounits=result.cost_nanounits,
     )
-    return _transition(
+    return await _transition(
         state,
         runtime,
+        operation_id=operation_id,
         phase=GraphPhase.EVIDENCE_REVIEW,
         budgets=budgets,
         model_call_ids=_append_unique(state.model_call_ids, (result.model_call_id,), "model call"),
@@ -334,7 +366,7 @@ async def evidence_gate_node(
         phase = GraphPhase.HUMAN_HANDOFF
         if result.route is GateRoute.REPLAN:
             error_code = error_code or "REPLAN_BUDGET_EXHAUSTED"
-    return _transition(
+    next_state, update = _transition_state(
         state,
         runtime,
         phase=phase,
@@ -342,6 +374,16 @@ async def evidence_gate_node(
         gate_decision_fingerprint=result.decision_fingerprint,
         error_code=error_code,
     )
+    if phase is GraphPhase.PLANNING:
+        await runtime.context.progress.record_replan(
+            state,
+            decision_fingerprint=result.decision_fingerprint,
+            reason_code=result.error_code or "EVIDENCE_GATE_REPLAN",
+            next_state=next_state,
+            operation_id=operation_id,
+        )
+    await runtime.context.progress.record_state(next_state, operation_id=operation_id)
+    return update
 
 
 async def human_handoff_node(
@@ -352,7 +394,7 @@ async def human_handoff_node(
     if control is not None:
         return control
     await runtime.context.services.record_handoff(state, operation_id=operation_id)
-    return _transition(state, runtime)
+    return await _transition(state, runtime, operation_id=operation_id)
 
 
 def route_after_gate(state: DiagnosisGraphState) -> str:
@@ -507,9 +549,10 @@ async def _before_effect(
         if response["action"] == "CANCEL":
             decision = WorkflowControl.CANCEL
     if decision is WorkflowControl.CANCEL:
-        update = _transition(
+        update = await _transition(
             state,
             runtime,
+            operation_id=operation_id,
             phase=GraphPhase.CANCELLED,
             error_code="CANCELLED_AT_SAFE_BOUNDARY",
         )
@@ -530,18 +573,81 @@ def _route_or_cancel(
     raise InvalidDomainValueError(f"{node_description} produced an unsupported graph phase")
 
 
-def _transition(
+async def _transition(
+    state: DiagnosisGraphState,
+    runtime: Runtime[DiagnosisRuntimeContext],
+    *,
+    operation_id: str,
+    **updates: object,
+) -> dict[str, object]:
+    validated, changed = _transition_state(state, runtime, **updates)
+    await runtime.context.progress.record_state(validated, operation_id=operation_id)
+    return changed
+
+
+def _transition_state(
     state: DiagnosisGraphState,
     runtime: Runtime[DiagnosisRuntimeContext],
     **updates: object,
-) -> dict[str, object]:
+) -> tuple[DiagnosisGraphState, dict[str, object]]:
     values = state.model_dump()
     values.update(updates)
     values["checkpoint_sequence"] = state.checkpoint_sequence + 1
     values["updated_at"] = runtime.context.clock()
     validated = DiagnosisGraphState.model_validate(values)
     changed_fields = set(updates) | {"checkpoint_sequence", "updated_at"}
-    return {field: getattr(validated, field) for field in changed_fields}
+    return validated, {field: getattr(validated, field) for field in changed_fields}
+
+
+async def _execute_read_tool_with_progress(
+    state: DiagnosisGraphState,
+    runtime: Runtime[DiagnosisRuntimeContext],
+    tool_call_id: str,
+) -> None:
+    operation_id = node_operation_id(state, f"execute_read_tools:{tool_call_id}")
+    started_at = runtime.context.clock()
+    await runtime.context.progress.record_tool_status(
+        state,
+        tool_call_id=tool_call_id,
+        status=ToolProgressStatus.RUNNING,
+        failure_code=None,
+        occurred_at=started_at,
+        operation_id=operation_id,
+    )
+    try:
+        await runtime.context.services.execute_read_tool(
+            state,
+            tool_call_id,
+            operation_id=operation_id,
+        )
+    except asyncio.CancelledError:
+        await runtime.context.progress.record_tool_status(
+            state,
+            tool_call_id=tool_call_id,
+            status=ToolProgressStatus.CANCELLED,
+            failure_code="PARALLEL_WAVE_CANCELLED",
+            occurred_at=runtime.context.clock(),
+            operation_id=operation_id,
+        )
+        raise
+    except BaseException as error:
+        await runtime.context.progress.record_tool_status(
+            state,
+            tool_call_id=tool_call_id,
+            status=ToolProgressStatus.FAILED,
+            failure_code=valid_failure_code(error),
+            occurred_at=runtime.context.clock(),
+            operation_id=operation_id,
+        )
+        raise
+    await runtime.context.progress.record_tool_status(
+        state,
+        tool_call_id=tool_call_id,
+        status=ToolProgressStatus.SUCCEEDED,
+        failure_code=None,
+        occurred_at=runtime.context.clock(),
+        operation_id=operation_id,
+    )
 
 
 def _consume_budget(budgets: GraphBudgetState, **increments: int) -> GraphBudgetState:

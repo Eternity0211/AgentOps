@@ -8,6 +8,10 @@ import {
   type IncidentDetail as IncidentRecord,
 } from "@/lib/incidents";
 import {
+  loadInvestigation,
+  type InvestigationProgress,
+} from "@/lib/investigation";
+import {
   loadTimeline,
   type TimelineEvent,
   type TimelinePage,
@@ -16,7 +20,12 @@ import {
 type DetailState =
   | { status: "loading" }
   | { status: "error" }
-  | { status: "ready"; incident: IncidentRecord; timeline: TimelinePage };
+  | {
+      status: "ready";
+      incident: IncidentRecord;
+      timeline: TimelinePage;
+      investigation: InvestigationProgress | null;
+    };
 
 function displayState(value: string) {
   return value.replaceAll("_", " ");
@@ -34,6 +43,183 @@ function EventTitle({ event }: Readonly<{ event: TimelineEvent }>) {
     </>
   ) : (
     <>Cancellation requested while {displayState(event.stateWhenRequested)}</>
+  );
+}
+
+const budgetLabels = {
+  steps: "Steps",
+  replans: "Replans",
+  toolCalls: "Tool calls",
+  modelCalls: "Model calls",
+  tokens: "Tokens",
+  costNanounits: "Cost (nanounits)",
+} as const;
+
+function InvestigationView({
+  investigation,
+}: Readonly<{ investigation: InvestigationProgress | null }>) {
+  if (investigation === null) {
+    return (
+      <section
+        aria-labelledby="investigation-progress"
+        className="investigation-section"
+      >
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">SERVER-PERSISTED PROGRESS</p>
+            <h2 id="investigation-progress">Investigation progress</h2>
+          </div>
+        </div>
+        <div className="panel">
+          <p>No diagnosis run has been recorded for this incident.</p>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section
+      aria-labelledby="investigation-progress"
+      className="investigation-section"
+    >
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">SERVER-PERSISTED PROGRESS</p>
+          <h2 id="investigation-progress">Investigation progress</h2>
+        </div>
+        <span
+          className={`progress-status status-${investigation.status.toLowerCase()}`}
+        >
+          {displayState(investigation.status)}
+        </span>
+      </div>
+
+      {investigation.status === "HUMAN_HANDOFF" ? (
+        <p className="progress-notice" role="status">
+          Human handoff required. Automated investigation has stopped.
+        </p>
+      ) : null}
+      {investigation.budgets.replans.remaining === 0 ? (
+        <p className="progress-notice" role="status">
+          Replan budget exhausted. No further automatic replan is available.
+        </p>
+      ) : null}
+      {investigation.errorCode ? (
+        <p className="progress-notice" role="alert">
+          Failure code: {investigation.errorCode}
+        </p>
+      ) : null}
+
+      <dl className="progress-metadata panel">
+        <div>
+          <dt>Phase</dt>
+          <dd>{displayState(investigation.phase)}</dd>
+        </div>
+        <div>
+          <dt>Workflow run</dt>
+          <dd>{investigation.workflowRunId}</dd>
+        </div>
+        <div>
+          <dt>Checkpoint</dt>
+          <dd>{investigation.checkpointSequence}</dd>
+        </div>
+        <div>
+          <dt>Graph version</dt>
+          <dd>{investigation.graphVersion}</dd>
+        </div>
+        <div>
+          <dt>Projection version</dt>
+          <dd>{investigation.schemaVersion}</dd>
+        </div>
+        <div>
+          <dt>Updated</dt>
+          <dd>{displayTime(investigation.updatedAt)}</dd>
+        </div>
+      </dl>
+
+      <h3>Resource budgets</h3>
+      <dl className="budget-grid">
+        {Object.entries(investigation.budgets).map(([key, budget]) => (
+          <div key={key}>
+            <dt>{budgetLabels[key as keyof typeof budgetLabels]}</dt>
+            <dd>
+              <strong>{budget.used}</strong> used · {budget.remaining} remaining
+              · {budget.maximum} maximum
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="investigation-history">
+        {investigation.plans.map((plan) => (
+          <article className="plan-card" key={plan.planId}>
+            <div className="plan-heading">
+              <div>
+                <p className="eyebrow">ATTEMPT {plan.attempt}</p>
+                <h3>{plan.summary}</h3>
+              </div>
+              <span>{displayTime(plan.createdAt)}</span>
+            </div>
+            <p className="technical-id">
+              Plan {plan.planId} · model call {plan.modelCallId}
+            </p>
+            <ol className="tool-progress-list">
+              {plan.steps.map((step) => (
+                <li key={step.toolCallId}>
+                  <div className="tool-progress-heading">
+                    <h4>
+                      {step.position}. {step.objective}
+                    </h4>
+                    <span
+                      className={`tool-status status-${step.status.toLowerCase()}`}
+                    >
+                      {displayState(step.status)}
+                    </span>
+                  </div>
+                  <p>
+                    {step.toolName} v{step.toolVersion} · {step.expectedSource}{" "}
+                    · parallel group {step.parallelGroup}
+                  </p>
+                  {step.dependsOn.length > 0 ? (
+                    <p>Depends on: {step.dependsOn.join(", ")}</p>
+                  ) : null}
+                  {step.failureCode ? (
+                    <p role="alert">Failure: {step.failureCode}</p>
+                  ) : null}
+                  <dl className="tool-timing">
+                    <div>
+                      <dt>Started</dt>
+                      <dd>{displayTime(step.startedAt)}</dd>
+                    </div>
+                    <div>
+                      <dt>Completed</dt>
+                      <dd>{displayTime(step.completedAt)}</dd>
+                    </div>
+                  </dl>
+                </li>
+              ))}
+            </ol>
+          </article>
+        ))}
+      </div>
+
+      <div className="replan-history">
+        <h3>Bounded replan history</h3>
+        {investigation.replans.length === 0 ? (
+          <p>No replan has been recorded.</p>
+        ) : (
+          <ol>
+            {investigation.replans.map((replan) => (
+              <li key={replan.decisionFingerprint}>
+                Attempt {replan.completedAttempt} → {replan.nextAttempt}:{" "}
+                {displayState(replan.reasonCode)}
+                <span>{displayTime(replan.occurredAt)}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -55,10 +241,11 @@ export function IncidentDetail({
     void Promise.all([
       loadIncident(incidentId, controller.signal),
       loadTimeline(incidentId, undefined, controller.signal),
+      loadInvestigation(incidentId, controller.signal),
     ]).then(
-      ([incident, timeline]) => {
+      ([incident, timeline, investigation]) => {
         if (!controller.signal.aborted) {
-          setState({ status: "ready", incident, timeline });
+          setState({ status: "ready", incident, timeline, investigation });
         }
       },
       (reason: unknown) => {
@@ -123,7 +310,7 @@ export function IncidentDetail({
     );
   }
 
-  const { incident, timeline } = state;
+  const { incident, timeline, investigation } = state;
   return (
     <main>
       <Link className="back-link" href="/incidents">
@@ -170,6 +357,8 @@ export function IncidentDetail({
           </div>
         </dl>
       </section>
+
+      <InvestigationView investigation={investigation} />
 
       <section aria-labelledby="workflow-timeline" className="timeline-section">
         <div className="section-heading">

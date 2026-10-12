@@ -33,6 +33,7 @@ from agentops_incident_commander.domain import (
     IncidentId,
     IncidentSeverity,
     IncidentState,
+    InvalidDomainValueError,
     Permission,
     Principal,
     Sha256Digest,
@@ -41,8 +42,12 @@ from agentops_incident_commander.domain import (
     require_permission,
     utc_now,
 )
+from agentops_incident_commander.infrastructure.persistence.diagnosis_progress import (
+    diagnosis_progress_from_row,
+)
 from agentops_incident_commander.infrastructure.persistence.models import (
     AuditEventRow,
+    DiagnosisProgressRow,
     EvidenceRow,
     IdempotencyRecordRow,
     IncidentCancellationRequestRow,
@@ -145,6 +150,72 @@ class TimelinePage(ApiModel):
     next_cursor: str | None
 
 
+class BudgetCounterView(ApiModel):
+    used: int
+    maximum: int
+    remaining: int
+
+
+class InvestigationBudgetsView(ApiModel):
+    steps: BudgetCounterView
+    replans: BudgetCounterView
+    tool_calls: BudgetCounterView
+    model_calls: BudgetCounterView
+    tokens: BudgetCounterView
+    cost_nanounits: BudgetCounterView
+
+
+class InvestigationStepView(ApiModel):
+    position: int
+    step_id: str
+    objective: str
+    expected_source: str
+    depends_on: list[str]
+    parallel_group: int
+    tool_call_id: str
+    tool_name: str
+    tool_version: str
+    status: str
+    failure_code: str | None
+    started_at: datetime | None
+    completed_at: datetime | None
+
+
+class InvestigationPlanView(ApiModel):
+    attempt: int
+    plan_id: str
+    summary: str
+    model_call_id: str
+    created_at: datetime
+    steps: list[InvestigationStepView]
+
+
+class ReplanView(ApiModel):
+    completed_attempt: int
+    next_attempt: int
+    decision_fingerprint: str
+    reason_code: str
+    occurred_at: datetime
+
+
+class InvestigationProgressView(ApiModel):
+    schema_version: str
+    workflow_run_id: str
+    graph_version: str
+    phase: str
+    status: str
+    budgets: InvestigationBudgetsView
+    plans: list[InvestigationPlanView]
+    replans: list[ReplanView]
+    checkpoint_sequence: int
+    error_code: str | None
+    updated_at: datetime
+
+
+class InvestigationProgressEnvelope(ApiModel):
+    run: InvestigationProgressView | None
+
+
 class AuditEventView(ApiModel):
     sequence: int
     id: str
@@ -237,6 +308,71 @@ def _evidence_view(row: EvidenceRow, *, at: datetime) -> EvidenceView:
         expires_at=row.expires_at,
         expired=as_utc(at) >= as_utc(row.expires_at),
         schema_version=row.schema_version,
+    )
+
+
+def _budget_counter(used: int, maximum: int) -> BudgetCounterView:
+    return BudgetCounterView(used=used, maximum=maximum, remaining=maximum - used)
+
+
+def _investigation_progress_view(row: DiagnosisProgressRow) -> InvestigationProgressView:
+    snapshot = diagnosis_progress_from_row(row)
+    budgets = snapshot.budgets
+    return InvestigationProgressView(
+        schema_version=snapshot.schema_version,
+        workflow_run_id=snapshot.workflow_run_id,
+        graph_version=snapshot.graph_version,
+        phase=snapshot.phase.value,
+        status=snapshot.status.value,
+        budgets=InvestigationBudgetsView(
+            steps=_budget_counter(budgets.used_steps, budgets.max_steps),
+            replans=_budget_counter(budgets.used_replans, budgets.max_replans),
+            tool_calls=_budget_counter(budgets.used_tool_calls, budgets.max_tool_calls),
+            model_calls=_budget_counter(budgets.used_model_calls, budgets.max_model_calls),
+            tokens=_budget_counter(budgets.used_tokens, budgets.max_tokens),
+            cost_nanounits=_budget_counter(budgets.used_cost_nanounits, budgets.max_cost_nanounits),
+        ),
+        plans=[
+            InvestigationPlanView(
+                attempt=plan.attempt,
+                plan_id=plan.plan_id,
+                summary=plan.summary,
+                model_call_id=plan.model_call_id,
+                created_at=plan.created_at,
+                steps=[
+                    InvestigationStepView(
+                        position=step.position,
+                        step_id=step.step_id,
+                        objective=step.objective,
+                        expected_source=step.expected_source,
+                        depends_on=list(step.depends_on),
+                        parallel_group=step.parallel_group,
+                        tool_call_id=step.tool_call_id,
+                        tool_name=step.tool_name,
+                        tool_version=step.tool_version,
+                        status=step.status.value,
+                        failure_code=step.failure_code,
+                        started_at=step.started_at,
+                        completed_at=step.completed_at,
+                    )
+                    for step in plan.steps
+                ],
+            )
+            for plan in snapshot.plans
+        ],
+        replans=[
+            ReplanView(
+                completed_attempt=item.completed_attempt,
+                next_attempt=item.next_attempt,
+                decision_fingerprint=item.decision_fingerprint,
+                reason_code=item.reason_code,
+                occurred_at=item.occurred_at,
+            )
+            for item in snapshot.replans
+        ],
+        checkpoint_sequence=snapshot.checkpoint_sequence,
+        error_code=snapshot.error_code,
+        updated_at=snapshot.updated_at,
     )
 
 
@@ -374,6 +510,46 @@ def build_api_v1_router(
         if row is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "incident not found")
         return _incident_view(row)
+
+    @router.get(
+        "/incidents/{incident_id}/investigation",
+        response_model=InvestigationProgressEnvelope,
+    )
+    async def get_investigation_progress(
+        incident_id: str, session: Session, principal: Authenticated
+    ) -> InvestigationProgressEnvelope:
+        _authorized(principal, Permission.INCIDENT_READ)
+        owned = await session.scalar(
+            select(IncidentRow.id).where(
+                IncidentRow.id == incident_id,
+                IncidentRow.tenant_id == principal.tenant_id.value,
+            )
+        )
+        if owned is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "incident not found")
+        row = await session.scalar(
+            select(DiagnosisProgressRow)
+            .where(
+                DiagnosisProgressRow.incident_id == incident_id,
+                DiagnosisProgressRow.tenant_id == principal.tenant_id.value,
+            )
+            .order_by(
+                DiagnosisProgressRow.updated_at.desc(),
+                DiagnosisProgressRow.workflow_run_id.desc(),
+            )
+            .limit(1)
+        )
+        if row is None:
+            return InvestigationProgressEnvelope(run=None)
+        try:
+            return InvestigationProgressEnvelope(run=_investigation_progress_view(row))
+        except InvalidDomainValueError as error:
+            raise problem(
+                status.HTTP_409_CONFLICT,
+                "INVESTIGATION_PROGRESS_INTEGRITY_FAILED",
+                "Investigation progress integrity failed",
+                "the persisted investigation progress could not be verified",
+            ) from error
 
     @router.get("/incidents/{incident_id}/evidence", response_model=EvidencePage)
     async def list_evidence(

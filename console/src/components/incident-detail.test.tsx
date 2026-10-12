@@ -11,6 +11,7 @@ import { IncidentDetail } from "./incident-detail";
 
 const mocks = vi.hoisted(() => ({
   loadIncident: vi.fn(),
+  loadInvestigation: vi.fn(),
   loadTimeline: vi.fn(),
 }));
 
@@ -22,6 +23,11 @@ vi.mock("@/lib/incidents", async (importOriginal) => ({
 vi.mock("@/lib/timeline", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/timeline")>()),
   loadTimeline: mocks.loadTimeline,
+}));
+
+vi.mock("@/lib/investigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/investigation")>()),
+  loadInvestigation: mocks.loadInvestigation,
 }));
 
 const incident = {
@@ -63,8 +69,63 @@ const cancellation = {
   disposition: "DEFERRED_TO_SAFE_BOUNDARY",
 };
 
+const investigation = {
+  schemaVersion: "1.0.0",
+  workflowRunId: "run-1",
+  graphVersion: "1.0.0",
+  phase: "EVIDENCE_REVIEW" as const,
+  status: "FAILED" as const,
+  budgets: {
+    steps: { used: 2, maximum: 4, remaining: 2 },
+    replans: { used: 1, maximum: 1, remaining: 0 },
+    toolCalls: { used: 2, maximum: 4, remaining: 2 },
+    modelCalls: { used: 3, maximum: 6, remaining: 3 },
+    tokens: { used: 300, maximum: 1000, remaining: 700 },
+    costNanounits: { used: 30, maximum: 100, remaining: 70 },
+  },
+  plans: [
+    {
+      attempt: 1,
+      planId: "plan-1",
+      summary: "Collect independent evidence",
+      modelCallId: "model-1",
+      createdAt: "2026-10-11T10:01:00Z",
+      steps: [
+        {
+          position: 1,
+          stepId: "metrics",
+          objective: "Inspect error rate",
+          expectedSource: "METRIC",
+          dependsOn: ["context"],
+          parallelGroup: 0,
+          toolCallId: "tool-1",
+          toolName: "query_metrics",
+          toolVersion: "1.0.0",
+          status: "FAILED" as const,
+          failureCode: "TOOL_TIMEOUT",
+          startedAt: "2026-10-11T10:02:00Z",
+          completedAt: "2026-10-11T10:03:00Z",
+        },
+      ],
+    },
+  ],
+  replans: [
+    {
+      completedAttempt: 1,
+      nextAttempt: 2,
+      decisionFingerprint: "a".repeat(64),
+      reasonCode: "MORE_EVIDENCE_REQUIRED",
+      occurredAt: "2026-10-11T10:04:00Z",
+    },
+  ],
+  checkpointSequence: 7,
+  errorCode: "TOOL_TIMEOUT",
+  updatedAt: "2026-10-11T10:05:00Z",
+};
+
 beforeEach(() => {
   mocks.loadIncident.mockReset();
+  mocks.loadInvestigation.mockReset().mockResolvedValue(null);
   mocks.loadTimeline.mockReset();
 });
 
@@ -153,6 +214,74 @@ describe("IncidentDetail", () => {
       await screen.findByText("No lifecycle events have been recorded."),
     ).toBeVisible();
     expect(screen.getByText("0 events loaded")).toBeVisible();
+    expect(
+      screen.getByText("No diagnosis run has been recorded for this incident."),
+    ).toBeVisible();
+  });
+
+  it("renders plans, tool progress, budgets, failures, and bounded replans", async () => {
+    mocks.loadIncident.mockResolvedValue(incident);
+    mocks.loadTimeline.mockResolvedValue({ items: [], nextCursor: null });
+    mocks.loadInvestigation.mockResolvedValue(investigation);
+    render(<IncidentDetail incidentId="incident-1" />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Investigation progress" }),
+    ).toBeVisible();
+    expect(screen.getAllByText("EVIDENCE REVIEW")).toHaveLength(2);
+    expect(
+      screen.getByText("Replan budget exhausted.", { exact: false }),
+    ).toBeVisible();
+    expect(screen.getByText("Failure code: TOOL_TIMEOUT")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Collect independent evidence" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "1. Inspect error rate" }),
+    ).toBeVisible();
+    expect(screen.getByText("Depends on: context")).toBeVisible();
+    expect(screen.getByText("Failure: TOOL_TIMEOUT")).toBeVisible();
+    expect(
+      screen.getByText(/Attempt 1.*2: MORE EVIDENCE REQUIRED/),
+    ).toBeVisible();
+    expect(screen.getByText("Replans").parentElement).toHaveTextContent(
+      "1 used · 0 remaining · 1 maximum",
+    );
+  });
+
+  it("renders handoff and empty replan states", async () => {
+    mocks.loadIncident.mockResolvedValue(incident);
+    mocks.loadTimeline.mockResolvedValue({ items: [], nextCursor: null });
+    mocks.loadInvestigation.mockResolvedValue({
+      ...investigation,
+      status: "HUMAN_HANDOFF",
+      phase: "HUMAN_HANDOFF",
+      budgets: {
+        ...investigation.budgets,
+        replans: { used: 0, maximum: 1, remaining: 1 },
+      },
+      replans: [],
+      errorCode: null,
+      plans: [
+        {
+          ...investigation.plans[0]!,
+          steps: [
+            {
+              ...investigation.plans[0]!.steps[0]!,
+              dependsOn: [],
+              failureCode: null,
+            },
+          ],
+        },
+      ],
+    });
+    render(<IncidentDetail incidentId="incident-1" />);
+
+    expect(
+      await screen.findByText("Human handoff required.", { exact: false }),
+    ).toBeVisible();
+    expect(screen.getByText("No replan has been recorded.")).toBeVisible();
+    expect(screen.queryByText("Depends on: context")).toBeNull();
   });
 
   it("fails closed and retries the complete incident view", async () => {
@@ -175,6 +304,18 @@ describe("IncidentDetail", () => {
       await screen.findByRole("heading", { name: "incident-1" }),
     ).toBeVisible();
     expect(mocks.loadIncident).toHaveBeenCalledTimes(2);
+  });
+
+  it("fails the complete read-only view when investigation loading fails", async () => {
+    mocks.loadIncident.mockResolvedValue(incident);
+    mocks.loadTimeline.mockResolvedValue({ items: [], nextCursor: null });
+    mocks.loadInvestigation.mockRejectedValue(new Error("invalid projection"));
+    render(<IncidentDetail incidentId="incident-1" />);
+    expect(
+      await screen.findByRole("heading", {
+        name: "Incident details could not be loaded",
+      }),
+    ).toBeVisible();
   });
 
   it("retries additional timeline failures without discarding loaded events", async () => {

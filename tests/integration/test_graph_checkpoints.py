@@ -21,6 +21,7 @@ from agentops_incident_commander.domain import (
     ApprovalInvalidation,
     ApprovalStatus,
     EventReason,
+    EvidenceSourceType,
     IncidentId,
     OpaqueIdentifier,
     RiskLevel,
@@ -51,7 +52,11 @@ from agentops_incident_commander.workflows import (
     GraphPhase,
     GraphPromptReference,
     HypothesisNodeResult,
+    InvestigationPlan,
+    InvestigationStep,
     PlanNodeResult,
+    PlanToolCallReference,
+    ToolProgressStatus,
     WorkflowControl,
     build_approval_graph,
     build_diagnosis_graph,
@@ -61,6 +66,78 @@ if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 NOW = datetime(2026, 10, 5, 12, 0, tzinfo=UTC)
+
+
+def plan_result() -> PlanNodeResult:
+    plan = InvestigationPlan(
+        schema_version="1.0.0",
+        plan_id="plan-1",
+        summary="Collect bounded metric evidence",
+        steps=(
+            InvestigationStep(
+                step_id="step-1",
+                objective="Inspect the service error rate",
+                expected_source=EvidenceSourceType.METRIC,
+                parallel_group=0,
+            ),
+        ),
+    )
+    return PlanNodeResult(
+        "model-plan",
+        plan,
+        (
+            PlanToolCallReference(
+                call_id="tool-1",
+                step_id="step-1",
+                tool_name="query_metrics",
+                tool_version="1.0.0",
+            ),
+        ),
+        ("1" * 64,),
+        1,
+        10,
+        1,
+    )
+
+
+class RecordingProgress:
+    async def record_plan(
+        self,
+        state: DiagnosisGraphState,
+        *,
+        plan: InvestigationPlan,
+        calls: tuple[PlanToolCallReference, ...],
+        model_call_id: str,
+        next_state: DiagnosisGraphState,
+        operation_id: str,
+    ) -> None:
+        pass
+
+    async def record_tool_status(
+        self,
+        state: DiagnosisGraphState,
+        *,
+        tool_call_id: str,
+        status: ToolProgressStatus,
+        failure_code: str | None,
+        occurred_at: datetime,
+        operation_id: str,
+    ) -> None:
+        pass
+
+    async def record_replan(
+        self,
+        state: DiagnosisGraphState,
+        *,
+        decision_fingerprint: str,
+        reason_code: str,
+        next_state: DiagnosisGraphState,
+        operation_id: str,
+    ) -> None:
+        pass
+
+    async def record_state(self, state: DiagnosisGraphState, *, operation_id: str) -> None:
+        pass
 
 
 @pytest.fixture(scope="module")
@@ -119,7 +196,7 @@ class CheckpointServices:
     async def plan(self, state: DiagnosisGraphState, *, operation_id: str) -> PlanNodeResult:
         self.plan_calls += 1
         self.operations.append("plan")
-        return PlanNodeResult("model-plan", ("tool-1",), ("1" * 64,), 1, 10, 1)
+        return plan_result()
 
     async def load_tool_batches(
         self, state: DiagnosisGraphState, *, operation_id: str
@@ -182,8 +259,10 @@ def runtime(
     services: CheckpointServices, *, control: PauseContextControl | None = None
 ) -> DiagnosisRuntimeContext:
     if control is None:
-        return DiagnosisRuntimeContext(services, ApprovedPrompts())
-    return DiagnosisRuntimeContext(services, ApprovedPrompts(), control=control)
+        return DiagnosisRuntimeContext(services, ApprovedPrompts(), RecordingProgress())
+    return DiagnosisRuntimeContext(
+        services, ApprovedPrompts(), RecordingProgress(), control=control
+    )
 
 
 @pytest.mark.anyio
@@ -313,7 +392,7 @@ class CrashAfterCommittedPlan(CheckpointServices):
     async def plan(self, state: DiagnosisGraphState, *, operation_id: str) -> PlanNodeResult:
         result = self._durable_results.get(operation_id)
         if result is None:
-            result = PlanNodeResult("model-plan", ("tool-1",), ("1" * 64,), 1, 10, 1)
+            result = plan_result()
             self._durable_results[operation_id] = result
             self._committed_effects.append(operation_id)
         if self._crash:
@@ -339,6 +418,7 @@ async def test_retried_failed_node_replays_committed_operation_instead_of_effect
                 context=DiagnosisRuntimeContext(
                     CrashAfterCommittedPlan(durable_results, committed_effects, crash=True),
                     ApprovedPrompts(),
+                    RecordingProgress(),
                 ),
             )
         failed_history = await DiagnosisWorkflowRunner(graph).history(first)
@@ -348,7 +428,8 @@ async def test_retried_failed_node_replays_committed_operation_instead_of_effect
     async with postgres_diagnosis_checkpointer(checkpoint_postgres_url) as recovered_saver:
         recovered_graph = build_diagnosis_graph(checkpointer=recovered_saver)
         outcome = await DiagnosisWorkflowRunner(recovered_graph).run_or_resume(
-            first, DiagnosisRuntimeContext(recovered_services, ApprovedPrompts())
+            first,
+            DiagnosisRuntimeContext(recovered_services, ApprovedPrompts(), RecordingProgress()),
         )
 
     assert outcome.resumed

@@ -5,6 +5,10 @@ from .action_execution_store import (
     PostgresActionExecutionStore,
     PostgresLifecycleActionExecutionStore,
 )
+from .diagnosis_progress import (
+    PostgresDiagnosisProgressRecorder,
+    diagnosis_progress_from_row,
+)
 from .health_verification_routing import (
     PostgresFailedHealthVerificationRouter,
     PostgresSuccessfulHealthVerificationRouter,
@@ -20,6 +24,7 @@ from .models import (
     ApprovalRow,
     AuditEventRow,
     Base,
+    DiagnosisProgressRow,
     EvidenceGateDecisionRow,
     EvidenceRow,
     HealthVerificationRunRow,
@@ -70,6 +75,7 @@ __all__ = [
     "AuditEventRow",
     "AuditRepository",
     "Base",
+    "DiagnosisProgressRow",
     "EvidenceGateDecisionRow",
     "EvidenceGateRepository",
     "EvidenceRepository",
@@ -91,6 +97,7 @@ __all__ = [
     "OutboxEventRow",
     "OutboxRepository",
     "PostgresActionExecutionStore",
+    "PostgresDiagnosisProgressRecorder",
     "PostgresFailedHealthVerificationRouter",
     "PostgresLifecycleActionExecutionStore",
     "PostgresSuccessfulHealthVerificationRouter",
@@ -100,4 +107,5 @@ __all__ = [
     "PromptLifecycleEventRow",
     "PromptLifecycleRepository",
     "PromptVersionRow",
+    "diagnosis_progress_from_row",
 ]

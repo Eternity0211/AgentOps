@@ -1,9 +1,10 @@
 {
-  "sha256": "d81d4ac2dfe60879e7014a1cc6fa358b3978b350286ce5b5a8876cf17d78189b",
+  "sha256": "297ee8c99c02766db9b5c5f10e37998b4fc5efc33d50462dc86bb894f28145e2",
   "paths": {
     "/api/v1/audit": ["get"],
     "/api/v1/incidents": ["get"],
     "/api/v1/incidents/{incident_id}": ["get"],
+    "/api/v1/incidents/{incident_id}/investigation": ["get"],
     "/api/v1/incidents/{incident_id}/evidence": ["get"],
     "/api/v1/incidents/{incident_id}/evidence/{evidence_id}": ["get"],
     "/api/v1/incidents/{incident_id}/evidence/{evidence_id}/artifact": ["get"],
@@ -15,6 +16,7 @@
   "schemas": [
     "AuditEventView",
     "AuditPage",
+    "BudgetCounterView",
     "ControlRequest",
     "ControlResult",
     "EvidencePage",
@@ -24,7 +26,13 @@
     "IncidentState",
     "IncidentView",
     "InvalidParameter",
+    "InvestigationBudgetsView",
+    "InvestigationPlanView",
+    "InvestigationProgressEnvelope",
+    "InvestigationProgressView",
+    "InvestigationStepView",
     "ProblemDetail",
+    "ReplanView",
     "SessionView",
     "TimelineEventView",
     "TimelinePage"

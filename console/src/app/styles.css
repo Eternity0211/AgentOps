@@ -264,6 +264,129 @@ dd {
   margin-top: 36px;
 }
 
+.investigation-section {
+  margin-top: 36px;
+}
+
+.progress-status,
+.tool-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 5px 8px;
+  color: var(--text);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.status-complete,
+.status-succeeded {
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+
+.status-failed,
+.status-cancelled,
+.status-human_handoff {
+  color: #ffd4ce;
+  background: #5c2525;
+  border-color: #a64d45;
+}
+
+.progress-notice {
+  padding: 14px 16px;
+  background: var(--surface-raised);
+  border-left: 4px solid #ffc76b;
+}
+
+.progress-metadata,
+.budget-grid,
+.tool-timing {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.budget-grid {
+  margin: 0 0 24px;
+}
+
+.budget-grid > div {
+  min-width: 0;
+  padding: 16px;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+}
+
+.plan-card {
+  margin-bottom: 18px;
+  padding: 22px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.plan-heading,
+.tool-progress-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.plan-heading h3,
+.tool-progress-heading h4 {
+  margin: 0;
+}
+
+.plan-heading > span,
+.technical-id,
+.replan-history li > span {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.technical-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+}
+
+.tool-progress-list {
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tool-progress-list li {
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+
+.tool-timing {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.replan-history {
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.replan-history ol {
+  margin: 0;
+  padding-left: 22px;
+}
+
+.replan-history li {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+}
+
 .section-heading,
 .timeline-title {
   display: flex;
@@ -494,12 +617,17 @@ a:focus-visible {
   }
 
   .detail-grid,
-  .timeline-metadata {
+  .timeline-metadata,
+  .progress-metadata,
+  .budget-grid,
+  .tool-timing {
     grid-template-columns: 1fr;
   }
 
   .section-heading,
-  .timeline-title {
+  .timeline-title,
+  .plan-heading,
+  .tool-progress-heading {
     display: grid;
   }
 

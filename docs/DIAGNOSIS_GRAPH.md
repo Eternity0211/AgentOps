@@ -94,6 +94,14 @@ canonical state fingerprint. Task errors, interrupt values, budgets, prompts, ev
 payloads, and raw state are never copied into the projection. History reads are explicitly bounded
 and omit LangGraph's internal pre-input checkpoint because it contains no Diagnosis state.
 
+A separate versioned operator-progress projection is updated beside node effects. It contains only
+typed plan summaries and dependency order, compiled read-only Tool Call identities, per-call
+`PLANNED`/`RUNNING`/terminal status, exact used/max budgets, bounded replan reasons, phase,
+checkpoint sequence, and stable failure codes. It never contains tool arguments/results, model
+text, raw Evidence content, prompts, secrets, or Ground Truth. PostgreSQL row locks and canonical
+fingerprints make exact delivery replay harmless and reject conflicting or regressive updates.
+The projection is read-only UI data; it is neither a checkpoint nor an execution authority.
+
 ## Verification
 
 Tests execute the compiled async graph through pass, one-replan-then-pass, explicit handoff, and

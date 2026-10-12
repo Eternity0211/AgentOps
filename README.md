@@ -181,7 +181,11 @@ The authenticated shell bootstraps exclusively from the server-resolved `/api/v1
 renders navigation from its derived permissions, and fails closed on missing or invalid identity.
 Its incident workspace lists only tenant-authorized records and keeps severity, lifecycle-state,
 service, and opaque-page filters in the URL. The API, rather than the browser, validates every
-filter and remains the source of pagination and authorization truth.
+filter and remains the source of pagination and authorization truth. Each authorized incident
+links to a responsive detail view that renders the API-owned lifecycle fields and a cursor-paged
+history of state transitions and cancellation requests, including actor, reason, version,
+correlation, and causation metadata. Detail and timeline failures remain read-only and never cause
+the client to infer a state or dispatch a control action.
 
 From `console/`, use `npm ci` for a locked install, `npm run verify` for formatting, linting,
 strict type checks, unit coverage, and a production build, and `npm run test:browser` for the

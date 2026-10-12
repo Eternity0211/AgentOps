@@ -44,6 +44,15 @@ digits, `.`, `_`, `:`, `/`, and `-`; malformed values fail request validation. E
 summary includes its authoritative service scope. A cursor remains opaque and must be replayed with
 the same filter set from which it was returned.
 
+`GET /api/v1/incidents/{incident_id}` returns the server-owned service, severity, lifecycle state,
+optimistic version, and lifecycle timestamps used by the administration detail route. The paired
+timeline response is an ordered, cursor-paged union of state transitions and cancellation
+requests. Each item carries consecutive prior/new versions plus actor, reason, occurrence,
+correlation, and causation metadata; kind-specific fields describe the prior/new state or the
+state/disposition of a cancellation request. The console validates this discriminated response
+and replays `next_cursor` unchanged. It does not reconstruct missing events or infer current state
+from the timeline.
+
 Evidence lists use the same opaque newest-first cursor convention, ordered by collection time and
 Evidence ID. Metadata includes source/query provenance, observation and collection ranges, quality
 reasons, lineage, trust and injection classifications, expiry, and the immutable Artifact binding;

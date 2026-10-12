@@ -27,6 +27,12 @@ export interface IncidentSummary {
   updatedAt: string;
 }
 
+export interface IncidentDetail extends IncidentSummary {
+  closedAt: string | null;
+  cancelledAt: string | null;
+  cancellationRequestedAt: string | null;
+}
+
 export interface IncidentFilters {
   severity?: string;
   state?: string;
@@ -67,15 +73,47 @@ function parseIncident(value: unknown): IncidentSummary {
   };
 }
 
+function nullableString(value: unknown): value is string | null {
+  return typeof value === "string" || value === null;
+}
+
+function parseIncidentDetail(value: unknown): IncidentDetail {
+  const summary = parseIncident(value);
+  const row = value as Record<string, unknown>;
+  if (
+    !nullableString(row.closed_at) ||
+    !nullableString(row.cancelled_at) ||
+    !nullableString(row.cancellation_requested_at)
+  ) {
+    throw new Error("invalid Incident detail response");
+  }
+  return {
+    ...summary,
+    closedAt: row.closed_at,
+    cancelledAt: row.cancelled_at,
+    cancellationRequestedAt: row.cancellation_requested_at,
+  };
+}
+
+async function responseBody(
+  response: Response,
+  label: string,
+): Promise<unknown> {
+  if (!response.ok)
+    throw new Error(`${label} request failed (${response.status})`);
+  return response.json() as Promise<unknown>;
+}
+
 export async function loadIncidents(
   filters: IncidentFilters,
   signal?: AbortSignal,
 ): Promise<IncidentPage> {
   const query = new URLSearchParams({ limit: "20" });
-  for (const key of ["severity", "state", "service", "cursor"] as const) {
+  for (const key of ["severity", "state", "service"] as const) {
     const value = filters[key]?.trim();
     if (value) query.set(key, value);
   }
+  if (filters.cursor) query.set("cursor", filters.cursor);
   const response = await fetch(
     `${consoleConfig.apiBaseUrl}/incidents?${query}`,
     {
@@ -85,9 +123,7 @@ export async function loadIncidents(
       signal,
     },
   );
-  if (!response.ok)
-    throw new Error(`Incident request failed (${response.status})`);
-  const body: unknown = await response.json();
+  const body = await responseBody(response, "Incident");
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
     throw new Error("invalid Incident page response");
   }
@@ -102,4 +138,20 @@ export async function loadIncidents(
     items: page.items.map(parseIncident),
     nextCursor: page.next_cursor,
   };
+}
+
+export async function loadIncident(
+  incidentId: string,
+  signal?: AbortSignal,
+): Promise<IncidentDetail> {
+  const response = await fetch(
+    `${consoleConfig.apiBaseUrl}/incidents/${encodeURIComponent(incidentId)}`,
+    {
+      cache: "no-store",
+      credentials: "include",
+      headers: { Accept: "application/json" },
+      signal,
+    },
+  );
+  return parseIncidentDetail(await responseBody(response, "Incident detail"));
 }

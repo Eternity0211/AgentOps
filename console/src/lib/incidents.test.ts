@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { loadIncidents } from "./incidents";
+import { loadIncident, loadIncidents } from "./incidents";
 
 const incident = {
   id: "incident-1",
@@ -34,7 +34,7 @@ describe("loadIncidents", () => {
         severity: " SEV2 ",
         state: "INVESTIGATING",
         service: " orders ",
-        cursor: " opaque ",
+        cursor: "opaque+cursor",
       }),
     ).resolves.toEqual({
       items: [
@@ -51,7 +51,7 @@ describe("loadIncidents", () => {
       nextCursor: "opaque-next",
     });
     expect(fetch).toHaveBeenCalledWith(
-      "/api/v1/incidents?limit=20&severity=SEV2&state=INVESTIGATING&service=orders&cursor=opaque",
+      "/api/v1/incidents?limit=20&severity=SEV2&state=INVESTIGATING&service=orders&cursor=opaque%2Bcursor",
       expect.objectContaining({ credentials: "include" }),
     );
   });
@@ -83,5 +83,52 @@ describe("loadIncidents", () => {
   ])("rejects invalid page payload %#", async (body) => {
     response(body);
     await expect(loadIncidents({})).rejects.toThrow(/invalid Incident/);
+  });
+});
+
+describe("loadIncident", () => {
+  const detail = {
+    ...incident,
+    closed_at: null,
+    cancelled_at: "2026-10-11T10:10:00Z",
+    cancellation_requested_at: "2026-10-11T10:09:00Z",
+  };
+
+  it("encodes the route identity and maps lifecycle timestamps", async () => {
+    response(detail);
+    await expect(loadIncident("incident / one")).resolves.toEqual({
+      id: incident.id,
+      service: incident.service,
+      severity: incident.severity,
+      state: incident.state,
+      version: incident.version,
+      openedAt: incident.opened_at,
+      updatedAt: incident.updated_at,
+      closedAt: null,
+      cancelledAt: "2026-10-11T10:10:00Z",
+      cancellationRequestedAt: "2026-10-11T10:09:00Z",
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/v1/incidents/incident%20%2F%20one",
+      expect.objectContaining({ cache: "no-store", credentials: "include" }),
+    );
+  });
+
+  it("rejects an HTTP failure", async () => {
+    response({}, 404);
+    await expect(loadIncident("missing")).rejects.toThrow(
+      "Incident detail request failed (404)",
+    );
+  });
+
+  it.each([
+    { ...detail, closed_at: 1 },
+    { ...detail, cancelled_at: false },
+    { ...detail, cancellation_requested_at: [] },
+  ])("rejects invalid detail payload %#", async (body) => {
+    response(body);
+    await expect(loadIncident("incident-1")).rejects.toThrow(
+      "invalid Incident detail response",
+    );
   });
 });

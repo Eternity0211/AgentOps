@@ -211,6 +211,124 @@ thead th {
   margin-top: 18px;
 }
 
+.back-link {
+  display: inline-block;
+  margin-bottom: 24px;
+  color: var(--muted);
+}
+
+.incident-heading h1 {
+  overflow-wrap: anywhere;
+}
+
+.incident-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.incident-badges > span:not(.severity) {
+  padding: 5px 8px;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+
+.detail-grid,
+.timeline-metadata {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.detail-grid div,
+.timeline-metadata div {
+  min-width: 0;
+}
+
+dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+dd {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.timeline-section {
+  margin-top: 36px;
+}
+
+.section-heading,
+.timeline-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.section-heading > span,
+.timeline-title > span {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.timeline-list {
+  margin: 24px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline-list li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.timeline-list li:not(:last-child)::before {
+  position: absolute;
+  top: 18px;
+  bottom: -18px;
+  left: 7px;
+  width: 2px;
+  content: "";
+  background: var(--line);
+}
+
+.timeline-list article {
+  margin-bottom: 18px;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.timeline-marker {
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  margin-top: 22px;
+  background: var(--accent);
+  border: 4px solid var(--background);
+  border-radius: 50%;
+}
+
+.timeline-title h3 {
+  margin: 0;
+}
+
+.timeline-metadata {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
@@ -373,6 +491,16 @@ a:focus-visible {
 
   .filter-bar {
     grid-template-columns: 1fr;
+  }
+
+  .detail-grid,
+  .timeline-metadata {
+    grid-template-columns: 1fr;
+  }
+
+  .section-heading,
+  .timeline-title {
+    display: grid;
   }
 
   main {

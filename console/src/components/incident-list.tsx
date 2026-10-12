@@ -47,10 +47,11 @@ export function IncidentList() {
 
   function navigate(next: IncidentFilters) {
     const query = new URLSearchParams();
-    for (const key of ["severity", "state", "service", "cursor"] as const) {
+    for (const key of ["severity", "state", "service"] as const) {
       const value = next[key]?.trim();
       if (value) query.set(key, value);
     }
+    if (next.cursor) query.set("cursor", next.cursor);
     const suffix = query.toString();
     router.push(suffix ? `${pathname}?${suffix}` : pathname, { scroll: false });
   }

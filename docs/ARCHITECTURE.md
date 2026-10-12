@@ -219,6 +219,12 @@ The incident list reads a tenant-scoped, newest-first API projection. Severity, 
 service, and opaque cursor values are URL parameters so an authorized view can be revisited, but
 the client neither decodes cursors nor infers access. Loading, empty, validation, and dependency
 failures are read-only states and never dispatch a control action.
+The incident detail route reads the authorized Incident projection and lifecycle timeline in
+parallel. It renders only validated API fields, treats timeline cursors as opaque, and records no
+client-derived transition or recovery conclusion. State-transition and cancellation-request
+records retain their authoritative versions, actors, reasons, occurrence time, correlation, and
+causation. A failed initial read fails the view closed; a failed later page leaves the previously
+validated history visible and offers only a read retry.
 
 ## Deployment topology
 

@@ -99,3 +99,91 @@ test("filters and pages through authorized incidents", async ({ page }) => {
   );
   expect(overflow).toBe(false);
 });
+
+test("shows incident lifecycle details and cursor-paged workflow history", async ({
+  page,
+}) => {
+  await mockViewerSession(page);
+  await page.route("**/api/v1/incidents/incident-detail**", (route) => {
+    const requestUrl = new URL(route.request().url());
+    if (requestUrl.pathname.endsWith("/timeline")) {
+      const continued = requestUrl.searchParams.has("cursor");
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          items: [
+            continued
+              ? {
+                  kind: "cancellation_request",
+                  prior_version: 2,
+                  new_version: 3,
+                  actor_id: "operator-browser",
+                  reason: "stop at the next safe boundary",
+                  correlation_id: "correlation-browser",
+                  causation_id: "command-cancel-browser",
+                  occurred_at: "2026-10-11T10:10:00Z",
+                  prior_state: null,
+                  new_state: null,
+                  state_when_requested: "EXECUTING",
+                  disposition: "DEFERRED_TO_SAFE_BOUNDARY",
+                }
+              : {
+                  kind: "transition",
+                  prior_version: 1,
+                  new_version: 2,
+                  actor_id: "operator-browser",
+                  reason: "begin bounded diagnosis",
+                  correlation_id: "correlation-browser",
+                  causation_id: "command-start-browser",
+                  occurred_at: "2026-10-11T10:05:00Z",
+                  prior_state: "TRIAGED",
+                  new_state: "INVESTIGATING",
+                  state_when_requested: null,
+                  disposition: null,
+                },
+          ],
+          next_cursor: continued ? null : "opaque-next",
+        }),
+      });
+    }
+    return route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "incident-detail",
+        service: "orders",
+        severity: "SEV2",
+        state: "INVESTIGATING",
+        version: 2,
+        opened_at: "2026-10-11T10:00:00Z",
+        updated_at: "2026-10-11T10:05:00Z",
+        closed_at: null,
+        cancelled_at: null,
+        cancellation_requested_at: null,
+      }),
+    });
+  });
+
+  await page.goto("/incidents/incident-detail");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "incident-detail" }),
+  ).toBeVisible();
+  await expect(page.getByText("orders", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /TRIAGED.*INVESTIGATING/ }),
+  ).toBeVisible();
+  await expect(page.getByText("1 events loaded")).toBeVisible();
+
+  await page.getByRole("button", { name: "Load more events" }).click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Cancellation requested while EXECUTING",
+    }),
+  ).toBeVisible();
+  await expect(page.getByText("2 events loaded")).toBeVisible();
+  await expect(page.getByRole("button", { name: /events/ })).toHaveCount(0);
+
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth,
+  );
+  expect(overflow).toBe(false);
+});

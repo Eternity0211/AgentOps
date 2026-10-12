@@ -442,13 +442,16 @@ async def add_incident(
     incident_id: str,
     *,
     tenant: str = "tenant-api",
+    service: str = "orders",
+    severity: IncidentSeverity = IncidentSeverity.SEV2,
     state: IncidentState = IncidentState.TRIAGED,
     opened_at: datetime = NOW,
 ) -> Incident:
     item = Incident(
         id=IncidentId(incident_id),
         tenant_id=TenantId(tenant),
-        severity=IncidentSeverity.SEV2,
+        severity=severity,
+        service=service,
         opened_at=opened_at,
         updated_at=opened_at,
         state=state,
@@ -504,6 +507,106 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         assert await connection.scalar(
             text("SELECT extversion FROM pg_extension WHERE extname='vector'")
         )
+        service_column = (
+            await connection.execute(
+                text(
+                    "SELECT is_nullable, data_type, character_maximum_length "
+                    "FROM information_schema.columns "
+                    "WHERE table_schema='public' AND table_name='incidents' "
+                    "AND column_name='service'"
+                )
+            )
+        ).one()
+        assert tuple(service_column) == ("NO", "character varying", 128)
+        assert await connection.scalar(
+            text("SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='ck_incidents_service')")
+        )
+        assert await connection.scalar(
+            text(
+                "SELECT EXISTS (SELECT 1 FROM pg_indexes "
+                "WHERE schemaname='public' "
+                "AND indexname='ix_incidents_tenant_service_opened')"
+            )
+        )
+
+
+async def _seed_legacy_service_migration_rows(postgres_url: str) -> None:
+    engine = create_async_engine(postgres_url)
+    async with engine.begin() as connection:
+        for incident_id in ("incident-migration-linked", "incident-migration-orphan"):
+            await connection.execute(
+                text(
+                    "INSERT INTO incidents "
+                    "(id, tenant_id, severity, state, version, opened_at, updated_at) "
+                    "VALUES (:id, 'tenant-migration', 'SEV2', 'TRIAGED', 1, :now, :now)"
+                ),
+                {"id": incident_id, "now": NOW},
+            )
+        await connection.execute(
+            text(
+                "INSERT INTO alert_groups "
+                "(id, incident_id, fingerprint, fingerprint_schema_version, tenant_id, "
+                "environment, service, rule, severity, first_observed_at, "
+                "last_observed_at, first_received_at, last_received_at, "
+                "occurrence_count, version) VALUES "
+                "('group-migration', 'incident-migration-linked', :fingerprint, '1.0.0', "
+                "'tenant-migration', 'production', 'orders', 'http-errors', 'SEV2', "
+                ":now, :now, :now, :now, 1, 1)"
+            ),
+            {"fingerprint": "a" * 64, "now": NOW},
+        )
+    await engine.dispose()
+
+
+async def _delete_legacy_migration_row(postgres_url: str, incident_id: str) -> None:
+    engine = create_async_engine(postgres_url)
+    async with engine.begin() as connection:
+        await connection.execute(text("DELETE FROM incidents WHERE id=:id"), {"id": incident_id})
+    await engine.dispose()
+
+
+async def _clean_legacy_migration_rows(postgres_url: str) -> None:
+    engine = create_async_engine(postgres_url)
+    async with engine.begin() as connection:
+        await connection.execute(text("DELETE FROM alert_groups WHERE id='group-migration'"))
+        await connection.execute(
+            text(
+                "DELETE FROM incidents WHERE id IN "
+                "('incident-migration-linked', 'incident-migration-orphan')"
+            )
+        )
+    await engine.dispose()
+
+
+async def _assert_and_clean_service_backfill(postgres_url: str) -> None:
+    engine = create_async_engine(postgres_url)
+    async with engine.begin() as connection:
+        assert (
+            await connection.scalar(
+                text("SELECT service FROM incidents WHERE id='incident-migration-linked'")
+            )
+            == "orders"
+        )
+        await connection.execute(text("DELETE FROM alert_groups WHERE id='group-migration'"))
+        await connection.execute(text("DELETE FROM incidents WHERE id='incident-migration-linked'"))
+    await engine.dispose()
+
+
+def test_incident_service_migration_is_fail_closed_and_backfills(migrated_url: str) -> None:
+    """Legacy incidents require deterministic Alert Group service provenance."""
+    config = alembic_config(migrated_url)
+    command.downgrade(config, "20261009_0016")
+    try:
+        asyncio.run(_seed_legacy_service_migration_rows(migrated_url))
+        with pytest.raises(DBAPIError, match="without an Alert Group service scope"):
+            command.upgrade(config, "head")
+        asyncio.run(_delete_legacy_migration_row(migrated_url, "incident-migration-orphan"))
+        command.upgrade(config, "head")
+        asyncio.run(_assert_and_clean_service_backfill(migrated_url))
+    finally:
+        command.downgrade(config, "20261009_0016")
+        asyncio.run(_clean_legacy_migration_rows(migrated_url))
+        command.upgrade(config, "head")
 
 
 @pytest.mark.anyio
@@ -549,7 +652,13 @@ async def test_incident_read_endpoints_are_tenant_scoped_and_cursor_paginated(
     engine: AsyncEngine,
 ) -> None:
     first = await add_incident(engine, "incident-page-a", opened_at=NOW + timedelta(minutes=2))
-    second = await add_incident(engine, "incident-page-b", opened_at=NOW + timedelta(minutes=1))
+    second = await add_incident(
+        engine,
+        "incident-page-b",
+        service="payments",
+        severity=IncidentSeverity.SEV3,
+        opened_at=NOW + timedelta(minutes=1),
+    )
     await add_incident(engine, "incident-foreign", tenant="tenant-foreign")
     app = api_app(engine, principal(roles=frozenset({Role.VIEWER})))
 
@@ -557,6 +666,14 @@ async def test_incident_read_endpoints_are_tenant_scoped_and_cursor_paginated(
         page_one = await client.get("/api/v1/incidents", params={"limit": 1})
         cursor = page_one.json()["next_cursor"]
         page_two = await client.get("/api/v1/incidents", params={"limit": 1, "cursor": cursor})
+        filtered = await client.get(
+            "/api/v1/incidents",
+            params={"severity": "SEV3", "state": "TRIAGED", "service": "payments"},
+        )
+        no_match = await client.get(
+            "/api/v1/incidents", params={"service": "payments", "state": "CLOSED"}
+        )
+        invalid_service = await client.get("/api/v1/incidents", params={"service": "bad service"})
         own = await client.get(f"/api/v1/incidents/{second.id.value}")
         foreign = await client.get("/api/v1/incidents/incident-foreign")
         malformed = await client.get("/api/v1/incidents", params={"cursor": "%%%"})
@@ -568,8 +685,14 @@ async def test_incident_read_endpoints_are_tenant_scoped_and_cursor_paginated(
 
     assert page_one.status_code == page_two.status_code == 200
     assert page_one.json()["items"][0]["id"] == first.id.value
+    assert page_one.json()["items"][0]["service"] == "orders"
     assert page_two.json()["items"][0]["id"] == second.id.value
     assert page_two.json()["next_cursor"] is None
+    assert filtered.status_code == 200
+    assert [item["id"] for item in filtered.json()["items"]] == [second.id.value]
+    assert no_match.status_code == 200
+    assert no_match.json()["items"] == []
+    assert invalid_service.status_code == 422
     assert own.status_code == 200
     assert foreign.status_code == 404
     assert {
@@ -1059,6 +1182,7 @@ async def test_outbox_and_aggregate_commit_or_rollback_together(engine: AsyncEng
         IncidentId("incident-atomic"),
         TenantId("tenant-1"),
         IncidentSeverity.SEV2,
+        "orders",
         opened_at=NOW,
     )
 
@@ -1393,7 +1517,11 @@ async def test_incident_repository_persists_transitions_cancellation_and_conflic
     """Aggregate changes and records commit together while stale writers fail."""
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     opened = Incident.open(
-        IncidentId("incident-1"), TenantId("tenant-1"), IncidentSeverity.SEV2, opened_at=NOW
+        IncidentId("incident-1"),
+        TenantId("tenant-1"),
+        IncidentSeverity.SEV2,
+        "orders",
+        opened_at=NOW,
     )
     async with sessions.begin() as session:
         await IncidentRepository(session).add(opened)
@@ -1449,6 +1577,7 @@ async def test_incident_repository_rejects_change_without_record(engine: AsyncEn
         IncidentId("incident-empty"),
         TenantId("tenant-1"),
         IncidentSeverity.SEV4,
+        "orders",
         opened_at=NOW,
     )
     async with sessions.begin() as session:
@@ -1466,6 +1595,7 @@ async def test_incident_repository_persists_deferred_cancellation(engine: AsyncE
         id=IncidentId("incident-executing"),
         tenant_id=TenantId("tenant-1"),
         severity=IncidentSeverity.SEV1,
+        service="orders",
         opened_at=NOW,
         updated_at=NOW,
         state=IncidentState.EXECUTING,
@@ -1568,6 +1698,7 @@ async def test_embedding_metadata_retains_versions_and_enforces_vector_dimension
         id=IncidentId("incident-memory"),
         tenant_id=TenantId("tenant-1"),
         severity=IncidentSeverity.SEV3,
+        service="orders",
         opened_at=NOW,
         updated_at=closed_at,
         state=IncidentState.CLOSED,
@@ -1739,6 +1870,7 @@ async def test_similar_incident_retrieval_is_tenant_fresh_versioned_and_minimal(
             id=IncidentId(incident_id),
             tenant_id=TenantId(tenant),
             severity=IncidentSeverity.SEV3,
+            service="orders",
             opened_at=closed_at - timedelta(hours=1),
             updated_at=closed_at,
             state=IncidentState.CLOSED,
@@ -5575,6 +5707,7 @@ async def add_closed_postmortem_incident(
             IncidentId(incident_id),
             TenantId(tenant),
             IncidentSeverity.SEV2,
+            "orders",
             NOW,
             NOW + timedelta(hours=1),
             IncidentState.CLOSED,

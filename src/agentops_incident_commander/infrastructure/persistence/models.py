@@ -245,6 +245,10 @@ class IncidentRow(Base):
     __tablename__ = "incidents"
     __table_args__ = (
         CheckConstraint(f"severity IN ({_SEVERITIES})", name="ck_incidents_severity"),
+        CheckConstraint(
+            "service ~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$'",
+            name="ck_incidents_service",
+        ),
         CheckConstraint(f"state IN ({_STATES})", name="ck_incidents_state"),
         UniqueConstraint("id", "tenant_id", name="uq_incidents_id_tenant"),
         CheckConstraint("version >= 1", name="ck_incidents_version_positive"),
@@ -254,6 +258,7 @@ class IncidentRow(Base):
             name="ck_incidents_closed_timestamp",
         ),
         Index("ix_incidents_tenant_opened", "tenant_id", "opened_at", "id"),
+        Index("ix_incidents_tenant_service_opened", "tenant_id", "service", "opened_at", "id"),
         CheckConstraint(
             "(state = 'CANCELLED') = (cancelled_at IS NOT NULL)",
             name="ck_incidents_cancelled_timestamp",
@@ -263,6 +268,7 @@ class IncidentRow(Base):
     id: Mapped[str] = mapped_column(String(128), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
     severity: Mapped[str] = mapped_column(String(4), nullable=False)
+    service: Mapped[str] = mapped_column(String(128), nullable=False)
     state: Mapped[str] = mapped_column(String(32), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

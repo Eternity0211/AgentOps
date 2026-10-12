@@ -50,6 +50,7 @@ def verifying_incident() -> Incident:
         id=IncidentId("incident-verification"),
         tenant_id=TenantId("tenant-verification"),
         severity=IncidentSeverity.SEV2,
+        service="orders",
         opened_at=NOW - timedelta(hours=1),
         updated_at=NOW - timedelta(minutes=1),
         state=IncidentState.VERIFYING,

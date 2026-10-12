@@ -37,6 +37,13 @@ Audit pagination uses the append-only global sequence as `after_sequence`. Page 
 1–100. All orders have deterministic tie breakers, so concurrent inserts do not reorder already
 returned records.
 
+`GET /api/v1/incidents` accepts optional exact `severity`, `state`, and `service` filters that are
+combined with the authenticated tenant predicate before cursor pagination. Severity and state use
+the versioned domain enums. Service is a 1–128 character normalized identifier limited to letters,
+digits, `.`, `_`, `:`, `/`, and `-`; malformed values fail request validation. Every Incident
+summary includes its authoritative service scope. A cursor remains opaque and must be replayed with
+the same filter set from which it was returned.
+
 Evidence lists use the same opaque newest-first cursor convention, ordered by collection time and
 Evidence ID. Metadata includes source/query provenance, observation and collection ranges, quality
 reasons, lineage, trust and injection classifications, expiry, and the immutable Artifact binding;
@@ -89,8 +96,9 @@ endpoint.
 ## Verification
 
 PostgreSQL integration tests exercise migration round trips, anonymous and underprivileged
-requests, tenant hiding, stable pagination, successful controls, duplicate replay, changed-payload
-conflict, optimistic/state conflicts, cancellation, transactional audit/idempotency counts, and
-tenant-scoped Evidence metadata plus authorized, hash-bound Artifact retrieval.
+requests, tenant hiding, combined incident filters, stable pagination, successful controls,
+duplicate replay, changed-payload conflict, optimistic/state conflicts, cancellation,
+transactional audit/idempotency counts, and tenant-scoped Evidence metadata plus authorized,
+hash-bound Artifact retrieval.
 Framework-level contract tests cover defensive return and cursor branches that the Windows
 coverage tracer cannot observe after SQLAlchemy's async greenlet bridge.

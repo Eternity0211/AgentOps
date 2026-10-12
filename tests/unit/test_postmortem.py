@@ -100,6 +100,7 @@ def closed_incident(**changes: Any) -> Incident:
         "id": INCIDENT_ID,
         "tenant_id": TENANT,
         "severity": IncidentSeverity.SEV2,
+        "service": "orders",
         "opened_at": NOW,
         "updated_at": NOW + timedelta(hours=1),
         "state": IncidentState.CLOSED,

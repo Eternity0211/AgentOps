@@ -89,6 +89,7 @@ class Store:
             IncidentId("incident-verification"),
             TenantId("tenant-verification"),
             IncidentSeverity.SEV2,
+            "orders",
             NOW - timedelta(hours=1),
             NOW - timedelta(minutes=1),
             IncidentState.VERIFYING,

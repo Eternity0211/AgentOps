@@ -221,7 +221,7 @@ Exit: the system never self-declares recovery; observed success closes the incid
 
 - [x] Scaffold the simple Next.js/React console with locked dependencies and lint/type/unit/browser-test commands after `/api/v1` contracts stabilize.
 - [x] Implement authenticated shell, RBAC-aware navigation, and accessible error/loading states.
-- [ ] Implement incident list with filters, severity/state/service, and pagination.
+- [x] Implement incident list with filters, severity/state/service, and pagination.
 - [ ] Implement incident detail and state/workflow timeline.
 - [ ] Show investigation plan, tool progress, budgets, and bounded-replan history.
 - [ ] Implement Evidence/Artifact view with provenance, query/time/hash/version/quality/expiry/trust.

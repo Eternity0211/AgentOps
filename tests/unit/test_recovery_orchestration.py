@@ -107,6 +107,7 @@ def routed_incident(execution_result: ActionExecution, state: IncidentState) -> 
         execution_result.incident_id,
         execution_result.tenant_id,
         IncidentSeverity.SEV2,
+        "orders",
         NOW - timedelta(hours=1),
         NOW,
         state,

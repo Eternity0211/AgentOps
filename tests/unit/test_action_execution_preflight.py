@@ -157,6 +157,7 @@ def incident(**overrides: Any) -> Incident:
         "id": INCIDENT,
         "tenant_id": TENANT,
         "severity": IncidentSeverity.SEV1,
+        "service": "orders",
         "opened_at": NOW - timedelta(hours=1),
         "updated_at": NOW,
         "state": IncidentState.READY_TO_EXECUTE,

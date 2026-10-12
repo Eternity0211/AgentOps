@@ -60,6 +60,7 @@ def incident(state: IncidentState = IncidentState.CLOSED, *, tenant: TenantId = 
         INCIDENT,
         tenant,
         IncidentSeverity.SEV2,
+        "orders",
         NOW,
         NOW + timedelta(hours=1),
         state,

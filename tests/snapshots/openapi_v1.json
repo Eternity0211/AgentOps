@@ -1,5 +1,5 @@
 {
-  "sha256": "885696a6bee75beeabd96056f81de84015f697977ad040cb8faa459287d6ba1e",
+  "sha256": "d81d4ac2dfe60879e7014a1cc6fa358b3978b350286ce5b5a8876cf17d78189b",
   "paths": {
     "/api/v1/audit": ["get"],
     "/api/v1/incidents": ["get"],
@@ -20,6 +20,8 @@
     "EvidencePage",
     "EvidenceView",
     "IncidentPage",
+    "IncidentSeverity",
+    "IncidentState",
     "IncidentView",
     "InvalidParameter",
     "ProblemDetail",

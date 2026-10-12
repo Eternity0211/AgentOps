@@ -215,6 +215,10 @@ base defaults to same-origin `/api/v1` and accepts only clean paths or HTTP(S) U
 render backend decisions and collect operator intent, but it does not duplicate authorization,
 policy, approval, execution, or recovery-success decisions. Unit coverage, static checks, a
 production build, and desktop/mobile browser smoke tests form its initial quality boundary.
+The incident list reads a tenant-scoped, newest-first API projection. Severity, lifecycle-state,
+service, and opaque cursor values are URL parameters so an authorized view can be revisited, but
+the client neither decodes cursors nor infers access. Loading, empty, validation, and dependency
+failures are read-only states and never dispatch a control action.
 
 ## Deployment topology
 

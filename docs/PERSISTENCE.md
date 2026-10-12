@@ -76,6 +76,12 @@ commit atomically. Database triggers reject revision updates/deletes, while comp
 unique version/fingerprint/audit bindings, and content/reference checks reject cross-scope or
 malformed writes.
 
+Revision `20261011_0017` makes service scope a required first-class Incident field and adds a
+tenant/service/opened-time index for filtered newest-first reads. Legacy rows are backfilled only
+from their linked Alert Group service using a deterministic aggregate. The migration aborts if any
+Incident lacks that provenance; it never guesses a service. A database check mirrors the bounded
+identifier grammar enforced by the domain and API.
+
 ## Repository concurrency
 
 `IncidentRepository` updates with `WHERE id = ... AND version = ...`. A zero-row update raises the
@@ -93,9 +99,10 @@ domain contract.
 
 Testcontainers starts the same `pgvector/pgvector:0.8.6-pg18` image used by the control plane. The integration
 suite verifies `upgrade -> downgrade -> upgrade`, required tables, Incident load/change/conflict,
-immediate and deferred cancellation persistence, and concurrent Alert ingestion from sixteen
-independent transactions followed by a replay storm. Unit tests retain fail-closed coverage for
-defensive paths that valid foreign keys and locks should make unreachable.
+service backfill refusal and success, combined tenant-scoped list filters, immediate and deferred
+cancellation persistence, and concurrent Alert ingestion from sixteen independent transactions
+followed by a replay storm. Unit tests retain fail-closed coverage for defensive paths that valid
+foreign keys and locks should make unreachable.
 
 The test suite uses an ignored repository-local `.pytest-runtime-*` directory because elevated
 Docker access on Windows cannot reliably access the normal per-user pytest temporary root. This is

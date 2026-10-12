@@ -29,6 +29,8 @@ from agentops_incident_commander.domain import (
     ArtifactIntegrityError,
     ArtifactNotFoundError,
     IncidentId,
+    IncidentSeverity,
+    IncidentState,
     Principal,
     RedactionStatus,
     RetentionClass,
@@ -79,12 +81,14 @@ class FakeSession:
     ) -> None:
         self.scalar_values = list(scalar_values or [])
         self.scalar_lists = list(scalar_lists or [])
+        self.scalar_statements: list[object] = []
         self.added: list[object] = []
 
     async def scalar(self, _: object) -> Any:
         return self.scalar_values.pop(0)
 
-    async def scalars(self, _: object) -> FakeScalars:
+    async def scalars(self, statement: object) -> FakeScalars:
+        self.scalar_statements.append(statement)
         return FakeScalars(self.scalar_lists.pop(0))
 
     async def execute(self, _: object) -> FakeCursor:
@@ -113,6 +117,7 @@ def row(
         id=incident_id,
         tenant_id=tenant,
         severity="SEV2",
+        service="orders",
         state=state,
         version=version,
         opened_at=NOW,
@@ -417,7 +422,23 @@ async def test_read_route_return_paths_and_pagination() -> None:
         cursor=None,
     )
     assert [item.id for item in listed.items] == ["incident-b"]
+    assert listed.items[0].service == "orders"
     assert listed.next_cursor is not None
+    filtered_session = FakeSession(scalar_lists=[[row("incident-filtered")]])
+    filtered = await list_route(
+        session=filtered_session,
+        principal=VIEWER,
+        limit=50,
+        cursor=None,
+        severity=IncidentSeverity.SEV2,
+        state=IncidentState.TRIAGED,
+        service="orders",
+    )
+    assert [item.id for item in filtered.items] == ["incident-filtered"]
+    statement = str(filtered_session.scalar_statements[0])
+    assert "incidents.severity" in statement
+    assert "incidents.state" in statement
+    assert "incidents.service" in statement
     final_page = await list_route(
         session=FakeSession(scalar_lists=[[row("incident-a")]]),
         principal=VIEWER,
@@ -615,6 +636,7 @@ async def test_control_route_replay_conflict_incomplete_and_hidden_paths() -> No
     response_body: dict[str, object] = {
         "incident": {
             "id": "incident-a",
+            "service": "orders",
             "severity": "SEV2",
             "state": "INVESTIGATING",
             "version": 2,

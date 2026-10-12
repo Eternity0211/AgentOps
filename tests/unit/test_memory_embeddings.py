@@ -43,6 +43,7 @@ def projection(*, root_cause: str = "Connection pool exhausted") -> IncidentMemo
         id=IncidentId("incident-memory"),
         tenant_id=TenantId("tenant-1"),
         severity=IncidentSeverity.SEV2,
+        service="orders",
         opened_at=NOW,
         updated_at=NOW,
         state=IncidentState.CLOSED,

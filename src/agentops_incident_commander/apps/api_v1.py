@@ -31,6 +31,7 @@ from agentops_incident_commander.domain import (
     EventMetadata,
     EventReason,
     IncidentId,
+    IncidentSeverity,
     IncidentState,
     Permission,
     Principal,
@@ -67,6 +68,7 @@ class ApiModel(BaseModel):
 
 class IncidentView(ApiModel):
     id: str
+    service: str
     severity: str
     state: str
     version: int
@@ -195,6 +197,7 @@ def _decode_cursor(value: str, *, expected_parts: int) -> list[str | int]:
 def _incident_view(row: IncidentRow) -> IncidentView:
     return IncidentView(
         id=row.id,
+        service=row.service,
         severity=row.severity,
         state=row.state,
         version=row.version,
@@ -308,9 +311,25 @@ def build_api_v1_router(
         principal: Authenticated,
         limit: PageLimit = 50,
         cursor: str | None = None,
+        severity: IncidentSeverity | None = None,
+        state: IncidentState | None = None,
+        service: Annotated[
+            str | None,
+            Query(
+                min_length=1,
+                max_length=128,
+                pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$",
+            ),
+        ] = None,
     ) -> IncidentPage:
         _authorized(principal, Permission.INCIDENT_READ)
         statement = select(IncidentRow).where(IncidentRow.tenant_id == principal.tenant_id.value)
+        if severity is not None:
+            statement = statement.where(IncidentRow.severity == severity.value)
+        if state is not None:
+            statement = statement.where(IncidentRow.state == state.value)
+        if service is not None:
+            statement = statement.where(IncidentRow.service == service)
         if cursor is not None:
             opened_raw, incident_id = _decode_cursor(cursor, expected_parts=2)
             if not isinstance(opened_raw, str) or not isinstance(incident_id, str):

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime
@@ -10,6 +12,7 @@ from types import MappingProxyType
 from typing import Final
 
 from .errors import (
+    InvalidDomainValueError,
     InvalidIncidentTransitionError,
     NonMonotonicTimeError,
     OptimisticVersionError,
@@ -209,6 +212,7 @@ class Incident:
     id: IncidentId
     tenant_id: TenantId
     severity: IncidentSeverity
+    service: str
     opened_at: datetime
     updated_at: datetime
     state: IncidentState = IncidentState.DETECTED
@@ -218,6 +222,12 @@ class Incident:
     cancellation_requested_at: datetime | None = None
 
     def __post_init__(self) -> None:
+        if any(unicodedata.category(character) == "Cc" for character in self.service):
+            raise InvalidDomainValueError("service contains unsupported characters")
+        service = unicodedata.normalize("NFC", self.service).strip()
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}", service) is None:
+            raise InvalidDomainValueError("service contains unsupported characters")
+        object.__setattr__(self, "service", service)
         opened_at = as_utc(self.opened_at)
         updated_at = as_utc(self.updated_at)
         if updated_at < opened_at:
@@ -244,6 +254,7 @@ class Incident:
         incident_id: IncidentId,
         tenant_id: TenantId,
         severity: IncidentSeverity,
+        service: str,
         *,
         opened_at: datetime,
     ) -> Incident:
@@ -253,6 +264,7 @@ class Incident:
             id=incident_id,
             tenant_id=tenant_id,
             severity=severity,
+            service=service,
             opened_at=timestamp,
             updated_at=timestamp,
         )

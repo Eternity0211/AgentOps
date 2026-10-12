@@ -23,6 +23,7 @@ from agentops_incident_commander.domain import (
     IncidentId,
     IncidentSeverity,
     IncidentState,
+    InvalidDomainValueError,
     InvalidIncidentTransitionError,
     NaiveDateTimeError,
     NonMonotonicTimeError,
@@ -111,6 +112,7 @@ def incident_in(state: IncidentState, *, updated_at: datetime = OPENED_AT) -> In
         id=IncidentId("incident-1"),
         tenant_id=TenantId("tenant-1"),
         severity=IncidentSeverity.SEV2,
+        service="orders",
         opened_at=OPENED_AT,
         updated_at=updated_at,
         state=state,
@@ -207,13 +209,30 @@ def test_open_creates_a_detected_version_one_incident_and_normalizes_time() -> N
     local_time = datetime(2026, 10, 2, 16, 0, tzinfo=timezone(timedelta(hours=8)))
 
     incident = Incident.open(
-        IncidentId("incident-1"), TenantId("tenant-1"), IncidentSeverity.SEV1, opened_at=local_time
+        IncidentId("incident-1"),
+        TenantId("tenant-1"),
+        IncidentSeverity.SEV1,
+        " orders ",
+        opened_at=local_time,
     )
 
     assert incident.state is IncidentState.DETECTED
     assert incident.version == AggregateVersion.initial()
     assert incident.opened_at == OPENED_AT
     assert incident.updated_at == OPENED_AT
+    assert incident.service == "orders"
+
+
+@pytest.mark.parametrize("service", ["", "bad service", "orders\n", "x" * 129])
+def test_incident_rejects_invalid_service_scope(service: str) -> None:
+    with pytest.raises(InvalidDomainValueError, match="service"):
+        Incident.open(
+            IncidentId("incident-service"),
+            TenantId("tenant-1"),
+            IncidentSeverity.SEV2,
+            service,
+            opened_at=OPENED_AT,
+        )
 
 
 def test_event_metadata_normalizes_time_and_rejects_naive_time() -> None:
@@ -394,6 +413,7 @@ def test_direct_construction_rejects_inconsistent_time_and_terminal_fields(
         "id": IncidentId("incident-1"),
         "tenant_id": TenantId("tenant-1"),
         "severity": IncidentSeverity.SEV3,
+        "service": "orders",
         "opened_at": OPENED_AT,
         "updated_at": EVENT_AT,
     }
@@ -410,6 +430,7 @@ def test_direct_construction_normalizes_optional_timestamps() -> None:
         id=IncidentId("incident-1"),
         tenant_id=TenantId("tenant-1"),
         severity=IncidentSeverity.SEV4,
+        service="orders",
         opened_at=OPENED_AT,
         updated_at=local,
         state=IncidentState.CANCELLED,

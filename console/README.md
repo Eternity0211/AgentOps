@@ -28,3 +28,9 @@ bounded Principal response before rendering business content and derives navigat
 permissions returned by the server. Hidden navigation is not authorization; backend routes remain
 the enforcement boundary. Authentication, permission, network, and invalid-payload failures expose
 an accessible retry state without attempting any control-plane action.
+
+`/incidents` requests the tenant-scoped API projection in pages of 20. Exact severity, lifecycle
+state, service, and opaque cursor values live in the URL; the browser never interprets a cursor or
+derives authorization from list contents. Filters reset cursor history, and previous navigation is
+available only for pages visited in the current client session. Loading, empty, and dependency
+failure states remain read-only, while the table is horizontally contained on narrow screens.

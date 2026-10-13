@@ -107,15 +107,7 @@ def evidence_gate_input_snapshot(
     """Return the canonical, non-secret inputs needed to reproduce a gate decision."""
     current = as_utc(evaluated_at)
     return {
-        "claim": {
-            "candidate_id": claim.candidate_id,
-            "counter_evidence_ids": [item.value for item in claim.counter_evidence_ids],
-            "counter_evidence_resolved": claim.counter_evidence_resolved,
-            "incident_id": claim.incident_id.value,
-            "missing_evidence": list(claim.missing_evidence),
-            "model_confidence_basis_points": claim.model_confidence_basis_points,
-            "supporting_evidence_ids": [item.value for item in claim.supporting_evidence_ids],
-        },
+        "claim": evidence_gate_claim_snapshot(claim),
         "evaluated_at": current.isoformat(),
         "evidence": [
             {
@@ -141,6 +133,21 @@ def evidence_gate_input_snapshot(
             "schema_version": rules.schema_version,
             "version": rules.version,
         },
+    }
+
+
+def evidence_gate_claim_snapshot(claim: RootCauseEvidenceClaim) -> dict[str, object]:
+    """Return the canonical bounded claim fragment used by gate persistence."""
+    if not isinstance(claim, RootCauseEvidenceClaim):
+        raise InvalidDomainValueError("evidence gate claim snapshot requires a typed claim")
+    return {
+        "candidate_id": claim.candidate_id,
+        "counter_evidence_ids": [item.value for item in claim.counter_evidence_ids],
+        "counter_evidence_resolved": claim.counter_evidence_resolved,
+        "incident_id": claim.incident_id.value,
+        "missing_evidence": list(claim.missing_evidence),
+        "model_confidence_basis_points": claim.model_confidence_basis_points,
+        "supporting_evidence_ids": [item.value for item in claim.supporting_evidence_ids],
     }
 
 

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { EvidenceView } from "@/components/evidence-view";
+import { DiagnosisResults } from "@/components/diagnosis-results";
+import { loadDiagnosis, type DiagnosisResult } from "@/lib/diagnosis";
 import { loadEvidence, type EvidencePage } from "@/lib/evidence";
 import {
   loadIncident,
@@ -27,6 +29,7 @@ type DetailState =
       incident: IncidentRecord;
       timeline: TimelinePage;
       investigation: InvestigationProgress | null;
+      diagnosis: DiagnosisResult | null;
       evidence: EvidencePage;
     };
 
@@ -245,15 +248,17 @@ export function IncidentDetail({
       loadIncident(incidentId, controller.signal),
       loadTimeline(incidentId, undefined, controller.signal),
       loadInvestigation(incidentId, controller.signal),
+      loadDiagnosis(incidentId, controller.signal),
       loadEvidence(incidentId, undefined, controller.signal),
     ]).then(
-      ([incident, timeline, investigation, evidence]) => {
+      ([incident, timeline, investigation, diagnosis, evidence]) => {
         if (!controller.signal.aborted) {
           setState({
             status: "ready",
             incident,
             timeline,
             investigation,
+            diagnosis,
             evidence,
           });
         }
@@ -320,7 +325,7 @@ export function IncidentDetail({
     );
   }
 
-  const { incident, timeline, investigation, evidence } = state;
+  const { incident, timeline, investigation, diagnosis, evidence } = state;
   return (
     <main>
       <Link className="back-link" href="/incidents">
@@ -369,6 +374,8 @@ export function IncidentDetail({
       </section>
 
       <InvestigationView investigation={investigation} />
+
+      <DiagnosisResults result={diagnosis} />
 
       <EvidenceView incidentId={incidentId} initialPage={evidence} />
 

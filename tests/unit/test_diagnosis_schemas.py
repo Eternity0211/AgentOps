@@ -2,12 +2,23 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+from datetime import UTC, datetime
 from typing import Any, cast
 
 import pytest
 from pydantic import ValidationError
 
-from agentops_incident_commander.domain import EvidenceId, EvidenceSourceType, IncidentId
+from agentops_incident_commander.domain import (
+    EvidenceId,
+    EvidenceSourceType,
+    IncidentId,
+    InvalidDomainValueError,
+    ModelCallId,
+    Sha256Digest,
+    TenantId,
+    WorkflowRunId,
+)
 from agentops_incident_commander.workflows import (
     DIAGNOSIS_PLAN_SCHEMA_VERSION,
     DIAGNOSIS_REPORT_SCHEMA_VERSION,
@@ -18,9 +29,11 @@ from agentops_incident_commander.workflows import (
     CounterEvidenceTreatment,
     DiagnosisDisposition,
     DiagnosisReport,
+    DiagnosisReportRecord,
     InvestigationPlan,
     InvestigationStep,
     RootCauseCandidate,
+    diagnosis_report_fingerprint,
 )
 
 
@@ -62,6 +75,31 @@ def report(**overrides: Any) -> DiagnosisReport:
     }
     values.update(overrides)
     return DiagnosisReport.model_validate(values)
+
+
+def test_report_fingerprint_and_storage_record_are_exact_and_typed() -> None:
+    diagnosis = report()
+    fingerprint = diagnosis_report_fingerprint(diagnosis)
+    record = DiagnosisReportRecord(
+        tenant_id=TenantId("tenant-1"),
+        workflow_run_id=WorkflowRunId("run-1"),
+        model_call_id=ModelCallId("call-1"),
+        report=diagnosis,
+        report_fingerprint=fingerprint,
+        produced_at=datetime(2026, 10, 13, 1, 2, tzinfo=UTC),
+    )
+    assert fingerprint == diagnosis_report_fingerprint(report())
+    assert record.incident_id == IncidentId("incident-1")
+    assert record.produced_at.tzinfo is UTC
+    assert fingerprint != diagnosis_report_fingerprint(
+        report(explanation="A materially different report.")
+    )
+    with pytest.raises(InvalidDomainValueError, match="typed report"):
+        diagnosis_report_fingerprint(cast(DiagnosisReport, object()))
+    with pytest.raises(InvalidDomainValueError, match="typed binding"):
+        replace(record, tenant_id=cast(TenantId, "tenant-1"))
+    with pytest.raises(InvalidDomainValueError, match="fingerprint"):
+        replace(record, report_fingerprint=Sha256Digest("f" * 64))
 
 
 def test_plan_is_finite_ordered_and_content_free() -> None:

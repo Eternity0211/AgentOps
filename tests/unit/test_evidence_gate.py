@@ -8,6 +8,7 @@ from typing import Any, cast
 
 import pytest
 
+from agentops_incident_commander.application import evidence_gate_claim_snapshot
 from agentops_incident_commander.domain import (
     EVIDENCE_GATE_SCHEMA_VERSION,
     EvidenceGateDecision,
@@ -108,6 +109,17 @@ def test_claim_normalizes_references_and_keeps_confidence_metadata_non_authorita
     assert high.all_evidence_ids == low.all_evidence_ids
     assert high.counter_evidence_resolved == low.counter_evidence_resolved
     assert high.missing_evidence == low.missing_evidence
+    assert evidence_gate_claim_snapshot(low) == {
+        "incident_id": "incident-gate",
+        "candidate_id": "candidate-database-pool",
+        "supporting_evidence_ids": ["evidence-1", "evidence-2"],
+        "counter_evidence_ids": ["evidence-3"],
+        "missing_evidence": ["Need a deployment marker"],
+        "counter_evidence_resolved": True,
+        "model_confidence_basis_points": 1,
+    }
+    with pytest.raises(InvalidDomainValueError, match="typed claim"):
+        evidence_gate_claim_snapshot(cast(RootCauseEvidenceClaim, object()))
 
 
 @pytest.mark.parametrize(

@@ -2,37 +2,208 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import AsyncMock
 
 import pytest
 
+from agentops_incident_commander.application import (
+    evidence_gate_claim_snapshot,
+    model_call_trace_fingerprint,
+)
 from agentops_incident_commander.domain import (
+    ActorId,
     AggregateVersion,
     Alert,
     AlertDimension,
     AlertGroupId,
     AlertId,
+    AuditEvent,
+    AuditEventId,
+    AuditTarget,
+    EvidenceGateOutcome,
+    EvidenceId,
     IncidentSeverity,
     InvalidDomainValueError,
     JobId,
+    ModelCallId,
     OpaqueIdentifier,
     OptimisticVersionError,
     OutboxEventId,
+    Sha256Digest,
     TenantId,
+    WorkflowRunId,
 )
 from agentops_incident_commander.infrastructure.persistence import (
     AlertGroupRow,
     AlertRepository,
+    DiagnosisReportRepository,
+    DiagnosisReportRow,
+    EvidenceGateDecisionRow,
     JobRepository,
     JobRow,
+    ModelCallTraceRow,
     OutboxEventRow,
     OutboxRepository,
     repositories,
 )
+from agentops_incident_commander.workflows import (
+    CounterEvidenceTreatment,
+    DiagnosisDisposition,
+    DiagnosisReport,
+    DiagnosisReportRecord,
+    RootCauseCandidate,
+    diagnosis_report_fingerprint,
+)
 
 NOW = datetime(2026, 10, 3, 8, 0, tzinfo=UTC)
+
+
+def diagnosis_report(*, candidates: bool = True) -> DiagnosisReport:
+    return DiagnosisReport(
+        schema_version="1.0.0",
+        incident_id="incident-diagnosis",
+        disposition=(
+            DiagnosisDisposition.CANDIDATES
+            if candidates
+            else DiagnosisDisposition.NEEDS_MORE_EVIDENCE
+        ),
+        candidates=(
+            (
+                RootCauseCandidate(
+                    candidate_id="candidate-diagnosis",
+                    rank=1,
+                    statement="Connection pool exhaustion.",
+                    supporting_evidence_ids=("evidence-diagnosis",),
+                    counter_evidence_ids=(),
+                    counter_evidence_treatment=CounterEvidenceTreatment.NOT_APPLICABLE,
+                    missing_evidence=(),
+                    uncertainty="The window is bounded.",
+                    confidence_basis_points=8000,
+                ),
+            )
+            if candidates
+            else ()
+        ),
+        missing_evidence=(),
+        explanation="A bounded result.",
+    )
+
+
+def diagnosis_record(*, candidates: bool = True) -> DiagnosisReportRecord:
+    report = diagnosis_report(candidates=candidates)
+    return DiagnosisReportRecord(
+        tenant_id=TenantId("tenant-diagnosis"),
+        workflow_run_id=WorkflowRunId("run-diagnosis"),
+        model_call_id=ModelCallId("call-diagnosis"),
+        report=report,
+        report_fingerprint=diagnosis_report_fingerprint(report),
+        produced_at=NOW + timedelta(minutes=2),
+    )
+
+
+def diagnosis_trace_row(
+    record: DiagnosisReportRecord, *, node: str = "diagnosis.hypothesis"
+) -> ModelCallTraceRow:
+    return ModelCallTraceRow(
+        id=record.model_call_id.value,
+        tenant_id=record.tenant_id.value,
+        incident_id=record.incident_id.value,
+        workflow_run_id=record.workflow_run_id.value,
+        node=node,
+        attempt=1,
+        prompt_id="diagnosis",
+        prompt_version="1.0.0",
+        prompt_fingerprint="a" * 64,
+        provider="mock",
+        model="model-v1",
+        temperature_basis_points=0,
+        top_p_basis_points=10_000,
+        max_output_tokens=1024,
+        seed=7,
+        input_schema_version="1.0.0",
+        output_schema_version="1.0.0",
+        request_hash="b" * 64,
+        response_hash=record.report_fingerprint.value,
+        correlation_id="correlation-diagnosis",
+        causation_id="cause-diagnosis",
+        status="SUCCEEDED",
+        started_at=NOW + timedelta(minutes=1),
+        completed_at=record.produced_at,
+        input_tokens=None,
+        output_tokens=None,
+        cached_input_tokens=None,
+        reasoning_tokens=None,
+        total_tokens=None,
+        cost_nanounits=None,
+        currency=None,
+        cost_source=None,
+        rate_card_version=None,
+        metering_unavailable_reason="PROVIDER_DID_NOT_RETURN",
+        failure_code=None,
+        schema_version="1.0.0",
+    )
+
+
+def diagnosis_row(
+    record: DiagnosisReportRecord, *, workflow_run_id: str | None = None
+) -> DiagnosisReportRow:
+    return DiagnosisReportRow(
+        tenant_id=record.tenant_id.value,
+        incident_id=record.incident_id.value,
+        workflow_run_id=workflow_run_id or record.workflow_run_id.value,
+        model_call_id=record.model_call_id.value,
+        disposition=record.report.disposition.value,
+        report=record.report.model_dump(mode="json"),
+        report_fingerprint=record.report_fingerprint.value,
+        produced_at=record.produced_at,
+        schema_version=record.report.schema_version,
+    )
+
+
+def diagnosis_audit(record: DiagnosisReportRecord) -> AuditEvent:
+    trace = repositories._model_call_from_row(diagnosis_trace_row(record))
+    return AuditEvent(
+        id=AuditEventId("audit-diagnosis"),
+        tenant_id=record.tenant_id,
+        type="diagnosis.report_recorded",
+        event_version=1,
+        payload_schema_version="diagnosis_report/v1",
+        actor_id=ActorId("diagnosis-worker"),
+        correlation_id=trace.correlation_id,
+        causation_id=trace.causation_id,
+        target=AuditTarget("diagnosis.report", OpaqueIdentifier(record.report_fingerprint.value)),
+        occurred_at=record.produced_at,
+        request_hash=model_call_trace_fingerprint(trace),
+        result_hash=record.report_fingerprint,
+    )
+
+
+def gate_row(record: DiagnosisReportRecord) -> EvidenceGateDecisionRow:
+    claim = record.report.evidence_gate_claim("candidate-diagnosis")
+    snapshot: dict[str, object] = {"claim": evidence_gate_claim_snapshot(claim)}
+    fingerprint = hashlib.sha256(
+        json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    return EvidenceGateDecisionRow(
+        tenant_id=record.tenant_id.value,
+        incident_id=record.incident_id.value,
+        candidate_id=claim.candidate_id,
+        outcome=EvidenceGateOutcome.PASS.value,
+        reasons=[],
+        evaluated_evidence_ids=[EvidenceId("evidence-diagnosis").value],
+        rules_version="1.1.0",
+        input_fingerprint=fingerprint,
+        input_snapshot=snapshot,
+        evaluated_at=record.produced_at,
+        model_confidence_basis_points=8000,
+        schema_version="1.0.0",
+    )
 
 
 def alert() -> Alert:
@@ -246,3 +417,85 @@ async def test_job_failure_rejects_unsafe_error_text(error: str) -> None:
             retry_at=NOW,
             error=error,
         )
+
+
+def test_diagnosis_report_hydration_rejects_malformed_document() -> None:
+    record = diagnosis_record()
+    row = diagnosis_row(record)
+    row.report = {"schema_version": "1.0.0"}
+    with pytest.raises(InvalidDomainValueError, match="strict validation"):
+        repositories._diagnosis_report_from_row(row)
+
+
+@pytest.mark.anyio
+async def test_diagnosis_repository_rejects_missing_mismatched_trace_and_audit() -> None:
+    record = diagnosis_record()
+    missing = AsyncMock()
+    missing.scalar.return_value = None
+    with pytest.raises(InvalidDomainValueError, match="not persisted"):
+        await DiagnosisReportRepository(missing)._require_trace_binding(record)
+
+    mismatched = AsyncMock()
+    mismatched.scalar.return_value = diagnosis_trace_row(record, node="diagnosis.replan")
+    with pytest.raises(InvalidDomainValueError, match="does not match"):
+        await DiagnosisReportRepository(mismatched)._require_trace_binding(record)
+
+    invalid_audit = AsyncMock()
+    invalid_audit.scalar.return_value = diagnosis_trace_row(record)
+    with pytest.raises(InvalidDomainValueError, match="audit event"):
+        await DiagnosisReportRepository(invalid_audit).record(
+            record,
+            replace(diagnosis_audit(record), result_hash=Sha256Digest("f" * 64)),
+        )
+
+
+@pytest.mark.anyio
+async def test_diagnosis_repository_rejects_conflicting_replay() -> None:
+    record = diagnosis_record()
+    session = AsyncMock()
+    session.scalar.side_effect = [
+        diagnosis_trace_row(record),
+        diagnosis_row(record, workflow_run_id="run-other"),
+    ]
+    with pytest.raises(InvalidDomainValueError, match="conflicts with storage"):
+        await DiagnosisReportRepository(session).record(record, diagnosis_audit(record))
+
+
+@pytest.mark.anyio
+async def test_diagnosis_gate_matching_handles_empty_duplicate_and_corrupt_rows() -> None:
+    empty = diagnosis_record(candidates=False)
+    assert await DiagnosisReportRepository(AsyncMock()).matching_gate_decisions(empty) == ()
+
+    record = diagnosis_record()
+    valid = gate_row(record)
+    duplicate_session = AsyncMock()
+    duplicate_session.scalars.return_value = SimpleNamespace(all=lambda: [valid, valid])
+    decisions = await DiagnosisReportRepository(duplicate_session).matching_gate_decisions(record)
+    assert len(decisions) == 1
+    assert decisions[0].outcome is EvidenceGateOutcome.PASS
+
+    missing_session = AsyncMock()
+    missing_session.scalars.return_value = SimpleNamespace(all=lambda: [])
+    assert await DiagnosisReportRepository(missing_session).matching_gate_decisions(record) == ()
+
+    bad_hash = gate_row(record)
+    bad_hash.input_fingerprint = "f" * 64
+    hash_session = AsyncMock()
+    hash_session.scalars.return_value = SimpleNamespace(all=lambda: [bad_hash])
+    with pytest.raises(InvalidDomainValueError, match="fingerprint disagrees"):
+        await DiagnosisReportRepository(hash_session).matching_gate_decisions(record)
+
+    bad_claim = gate_row(record)
+    bad_claim.input_snapshot = {
+        "claim": {
+            **cast(dict[str, object], bad_claim.input_snapshot["claim"]),
+            "candidate_id": "candidate-other",
+        }
+    }
+    bad_claim.input_fingerprint = hashlib.sha256(
+        json.dumps(bad_claim.input_snapshot, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    claim_session = AsyncMock()
+    claim_session.scalars.return_value = SimpleNamespace(all=lambda: [bad_claim])
+    with pytest.raises(InvalidDomainValueError, match="latest Diagnosis report"):
+        await DiagnosisReportRepository(claim_session).matching_gate_decisions(record)

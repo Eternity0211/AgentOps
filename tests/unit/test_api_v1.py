@@ -28,16 +28,21 @@ from agentops_incident_commander.domain import (
     ArtifactId,
     ArtifactIntegrityError,
     ArtifactNotFoundError,
+    EvidenceGateDecision,
+    EvidenceGateOutcome,
+    EvidenceId,
     IncidentId,
     IncidentSeverity,
     IncidentState,
     InvalidDomainValueError,
+    ModelCallId,
     Principal,
     RedactionStatus,
     RetentionClass,
     Role,
     Sha256Digest,
     TenantId,
+    WorkflowRunId,
 )
 from agentops_incident_commander.infrastructure.persistence.models import (
     AuditEventRow,
@@ -47,6 +52,14 @@ from agentops_incident_commander.infrastructure.persistence.models import (
     IncidentCancellationRequestRow,
     IncidentRow,
     IncidentTransitionRow,
+)
+from agentops_incident_commander.workflows import (
+    CounterEvidenceTreatment,
+    DiagnosisDisposition,
+    DiagnosisReport,
+    DiagnosisReportRecord,
+    RootCauseCandidate,
+    diagnosis_report_fingerprint,
 )
 
 NOW = datetime(2026, 10, 3, 10, 0, tzinfo=UTC)
@@ -535,6 +548,108 @@ async def test_investigation_route_handles_missing_empty_valid_and_corrupt_runs(
         )
     assert integrity.value.status_code == 409
     assert integrity.value.code == "INVESTIGATION_PROGRESS_INTEGRITY_FAILED"
+
+
+@pytest.mark.anyio
+async def test_diagnosis_route_scopes_maps_and_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import agentops_incident_commander.apps.api_v1 as api_v1
+
+    route = endpoint("/api/v1/incidents/{incident_id}/diagnosis", "GET")
+    with pytest.raises(HTTPException) as missing:
+        await route(
+            incident_id="missing",
+            session=FakeSession(scalar_values=[None]),
+            principal=VIEWER,
+        )
+    assert missing.value.status_code == 404
+
+    diagnosis = DiagnosisReport(
+        schema_version="1.0.0",
+        incident_id="incident-a",
+        disposition=DiagnosisDisposition.CANDIDATES,
+        candidates=(
+            RootCauseCandidate(
+                candidate_id="candidate-a",
+                rank=1,
+                statement="Database pool exhaustion.",
+                supporting_evidence_ids=("evidence-a",),
+                counter_evidence_ids=(),
+                counter_evidence_treatment=CounterEvidenceTreatment.NOT_APPLICABLE,
+                missing_evidence=(),
+                uncertainty="The sample window is bounded.",
+                confidence_basis_points=8000,
+            ),
+        ),
+        missing_evidence=(),
+        explanation="One ranked candidate.",
+    )
+    report_record = DiagnosisReportRecord(
+        tenant_id=TenantId("tenant-api"),
+        workflow_run_id=WorkflowRunId("run-a"),
+        model_call_id=ModelCallId("call-a"),
+        report=diagnosis,
+        report_fingerprint=diagnosis_report_fingerprint(diagnosis),
+        produced_at=NOW,
+    )
+    gate = EvidenceGateDecision(
+        incident_id=IncidentId("incident-a"),
+        candidate_id="candidate-a",
+        outcome=EvidenceGateOutcome.PASS,
+        reasons=(),
+        evaluated_evidence_ids=(EvidenceId("evidence-a"),),
+        rules_version="1.1.0",
+        input_fingerprint=Sha256Digest("b" * 64),
+        evaluated_at=NOW,
+        model_confidence_basis_points=8000,
+    )
+
+    class StubRepository:
+        record: DiagnosisReportRecord | None = report_record
+        error = False
+
+        def __init__(self, _: object) -> None:
+            pass
+
+        async def latest(self, **_: object) -> DiagnosisReportRecord | None:
+            if self.error:
+                raise InvalidDomainValueError("corrupt")
+            return self.record
+
+        async def matching_gate_decisions(
+            self, _: DiagnosisReportRecord
+        ) -> tuple[EvidenceGateDecision, ...]:
+            return (gate,)
+
+    monkeypatch.setattr(api_v1, "DiagnosisReportRepository", StubRepository)
+    visible = await route(
+        incident_id="incident-a",
+        session=FakeSession(scalar_values=["incident-a"]),
+        principal=VIEWER,
+    )
+    assert visible.result is not None
+    assert visible.result.candidates[0].gate is not None
+    assert visible.result.candidates[0].gate.outcome == "PASS"
+    assert visible.result.candidates[0].supporting_evidence_ids == ["evidence-a"]
+
+    StubRepository.record = None
+    empty = await route(
+        incident_id="incident-a",
+        session=FakeSession(scalar_values=["incident-a"]),
+        principal=VIEWER,
+    )
+    assert empty.result is None
+
+    StubRepository.error = True
+    with pytest.raises(ApiProblem) as integrity:
+        await route(
+            incident_id="incident-a",
+            session=FakeSession(scalar_values=["incident-a"]),
+            principal=VIEWER,
+        )
+    assert integrity.value.status_code == 409
+    assert integrity.value.code == "DIAGNOSIS_RESULT_INTEGRITY_FAILED"
 
 
 @pytest.mark.anyio

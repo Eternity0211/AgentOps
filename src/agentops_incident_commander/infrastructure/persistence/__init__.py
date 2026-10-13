@@ -25,6 +25,7 @@ from .models import (
     AuditEventRow,
     Base,
     DiagnosisProgressRow,
+    DiagnosisReportRow,
     EvidenceGateDecisionRow,
     EvidenceRow,
     HealthVerificationRunRow,
@@ -44,10 +45,12 @@ from .models import (
 )
 from .postmortem_repository import PostmortemRevisionRepository
 from .repositories import (
+    DIAGNOSIS_REPORT_AUDIT_SCHEMA_VERSION,
     ActionExecutionRepository,
     AlertRepository,
     ApprovalLifecycleRepository,
     AuditRepository,
+    DiagnosisReportRepository,
     EvidenceGateRepository,
     EvidenceRepository,
     HealthVerificationRepository,
@@ -61,6 +64,7 @@ from .repositories import (
 
 __all__ = [
     "ACTION_EXECUTION_INCIDENT_AUDIT_SCHEMA_VERSION",
+    "DIAGNOSIS_REPORT_AUDIT_SCHEMA_VERSION",
     "ActionExecutionEventRow",
     "ActionExecutionLockRow",
     "ActionExecutionRepository",
@@ -76,6 +80,8 @@ __all__ = [
     "AuditRepository",
     "Base",
     "DiagnosisProgressRow",
+    "DiagnosisReportRepository",
+    "DiagnosisReportRow",
     "EvidenceGateDecisionRow",
     "EvidenceGateRepository",
     "EvidenceRepository",

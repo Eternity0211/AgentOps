@@ -92,7 +92,7 @@ function EvidenceCard({
       : null;
   return (
     <li>
-      <article className="evidence-card">
+      <article className="evidence-card" id={`evidence-${evidence.id}`}>
         <div className="evidence-heading">
           <div>
             <p className="eyebrow">{evidence.sourceType} EVIDENCE</p>

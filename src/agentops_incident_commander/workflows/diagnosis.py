@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
+from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from typing import Annotated, Final, Literal
 
@@ -11,7 +15,13 @@ from agentops_incident_commander.domain import (
     EvidenceId,
     EvidenceSourceType,
     IncidentId,
+    InvalidDomainValueError,
+    ModelCallId,
     RootCauseEvidenceClaim,
+    Sha256Digest,
+    TenantId,
+    WorkflowRunId,
+    as_utc,
 )
 
 DIAGNOSIS_PLAN_SCHEMA_VERSION: Final[Literal["1.0.0"]] = "1.0.0"
@@ -190,6 +200,53 @@ class DiagnosisReport(StrictDiagnosisModel):
             ),
             model_confidence_basis_points=candidate.confidence_basis_points,
         )
+
+
+def diagnosis_report_fingerprint(report: DiagnosisReport) -> Sha256Digest:
+    """Hash the exact versioned structured report, never a rendered summary."""
+    if not isinstance(report, DiagnosisReport):
+        raise InvalidDomainValueError("diagnosis report fingerprint requires a typed report")
+    document = json.dumps(
+        report.model_dump(mode="json"),
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return Sha256Digest(hashlib.sha256(document).hexdigest())
+
+
+@dataclass(frozen=True, slots=True)
+class DiagnosisReportRecord:
+    """Immutable storage binding for one traced Diagnosis Agent report."""
+
+    tenant_id: TenantId
+    workflow_run_id: WorkflowRunId
+    model_call_id: ModelCallId
+    report: DiagnosisReport
+    report_fingerprint: Sha256Digest
+    produced_at: datetime
+
+    def __post_init__(self) -> None:
+        for value, expected in (
+            (self.tenant_id, TenantId),
+            (self.workflow_run_id, WorkflowRunId),
+            (self.model_call_id, ModelCallId),
+            (self.report, DiagnosisReport),
+            (self.report_fingerprint, Sha256Digest),
+        ):
+            if not isinstance(value, expected):
+                raise InvalidDomainValueError(
+                    "diagnosis report record contains an invalid typed binding"
+                )
+        if self.report_fingerprint != diagnosis_report_fingerprint(self.report):
+            raise InvalidDomainValueError(
+                "diagnosis report record fingerprint does not match report"
+            )
+        object.__setattr__(self, "produced_at", as_utc(self.produced_at))
+
+    @property
+    def incident_id(self) -> IncidentId:
+        return IncidentId(self.report.incident_id)
 
 
 def _bounded_text(value: str, *, field: str) -> str:

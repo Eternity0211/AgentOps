@@ -20,6 +20,7 @@ from agentops_incident_commander.application import (
     PromptLifecycleChange,
     VerificationFailureDecision,
     decide_verification_failure_route,
+    evidence_gate_claim_snapshot,
     evidence_gate_decision_fingerprint,
     evidence_gate_input_fingerprint,
     evidence_gate_input_snapshot,
@@ -132,7 +133,11 @@ from agentops_incident_commander.domain import (
     evaluate_health_verification,
     select_alert_group,
 )
-from agentops_incident_commander.workflows import RemediationProposal
+from agentops_incident_commander.workflows import (
+    DiagnosisReport,
+    DiagnosisReportRecord,
+    RemediationProposal,
+)
 
 from .models import (
     ActionExecutionEventRow,
@@ -144,6 +149,7 @@ from .models import (
     ApprovalLifecycleEventRow,
     ApprovalRow,
     AuditEventRow,
+    DiagnosisReportRow,
     EvidenceGateDecisionRow,
     EvidenceRow,
     HealthVerificationRunRow,
@@ -158,6 +164,8 @@ from .models import (
     PromptLifecycleEventRow,
     PromptVersionRow,
 )
+
+DIAGNOSIS_REPORT_AUDIT_SCHEMA_VERSION = "diagnosis_report/v1"
 
 
 def _evidence_from_row(row: EvidenceRow) -> Evidence:
@@ -2341,6 +2349,182 @@ class ModelCallTraceRepository:
         )
         await AuditRepository(self._session).append(audit_event)
         await self._session.flush()
+
+
+def _diagnosis_report_from_row(row: DiagnosisReportRow) -> DiagnosisReportRecord:
+    try:
+        report = DiagnosisReport.model_validate_json(
+            json.dumps(row.report, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+        )
+        if (
+            report.disposition.value != row.disposition
+            or report.schema_version != row.schema_version
+        ):
+            raise InvalidDomainValueError("persisted Diagnosis report duplicated fields disagree")
+        return DiagnosisReportRecord(
+            tenant_id=TenantId(row.tenant_id),
+            workflow_run_id=WorkflowRunId(row.workflow_run_id),
+            model_call_id=ModelCallId(row.model_call_id),
+            report=report,
+            report_fingerprint=Sha256Digest(row.report_fingerprint),
+            produced_at=row.produced_at,
+        )
+    except ValueError as error:
+        if isinstance(error, InvalidDomainValueError):
+            raise
+        raise InvalidDomainValueError(
+            "persisted Diagnosis report failed strict validation"
+        ) from error
+
+
+class DiagnosisReportRepository:
+    """Persist and read immutable reports bound to successful hypothesis calls."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def _require_trace_binding(self, record: DiagnosisReportRecord) -> ModelCallTrace:
+        row = await self._session.scalar(
+            select(ModelCallTraceRow).where(
+                ModelCallTraceRow.id == record.model_call_id.value,
+                ModelCallTraceRow.tenant_id == record.tenant_id.value,
+            )
+        )
+        if row is None:
+            raise InvalidDomainValueError("Diagnosis report model call is not persisted")
+        trace = _model_call_from_row(row)
+        if (
+            trace.incident_id != record.incident_id
+            or trace.workflow_run_id != record.workflow_run_id
+            or trace.node != "diagnosis.hypothesis"
+            or trace.status is not ModelCallStatus.SUCCEEDED
+            or trace.response_hash != record.report_fingerprint
+            or trace.completed_at != record.produced_at
+        ):
+            raise InvalidDomainValueError(
+                "Diagnosis report does not match its successful hypothesis trace"
+            )
+        return trace
+
+    async def record(
+        self,
+        report_record: DiagnosisReportRecord,
+        audit_event: AuditEvent,
+    ) -> DiagnosisReportRecord:
+        trace = await self._require_trace_binding(report_record)
+        if (
+            audit_event.tenant_id != report_record.tenant_id
+            or audit_event.type != "diagnosis.report_recorded"
+            or audit_event.payload_schema_version != DIAGNOSIS_REPORT_AUDIT_SCHEMA_VERSION
+            or audit_event.target.type != "diagnosis.report"
+            or audit_event.target.id.value != report_record.report_fingerprint.value
+            or audit_event.correlation_id != trace.correlation_id
+            or audit_event.causation_id != trace.causation_id
+            or audit_event.request_hash != model_call_trace_fingerprint(trace)
+            or audit_event.result_hash != report_record.report_fingerprint
+            or audit_event.occurred_at != report_record.produced_at
+        ):
+            raise InvalidDomainValueError("Diagnosis report audit event is not bound to report")
+
+        existing = await self._session.scalar(
+            select(DiagnosisReportRow).where(
+                DiagnosisReportRow.tenant_id == report_record.tenant_id.value,
+                DiagnosisReportRow.workflow_run_id == report_record.workflow_run_id.value,
+                DiagnosisReportRow.model_call_id == report_record.model_call_id.value,
+            )
+        )
+        if existing is not None:
+            stored = _diagnosis_report_from_row(existing)
+            if stored != report_record:
+                raise InvalidDomainValueError("Diagnosis report model call conflicts with storage")
+            return stored
+
+        report = report_record.report
+        self._session.add(
+            DiagnosisReportRow(
+                tenant_id=report_record.tenant_id.value,
+                incident_id=report.incident_id,
+                workflow_run_id=report_record.workflow_run_id.value,
+                model_call_id=report_record.model_call_id.value,
+                disposition=report.disposition.value,
+                report=report.model_dump(mode="json"),
+                report_fingerprint=report_record.report_fingerprint.value,
+                produced_at=report_record.produced_at,
+                schema_version=report.schema_version,
+            )
+        )
+        await AuditRepository(self._session).append(audit_event)
+        await self._session.flush()
+        return report_record
+
+    async def latest(
+        self, *, tenant_id: TenantId, incident_id: IncidentId
+    ) -> DiagnosisReportRecord | None:
+        row = await self._session.scalar(
+            select(DiagnosisReportRow)
+            .where(
+                DiagnosisReportRow.tenant_id == tenant_id.value,
+                DiagnosisReportRow.incident_id == incident_id.value,
+            )
+            .order_by(DiagnosisReportRow.produced_at.desc(), DiagnosisReportRow.sequence.desc())
+            .limit(1)
+        )
+        if row is None:
+            return None
+        record = _diagnosis_report_from_row(row)
+        await self._require_trace_binding(record)
+        return record
+
+    async def matching_gate_decisions(
+        self, report_record: DiagnosisReportRecord
+    ) -> tuple[EvidenceGateDecision, ...]:
+        candidates = {item.candidate_id: item for item in report_record.report.candidates}
+        if not candidates:
+            return ()
+        rows = (
+            await self._session.scalars(
+                select(EvidenceGateDecisionRow)
+                .where(
+                    EvidenceGateDecisionRow.tenant_id == report_record.tenant_id.value,
+                    EvidenceGateDecisionRow.incident_id == report_record.incident_id.value,
+                    EvidenceGateDecisionRow.candidate_id.in_(tuple(candidates)),
+                    EvidenceGateDecisionRow.evaluated_at >= report_record.produced_at,
+                )
+                .order_by(
+                    EvidenceGateDecisionRow.evaluated_at.desc(),
+                    EvidenceGateDecisionRow.sequence.desc(),
+                )
+            )
+        ).all()
+        selected: dict[str, EvidenceGateDecision] = {}
+        for row in rows:
+            if row.candidate_id in selected:
+                continue
+            snapshot_hash = hashlib.sha256(
+                json.dumps(
+                    row.input_snapshot,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                    sort_keys=True,
+                ).encode("utf-8")
+            ).hexdigest()
+            if snapshot_hash != row.input_fingerprint:
+                raise InvalidDomainValueError(
+                    "persisted Evidence Gate input snapshot fingerprint disagrees"
+                )
+            candidate = candidates[row.candidate_id]
+            if row.input_snapshot.get("claim") != evidence_gate_claim_snapshot(
+                report_record.report.evidence_gate_claim(candidate.candidate_id)
+            ):
+                raise InvalidDomainValueError(
+                    "Evidence Gate decision does not match the latest Diagnosis report"
+                )
+            selected[row.candidate_id] = _gate_decision_from_row(row)
+        return tuple(
+            selected[candidate.candidate_id]
+            for candidate in report_record.report.candidates
+            if candidate.candidate_id in selected
+        )
 
 
 def _incident_from_row(row: IncidentRow) -> Incident:

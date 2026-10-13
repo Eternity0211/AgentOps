@@ -91,6 +91,15 @@ row-locks the run, validates legal forward or exact-replay transitions, and refr
 SHA-256 fingerprint duplicated alongside the JSON snapshot. Reads revalidate the complete schema,
 relational bindings, and fingerprint before returning any operator view.
 
+Revision `20261013_0019` adds immutable `diagnosis_reports`. Each report preserves the exact
+versioned structured output, disposition, canonical SHA-256 fingerprint, workflow run, successful
+`diagnosis.hypothesis` Model Call, and production time. The repository accepts only a response hash
+and completion time that exactly match that trace, and atomically appends a hash-only
+`diagnosis.report_recorded` audit event. Reads revalidate the document, duplicated fields,
+fingerprint, tenant/Incident binding, and Model Call trace. Evidence Gate decisions are exposed
+only when their canonical claim snapshot matches a candidate in the latest report; stale or
+unrelated decisions are never attached.
+
 ## Repository concurrency
 
 `IncidentRepository` updates with `WHERE id = ... AND version = ...`. A zero-row update raises the

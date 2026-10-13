@@ -226,6 +226,38 @@ test("shows incident lifecycle details and cursor-paged workflow history", async
         }),
       });
     }
+    if (requestUrl.pathname.endsWith("/diagnosis")) {
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          result: {
+            workflow_run_id: "run-browser",
+            model_call_id: "model-diagnosis",
+            report_fingerprint: "c".repeat(64),
+            produced_at: "2026-10-11T10:04:00Z",
+            disposition: "CANDIDATES",
+            candidates: [
+              {
+                candidate_id: "candidate-browser",
+                rank: 1,
+                statement: "Connection pool exhaustion",
+                supporting_evidence_ids: ["evidence-browser"],
+                counter_evidence_ids: [],
+                counter_evidence_treatment: "NOT_APPLICABLE",
+                counter_evidence_explanation: null,
+                missing_evidence: ["Per-pod saturation"],
+                uncertainty: "One trace window is unavailable.",
+                confidence_basis_points: 8200,
+                gate: null,
+              },
+            ],
+            missing_evidence: ["Per-pod saturation"],
+            explanation: "Ranked from immutable evidence.",
+            schema_version: "1.0.0",
+          },
+        }),
+      });
+    }
     if (requestUrl.pathname.endsWith("/timeline")) {
       const continued = requestUrl.searchParams.has("cursor");
       return route.fulfill({
@@ -307,6 +339,14 @@ test("shows incident lifecycle details and cursor-paged workflow history", async
   await expect(
     page.getByText(/Attempt 1.*2: MORE EVIDENCE REQUIRED/),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Ranked diagnosis" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Connection pool exhaustion" }),
+  ).toBeVisible();
+  await expect(page.getByText("82.00% model confidence")).toBeVisible();
+  await expect(page.getByText("Evidence gate not evaluated.")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Evidence and artifacts" }),
   ).toBeVisible();

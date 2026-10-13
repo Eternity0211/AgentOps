@@ -25,6 +25,7 @@ receive operator authority.
 | `GET /api/v1/incidents` | List tenant incidents in stable newest-first order | `incident:read` |
 | `GET /api/v1/incidents/{incident_id}` | Read one tenant incident | `incident:read` |
 | `GET /api/v1/incidents/{incident_id}/investigation` | Read the latest bounded Diagnosis progress projection | `incident:read` |
+| `GET /api/v1/incidents/{incident_id}/diagnosis` | Read the latest verified ranked Diagnosis report and matching Evidence Gate decisions | `evidence:read` |
 | `GET /api/v1/incidents/{incident_id}/timeline` | Read lifecycle transitions and cancellation requests | `incident:read` |
 | `GET /api/v1/incidents/{incident_id}/evidence` | List incident-owned Evidence metadata | `evidence:read` |
 | `GET /api/v1/incidents/{incident_id}/evidence/{evidence_id}` | Read one Evidence metadata record | `evidence:read` |
@@ -63,6 +64,15 @@ never exposes tool arguments/results, raw telemetry, prompt content, or checkpoi
 server revalidates the stored schema, tenant/Incident/run bindings, duplicated relational fields,
 and canonical fingerprint on every read; corruption returns the typed
 `INVESTIGATION_PROGRESS_INTEGRITY_FAILED` conflict rather than partial data.
+
+`GET /api/v1/incidents/{incident_id}/diagnosis` returns an explicit `result: null` until a verified
+report exists. Otherwise it preserves the model's server-validated rank order and exposes each
+candidate's supporting Evidence IDs, counter-evidence and treatment, missing evidence,
+uncertainty, and model-confidence metadata. Confidence is labeled non-authoritative. A Gate result
+is attached only when its persisted canonical claim exactly matches that candidate; it includes
+PASS/FAIL, typed reasons, evaluated Evidence IDs, rules/schema versions, evaluation time, and input
+and decision fingerprints. Report, trace, tenant, fingerprint, or Gate snapshot corruption returns
+`DIAGNOSIS_RESULT_INTEGRITY_FAILED` instead of partial or inferred data.
 
 Evidence lists use the same opaque newest-first cursor convention, ordered by collection time and
 Evidence ID. Metadata includes source/query provenance, observation and collection ranges, quality

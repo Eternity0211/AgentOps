@@ -36,7 +36,8 @@ available only for pages visited in the current client session. Loading, empty, 
 failure states remain read-only, while the table is horizontally contained on narrow screens.
 
 `/incidents/{incident_id}` concurrently requests the tenant-scoped Incident, its first timeline
-and Evidence pages, and its latest Diagnosis progress projection. The lifecycle summary shows the
+and Evidence pages, its latest Diagnosis progress projection, and its latest verified Diagnosis
+report. The lifecycle summary shows the
 server-owned service, severity, state, optimistic version, and
 opened/updated/closure/cancellation timestamps.
 The investigation section shows server-persisted plan attempts, read-tool status and dependencies,
@@ -57,3 +58,9 @@ expiry, integrity, storage, and transport failures never expose partial content.
 fail the whole view closed; later-page failures preserve already validated records and offer a
 read-only retry. Navigation or replacement requests abort stale reads, and no response path
 mutates an Incident or derives workflow authority in the browser.
+
+The ranked Diagnosis section keeps server rank order, links supporting and counter-evidence to
+Evidence cards, preserves missing evidence and uncertainty, labels model confidence as
+non-authoritative, and displays only deterministically matched Evidence Gate outcomes, reasons,
+versions, times, and fingerprints. Empty reports remain explicit and invalid or corrupt response
+shapes fail the complete read-only view closed.

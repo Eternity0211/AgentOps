@@ -50,7 +50,11 @@ from agentops_incident_commander.domain import (
     RiskLevel,
     TrustClassification,
 )
-from agentops_incident_commander.workflows import DiagnosisProgressStatus, GraphPhase
+from agentops_incident_commander.workflows import (
+    DiagnosisDisposition,
+    DiagnosisProgressStatus,
+    GraphPhase,
+)
 
 _STATES = ", ".join(f"'{state.value}'" for state in IncidentState)
 _SEVERITIES = "'SEV1', 'SEV2', 'SEV3', 'SEV4'"
@@ -58,6 +62,7 @@ _EVIDENCE_SOURCES = ", ".join(f"'{value.value}'" for value in EvidenceSourceType
 _EVIDENCE_TRUST = ", ".join(f"'{value.value}'" for value in TrustClassification)
 _INJECTION_STATES = ", ".join(f"'{value.value}'" for value in PromptInjectionStatus)
 _GATE_OUTCOMES = ", ".join(f"'{value.value}'" for value in EvidenceGateOutcome)
+_DIAGNOSIS_DISPOSITIONS = ", ".join(f"'{value.value}'" for value in DiagnosisDisposition)
 _PROMPT_PURPOSES = ", ".join(f"'{value.value}'" for value in PromptPurpose)
 _PROMPT_STATUSES = ", ".join(f"'{value.value}'" for value in PromptLifecycleStatus)
 _MODEL_CALL_STATUSES = ", ".join(f"'{value.value}'" for value in ModelCallStatus)
@@ -402,6 +407,64 @@ class EvidenceGateDecisionRow(Base):
     input_snapshot: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
     evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     model_confidence_basis_points: Mapped[int | None] = mapped_column(Integer)
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class DiagnosisReportRow(Base):
+    """Immutable traced Diagnosis Agent report for operator review."""
+
+    __tablename__ = "diagnosis_reports"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["incident_id", "tenant_id"],
+            ["incidents.id", "incidents.tenant_id"],
+            ondelete="RESTRICT",
+            name="fk_diagnosis_reports_incident_tenant",
+        ),
+        CheckConstraint(
+            f"disposition IN ({_DIAGNOSIS_DISPOSITIONS})",
+            name="ck_diagnosis_reports_disposition",
+        ),
+        CheckConstraint(
+            "jsonb_typeof(report) = 'object'",
+            name="ck_diagnosis_reports_document",
+        ),
+        CheckConstraint(
+            "report_fingerprint ~ '^[0-9a-f]{64}$'",
+            name="ck_diagnosis_reports_fingerprint",
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "workflow_run_id",
+            "model_call_id",
+            name="uq_diagnosis_reports_model_call",
+        ),
+        Index(
+            "ix_diagnosis_reports_incident_time",
+            "tenant_id",
+            "incident_id",
+            "produced_at",
+            "sequence",
+        ),
+    )
+
+    sequence: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    incident_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    workflow_run_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    model_call_id: Mapped[str] = mapped_column(
+        String(128),
+        ForeignKey(
+            "model_call_traces.id",
+            name="fk_diagnosis_reports_model_call",
+            ondelete="RESTRICT",
+        ),
+        nullable=False,
+    )
+    disposition: Mapped[str] = mapped_column(String(32), nullable=False)
+    report: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    report_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    produced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
 
 

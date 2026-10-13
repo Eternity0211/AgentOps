@@ -11,9 +11,15 @@ import { IncidentDetail } from "./incident-detail";
 
 const mocks = vi.hoisted(() => ({
   loadEvidence: vi.fn(),
+  loadDiagnosis: vi.fn(),
   loadIncident: vi.fn(),
   loadInvestigation: vi.fn(),
   loadTimeline: vi.fn(),
+}));
+
+vi.mock("@/lib/diagnosis", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/diagnosis")>()),
+  loadDiagnosis: mocks.loadDiagnosis,
 }));
 
 vi.mock("@/lib/evidence", async (importOriginal) => ({
@@ -130,6 +136,7 @@ const investigation = {
 };
 
 beforeEach(() => {
+  mocks.loadDiagnosis.mockReset().mockResolvedValue(null);
   mocks.loadEvidence.mockReset().mockResolvedValue({
     items: [],
     nextCursor: null,

@@ -19,9 +19,11 @@ from .diagnosis import (
     CounterEvidenceTreatment,
     DiagnosisDisposition,
     DiagnosisReport,
+    DiagnosisReportRecord,
     InvestigationPlan,
     InvestigationStep,
     RootCauseCandidate,
+    diagnosis_report_fingerprint,
 )
 from .diagnosis_graph import (
     DIAGNOSIS_NODE_NAMES,
@@ -130,6 +132,7 @@ __all__ = [
     "DiagnosisProgressStatus",
     "DiagnosisPromptAuthorizationPort",
     "DiagnosisReport",
+    "DiagnosisReportRecord",
     "DiagnosisRuntimeContext",
     "DiagnosisWorkflowServices",
     "EvidencePersistenceResult",
@@ -165,6 +168,7 @@ __all__ = [
     "build_plan_progress",
     "canonical_graph_state_bytes",
     "canonical_progress_bytes",
+    "diagnosis_report_fingerprint",
     "evidence_gate_node",
     "execute_read_tools_node",
     "human_handoff_node",

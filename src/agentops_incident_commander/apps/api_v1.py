@@ -14,6 +14,7 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from agentops_incident_commander.application import evidence_gate_decision_fingerprint
 from agentops_incident_commander.domain import (
     ActorId,
     AggregateVersion,
@@ -30,6 +31,7 @@ from agentops_incident_commander.domain import (
     CorrelationId,
     EventMetadata,
     EventReason,
+    EvidenceGateDecision,
     IncidentId,
     IncidentSeverity,
     IncidentState,
@@ -56,8 +58,10 @@ from agentops_incident_commander.infrastructure.persistence.models import (
 )
 from agentops_incident_commander.infrastructure.persistence.repositories import (
     AuditRepository,
+    DiagnosisReportRepository,
     IncidentRepository,
 )
+from agentops_incident_commander.workflows import DiagnosisReportRecord
 
 from .api_errors import common_error_responses, problem
 
@@ -214,6 +218,54 @@ class InvestigationProgressView(ApiModel):
 
 class InvestigationProgressEnvelope(ApiModel):
     run: InvestigationProgressView | None
+
+
+class EvidenceGateReasonView(ApiModel):
+    code: str
+    detail: str
+    evidence_ids: list[str]
+
+
+class EvidenceGateDecisionView(ApiModel):
+    outcome: str
+    reasons: list[EvidenceGateReasonView]
+    evaluated_evidence_ids: list[str]
+    rules_version: str
+    input_fingerprint: str
+    decision_fingerprint: str
+    evaluated_at: datetime
+    model_confidence_basis_points: int | None
+    schema_version: str
+
+
+class RootCauseCandidateView(ApiModel):
+    candidate_id: str
+    rank: int
+    statement: str
+    supporting_evidence_ids: list[str]
+    counter_evidence_ids: list[str]
+    counter_evidence_treatment: str
+    counter_evidence_explanation: str | None
+    missing_evidence: list[str]
+    uncertainty: str
+    confidence_basis_points: int
+    gate: EvidenceGateDecisionView | None
+
+
+class DiagnosisResultView(ApiModel):
+    workflow_run_id: str
+    model_call_id: str
+    report_fingerprint: str
+    produced_at: datetime
+    disposition: str
+    candidates: list[RootCauseCandidateView]
+    missing_evidence: list[str]
+    explanation: str
+    schema_version: str
+
+
+class DiagnosisResultEnvelope(ApiModel):
+    result: DiagnosisResultView | None
 
 
 class AuditEventView(ApiModel):
@@ -373,6 +425,65 @@ def _investigation_progress_view(row: DiagnosisProgressRow) -> InvestigationProg
         checkpoint_sequence=snapshot.checkpoint_sequence,
         error_code=snapshot.error_code,
         updated_at=snapshot.updated_at,
+    )
+
+
+def _gate_view(decision: EvidenceGateDecision) -> EvidenceGateDecisionView:
+    return EvidenceGateDecisionView(
+        outcome=decision.outcome.value,
+        reasons=[
+            EvidenceGateReasonView(
+                code=reason.code.value,
+                detail=reason.detail,
+                evidence_ids=[item.value for item in reason.evidence_ids],
+            )
+            for reason in decision.reasons
+        ],
+        evaluated_evidence_ids=[item.value for item in decision.evaluated_evidence_ids],
+        rules_version=decision.rules_version,
+        input_fingerprint=decision.input_fingerprint.value,
+        decision_fingerprint=evidence_gate_decision_fingerprint(decision).value,
+        evaluated_at=decision.evaluated_at,
+        model_confidence_basis_points=decision.model_confidence_basis_points,
+        schema_version=decision.schema_version,
+    )
+
+
+def _diagnosis_result_view(
+    record: DiagnosisReportRecord,
+    decisions: tuple[EvidenceGateDecision, ...],
+) -> DiagnosisResultView:
+    report = record.report
+    gate_by_candidate = {decision.candidate_id: decision for decision in decisions}
+    return DiagnosisResultView(
+        workflow_run_id=record.workflow_run_id.value,
+        model_call_id=record.model_call_id.value,
+        report_fingerprint=record.report_fingerprint.value,
+        produced_at=record.produced_at,
+        disposition=report.disposition.value,
+        candidates=[
+            RootCauseCandidateView(
+                candidate_id=candidate.candidate_id,
+                rank=candidate.rank,
+                statement=candidate.statement,
+                supporting_evidence_ids=list(candidate.supporting_evidence_ids),
+                counter_evidence_ids=list(candidate.counter_evidence_ids),
+                counter_evidence_treatment=candidate.counter_evidence_treatment.value,
+                counter_evidence_explanation=candidate.counter_evidence_explanation,
+                missing_evidence=list(candidate.missing_evidence),
+                uncertainty=candidate.uncertainty,
+                confidence_basis_points=candidate.confidence_basis_points,
+                gate=(
+                    _gate_view(gate_by_candidate[candidate.candidate_id])
+                    if candidate.candidate_id in gate_by_candidate
+                    else None
+                ),
+            )
+            for candidate in report.candidates
+        ],
+        missing_evidence=list(report.missing_evidence),
+        explanation=report.explanation,
+        schema_version=report.schema_version,
     )
 
 
@@ -549,6 +660,40 @@ def build_api_v1_router(
                 "INVESTIGATION_PROGRESS_INTEGRITY_FAILED",
                 "Investigation progress integrity failed",
                 "the persisted investigation progress could not be verified",
+            ) from error
+
+    @router.get(
+        "/incidents/{incident_id}/diagnosis",
+        response_model=DiagnosisResultEnvelope,
+    )
+    async def get_diagnosis_result(
+        incident_id: str, session: Session, principal: Authenticated
+    ) -> DiagnosisResultEnvelope:
+        _authorized(principal, Permission.EVIDENCE_READ)
+        owned = await session.scalar(
+            select(IncidentRow.id).where(
+                IncidentRow.id == incident_id,
+                IncidentRow.tenant_id == principal.tenant_id.value,
+            )
+        )
+        if owned is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "incident not found")
+        repository = DiagnosisReportRepository(session)
+        try:
+            record = await repository.latest(
+                tenant_id=principal.tenant_id,
+                incident_id=IncidentId(incident_id),
+            )
+            if record is None:
+                return DiagnosisResultEnvelope(result=None)
+            decisions = await repository.matching_gate_decisions(record)
+            return DiagnosisResultEnvelope(result=_diagnosis_result_view(record, decisions))
+        except InvalidDomainValueError as error:
+            raise problem(
+                status.HTTP_409_CONFLICT,
+                "DIAGNOSIS_RESULT_INTEGRITY_FAILED",
+                "Diagnosis result integrity failed",
+                "the persisted diagnosis result could not be verified",
             ) from error
 
     @router.get("/incidents/{incident_id}/evidence", response_model=EvidencePage)

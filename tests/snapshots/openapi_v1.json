@@ -1,9 +1,10 @@
 {
-  "sha256": "297ee8c99c02766db9b5c5f10e37998b4fc5efc33d50462dc86bb894f28145e2",
+  "sha256": "2f9865d30806c1e986b02eb8b52ded7de57ddc746710019dcbe1ce00e39a8255",
   "paths": {
     "/api/v1/audit": ["get"],
     "/api/v1/incidents": ["get"],
     "/api/v1/incidents/{incident_id}": ["get"],
+    "/api/v1/incidents/{incident_id}/diagnosis": ["get"],
     "/api/v1/incidents/{incident_id}/investigation": ["get"],
     "/api/v1/incidents/{incident_id}/evidence": ["get"],
     "/api/v1/incidents/{incident_id}/evidence/{evidence_id}": ["get"],
@@ -19,6 +20,10 @@
     "BudgetCounterView",
     "ControlRequest",
     "ControlResult",
+    "DiagnosisResultEnvelope",
+    "DiagnosisResultView",
+    "EvidenceGateDecisionView",
+    "EvidenceGateReasonView",
     "EvidencePage",
     "EvidenceView",
     "IncidentPage",
@@ -33,6 +38,7 @@
     "InvestigationStepView",
     "ProblemDetail",
     "ReplanView",
+    "RootCauseCandidateView",
     "SessionView",
     "TimelineEventView",
     "TimelinePage"

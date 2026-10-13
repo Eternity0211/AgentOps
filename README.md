@@ -188,7 +188,10 @@ correlation, and causation metadata. The same view renders a fingerprint-verifie
 Diagnosis projection with plan attempts, per-tool status, exact resource-budget consumption,
 bounded replan history, failure/exhaustion, and human-handoff state. Detail, timeline, and
 investigation failures remain read-only and never cause the client to infer a state or dispatch a
-control action. The detail view also validates and pages Incident-owned Evidence provenance,
+control action. The same page preserves the verified Diagnosis report's server ranking, supporting
+and counter-evidence, missing evidence, uncertainty, and deterministically matched Evidence Gate
+result while labeling model confidence as non-authoritative. The detail view also validates and
+pages Incident-owned Evidence provenance,
 including query/time/hash/version/quality/expiry/trust/lineage fields. Artifact content is fetched
 only on explicit user intent, checked against its immutable Evidence binding and safe response
 headers, and rendered only as bounded escaped text or JSON; unsupported, oversized, expired, or

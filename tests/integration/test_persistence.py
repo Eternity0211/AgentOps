@@ -50,6 +50,7 @@ from agentops_incident_commander.application import (
     ToolGateway,
     decide_verification_failure_route,
     evaluate_evidence_gate,
+    evidence_gate_claim_snapshot,
     evidence_gate_decision_fingerprint,
     model_call_trace_fingerprint,
 )
@@ -213,6 +214,8 @@ from agentops_incident_commander.infrastructure.persistence import (
     AuditEventRow,
     AuditRepository,
     DiagnosisProgressRow,
+    DiagnosisReportRepository,
+    DiagnosisReportRow,
     EvidenceGateDecisionRow,
     EvidenceGateRepository,
     EvidenceRepository,
@@ -258,8 +261,12 @@ from agentops_incident_commander.simulator.deployment import (
 from agentops_incident_commander.workflows import (
     DIAGNOSIS_PROGRESS_SCHEMA_VERSION,
     REMEDIATION_PROPOSAL_SCHEMA_VERSION,
+    CounterEvidenceTreatment,
+    DiagnosisDisposition,
     DiagnosisGraphState,
     DiagnosisProgressStatus,
+    DiagnosisReport,
+    DiagnosisReportRecord,
     GraphBudgetState,
     GraphPhase,
     GraphPromptReference,
@@ -273,7 +280,9 @@ from agentops_incident_commander.workflows import (
     RollbackPrerequisites,
     RollbackServiceParameters,
     RollbackVerificationConditions,
+    RootCauseCandidate,
     ToolProgressStatus,
+    diagnosis_report_fingerprint,
 )
 
 NOW = datetime(2026, 10, 3, 8, 0, tzinfo=UTC)
@@ -313,7 +322,7 @@ async def engine(migrated_url: str) -> AsyncIterator[AsyncEngine]:
         await connection.execute(
             text(
                 "TRUNCATE postmortem_revisions, postmortems, alerts, alert_groups, "
-                "diagnosis_progress, "
+                "diagnosis_reports, diagnosis_progress, "
                 "incident_cancellation_requests, "
                 "incident_transitions, health_verification_runs, evidence, "
                 "idempotency_records, outbox_events, jobs, "
@@ -576,6 +585,7 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "evidence",
         "evidence_gate_decisions",
         "diagnosis_progress",
+        "diagnosis_reports",
         "incidents",
         "incident_transitions",
         "incident_cancellation_requests",
@@ -3187,6 +3197,8 @@ async def test_prompt_repository_retains_memory_schema_and_paired_regression(
 
 async def activate_prompt_for_model_call(
     sessions: async_sessionmaker[AsyncSession],
+    *,
+    audit_prefix: str = "model",
 ) -> PromptDefinition:
     ids = count(1)
     owner = Principal(ActorId("admin-model"), TenantId("tenant-1"), frozenset({Role.ADMIN}))
@@ -3202,7 +3214,7 @@ async def activate_prompt_for_model_call(
         await PromptLifecycleManager(
             PromptLifecycleRepository(session),
             clock=lambda: NOW,
-            id_factory=lambda: f"audit-model-prompt-{next(ids)}",
+            id_factory=lambda: f"audit-{audit_prefix}-prompt-{next(ids)}",
         ).draft(
             definition,
             principal=owner,
@@ -3213,7 +3225,7 @@ async def activate_prompt_for_model_call(
         await PromptLifecycleManager(
             PromptLifecycleRepository(session),
             clock=lambda: NOW,
-            id_factory=lambda: f"audit-model-prompt-{next(ids)}",
+            id_factory=lambda: f"audit-{audit_prefix}-prompt-{next(ids)}",
         ).evaluate(
             regression,
             principal=owner,
@@ -3224,7 +3236,7 @@ async def activate_prompt_for_model_call(
         return await PromptLifecycleManager(
             PromptLifecycleRepository(session),
             clock=lambda: NOW,
-            id_factory=lambda: f"audit-model-prompt-{next(ids)}",
+            id_factory=lambda: f"audit-{audit_prefix}-prompt-{next(ids)}",
         ).promote(
             reference,
             principal=owner,
@@ -3443,6 +3455,146 @@ async def test_model_call_trace_repository_records_exact_metadata_and_atomic_aud
                 ),
                 actor_id=ActorId("diagnosis-worker"),
                 failure_code="provider_timeout",
+            )
+
+
+@pytest.mark.anyio
+async def test_diagnosis_report_repository_binds_trace_gate_and_tenant(
+    engine: AsyncEngine,
+) -> None:
+    await add_incident(engine, "incident-diagnosis-report", tenant="tenant-1")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    prompt = await activate_prompt_for_model_call(sessions, audit_prefix="diagnosis-report")
+    report = DiagnosisReport(
+        schema_version="1.0.0",
+        incident_id="incident-diagnosis-report",
+        disposition=DiagnosisDisposition.CANDIDATES,
+        candidates=(
+            RootCauseCandidate(
+                candidate_id="candidate-pool",
+                rank=1,
+                statement="Connection pool exhaustion caused request failures.",
+                supporting_evidence_ids=("evidence-metric",),
+                counter_evidence_ids=(),
+                counter_evidence_treatment=CounterEvidenceTreatment.NOT_APPLICABLE,
+                missing_evidence=(),
+                uncertainty="The observation window is bounded.",
+                confidence_basis_points=8300,
+            ),
+        ),
+        missing_evidence=(),
+        explanation="One evidence-linked candidate remains.",
+    )
+    fingerprint = diagnosis_report_fingerprint(report)
+    manager_ids = count(1)
+    async with sessions.begin() as session:
+        started = await ModelCallTraceManager(
+            ModelCallTraceRepository(session),
+            clock=lambda: NOW + timedelta(minutes=10),
+            id_factory=lambda: f"diagnosis-trace-{next(manager_ids)}",
+        ).start(
+            tenant_id=TenantId("tenant-1"),
+            incident_id=IncidentId(report.incident_id),
+            workflow_run_id=WorkflowRunId("workflow-diagnosis-report"),
+            node="diagnosis.hypothesis",
+            attempt=1,
+            prompt=prompt,
+            request_hash=Sha256Digest("7" * 64),
+            actor_id=ActorId("diagnosis-worker"),
+            correlation_id=CorrelationId("correlation-diagnosis-report"),
+            causation_id=CausationId("hypothesis-node"),
+        )
+    async with sessions.begin() as session:
+        completed = await ModelCallTraceManager(
+            ModelCallTraceRepository(session),
+            clock=lambda: NOW + timedelta(minutes=11),
+            id_factory=lambda: f"diagnosis-trace-{next(manager_ids)}",
+        ).finish(
+            started,
+            status=ModelCallStatus.SUCCEEDED,
+            metering=ModelMetering(
+                None,
+                None,
+                ModelMeteringUnavailableReason.PROVIDER_DID_NOT_RETURN,
+            ),
+            actor_id=ActorId("diagnosis-worker"),
+            response_hash=fingerprint,
+        )
+    record = DiagnosisReportRecord(
+        tenant_id=TenantId("tenant-1"),
+        workflow_run_id=completed.workflow_run_id,
+        model_call_id=completed.id,
+        report=report,
+        report_fingerprint=fingerprint,
+        produced_at=cast(datetime, completed.completed_at),
+    )
+    audit = AuditEvent(
+        id=AuditEventId("audit-diagnosis-report"),
+        tenant_id=record.tenant_id,
+        type="diagnosis.report_recorded",
+        event_version=1,
+        payload_schema_version="diagnosis_report/v1",
+        actor_id=ActorId("diagnosis-worker"),
+        correlation_id=completed.correlation_id,
+        causation_id=completed.causation_id,
+        target=AuditTarget("diagnosis.report", OpaqueIdentifier(fingerprint.value)),
+        occurred_at=record.produced_at,
+        request_hash=model_call_trace_fingerprint(completed),
+        result_hash=fingerprint,
+    )
+    async with sessions.begin() as session:
+        repository = DiagnosisReportRepository(session)
+        assert await repository.record(record, audit) == record
+        assert await repository.record(record, audit) == record
+
+    claim_snapshot = evidence_gate_claim_snapshot(report.evidence_gate_claim("candidate-pool"))
+    input_snapshot: dict[str, object] = {"claim": claim_snapshot, "evidence": [], "rules": {}}
+    input_fingerprint = hashlib.sha256(
+        json.dumps(input_snapshot, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    async with sessions.begin() as session:
+        session.add(
+            EvidenceGateDecisionRow(
+                tenant_id="tenant-1",
+                incident_id=report.incident_id,
+                candidate_id="candidate-pool",
+                outcome="PASS",
+                reasons=[],
+                evaluated_evidence_ids=["evidence-metric"],
+                rules_version="1.1.0",
+                input_fingerprint=input_fingerprint,
+                input_snapshot=input_snapshot,
+                evaluated_at=record.produced_at + timedelta(seconds=1),
+                model_confidence_basis_points=8300,
+                schema_version="1.0.0",
+            )
+        )
+
+    async with sessions() as session:
+        repository = DiagnosisReportRepository(session)
+        stored = await repository.latest(
+            tenant_id=TenantId("tenant-1"), incident_id=record.incident_id
+        )
+        assert stored == record
+        assert (
+            await repository.latest(
+                tenant_id=TenantId("tenant-other"), incident_id=record.incident_id
+            )
+            is None
+        )
+        decisions = await repository.matching_gate_decisions(stored)
+        assert len(decisions) == 1
+        assert decisions[0].outcome is EvidenceGateOutcome.PASS
+        assert decisions[0].candidate_id == "candidate-pool"
+
+    async with sessions.begin() as session:
+        row = await session.scalar(select(DiagnosisReportRow))
+        assert row is not None
+        row.report_fingerprint = "f" * 64
+    async with sessions() as session:
+        with pytest.raises(InvalidDomainValueError, match="fingerprint"):
+            await DiagnosisReportRepository(session).latest(
+                tenant_id=TenantId("tenant-1"), incident_id=record.incident_id
             )
 
 

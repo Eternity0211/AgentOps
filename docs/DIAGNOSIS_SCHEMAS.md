@@ -23,6 +23,14 @@ IDs are still resolved against immutable tenant/Incident-owned records by the de
 schema validity cannot make a fabricated reference true. Unresolved counter-evidence and declared
 missing evidence remain visible to the Gate and therefore fail closed under the default rules.
 
+The structured report is stored as an immutable `DiagnosisReportRecord`, not as checkpoint model
+text. Its canonical fingerprint must equal the response hash of one successful, tenant- and
+Incident-bound `diagnosis.hypothesis` Model Call, and its production time must equal that call's
+completion time. The persistence adapter adds a hash-only audit record and revalidates these
+bindings on every read. The administration API joins only Evidence Gate decisions whose canonical
+claim snapshot exactly matches the corresponding candidate, preventing stale decisions from being
+presented beside a newer report.
+
 Both models are frozen, strict, and reject extra fields. Tests cover bounds, unsafe multiline text,
 duplicate and crossed references, invalid dependency graphs, rank/identity consistency, all
 non-candidate dispositions, explicit counter-evidence handling, unknown fields, and exact Gate

@@ -106,6 +106,66 @@ test("shows incident lifecycle details and cursor-paged workflow history", async
   await mockViewerSession(page);
   await page.route("**/api/v1/incidents/incident-detail**", (route) => {
     const requestUrl = new URL(route.request().url());
+    if (requestUrl.pathname.endsWith("/evidence/evidence-browser/artifact")) {
+      const hash = "a".repeat(64);
+      return route.fulfill({
+        contentType: "application/json",
+        headers: {
+          "Cache-Control": "private, no-store",
+          ETag: `"sha256:${hash}"`,
+          "X-Artifact-ID": "artifact-browser",
+          "X-Content-SHA256": hash,
+          "X-Content-Schema-Version": "1.0.0",
+          "X-Redaction-Status": "REDACTED",
+        },
+        body: JSON.stringify({ pattern: "HTTP 500", count: 42 }),
+      });
+    }
+    if (requestUrl.pathname.endsWith("/evidence")) {
+      const continued = requestUrl.searchParams.has("cursor");
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          items: [
+            {
+              id: continued ? "evidence-expired" : "evidence-browser",
+              incident_id: "incident-detail",
+              source_type: continued ? "DEPLOYMENT" : "LOG",
+              source_instance: continued ? "deployment-events" : "loki-primary",
+              tool_name: continued ? "query_deployments" : "query_logs",
+              tool_version: "1.0.0",
+              tool_schema_version: "1.0.0",
+              normalized_query: continued
+                ? { service: "orders" }
+                : { service: "orders", level: "error" },
+              observed_from: "2026-10-11T10:00:00Z",
+              observed_to: "2026-10-11T10:01:00Z",
+              collected_at: continued
+                ? "2026-10-11T10:03:00Z"
+                : "2026-10-11T10:02:00Z",
+              artifact_id: continued ? "artifact-expired" : "artifact-browser",
+              content_hash: continued ? "b".repeat(64) : "a".repeat(64),
+              parser_version: "1.0.0",
+              normalizer_version: "1.0.0",
+              quality_score_basis_points: continued ? 7000 : 9500,
+              quality_reasons: ["complete-window"],
+              tool_call_id: continued ? "tool-expired" : "tool-browser",
+              workflow_run_id: "run-browser",
+              redaction_transform_id: continued ? null : "redaction-browser",
+              parent_evidence_ids: continued ? ["evidence-browser"] : [],
+              trust: continued ? "UNTRUSTED_INPUT" : "DIRECT_OBSERVATION",
+              prompt_injection_status: continued ? "QUARANTINED" : "NONE",
+              expires_at: continued
+                ? "2026-10-11T10:04:00Z"
+                : "2026-10-18T10:02:00Z",
+              expired: continued,
+              schema_version: "1.0.0",
+            },
+          ],
+          next_cursor: continued ? null : "evidence-next",
+        }),
+      });
+    }
     if (requestUrl.pathname.endsWith("/investigation")) {
       return route.fulfill({
         contentType: "application/json",
@@ -227,7 +287,9 @@ test("shows incident lifecycle details and cursor-paged workflow history", async
   await expect(
     page.getByRole("heading", { level: 1, name: "incident-detail" }),
   ).toBeVisible();
-  await expect(page.getByText("orders", { exact: true })).toBeVisible();
+  await expect(
+    page.locator(".incident-badges").getByText("orders", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: /TRIAGED.*INVESTIGATING/ }),
   ).toBeVisible();
@@ -245,6 +307,28 @@ test("shows incident lifecycle details and cursor-paged workflow history", async
   await expect(
     page.getByText(/Attempt 1.*2: MORE EVIDENCE REQUIRED/),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Evidence and artifacts" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "evidence-browser" }),
+  ).toBeVisible();
+  await expect(page.getByText("95.00% · complete-window")).toBeVisible();
+  await expect(page.getByText("SHA-256 " + "a".repeat(64))).toBeVisible();
+  await page.getByRole("button", { name: "View verified artifact" }).click();
+  await expect(page.getByLabel("Verified artifact content")).toContainText(
+    '"pattern":"HTTP 500"',
+  );
+  await expect(page.getByText("REDACTED")).toBeVisible();
+  await page.getByRole("button", { name: "Load more evidence" }).click();
+  await expect(
+    page.getByRole("heading", { name: "evidence-expired" }),
+  ).toBeVisible();
+  await expect(page.getByText("Injection: QUARANTINED")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Artifact expired" }),
+  ).toBeDisabled();
+  await expect(page.getByText("2 evidence records loaded")).toBeVisible();
 
   await page.getByRole("button", { name: "Load more events" }).click();
   await expect(

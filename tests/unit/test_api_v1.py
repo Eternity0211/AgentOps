@@ -338,6 +338,10 @@ async def test_artifact_route_verifies_binding_and_maps_storage_failures() -> No
     assert response.body == b"{}"
     assert response.media_type == "application/json"
     assert response.headers["x-artifact-id"] == "artifact-a"
+    assert response.headers["x-content-sha256"] == "a" * 64
+    assert response.headers["x-content-schema-version"] == "1.0.0"
+    assert response.headers["x-redaction-status"] == "REDACTED"
+    assert response.headers["etag"] == f'"sha256:{"a" * 64}"'
     assert response.headers["cache-control"] == "private, no-store"
 
     failure_cases = [

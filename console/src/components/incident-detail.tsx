@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { EvidenceView } from "@/components/evidence-view";
+import { loadEvidence, type EvidencePage } from "@/lib/evidence";
 import {
   loadIncident,
   type IncidentDetail as IncidentRecord,
@@ -25,6 +27,7 @@ type DetailState =
       incident: IncidentRecord;
       timeline: TimelinePage;
       investigation: InvestigationProgress | null;
+      evidence: EvidencePage;
     };
 
 function displayState(value: string) {
@@ -242,10 +245,17 @@ export function IncidentDetail({
       loadIncident(incidentId, controller.signal),
       loadTimeline(incidentId, undefined, controller.signal),
       loadInvestigation(incidentId, controller.signal),
+      loadEvidence(incidentId, undefined, controller.signal),
     ]).then(
-      ([incident, timeline, investigation]) => {
+      ([incident, timeline, investigation, evidence]) => {
         if (!controller.signal.aborted) {
-          setState({ status: "ready", incident, timeline, investigation });
+          setState({
+            status: "ready",
+            incident,
+            timeline,
+            investigation,
+            evidence,
+          });
         }
       },
       (reason: unknown) => {
@@ -310,7 +320,7 @@ export function IncidentDetail({
     );
   }
 
-  const { incident, timeline, investigation } = state;
+  const { incident, timeline, investigation, evidence } = state;
   return (
     <main>
       <Link className="back-link" href="/incidents">
@@ -359,6 +369,8 @@ export function IncidentDetail({
       </section>
 
       <InvestigationView investigation={investigation} />
+
+      <EvidenceView incidentId={incidentId} initialPage={evidence} />
 
       <section aria-labelledby="workflow-timeline" className="timeline-section">
         <div className="section-heading">

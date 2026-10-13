@@ -10,9 +10,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { IncidentDetail } from "./incident-detail";
 
 const mocks = vi.hoisted(() => ({
+  loadEvidence: vi.fn(),
   loadIncident: vi.fn(),
   loadInvestigation: vi.fn(),
   loadTimeline: vi.fn(),
+}));
+
+vi.mock("@/lib/evidence", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/evidence")>()),
+  loadEvidence: mocks.loadEvidence,
 }));
 
 vi.mock("@/lib/incidents", async (importOriginal) => ({
@@ -124,6 +130,10 @@ const investigation = {
 };
 
 beforeEach(() => {
+  mocks.loadEvidence.mockReset().mockResolvedValue({
+    items: [],
+    nextCursor: null,
+  });
   mocks.loadIncident.mockReset();
   mocks.loadInvestigation.mockReset().mockResolvedValue(null);
   mocks.loadTimeline.mockReset();
@@ -310,6 +320,18 @@ describe("IncidentDetail", () => {
     mocks.loadIncident.mockResolvedValue(incident);
     mocks.loadTimeline.mockResolvedValue({ items: [], nextCursor: null });
     mocks.loadInvestigation.mockRejectedValue(new Error("invalid projection"));
+    render(<IncidentDetail incidentId="incident-1" />);
+    expect(
+      await screen.findByRole("heading", {
+        name: "Incident details could not be loaded",
+      }),
+    ).toBeVisible();
+  });
+
+  it("fails the complete read-only view when evidence loading fails", async () => {
+    mocks.loadIncident.mockResolvedValue(incident);
+    mocks.loadTimeline.mockResolvedValue({ items: [], nextCursor: null });
+    mocks.loadEvidence.mockRejectedValue(new Error("invalid evidence"));
     render(<IncidentDetail incidentId="incident-1" />);
     expect(
       await screen.findByRole("heading", {

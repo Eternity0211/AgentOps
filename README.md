@@ -188,7 +188,11 @@ correlation, and causation metadata. The same view renders a fingerprint-verifie
 Diagnosis projection with plan attempts, per-tool status, exact resource-budget consumption,
 bounded replan history, failure/exhaustion, and human-handoff state. Detail, timeline, and
 investigation failures remain read-only and never cause the client to infer a state or dispatch a
-control action.
+control action. The detail view also validates and pages Incident-owned Evidence provenance,
+including query/time/hash/version/quality/expiry/trust/lineage fields. Artifact content is fetched
+only on explicit user intent, checked against its immutable Evidence binding and safe response
+headers, and rendered only as bounded escaped text or JSON; unsupported, oversized, expired, or
+unverifiable content remains closed without any workflow mutation.
 
 From `console/`, use `npm ci` for a locked install, `npm run verify` for formatting, linting,
 strict type checks, unit coverage, and a production build, and `npm run test:browser` for the

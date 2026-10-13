@@ -36,13 +36,24 @@ available only for pages visited in the current client session. Loading, empty, 
 failure states remain read-only, while the table is horizontally contained on narrow screens.
 
 `/incidents/{incident_id}` concurrently requests the tenant-scoped Incident, its first timeline
-page, and its latest Diagnosis progress projection. The lifecycle summary shows the server-owned
-service, severity, state, optimistic version, and opened/updated/closure/cancellation timestamps.
+and Evidence pages, and its latest Diagnosis progress projection. The lifecycle summary shows the
+server-owned service, severity, state, optimistic version, and
+opened/updated/closure/cancellation timestamps.
 The investigation section shows server-persisted plan attempts, read-tool status and dependencies,
 used/maximum/remaining budgets, bounded replan decisions, exhaustion, failures, and human handoff;
 it does not reconstruct progress from the timeline. The ordered history distinguishes state
 transitions from cancellation requests and preserves their actor, reason, version, correlation,
 causation, and disposition metadata. Additional pages replay the server-provided opaque cursor
-unchanged. Initial failures fail the whole view closed; later-page failures preserve already
-validated events and offer a read-only retry. Navigation or replacement requests abort stale
-reads, and no response path mutates an Incident or derives workflow authority in the browser.
+unchanged.
+
+The Evidence section validates Incident ownership in every returned record before showing source,
+normalized query, observation/collection times, immutable Artifact binding, hash, tool/parser/
+normalizer/schema versions, deterministic quality reasons, expiry, trust, injection status, and
+lineage. Artifact bytes are requested only after an explicit user action. The client checks the
+Artifact ID and hash against Evidence plus the server's private/no-store, ETag, schema, media-type,
+and redaction headers before rendering bounded `text/*` or JSON as escaped text. Binary content
+and text over 256 KiB are verified but not rendered; expired Evidence disables retrieval, and
+expiry, integrity, storage, and transport failures never expose partial content. Initial failures
+fail the whole view closed; later-page failures preserve already validated records and offer a
+read-only retry. Navigation or replacement requests abort stale reads, and no response path
+mutates an Incident or derives workflow authority in the browser.

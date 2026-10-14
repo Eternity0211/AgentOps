@@ -1,5 +1,5 @@
 {
-  "sha256": "5fe01b010409a7a99d6bff7073abace2a8aa5255728cafaf1c8b90e1e7cc0eb2",
+  "sha256": "dddb2b6a8ba325e62cfa457724ef1916d14e0cb76ac78f07dd37c91a3620a580",
   "paths": {
     "/api/v1/approvals": ["get"],
     "/api/v1/approvals/{approval_id}": ["get"],
@@ -10,6 +10,7 @@
     "/api/v1/incidents/{incident_id}": ["get"],
     "/api/v1/incidents/{incident_id}/diagnosis": ["get"],
     "/api/v1/incidents/{incident_id}/investigation": ["get"],
+    "/api/v1/incidents/{incident_id}/recovery": ["get"],
     "/api/v1/incidents/{incident_id}/evidence": ["get"],
     "/api/v1/incidents/{incident_id}/evidence/{evidence_id}": ["get"],
     "/api/v1/incidents/{incident_id}/evidence/{evidence_id}/artifact": ["get"],
@@ -31,6 +32,7 @@
     "AuditEventView",
     "AuditPage",
     "BudgetCounterView",
+    "CompensationView",
     "ControlRequest",
     "ControlResult",
     "DiagnosisResultEnvelope",
@@ -52,10 +54,18 @@
     "PolicyReasonView",
     "ProblemDetail",
     "ProposalDiffEntry",
+    "RecoveryExecutionView",
+    "RecoveryRouteTransitionView",
+    "RecoveryRouteView",
+    "RecoverySnapshotView",
+    "RecoveryVerificationView",
+    "RecoveryView",
     "ReplanView",
     "RootCauseCandidateView",
     "SessionView",
     "TimelineEventView",
-    "TimelinePage"
+    "TimelinePage",
+    "VerificationEvidenceView",
+    "VerificationSampleView"
   ]
 }

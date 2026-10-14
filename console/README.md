@@ -36,8 +36,8 @@ available only for pages visited in the current client session. Loading, empty, 
 failure states remain read-only, while the table is horizontally contained on narrow screens.
 
 `/incidents/{incident_id}` concurrently requests the tenant-scoped Incident, its first timeline
-and Evidence pages, its latest Diagnosis progress projection, and its latest verified Diagnosis
-report. The lifecycle summary shows the
+and Evidence pages, its latest Diagnosis progress projection, latest verified Diagnosis report,
+and integrity-checked recovery projection. The lifecycle summary shows the
 server-owned service, severity, state, optimistic version, and
 opened/updated/closure/cancellation timestamps.
 The investigation section shows server-persisted plan attempts, read-tool status and dependencies,
@@ -64,6 +64,15 @@ Evidence cards, preserves missing evidence and uncertainty, labels model confide
 non-authoritative, and displays only deterministically matched Evidence Gate outcomes, reasons,
 versions, times, and fingerprints. Empty reports remain explicit and invalid or corrupt response
 shapes fail the complete read-only view closed.
+
+The recovery section compares immutable executor before/after deployment snapshots and renders the
+deterministic verifier's first and last values for error rate, P95 latency, health endpoint,
+deployed version, and new alerts across the persisted stability window. Every signal links to its
+Evidence record; PASS/FAIL reasons, fingerprints, and the exact closure, bounded re-diagnosis,
+human-handoff, or deferred-cancellation transitions remain visible. A missing verifier result is
+pending, never inferred success. The console always displays that `rollback_service` is itself the
+recovery action, has no separate compensation authorization, and cannot automatically redeploy the
+known faulty version after failed verification.
 
 `/approvals` is available only when the authenticated session includes `approval:decide`. It pages
 tenant-authorized Approval summaries and shows risk, status, expiry, invalidation, and server-owned

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { EvidenceView } from "@/components/evidence-view";
 import { DiagnosisResults } from "@/components/diagnosis-results";
+import { RecoveryView } from "@/components/recovery-view";
 import { loadDiagnosis, type DiagnosisResult } from "@/lib/diagnosis";
 import { loadEvidence, type EvidencePage } from "@/lib/evidence";
 import {
@@ -15,6 +16,7 @@ import {
   loadInvestigation,
   type InvestigationProgress,
 } from "@/lib/investigation";
+import { loadRecovery, type RecoveryResult } from "@/lib/recovery";
 import {
   loadTimeline,
   type TimelineEvent,
@@ -31,6 +33,7 @@ type DetailState =
       investigation: InvestigationProgress | null;
       diagnosis: DiagnosisResult | null;
       evidence: EvidencePage;
+      recovery: RecoveryResult;
     };
 
 function displayState(value: string) {
@@ -250,8 +253,9 @@ export function IncidentDetail({
       loadInvestigation(incidentId, controller.signal),
       loadDiagnosis(incidentId, controller.signal),
       loadEvidence(incidentId, undefined, controller.signal),
+      loadRecovery(incidentId, controller.signal),
     ]).then(
-      ([incident, timeline, investigation, diagnosis, evidence]) => {
+      ([incident, timeline, investigation, diagnosis, evidence, recovery]) => {
         if (!controller.signal.aborted) {
           setState({
             status: "ready",
@@ -260,6 +264,7 @@ export function IncidentDetail({
             investigation,
             diagnosis,
             evidence,
+            recovery,
           });
         }
       },
@@ -325,7 +330,8 @@ export function IncidentDetail({
     );
   }
 
-  const { incident, timeline, investigation, diagnosis, evidence } = state;
+  const { incident, timeline, investigation, diagnosis, evidence, recovery } =
+    state;
   return (
     <main>
       <Link className="back-link" href="/incidents">
@@ -376,6 +382,8 @@ export function IncidentDetail({
       <InvestigationView investigation={investigation} />
 
       <DiagnosisResults result={diagnosis} />
+
+      <RecoveryView incidentId={incidentId} recovery={recovery} />
 
       <EvidenceView incidentId={incidentId} initialPage={evidence} />
 

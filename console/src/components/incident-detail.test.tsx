@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   loadDiagnosis: vi.fn(),
   loadIncident: vi.fn(),
   loadInvestigation: vi.fn(),
+  loadRecovery: vi.fn(),
   loadTimeline: vi.fn(),
 }));
 
@@ -40,6 +41,11 @@ vi.mock("@/lib/timeline", async (importOriginal) => ({
 vi.mock("@/lib/investigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/investigation")>()),
   loadInvestigation: mocks.loadInvestigation,
+}));
+
+vi.mock("@/lib/recovery", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/recovery")>()),
+  loadRecovery: mocks.loadRecovery,
 }));
 
 const incident = {
@@ -143,6 +149,17 @@ beforeEach(() => {
   });
   mocks.loadIncident.mockReset();
   mocks.loadInvestigation.mockReset().mockResolvedValue(null);
+  mocks.loadRecovery.mockReset().mockResolvedValue({
+    execution: null,
+    verification: null,
+    route: null,
+    compensation: {
+      eligible: false,
+      separatelyAuthorized: false,
+      status: "FORBIDDEN_FOR_ROLLBACK_SERVICE",
+      detail: "rollback_service is non-compensable.",
+    },
+  });
   mocks.loadTimeline.mockReset();
 });
 
@@ -339,6 +356,20 @@ describe("IncidentDetail", () => {
     mocks.loadIncident.mockResolvedValue(incident);
     mocks.loadTimeline.mockResolvedValue({ items: [], nextCursor: null });
     mocks.loadEvidence.mockRejectedValue(new Error("invalid evidence"));
+    render(<IncidentDetail incidentId="incident-1" />);
+    expect(
+      await screen.findByRole("heading", {
+        name: "Incident details could not be loaded",
+      }),
+    ).toBeVisible();
+  });
+
+  it("fails the complete read-only view when recovery integrity loading fails", async () => {
+    mocks.loadIncident.mockResolvedValue(incident);
+    mocks.loadTimeline.mockResolvedValue({ items: [], nextCursor: null });
+    mocks.loadRecovery.mockRejectedValue(
+      new Error("invalid recovery response"),
+    );
     render(<IncidentDetail incidentId="incident-1" />);
     expect(
       await screen.findByRole("heading", {

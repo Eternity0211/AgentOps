@@ -5,6 +5,7 @@ import hashlib
 import json
 from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import datetime
+from itertools import pairwise
 from typing import Annotated, Literal
 from uuid import uuid4
 
@@ -20,6 +21,9 @@ from agentops_incident_commander.application import (
     evidence_gate_decision_fingerprint,
 )
 from agentops_incident_commander.domain import (
+    ActionExecution,
+    ActionExecutionStatus,
+    ActionSnapshot,
     ActorId,
     AggregateVersion,
     Approval,
@@ -40,6 +44,10 @@ from agentops_incident_commander.domain import (
     EventMetadata,
     EventReason,
     EvidenceGateDecision,
+    HealthVerificationDecision,
+    HealthVerificationObservation,
+    HealthVerificationOutcome,
+    HealthVerificationSample,
     IncidentId,
     IncidentSeverity,
     IncidentState,
@@ -67,9 +75,11 @@ from agentops_incident_commander.infrastructure.persistence.models import (
     IncidentTransitionRow,
 )
 from agentops_incident_commander.infrastructure.persistence.repositories import (
+    ActionExecutionRepository,
     ApprovalLifecycleRepository,
     AuditRepository,
     DiagnosisReportRepository,
+    HealthVerificationRepository,
     IncidentRepository,
 )
 from agentops_incident_commander.workflows import DiagnosisReportRecord, RemediationProposal
@@ -277,6 +287,113 @@ class DiagnosisResultView(ApiModel):
 
 class DiagnosisResultEnvelope(ApiModel):
     result: DiagnosisResultView | None
+
+
+class RecoverySnapshotView(ApiModel):
+    artifact_id: str
+    content_hash: str
+    deployed_version: str
+    observed_at: datetime
+
+
+class RecoveryExecutionView(ApiModel):
+    id: str
+    action: Literal["rollback_service"]
+    approval_id: str
+    actor_id: str
+    status: str
+    version: int
+    service: str
+    environment: str
+    target_reference: str
+    expected_current_version: str
+    stable_version: str
+    before: RecoverySnapshotView
+    after: RecoverySnapshotView | None
+    started_at: datetime
+    completed_at: datetime | None
+    failure_code: str | None
+    proposal_fingerprint: str
+    policy_decision_fingerprint: str
+    execution_fingerprint: str
+    schema_version: str
+
+
+class VerificationSampleView(ApiModel):
+    observed_at: datetime
+    error_rate_basis_points: int
+    p95_latency_ms: int
+    health_endpoint_healthy: bool
+    deployed_version: str
+    new_alert_count: int
+
+
+class VerificationEvidenceView(ApiModel):
+    error_rate: str
+    p95_latency: str
+    health_endpoint: str
+    deployed_version: str
+    new_alerts: str
+
+
+class RecoveryVerificationView(ApiModel):
+    id: str
+    observation_id: str
+    scenario: str
+    outcome: str
+    reasons: list[str]
+    service: str
+    environment: str
+    expected_stable_version: str
+    window_started_at: datetime
+    window_ended_at: datetime
+    window_duration_seconds: int
+    sample_count: int
+    first_sample: VerificationSampleView
+    last_sample: VerificationSampleView
+    evidence: VerificationEvidenceView
+    collected_at: datetime
+    expires_at: datetime
+    evaluated_at: datetime
+    criteria_fingerprint: str
+    observation_fingerprint: str
+    execution_fingerprint: str
+    input_fingerprint: str
+    decision_fingerprint: str
+    rules_version: str
+    schema_version: str
+
+
+class RecoveryRouteTransitionView(ApiModel):
+    prior_state: str
+    new_state: str
+    prior_version: int
+    new_version: int
+    reason: str
+    actor_id: str
+    correlation_id: str
+    causation_id: str
+    occurred_at: datetime
+
+
+class RecoveryRouteView(ApiModel):
+    status: Literal["PENDING", "CLOSED", "REDIAGNOSE", "NEEDS_HUMAN", "CANCELLED"]
+    final_state: str | None
+    transitions: list[RecoveryRouteTransitionView]
+
+
+class CompensationView(ApiModel):
+    eligible: Literal[False]
+    separately_authorized: Literal[False]
+    status: Literal["FORBIDDEN_FOR_ROLLBACK_SERVICE"]
+    detail: str
+
+
+class RecoveryView(ApiModel):
+    execution: RecoveryExecutionView | None
+    verification: RecoveryVerificationView | None
+    route: RecoveryRouteView | None
+    compensation: CompensationView
 
 
 class AuditEventView(ApiModel):
@@ -615,6 +732,213 @@ def _evidence_view(row: EvidenceRow, *, at: datetime) -> EvidenceView:
         expires_at=row.expires_at,
         expired=as_utc(at) >= as_utc(row.expires_at),
         schema_version=row.schema_version,
+    )
+
+
+def _recovery_snapshot_view(snapshot: ActionSnapshot) -> RecoverySnapshotView:
+    return RecoverySnapshotView(
+        artifact_id=snapshot.artifact_id.value,
+        content_hash=snapshot.content_hash.value,
+        deployed_version=snapshot.deployed_version.value,
+        observed_at=snapshot.observed_at,
+    )
+
+
+def _verification_sample_view(sample: HealthVerificationSample) -> VerificationSampleView:
+    return VerificationSampleView(
+        observed_at=sample.observed_at,
+        error_rate_basis_points=sample.error_rate_basis_points,
+        p95_latency_ms=sample.p95_latency_ms,
+        health_endpoint_healthy=sample.health_endpoint_healthy,
+        deployed_version=sample.deployed_version.value,
+        new_alert_count=sample.new_alert_count,
+    )
+
+
+def _recovery_route_view(
+    decision: HealthVerificationDecision,
+    rows: tuple[IncidentTransitionRow, ...],
+) -> RecoveryRouteView:
+    status_value: Literal["PENDING", "CLOSED", "REDIAGNOSE", "NEEDS_HUMAN", "CANCELLED"]
+    if any(
+        row.incident_id != decision.incident_id.value
+        or row.causation_id != decision.id.value
+        or row.occurred_at < decision.evaluated_at
+        for row in rows
+    ):
+        raise InvalidDomainValueError("health verification route scope is invalid")
+    if any(current.new_version != following.prior_version for current, following in pairwise(rows)):
+        raise InvalidDomainValueError("health verification route versions are discontinuous")
+    if not rows:
+        return RecoveryRouteView(status="PENDING", final_state=None, transitions=[])
+    if decision.outcome is HealthVerificationOutcome.PASS:
+        valid = (
+            len(rows) == 2
+            and rows[0].prior_state == IncidentState.VERIFYING.value
+            and rows[0].new_state == IncidentState.RESOLVED.value
+            and rows[1].prior_state == IncidentState.RESOLVED.value
+            and rows[1].new_state == IncidentState.CLOSED.value
+        )
+        status_value = "CLOSED"
+    else:
+        valid_primary = (
+            len(rows) in (1, 2)
+            and rows[0].prior_state == IncidentState.VERIFYING.value
+            and rows[0].new_state
+            in (IncidentState.INVESTIGATING.value, IncidentState.NEEDS_HUMAN.value)
+            and "compensation=forbidden" in rows[0].reason
+        )
+        valid_cancel = len(rows) == 1 or (
+            rows[1].prior_state == rows[0].new_state
+            and rows[1].new_state == IncidentState.CANCELLED.value
+        )
+        valid = valid_primary and valid_cancel
+        status_value = (
+            "CANCELLED"
+            if len(rows) == 2
+            else (
+                "REDIAGNOSE"
+                if rows[0].new_state == IncidentState.INVESTIGATING.value
+                else "NEEDS_HUMAN"
+            )
+        )
+    if not valid:
+        raise InvalidDomainValueError("health verification route is invalid")
+    return RecoveryRouteView(
+        status=status_value,
+        final_state=rows[-1].new_state,
+        transitions=[
+            RecoveryRouteTransitionView(
+                prior_state=row.prior_state,
+                new_state=row.new_state,
+                prior_version=row.prior_version,
+                new_version=row.new_version,
+                reason=row.reason,
+                actor_id=row.actor_id,
+                correlation_id=row.correlation_id,
+                causation_id=row.causation_id,
+                occurred_at=row.occurred_at,
+            )
+            for row in rows
+        ],
+    )
+
+
+def _recovery_view(
+    execution: ActionExecution | None,
+    verification: tuple[HealthVerificationObservation, HealthVerificationDecision] | None,
+    route_rows: tuple[IncidentTransitionRow, ...],
+) -> RecoveryView:
+    compensation = CompensationView(
+        eligible=False,
+        separately_authorized=False,
+        status="FORBIDDEN_FOR_ROLLBACK_SERVICE",
+        detail=(
+            "rollback_service is the recovery action itself. A failed verification routes "
+            "to bounded re-diagnosis or human handoff and never redeploys the known faulty version."
+        ),
+    )
+    if execution is None:
+        if verification is not None or route_rows:
+            raise InvalidDomainValueError("recovery records exist without an action execution")
+        return RecoveryView(
+            execution=None,
+            verification=None,
+            route=None,
+            compensation=compensation,
+        )
+    execution_view = RecoveryExecutionView(
+        id=execution.id.value,
+        action="rollback_service",
+        approval_id=execution.approval_id.value,
+        actor_id=execution.actor_id.value,
+        status=execution.status.value,
+        version=execution.version.value,
+        service=execution.target.service,
+        environment=execution.target.environment.value,
+        target_reference=execution.target.target_reference.value,
+        expected_current_version=execution.target.expected_current_version.value,
+        stable_version=execution.target.stable_version.value,
+        before=_recovery_snapshot_view(execution.before_snapshot),
+        after=(
+            None
+            if execution.after_snapshot is None
+            else _recovery_snapshot_view(execution.after_snapshot)
+        ),
+        started_at=execution.started_at,
+        completed_at=execution.completed_at,
+        failure_code=execution.failure_code,
+        proposal_fingerprint=execution.proposal_fingerprint.value,
+        policy_decision_fingerprint=execution.policy_decision_fingerprint.value,
+        execution_fingerprint=execution.fingerprint.value,
+        schema_version=execution.schema_version,
+    )
+    if verification is None:
+        if route_rows:
+            raise InvalidDomainValueError("recovery route exists without verification")
+        return RecoveryView(
+            execution=execution_view,
+            verification=None,
+            route=None,
+            compensation=compensation,
+        )
+    observation, decision = verification
+    if (
+        execution.status is not ActionExecutionStatus.SUCCEEDED
+        or observation.tenant_id != execution.tenant_id
+        or decision.tenant_id != execution.tenant_id
+        or observation.incident_id != execution.incident_id
+        or decision.incident_id != execution.incident_id
+        or observation.action_execution_id != execution.id
+        or decision.action_execution_id != execution.id
+        or observation.service != execution.target.service
+        or observation.environment is not execution.target.environment
+        or observation.expected_stable_version != execution.target.stable_version
+        or decision.observation_fingerprint != observation.fingerprint
+        or decision.execution_fingerprint != execution.fingerprint
+    ):
+        raise InvalidDomainValueError("health verification is not bound to the execution")
+    first, last = observation.samples[0], observation.samples[-1]
+    verification_view = RecoveryVerificationView(
+        id=decision.id.value,
+        observation_id=observation.id.value,
+        scenario=decision.scenario.value,
+        outcome=decision.outcome.value,
+        reasons=[reason.value for reason in decision.reasons],
+        service=observation.service,
+        environment=observation.environment.value,
+        expected_stable_version=observation.expected_stable_version.value,
+        window_started_at=observation.window_started_at,
+        window_ended_at=observation.window_ended_at,
+        window_duration_seconds=int(
+            (observation.window_ended_at - observation.window_started_at).total_seconds()
+        ),
+        sample_count=len(observation.samples),
+        first_sample=_verification_sample_view(first),
+        last_sample=_verification_sample_view(last),
+        evidence=VerificationEvidenceView(
+            error_rate=observation.error_rate_evidence_id.value,
+            p95_latency=observation.p95_latency_evidence_id.value,
+            health_endpoint=observation.health_endpoint_evidence_id.value,
+            deployed_version=observation.deployed_version_evidence_id.value,
+            new_alerts=observation.new_alerts_evidence_id.value,
+        ),
+        collected_at=observation.collected_at,
+        expires_at=observation.expires_at,
+        evaluated_at=decision.evaluated_at,
+        criteria_fingerprint=decision.criteria_fingerprint.value,
+        observation_fingerprint=decision.observation_fingerprint.value,
+        execution_fingerprint=decision.execution_fingerprint.value,
+        input_fingerprint=decision.input_fingerprint.value,
+        decision_fingerprint=decision.fingerprint.value,
+        rules_version=decision.rules_version.value,
+        schema_version=decision.schema_version,
+    )
+    return RecoveryView(
+        execution=execution_view,
+        verification=verification_view,
+        route=_recovery_route_view(decision, route_rows),
+        compensation=compensation,
     )
 
 
@@ -1216,6 +1540,60 @@ def build_api_v1_router(
                 "DIAGNOSIS_RESULT_INTEGRITY_FAILED",
                 "Diagnosis result integrity failed",
                 "the persisted diagnosis result could not be verified",
+            ) from error
+
+    @router.get(
+        "/incidents/{incident_id}/recovery",
+        response_model=RecoveryView,
+    )
+    async def get_recovery(
+        incident_id: str, session: Session, principal: Authenticated
+    ) -> RecoveryView:
+        _authorized(principal, Permission.INCIDENT_READ)
+        owned = await session.scalar(
+            select(IncidentRow.id).where(
+                IncidentRow.id == incident_id,
+                IncidentRow.tenant_id == principal.tenant_id.value,
+            )
+        )
+        if owned is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "incident not found")
+        try:
+            execution = await ActionExecutionRepository(session).latest_for_incident(
+                tenant_id=principal.tenant_id,
+                incident_id=IncidentId(incident_id),
+            )
+            verification = (
+                None
+                if execution is None
+                else await HealthVerificationRepository(session).for_execution(
+                    execution.id,
+                    tenant_id=principal.tenant_id,
+                    incident_id=IncidentId(incident_id),
+                )
+            )
+            route_rows: tuple[IncidentTransitionRow, ...] = ()
+            if verification is not None:
+                decision = verification[1]
+                route_rows = tuple(
+                    (
+                        await session.scalars(
+                            select(IncidentTransitionRow)
+                            .where(
+                                IncidentTransitionRow.incident_id == incident_id,
+                                IncidentTransitionRow.causation_id == decision.id.value,
+                            )
+                            .order_by(IncidentTransitionRow.new_version)
+                        )
+                    ).all()
+                )
+            return _recovery_view(execution, verification, route_rows)
+        except InvalidDomainValueError as error:
+            raise problem(
+                status.HTTP_409_CONFLICT,
+                "RECOVERY_RESULT_INTEGRITY_FAILED",
+                "Recovery result integrity failed",
+                "the persisted recovery result could not be verified",
             ) from error
 
     @router.get("/incidents/{incident_id}/evidence", response_model=EvidencePage)

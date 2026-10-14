@@ -1513,6 +1513,24 @@ class ActionExecutionRepository:
         )
         return None if row is None else _action_execution_from_row(row)
 
+    async def latest_for_incident(
+        self,
+        *,
+        tenant_id: TenantId,
+        incident_id: IncidentId,
+    ) -> ActionExecution | None:
+        """Return the latest integrity-checked execution in the exact incident scope."""
+        row = await self._session.scalar(
+            select(ActionExecutionRow)
+            .where(
+                ActionExecutionRow.tenant_id == tenant_id.value,
+                ActionExecutionRow.incident_id == incident_id.value,
+            )
+            .order_by(ActionExecutionRow.started_at.desc(), ActionExecutionRow.id.desc())
+            .limit(1)
+        )
+        return None if row is None else _action_execution_from_row(row)
+
     async def claim(
         self,
         execution: ActionExecution,
@@ -1963,6 +1981,37 @@ class HealthVerificationRepository:
             )
         )
         return None if row is None else _health_verification_from_row(row)
+
+    async def for_execution(
+        self,
+        execution_id: OpaqueIdentifier,
+        *,
+        tenant_id: TenantId,
+        incident_id: IncidentId,
+    ) -> tuple[HealthVerificationObservation, HealthVerificationDecision] | None:
+        """Return the sole integrity-checked verifier result for an execution."""
+        rows = tuple(
+            (
+                await self._session.scalars(
+                    select(HealthVerificationRunRow)
+                    .where(
+                        HealthVerificationRunRow.action_execution_id == execution_id.value,
+                        HealthVerificationRunRow.tenant_id == tenant_id.value,
+                        HealthVerificationRunRow.incident_id == incident_id.value,
+                    )
+                    .order_by(
+                        HealthVerificationRunRow.evaluated_at.desc(),
+                        HealthVerificationRunRow.id.desc(),
+                    )
+                    .limit(2)
+                )
+            ).all()
+        )
+        if len(rows) > 1:
+            raise InvalidDomainValueError(
+                "multiple health verification results exist for one action execution"
+            )
+        return None if not rows else _health_verification_from_row(rows[0])
 
     async def resolve_and_close(
         self,

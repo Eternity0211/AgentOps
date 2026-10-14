@@ -227,7 +227,7 @@ Exit: the system never self-declares recovery; observed success closes the incid
 - [x] Implement Evidence/Artifact view with provenance, query/time/hash/version/quality/expiry/trust.
 - [x] Show ranked root causes, supporting evidence, counter-evidence, missing evidence, and gate result.
 - [x] Implement approval center with immutable proposal diff, risk/policy reasons, expiry, separation-of-duties feedback, approve/reject.
-- [ ] Show execution before/after metrics, service versions, trace links, verification window, failure route, and any separately authorized compensation.
+- [x] Show execution before/after metrics, service versions, trace links, verification window, failure route, and any separately authorized compensation.
 - [ ] Show agent-platform traces, tokens/cost, checkpoints, and audit completeness.
 - [ ] Add component, API contract, authorization, accessibility, and critical-flow browser tests.
 

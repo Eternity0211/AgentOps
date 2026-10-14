@@ -11,6 +11,7 @@ from typing import cast
 from unittest.mock import AsyncMock
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentops_incident_commander.application import (
     evidence_gate_claim_snapshot,
@@ -28,6 +29,7 @@ from agentops_incident_commander.domain import (
     AuditTarget,
     EvidenceGateOutcome,
     EvidenceId,
+    IncidentId,
     IncidentSeverity,
     InvalidDomainValueError,
     JobId,
@@ -204,6 +206,19 @@ def gate_row(record: DiagnosisReportRecord) -> EvidenceGateDecisionRow:
         model_confidence_basis_points=8000,
         schema_version="1.0.0",
     )
+
+
+@pytest.mark.anyio
+async def test_health_verification_read_rejects_multiple_results_for_one_execution() -> None:
+    session = SimpleNamespace()
+    session.scalars = AsyncMock(return_value=SimpleNamespace(all=lambda: [object(), object()]))
+    repository = repositories.HealthVerificationRepository(cast(AsyncSession, session))
+    with pytest.raises(InvalidDomainValueError, match="multiple health verification"):
+        await repository.for_execution(
+            OpaqueIdentifier("execution-duplicate"),
+            tenant_id=TenantId("tenant-1"),
+            incident_id=IncidentId("incident-1"),
+        )
 
 
 def alert() -> Alert:

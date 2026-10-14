@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextlib import AbstractAsyncContextManager
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
@@ -29,6 +30,9 @@ from agentops_incident_commander.apps.api_v1 import (
 )
 from agentops_incident_commander.apps.config import ApiSettings
 from agentops_incident_commander.domain import (
+    ActionExecution,
+    ActionExecutionStatus,
+    ActionSnapshot,
     ActorId,
     AggregateVersion,
     ApprovalId,
@@ -46,6 +50,13 @@ from agentops_incident_commander.domain import (
     EvidenceGateDecision,
     EvidenceGateOutcome,
     EvidenceId,
+    HealthVerificationDecision,
+    HealthVerificationObservation,
+    HealthVerificationOutcome,
+    HealthVerificationReasonCode,
+    HealthVerificationSample,
+    HealthVerificationScenario,
+    IdempotencyKey,
     IncidentId,
     IncidentSeverity,
     IncidentState,
@@ -63,6 +74,7 @@ from agentops_incident_commander.domain import (
     PolicyReasonCode,
     Principal,
     RedactionStatus,
+    ResolvedRollbackTarget,
     RetentionClass,
     RiskLevel,
     Role,
@@ -219,6 +231,98 @@ def evidence_row(
         expires_at=expires_at,
         schema_version="1.0.0",
     )
+
+
+def recovery_records() -> tuple[
+    ActionExecution, HealthVerificationObservation, HealthVerificationDecision
+]:
+    target = ResolvedRollbackTarget(
+        tenant_id=TenantId("tenant-api"),
+        service="orders",
+        environment=PolicyEnvironment.PRODUCTION,
+        target_reference=OpaqueIdentifier("simulator-orders"),
+        expected_current_version=SemanticVersion("2.0.0"),
+        stable_version=SemanticVersion("1.0.0"),
+    )
+    started = ActionExecution(
+        id=OpaqueIdentifier("execution-api"),
+        tenant_id=target.tenant_id,
+        incident_id=IncidentId("incident-a"),
+        approval_id=ApprovalId("approval-api"),
+        idempotency_key=IdempotencyKey("rollback-api"),
+        actor_id=ActorId("operator-api"),
+        proposal_fingerprint=Sha256Digest("a" * 64),
+        policy_decision_fingerprint=Sha256Digest("b" * 64),
+        target=target,
+        before_snapshot=ActionSnapshot(
+            ArtifactId("artifact-before-api"),
+            target.tenant_id,
+            IncidentId("incident-a"),
+            target.service,
+            target.environment,
+            target.target_reference,
+            target.expected_current_version,
+            NOW - timedelta(seconds=1),
+            Sha256Digest("c" * 64),
+        ),
+        status=ActionExecutionStatus.STARTED,
+        version=AggregateVersion(1),
+        started_at=NOW,
+    )
+    completed = started.succeed(
+        after_snapshot=ActionSnapshot(
+            ArtifactId("artifact-after-api"),
+            target.tenant_id,
+            IncidentId("incident-a"),
+            target.service,
+            target.environment,
+            target.target_reference,
+            target.stable_version,
+            NOW + timedelta(seconds=1),
+            Sha256Digest("d" * 64),
+        ),
+        at=NOW + timedelta(seconds=2),
+    )
+    samples = tuple(
+        HealthVerificationSample(
+            NOW + timedelta(seconds=offset), 25, 200, True, target.stable_version, 0
+        )
+        for offset in (3, 63)
+    )
+    observation = HealthVerificationObservation(
+        OpaqueIdentifier("observation-api"),
+        target.tenant_id,
+        completed.incident_id,
+        completed.id,
+        target.service,
+        target.environment,
+        target.stable_version,
+        samples[0].observed_at,
+        samples[-1].observed_at,
+        samples,
+        EvidenceId("evidence-error-api"),
+        EvidenceId("evidence-p95-api"),
+        EvidenceId("evidence-health-api"),
+        EvidenceId("evidence-version-api"),
+        EvidenceId("evidence-alerts-api"),
+        NOW + timedelta(seconds=64),
+        NOW + timedelta(hours=1),
+    )
+    decision = HealthVerificationDecision(
+        OpaqueIdentifier("decision-api"),
+        target.tenant_id,
+        completed.incident_id,
+        completed.id,
+        HealthVerificationScenario.RELEASE_HTTP_500,
+        HealthVerificationOutcome.PASS,
+        (),
+        Sha256Digest("e" * 64),
+        observation.fingerprint,
+        completed.fingerprint,
+        Sha256Digest("f" * 64),
+        NOW + timedelta(seconds=65),
+    )
+    return completed, observation, decision
 
 
 def approval_rows(
@@ -894,6 +998,261 @@ async def test_diagnosis_route_scopes_maps_and_fails_closed(
         )
     assert integrity.value.status_code == 409
     assert integrity.value.code == "DIAGNOSIS_RESULT_INTEGRITY_FAILED"
+
+
+@pytest.mark.anyio
+async def test_recovery_route_handles_empty_complete_and_corrupt_results(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import agentops_incident_commander.apps.api_v1 as api_v1
+
+    route = endpoint("/api/v1/incidents/{incident_id}/recovery", "GET")
+    with pytest.raises(HTTPException) as missing:
+        await route(
+            incident_id="missing",
+            session=FakeSession(scalar_values=[None]),
+            principal=VIEWER,
+        )
+    assert missing.value.status_code == 404
+
+    execution, observation, decision = recovery_records()
+
+    class ExecutionStore:
+        value: ActionExecution | None = None
+        error = False
+
+        def __init__(self, _: object) -> None:
+            pass
+
+        async def latest_for_incident(self, **_: object) -> ActionExecution | None:
+            if self.error:
+                raise InvalidDomainValueError("corrupt execution")
+            return self.value
+
+    class VerificationStore:
+        value: tuple[HealthVerificationObservation, HealthVerificationDecision] | None = None
+
+        def __init__(self, _: object) -> None:
+            pass
+
+        async def for_execution(
+            self, _execution_id: object, **_: object
+        ) -> tuple[HealthVerificationObservation, HealthVerificationDecision] | None:
+            return self.value
+
+    monkeypatch.setattr(api_v1, "ActionExecutionRepository", ExecutionStore)
+    monkeypatch.setattr(api_v1, "HealthVerificationRepository", VerificationStore)
+
+    empty = await route(
+        incident_id="incident-a",
+        session=FakeSession(scalar_values=["incident-a"]),
+        principal=VIEWER,
+    )
+    assert empty.execution is None
+    assert empty.compensation.status == "FORBIDDEN_FOR_ROLLBACK_SERVICE"
+
+    ExecutionStore.value = execution
+    no_verification = await route(
+        incident_id="incident-a",
+        session=FakeSession(scalar_values=["incident-a"]),
+        principal=VIEWER,
+    )
+    assert no_verification.execution is not None
+    assert no_verification.verification is None
+    assert no_verification.route is None
+
+    VerificationStore.value = (observation, decision)
+    transitions = [
+        IncidentTransitionRow(
+            incident_id="incident-a",
+            prior_state="VERIFYING",
+            new_state="RESOLVED",
+            prior_version=5,
+            new_version=6,
+            actor_id="operator-api",
+            reason="deterministic verification passed",
+            correlation_id="correlation-api",
+            causation_id=decision.id.value,
+            occurred_at=decision.evaluated_at + timedelta(seconds=1),
+        ),
+        IncidentTransitionRow(
+            incident_id="incident-a",
+            prior_state="RESOLVED",
+            new_state="CLOSED",
+            prior_version=6,
+            new_version=7,
+            actor_id="operator-api",
+            reason="deterministic verification passed",
+            correlation_id="correlation-api",
+            causation_id=decision.id.value,
+            occurred_at=decision.evaluated_at + timedelta(seconds=1),
+        ),
+    ]
+    complete = await route(
+        incident_id="incident-a",
+        session=FakeSession(
+            scalar_values=["incident-a"],
+            scalar_lists=[cast(list[object], transitions)],
+        ),
+        principal=VIEWER,
+    )
+    assert complete.execution is not None
+    assert complete.execution.before.deployed_version == "2.0.0"
+    assert complete.execution.after is not None
+    assert complete.execution.after.deployed_version == "1.0.0"
+    assert complete.verification is not None
+    assert complete.verification.window_duration_seconds == 60
+    assert complete.route is not None
+    assert complete.route.status == "CLOSED"
+
+    ExecutionStore.error = True
+    with pytest.raises(ApiProblem) as integrity:
+        await route(
+            incident_id="incident-a",
+            session=FakeSession(scalar_values=["incident-a"]),
+            principal=VIEWER,
+        )
+    assert integrity.value.status_code == 409
+    assert integrity.value.code == "RECOVERY_RESULT_INTEGRITY_FAILED"
+
+
+def test_recovery_projection_rejects_unbound_records_and_validates_every_route() -> None:
+    import agentops_incident_commander.apps.api_v1 as api_v1
+
+    execution, observation, passing = recovery_records()
+
+    def transition(
+        prior_state: str,
+        new_state: str,
+        prior_version: int,
+        *,
+        incident_id: str = "incident-a",
+        causation_id: str = "decision-api",
+        occurred_at: datetime = NOW + timedelta(seconds=66),
+        reason: str = "compensation=forbidden",
+    ) -> IncidentTransitionRow:
+        return IncidentTransitionRow(
+            incident_id=incident_id,
+            prior_state=prior_state,
+            new_state=new_state,
+            prior_version=prior_version,
+            new_version=prior_version + 1,
+            actor_id="operator-api",
+            reason=reason,
+            correlation_id="correlation-api",
+            causation_id=causation_id,
+            occurred_at=occurred_at,
+        )
+
+    assert api_v1._recovery_route_view(passing, ()).status == "PENDING"
+    with pytest.raises(InvalidDomainValueError, match="without an action execution"):
+        api_v1._recovery_view(None, (observation, passing), ())
+    with pytest.raises(InvalidDomainValueError, match="without an action execution"):
+        api_v1._recovery_view(
+            None,
+            None,
+            (transition("VERIFYING", "RESOLVED", 5),),
+        )
+    with pytest.raises(InvalidDomainValueError, match="without verification"):
+        api_v1._recovery_view(
+            execution,
+            None,
+            (transition("VERIFYING", "RESOLVED", 5),),
+        )
+
+    started = replace(
+        execution,
+        status=ActionExecutionStatus.STARTED,
+        version=AggregateVersion(1),
+        completed_at=None,
+        after_snapshot=None,
+    )
+    binding_failures = (
+        (started, observation, passing),
+        (execution, replace(observation, tenant_id=TenantId("tenant-other")), passing),
+        (execution, observation, replace(passing, tenant_id=TenantId("tenant-other"))),
+        (execution, replace(observation, incident_id=IncidentId("incident-other")), passing),
+        (execution, observation, replace(passing, incident_id=IncidentId("incident-other"))),
+        (
+            execution,
+            replace(observation, action_execution_id=OpaqueIdentifier("execution-other")),
+            passing,
+        ),
+        (
+            execution,
+            observation,
+            replace(passing, action_execution_id=OpaqueIdentifier("execution-other")),
+        ),
+        (execution, replace(observation, service="payments"), passing),
+        (
+            execution,
+            replace(observation, environment=PolicyEnvironment.STAGING),
+            passing,
+        ),
+        (
+            execution,
+            replace(observation, expected_stable_version=SemanticVersion("1.0.1")),
+            passing,
+        ),
+        (
+            execution,
+            observation,
+            replace(passing, observation_fingerprint=Sha256Digest("0" * 64)),
+        ),
+        (
+            execution,
+            observation,
+            replace(passing, execution_fingerprint=Sha256Digest("0" * 64)),
+        ),
+    )
+    for action, observed, decided in binding_failures:
+        with pytest.raises(InvalidDomainValueError, match="not bound"):
+            api_v1._recovery_view(action, (observed, decided), ())
+
+    failed = replace(
+        passing,
+        outcome=HealthVerificationOutcome.FAIL,
+        reasons=(HealthVerificationReasonCode.P95_LATENCY_ABOVE_LIMIT,),
+    )
+    rediagnose = transition("VERIFYING", "INVESTIGATING", 5)
+    handoff = transition("VERIFYING", "NEEDS_HUMAN", 5)
+    cancelled = transition("INVESTIGATING", "CANCELLED", 6)
+    assert api_v1._recovery_route_view(failed, (rediagnose,)).status == "REDIAGNOSE"
+    assert api_v1._recovery_route_view(failed, (handoff,)).status == "NEEDS_HUMAN"
+    assert api_v1._recovery_route_view(failed, (rediagnose, cancelled)).status == "CANCELLED"
+
+    invalid_scope = (
+        transition("VERIFYING", "INVESTIGATING", 5, incident_id="incident-other"),
+        transition("VERIFYING", "INVESTIGATING", 5, causation_id="decision-other"),
+        transition(
+            "VERIFYING",
+            "INVESTIGATING",
+            5,
+            occurred_at=passing.evaluated_at - timedelta(seconds=1),
+        ),
+    )
+    for item in invalid_scope:
+        with pytest.raises(InvalidDomainValueError, match="scope"):
+            api_v1._recovery_route_view(failed, (item,))
+
+    discontinuous = transition("INVESTIGATING", "CANCELLED", 7)
+    with pytest.raises(InvalidDomainValueError, match="discontinuous"):
+        api_v1._recovery_route_view(failed, (rediagnose, discontinuous))
+    with pytest.raises(InvalidDomainValueError, match="route is invalid"):
+        api_v1._recovery_route_view(passing, (transition("VERIFYING", "RESOLVED", 5),))
+    with pytest.raises(InvalidDomainValueError, match="route is invalid"):
+        api_v1._recovery_route_view(
+            failed,
+            (transition("VERIFYING", "INVESTIGATING", 5, reason="missing marker"),),
+        )
+    with pytest.raises(InvalidDomainValueError, match="route is invalid"):
+        api_v1._recovery_route_view(
+            failed,
+            (
+                rediagnose,
+                transition("INVESTIGATING", "NEEDS_HUMAN", 6),
+            ),
+        )
 
 
 @pytest.mark.anyio

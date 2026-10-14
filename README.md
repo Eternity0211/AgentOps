@@ -203,6 +203,13 @@ server-generated field diff to the persisted replacement proposal while disablin
 Approval. Approve and reject intents carry an optimistic version and Idempotency Key to the
 authoritative Approval lifecycle; the console never predicts a terminal state or treats a late,
 self-approved, invalidated, stale, or corrupt record as authority.
+The Incident detail view also consumes a tenant-scoped, integrity-checked recovery projection. It
+compares immutable execution before/after deployment snapshots, shows the deterministic verifier's
+first and last values across all five required health signals, links each signal to its Evidence
+record, and renders the persisted closure, bounded re-diagnosis, human-handoff, or cancellation
+route. It never infers recovery from the executor result, and it explicitly shows that
+`rollback_service` has no separately authorized compensation path and never redeploys the known
+faulty version after failed verification.
 
 From `console/`, use `npm ci` for a locked install, `npm run verify` for formatting, linting,
 strict type checks, unit coverage, and a production build, and `npm run test:browser` for the

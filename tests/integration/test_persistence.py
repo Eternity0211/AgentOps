@@ -5290,6 +5290,18 @@ async def test_health_verification_repository_round_trip_replay_and_scope(
         assert await repository.get(
             decision.id, tenant_id=execution.tenant_id, incident_id=execution.incident_id
         ) == (observation, decision)
+        assert await repository.for_execution(
+            execution.id,
+            tenant_id=execution.tenant_id,
+            incident_id=execution.incident_id,
+        ) == (observation, decision)
+        assert (
+            await ActionExecutionRepository(session).latest_for_incident(
+                tenant_id=execution.tenant_id,
+                incident_id=execution.incident_id,
+            )
+            == execution
+        )
         assert (
             await repository.get(
                 decision.id,
@@ -5550,6 +5562,36 @@ async def test_successful_health_verification_closes_once_and_replays(
             )
             == 1
         )
+    app = api_app(
+        engine,
+        principal(tenant="tenant-1", roles=frozenset({Role.VIEWER})),
+    )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get(f"/api/v1/incidents/{decision.incident_id.value}/recovery")
+        assert response.status_code == 200
+        recovery = response.json()
+        assert recovery["execution"]["status"] == "SUCCEEDED"
+        assert recovery["execution"]["before"]["deployed_version"] == "2.0.0"
+        assert recovery["execution"]["after"]["deployed_version"] == "1.0.0"
+        assert recovery["verification"]["outcome"] == "PASS"
+        assert recovery["verification"]["sample_count"] == 3
+        assert recovery["verification"]["first_sample"]["p95_latency_ms"] == 400
+        assert recovery["route"]["status"] == "CLOSED"
+        assert recovery["route"]["final_state"] == "CLOSED"
+        assert recovery["compensation"] == {
+            "eligible": False,
+            "separately_authorized": False,
+            "status": "FORBIDDEN_FOR_ROLLBACK_SERVICE",
+            "detail": recovery["compensation"]["detail"],
+        }
+    foreign = api_app(
+        engine,
+        principal(tenant="tenant-foreign", roles=frozenset({Role.VIEWER})),
+    )
+    async with AsyncClient(transport=ASGITransport(app=foreign), base_url="http://test") as client:
+        assert (
+            await client.get(f"/api/v1/incidents/{decision.incident_id.value}/recovery")
+        ).status_code == 404
     async with sessions.begin() as session:
         last_route = await session.scalar(
             select(IncidentTransitionRow).where(
@@ -5569,6 +5611,10 @@ async def test_successful_health_verification_closes_once_and_replays(
                 principal=closure_principal(),
                 correlation_id=CorrelationId("correlation-health-corrupt-route"),
             )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get(f"/api/v1/incidents/{decision.incident_id.value}/recovery")
+        assert response.status_code == 409
+        assert response.json()["code"] == "RECOVERY_RESULT_INTEGRITY_FAILED"
 
 
 @pytest.mark.anyio
@@ -5776,6 +5822,20 @@ async def test_failed_health_verification_routes_to_bounded_rediagnosis_and_repl
             correlation_id=CorrelationId("correlation-health-failure-replay"),
         )
         assert replayed == routed
+    app = api_app(
+        engine,
+        principal(tenant="tenant-1", roles=frozenset({Role.VIEWER})),
+    )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get(f"/api/v1/incidents/{decision.incident_id.value}/recovery")
+        assert response.status_code == 200
+        recovery = response.json()
+        assert recovery["verification"]["outcome"] == "FAIL"
+        assert recovery["verification"]["reasons"] == ["P95_LATENCY_ABOVE_LIMIT"]
+        assert recovery["route"]["status"] == "REDIAGNOSE"
+        assert recovery["route"]["final_state"] == "INVESTIGATING"
+        assert "compensation=forbidden" in recovery["route"]["transitions"][0]["reason"]
+        assert recovery["compensation"]["eligible"] is False
 
 
 @pytest.mark.anyio

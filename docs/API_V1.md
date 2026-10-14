@@ -26,6 +26,7 @@ receive operator authority.
 | `GET /api/v1/incidents/{incident_id}` | Read one tenant incident | `incident:read` |
 | `GET /api/v1/incidents/{incident_id}/investigation` | Read the latest bounded Diagnosis progress projection | `incident:read` |
 | `GET /api/v1/incidents/{incident_id}/diagnosis` | Read the latest verified ranked Diagnosis report and matching Evidence Gate decisions | `evidence:read` |
+| `GET /api/v1/incidents/{incident_id}/recovery` | Read the latest integrity-checked recovery execution, deterministic verification, and resulting route | `incident:read` |
 | `GET /api/v1/incidents/{incident_id}/timeline` | Read lifecycle transitions and cancellation requests | `incident:read` |
 | `GET /api/v1/incidents/{incident_id}/evidence` | List incident-owned Evidence metadata | `evidence:read` |
 | `GET /api/v1/incidents/{incident_id}/evidence/{evidence_id}` | Read one Evidence metadata record | `evidence:read` |
@@ -77,6 +78,25 @@ is attached only when its persisted canonical claim exactly matches that candida
 PASS/FAIL, typed reasons, evaluated Evidence IDs, rules/schema versions, evaluation time, and input
 and decision fingerprints. Report, trace, tenant, fingerprint, or Gate snapshot corruption returns
 `DIAGNOSIS_RESULT_INTEGRITY_FAILED` instead of partial or inferred data.
+
+`GET /api/v1/incidents/{incident_id}/recovery` returns the newest persisted ActionExecution in the
+owned Incident scope, or an explicit `execution: null`. An execution includes its exact Approval,
+actor, target, expected/current and stable versions, immutable before/after Artifact bindings,
+timestamps, terminal failure code, and proposal/Policy/execution fingerprints. A successful
+execution may include its sole deterministic health-verification result: the complete stability
+window, first and last values for error rate, P95 latency, health endpoint, deployed version, and
+new alerts, all five Evidence IDs, PASS/FAIL reasons, and verifier fingerprints. The route is read
+only from lifecycle transitions caused by that decision and is reported as pending, closed,
+bounded re-diagnosis, human handoff, or deferred cancellation. The API never derives success from
+the deployment snapshot alone.
+
+Every response states that `rollback_service` is the recovery action itself and is not eligible for
+automatic compensation; failed verification never redeploys the known faulty version. A future
+separately authorized reversible write tool would require its own typed record and policy flow and
+is not represented by this endpoint. Reads reconstruct domain objects, verify stored fingerprints,
+reject multiple verifier results for one execution, and cross-check tenant, Incident, execution,
+service, environment, stable version, Evidence bindings, and route shape. Any mismatch returns
+`RECOVERY_RESULT_INTEGRITY_FAILED` without partial data.
 
 Evidence lists use the same opaque newest-first cursor convention, ordered by collection time and
 Evidence ID. Metadata includes source/query provenance, observation and collection ranges, quality
@@ -150,6 +170,7 @@ PostgreSQL integration tests exercise migration round trips, anonymous and under
 requests, tenant hiding, combined incident filters, stable pagination, successful controls,
 duplicate replay, changed-payload conflict, optimistic/state conflicts, cancellation,
 transactional audit/idempotency counts, and tenant-scoped Evidence metadata plus authorized,
-hash-bound Artifact retrieval.
+hash-bound Artifact retrieval. Recovery read coverage additionally proves empty, successful,
+failed-route, cross-tenant, and corrupted-route behavior against real PostgreSQL records.
 Framework-level contract tests cover defensive return and cursor branches that the Windows
 coverage tracer cannot observe after SQLAlchemy's async greenlet bridge.

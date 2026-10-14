@@ -166,6 +166,117 @@ test("shows incident lifecycle details and cursor-paged workflow history", async
         }),
       });
     }
+    if (requestUrl.pathname.endsWith("/recovery")) {
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          execution: {
+            id: "execution-browser",
+            action: "rollback_service",
+            approval_id: "approval-browser",
+            actor_id: "operator-browser",
+            status: "SUCCEEDED",
+            version: 2,
+            service: "orders",
+            environment: "PRODUCTION",
+            target_reference: "simulator-orders",
+            expected_current_version: "2.0.0",
+            stable_version: "1.0.0",
+            before: {
+              artifact_id: "snapshot-before-browser",
+              content_hash: "1".repeat(64),
+              deployed_version: "2.0.0",
+              observed_at: "2026-10-11T10:05:59Z",
+            },
+            after: {
+              artifact_id: "snapshot-after-browser",
+              content_hash: "2".repeat(64),
+              deployed_version: "1.0.0",
+              observed_at: "2026-10-11T10:06:30Z",
+            },
+            started_at: "2026-10-11T10:06:00Z",
+            completed_at: "2026-10-11T10:07:00Z",
+            failure_code: null,
+            proposal_fingerprint: "3".repeat(64),
+            policy_decision_fingerprint: "4".repeat(64),
+            execution_fingerprint: "5".repeat(64),
+            schema_version: "1.0.0",
+          },
+          verification: {
+            id: "verification-browser",
+            observation_id: "observation-browser",
+            scenario: "RELEASE_HTTP_500",
+            outcome: "FAIL",
+            reasons: ["P95_LATENCY_ABOVE_LIMIT"],
+            service: "orders",
+            environment: "PRODUCTION",
+            expected_stable_version: "1.0.0",
+            window_started_at: "2026-10-11T10:08:00Z",
+            window_ended_at: "2026-10-11T10:09:00Z",
+            window_duration_seconds: 60,
+            sample_count: 3,
+            first_sample: {
+              observed_at: "2026-10-11T10:08:00Z",
+              error_rate_basis_points: 50,
+              p95_latency_ms: 400,
+              health_endpoint_healthy: true,
+              deployed_version: "1.0.0",
+              new_alert_count: 0,
+            },
+            last_sample: {
+              observed_at: "2026-10-11T10:09:00Z",
+              error_rate_basis_points: 75,
+              p95_latency_ms: 501,
+              health_endpoint_healthy: true,
+              deployed_version: "1.0.0",
+              new_alert_count: 0,
+            },
+            evidence: {
+              error_rate: "evidence-browser",
+              p95_latency: "evidence-p95-browser",
+              health_endpoint: "evidence-health-browser",
+              deployed_version: "evidence-version-browser",
+              new_alerts: "evidence-alerts-browser",
+            },
+            collected_at: "2026-10-11T10:09:01Z",
+            expires_at: "2026-10-18T10:09:01Z",
+            evaluated_at: "2026-10-11T10:09:02Z",
+            criteria_fingerprint: "6".repeat(64),
+            observation_fingerprint: "7".repeat(64),
+            execution_fingerprint: "5".repeat(64),
+            input_fingerprint: "8".repeat(64),
+            decision_fingerprint: "9".repeat(64),
+            rules_version: "1.0.0",
+            schema_version: "1.0.0",
+          },
+          route: {
+            status: "REDIAGNOSE",
+            final_state: "INVESTIGATING",
+            transitions: [
+              {
+                prior_state: "VERIFYING",
+                new_state: "INVESTIGATING",
+                prior_version: 7,
+                new_version: 8,
+                reason:
+                  "failed rollback verification; route=REDIAGNOSE; compensation=forbidden",
+                actor_id: "operator-browser",
+                correlation_id: "correlation-recovery-browser",
+                causation_id: "verification-browser",
+                occurred_at: "2026-10-11T10:09:03Z",
+              },
+            ],
+          },
+          compensation: {
+            eligible: false,
+            separately_authorized: false,
+            status: "FORBIDDEN_FOR_ROLLBACK_SERVICE",
+            detail:
+              "A failed verification routes to bounded re-diagnosis or human handoff.",
+          },
+        }),
+      });
+    }
     if (requestUrl.pathname.endsWith("/investigation")) {
       return route.fulfill({
         contentType: "application/json",
@@ -347,6 +458,18 @@ test("shows incident lifecycle details and cursor-paged workflow history", async
   ).toBeVisible();
   await expect(page.getByText("82.00% model confidence")).toBeVisible();
   await expect(page.getByText("Evidence gate not evaluated.")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Execution and verification" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Deployment version comparison")).toContainText(
+    "2.0.0",
+  );
+  await expect(page.getByText("501 ms")).toBeVisible();
+  await expect(page.getByText("P95 LATENCY ABOVE LIMIT")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "REDIAGNOSE" })).toBeVisible();
+  await expect(page.getByLabel("Compensation authorization")).toContainText(
+    "No separate compensation authorization exists",
+  );
   await expect(
     page.getByRole("heading", { name: "Evidence and artifacts" }),
   ).toBeVisible();

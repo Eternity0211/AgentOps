@@ -277,6 +277,111 @@ test("shows incident lifecycle details and cursor-paged workflow history", async
         }),
       });
     }
+    if (requestUrl.pathname.endsWith("/platform-observability")) {
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          model_calls: [
+            {
+              id: "model-browser",
+              workflow_run_id: "run-browser",
+              node: "diagnosis.hypothesis",
+              attempt: 1,
+              prompt_id: "prompt-browser",
+              prompt_version: "1.0.0",
+              prompt_fingerprint: "a".repeat(64),
+              provider: "mock",
+              model: "deterministic",
+              status: "SUCCEEDED",
+              started_at: "2026-10-11T10:04:00Z",
+              completed_at: "2026-10-11T10:04:02Z",
+              duration_ms: 2000,
+              token_usage: {
+                input_tokens: 100,
+                output_tokens: 20,
+                cached_input_tokens: 10,
+                reasoning_tokens: 5,
+                total_tokens: 120,
+              },
+              cost: {
+                amount_nanounits: 12345,
+                currency: "USD",
+                source: "RATE_CARD_CALCULATED",
+                rate_card_version: "1.0.0",
+              },
+              metering_unavailable_reason: null,
+              failure_code: null,
+              correlation_id: "correlation-browser",
+              causation_id: "node-browser",
+              request_hash: "b".repeat(64),
+              response_hash: "c".repeat(64),
+              input_schema_version: "1.0.0",
+              output_schema_version: "1.0.0",
+              schema_version: "1.0.0",
+            },
+          ],
+          model_calls_truncated: false,
+          usage: {
+            call_count: 1,
+            metered_call_count: 1,
+            unavailable_call_count: 0,
+            pending_call_count: 0,
+            statuses: {
+              started: 0,
+              succeeded: 1,
+              failed: 0,
+              timed_out: 0,
+              refused: 0,
+            },
+            tokens: {
+              input_tokens: 100,
+              output_tokens: 20,
+              cached_input_tokens: 10,
+              reasoning_tokens: 5,
+              total_tokens: 120,
+            },
+            costs: [{ currency: "USD", amount_nanounits: 12345 }],
+          },
+          checkpoints: [
+            {
+              workflow_run_id: "run-browser",
+              graph_version: "1.3.0",
+              phase: "COMPLETE",
+              status: "COMPLETE",
+              checkpoint_sequence: 7,
+              projection_fingerprint: "d".repeat(64),
+              observed_at: "2026-10-11T10:05:00Z",
+              scope: "LATEST_DURABLE_PROJECTION",
+            },
+          ],
+          checkpoints_truncated: false,
+          audit: {
+            status: "COMPLETE",
+            complete: true,
+            scope: "DISPLAYED_MODEL_CALLS",
+            expected_event_count: 2,
+            observed_event_count: 2,
+            missing_event_count: 0,
+            duplicate_event_count: 0,
+            requirements: [
+              {
+                model_call_id: "model-browser",
+                event_type: "model.call_started",
+                status: "PRESENT",
+                observed_sequences: [20],
+              },
+              {
+                model_call_id: "model-browser",
+                event_type: "model.call_finished",
+                status: "PRESENT",
+                observed_sequences: [21],
+              },
+            ],
+            rules_version: "1.0.0",
+          },
+        }),
+      });
+    }
     if (requestUrl.pathname.endsWith("/investigation")) {
       return route.fulfill({
         contentType: "application/json",
@@ -469,6 +574,15 @@ test("shows incident lifecycle details and cursor-paged workflow history", async
   await expect(page.getByRole("heading", { name: "REDIAGNOSE" })).toBeVisible();
   await expect(page.getByLabel("Compensation authorization")).toContainText(
     "No separate compensation authorization exists",
+  );
+  await expect(
+    page.getByRole("heading", { name: "Agent platform observability" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Model usage totals")).toContainText("120");
+  await expect(page.getByText("diagnosis.hypothesis")).toBeVisible();
+  await expect(page.getByText(/Checkpoint 7/)).toBeVisible();
+  await expect(page.getByLabel("Audit completeness")).toContainText(
+    "2 observed / 2 expected",
   );
   await expect(
     page.getByRole("heading", { name: "Evidence and artifacts" }),

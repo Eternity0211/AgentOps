@@ -74,6 +74,16 @@ pending, never inferred success. The console always displays that `rollback_serv
 recovery action, has no separate compensation authorization, and cannot automatically redeploy the
 known faulty version after failed verification.
 
+The agent-platform observability section uses the tenant-scoped
+`/incidents/{incident_id}/platform-observability` projection. It shows content-free Prompt/model,
+node, timing, correlation, request/response hash, exact token, and integer-cost metadata for a
+bounded newest-first trace set. Costs stay separated by currency and unavailable metering remains
+explicit. It also shows the latest fingerprint-verified durable Diagnosis progress checkpoint for
+each bounded workflow run. The backend alone decides whether every displayed model call has its
+single expected start event and, for terminal calls, finish event; missing/duplicate events and
+truncation remain visible. Invalid trace, checkpoint, aggregate, or audit bindings fail the whole
+read-only Incident view closed.
+
 `/approvals` is available only when the authenticated session includes `approval:decide`. It pages
 tenant-authorized Approval summaries and shows risk, status, expiry, invalidation, and server-owned
 separation-of-duties feedback. `/approvals/{approval_id}` strictly validates the immutable proposal

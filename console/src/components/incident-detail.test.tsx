@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   loadDiagnosis: vi.fn(),
   loadIncident: vi.fn(),
   loadInvestigation: vi.fn(),
+  loadPlatformObservability: vi.fn(),
   loadRecovery: vi.fn(),
   loadTimeline: vi.fn(),
 }));
@@ -46,6 +47,11 @@ vi.mock("@/lib/investigation", async (importOriginal) => ({
 vi.mock("@/lib/recovery", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/recovery")>()),
   loadRecovery: mocks.loadRecovery,
+}));
+
+vi.mock("@/lib/platform-observability", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/platform-observability")>()),
+  loadPlatformObservability: mocks.loadPlatformObservability,
 }));
 
 const incident = {
@@ -149,6 +155,44 @@ beforeEach(() => {
   });
   mocks.loadIncident.mockReset();
   mocks.loadInvestigation.mockReset().mockResolvedValue(null);
+  mocks.loadPlatformObservability.mockReset().mockResolvedValue({
+    modelCalls: [],
+    modelCallsTruncated: false,
+    usage: {
+      callCount: 0,
+      meteredCallCount: 0,
+      unavailableCallCount: 0,
+      pendingCallCount: 0,
+      statuses: {
+        started: 0,
+        succeeded: 0,
+        failed: 0,
+        timedOut: 0,
+        refused: 0,
+      },
+      tokens: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cachedInputTokens: 0,
+        reasoningTokens: 0,
+        totalTokens: 0,
+      },
+      costs: [],
+    },
+    checkpoints: [],
+    checkpointsTruncated: false,
+    audit: {
+      status: "COMPLETE",
+      complete: true,
+      scope: "DISPLAYED_MODEL_CALLS",
+      expectedEventCount: 0,
+      observedEventCount: 0,
+      missingEventCount: 0,
+      duplicateEventCount: 0,
+      requirements: [],
+      rulesVersion: "1.0.0",
+    },
+  });
   mocks.loadRecovery.mockReset().mockResolvedValue({
     execution: null,
     verification: null,
@@ -369,6 +413,20 @@ describe("IncidentDetail", () => {
     mocks.loadTimeline.mockResolvedValue({ items: [], nextCursor: null });
     mocks.loadRecovery.mockRejectedValue(
       new Error("invalid recovery response"),
+    );
+    render(<IncidentDetail incidentId="incident-1" />);
+    expect(
+      await screen.findByRole("heading", {
+        name: "Incident details could not be loaded",
+      }),
+    ).toBeVisible();
+  });
+
+  it("fails the complete read-only view when platform observability integrity loading fails", async () => {
+    mocks.loadIncident.mockResolvedValue(incident);
+    mocks.loadTimeline.mockResolvedValue({ items: [], nextCursor: null });
+    mocks.loadPlatformObservability.mockRejectedValue(
+      new Error("invalid platform observability response"),
     );
     render(<IncidentDetail incidentId="incident-1" />);
     expect(

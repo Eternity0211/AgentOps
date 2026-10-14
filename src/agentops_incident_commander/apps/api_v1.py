@@ -4,6 +4,7 @@ import base64
 import hashlib
 import json
 from collections.abc import AsyncIterator, Awaitable, Callable
+from dataclasses import replace
 from datetime import datetime
 from itertools import pairwise
 from typing import Annotated, Literal
@@ -19,6 +20,7 @@ from agentops_incident_commander.application import (
     ApprovalLifecycleManager,
     ApprovalReviewSnapshot,
     evidence_gate_decision_fingerprint,
+    model_call_trace_fingerprint,
 )
 from agentops_incident_commander.domain import (
     ActionExecution,
@@ -52,9 +54,13 @@ from agentops_incident_commander.domain import (
     IncidentSeverity,
     IncidentState,
     InvalidDomainValueError,
+    ModelCallStatus,
+    ModelCallTrace,
+    OpaqueIdentifier,
     Permission,
     Principal,
     Sha256Digest,
+    StoredAuditEvent,
     as_utc,
     require_authenticated,
     require_permission,
@@ -81,6 +87,7 @@ from agentops_incident_commander.infrastructure.persistence.repositories import 
     DiagnosisReportRepository,
     HealthVerificationRepository,
     IncidentRepository,
+    ModelCallTraceRepository,
 )
 from agentops_incident_commander.workflows import DiagnosisReportRecord, RemediationProposal
 
@@ -394,6 +401,118 @@ class RecoveryView(ApiModel):
     verification: RecoveryVerificationView | None
     route: RecoveryRouteView | None
     compensation: CompensationView
+
+
+class ModelTokenUsageView(ApiModel):
+    input_tokens: int
+    output_tokens: int
+    cached_input_tokens: int
+    reasoning_tokens: int
+    total_tokens: int
+
+
+class ModelCostView(ApiModel):
+    amount_nanounits: int
+    currency: str
+    source: str
+    rate_card_version: str
+
+
+class ModelCallTraceView(ApiModel):
+    id: str
+    workflow_run_id: str
+    node: str
+    attempt: int
+    prompt_id: str
+    prompt_version: str
+    prompt_fingerprint: str
+    provider: str
+    model: str
+    status: str
+    started_at: datetime
+    completed_at: datetime | None
+    duration_ms: int | None
+    token_usage: ModelTokenUsageView | None
+    cost: ModelCostView | None
+    metering_unavailable_reason: str | None
+    failure_code: str | None
+    correlation_id: str
+    causation_id: str
+    request_hash: str
+    response_hash: str | None
+    input_schema_version: str
+    output_schema_version: str
+    schema_version: str
+
+
+class ModelCallStatusTotalsView(ApiModel):
+    started: int
+    succeeded: int
+    failed: int
+    timed_out: int
+    refused: int
+
+
+class ModelTokenTotalsView(ApiModel):
+    input_tokens: int
+    output_tokens: int
+    cached_input_tokens: int
+    reasoning_tokens: int
+    total_tokens: int
+
+
+class ModelCurrencyTotalView(ApiModel):
+    currency: str
+    amount_nanounits: int
+
+
+class ModelUsageTotalsView(ApiModel):
+    call_count: int
+    metered_call_count: int
+    unavailable_call_count: int
+    pending_call_count: int
+    statuses: ModelCallStatusTotalsView
+    tokens: ModelTokenTotalsView
+    costs: list[ModelCurrencyTotalView]
+
+
+class CheckpointProjectionView(ApiModel):
+    workflow_run_id: str
+    graph_version: str
+    phase: str
+    status: str
+    checkpoint_sequence: int
+    projection_fingerprint: str
+    observed_at: datetime
+    scope: Literal["LATEST_DURABLE_PROJECTION"]
+
+
+class AuditRequirementView(ApiModel):
+    model_call_id: str
+    event_type: Literal["model.call_started", "model.call_finished"]
+    status: Literal["PRESENT", "MISSING", "DUPLICATE"]
+    observed_sequences: list[int]
+
+
+class AuditCompletenessView(ApiModel):
+    status: Literal["COMPLETE", "INCOMPLETE", "PARTIAL"]
+    complete: bool
+    scope: Literal["DISPLAYED_MODEL_CALLS"]
+    expected_event_count: int
+    observed_event_count: int
+    missing_event_count: int
+    duplicate_event_count: int
+    requirements: list[AuditRequirementView]
+    rules_version: Literal["1.0.0"]
+
+
+class PlatformObservabilityView(ApiModel):
+    model_calls: list[ModelCallTraceView]
+    model_calls_truncated: bool
+    usage: ModelUsageTotalsView
+    checkpoints: list[CheckpointProjectionView]
+    checkpoints_truncated: bool
+    audit: AuditCompletenessView
 
 
 class AuditEventView(ApiModel):
@@ -939,6 +1058,240 @@ def _recovery_view(
         verification=verification_view,
         route=_recovery_route_view(decision, route_rows),
         compensation=compensation,
+    )
+
+
+def _started_model_call(trace: ModelCallTrace) -> ModelCallTrace:
+    if trace.status is ModelCallStatus.STARTED:
+        return trace
+    return replace(
+        trace,
+        status=ModelCallStatus.STARTED,
+        completed_at=None,
+        response_hash=None,
+        metering=None,
+        failure_code=None,
+    )
+
+
+def _model_call_trace_view(trace: ModelCallTrace) -> ModelCallTraceView:
+    metering = trace.metering
+    usage = None if metering is None else metering.token_usage
+    cost = None if metering is None else metering.cost
+    started_at_ms = trace.started_at.replace(
+        microsecond=(trace.started_at.microsecond // 1_000) * 1_000
+    )
+    duration_ms = (
+        None
+        if trace.completed_at is None
+        else int(
+            (
+                trace.completed_at.replace(
+                    microsecond=(trace.completed_at.microsecond // 1_000) * 1_000
+                )
+                - started_at_ms
+            ).total_seconds()
+            * 1_000
+        )
+    )
+    return ModelCallTraceView(
+        id=trace.id.value,
+        workflow_run_id=trace.workflow_run_id.value,
+        node=trace.node,
+        attempt=trace.attempt,
+        prompt_id=trace.prompt.prompt_id.value,
+        prompt_version=trace.prompt.version.value,
+        prompt_fingerprint=trace.prompt_fingerprint.value,
+        provider=trace.provider,
+        model=trace.model,
+        status=trace.status.value,
+        started_at=trace.started_at,
+        completed_at=trace.completed_at,
+        duration_ms=duration_ms,
+        token_usage=(
+            None
+            if usage is None
+            else ModelTokenUsageView(
+                input_tokens=usage.input_tokens,
+                output_tokens=usage.output_tokens,
+                cached_input_tokens=usage.cached_input_tokens,
+                reasoning_tokens=usage.reasoning_tokens,
+                total_tokens=usage.total_tokens,
+            )
+        ),
+        cost=(
+            None
+            if cost is None
+            else ModelCostView(
+                amount_nanounits=cost.amount_nanounits,
+                currency=cost.currency,
+                source=cost.source.value,
+                rate_card_version=cost.rate_card_version.value,
+            )
+        ),
+        metering_unavailable_reason=(
+            None
+            if metering is None or metering.unavailable_reason is None
+            else metering.unavailable_reason.value
+        ),
+        failure_code=trace.failure_code,
+        correlation_id=trace.correlation_id.value,
+        causation_id=trace.causation_id.value,
+        request_hash=trace.request_hash.value,
+        response_hash=trace.response_hash.value if trace.response_hash else None,
+        input_schema_version=trace.input_schema_version.value,
+        output_schema_version=trace.output_schema_version.value,
+        schema_version=trace.schema_version,
+    )
+
+
+def _model_usage_totals(traces: tuple[ModelCallTrace, ...]) -> ModelUsageTotalsView:
+    statuses = {status: 0 for status in ModelCallStatus}
+    token_totals = {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cached_input_tokens": 0,
+        "reasoning_tokens": 0,
+        "total_tokens": 0,
+    }
+    currency_totals: dict[str, int] = {}
+    metered = unavailable = 0
+    for trace in traces:
+        statuses[trace.status] += 1
+        metering = trace.metering
+        if metering is None:
+            continue
+        if metering.unavailable_reason is not None:
+            unavailable += 1
+            continue
+        usage = metering.token_usage
+        cost = metering.cost
+        if usage is None or cost is None:  # pragma: no cover - domain invariant
+            raise InvalidDomainValueError("model call metering is incomplete")
+        metered += 1
+        for name in token_totals:
+            token_totals[name] += getattr(usage, name)
+        currency_totals[cost.currency] = (
+            currency_totals.get(cost.currency, 0) + cost.amount_nanounits
+        )
+    return ModelUsageTotalsView(
+        call_count=len(traces),
+        metered_call_count=metered,
+        unavailable_call_count=unavailable,
+        pending_call_count=statuses[ModelCallStatus.STARTED],
+        statuses=ModelCallStatusTotalsView(
+            started=statuses[ModelCallStatus.STARTED],
+            succeeded=statuses[ModelCallStatus.SUCCEEDED],
+            failed=statuses[ModelCallStatus.FAILED],
+            timed_out=statuses[ModelCallStatus.TIMED_OUT],
+            refused=statuses[ModelCallStatus.REFUSED],
+        ),
+        tokens=ModelTokenTotalsView(**token_totals),
+        costs=[
+            ModelCurrencyTotalView(currency=currency, amount_nanounits=amount)
+            for currency, amount in sorted(currency_totals.items())
+        ],
+    )
+
+
+def _checkpoint_projection_view(row: DiagnosisProgressRow) -> CheckpointProjectionView:
+    snapshot = diagnosis_progress_from_row(row)
+    return CheckpointProjectionView(
+        workflow_run_id=snapshot.workflow_run_id,
+        graph_version=snapshot.graph_version,
+        phase=snapshot.phase.value,
+        status=snapshot.status.value,
+        checkpoint_sequence=snapshot.checkpoint_sequence,
+        projection_fingerprint=row.snapshot_fingerprint,
+        observed_at=snapshot.updated_at,
+        scope="LATEST_DURABLE_PROJECTION",
+    )
+
+
+def _require_model_audit_binding(
+    stored: StoredAuditEvent,
+    *,
+    trace: ModelCallTrace,
+    event_type: Literal["model.call_started", "model.call_finished"],
+) -> None:
+    event = stored.event
+    started = _started_model_call(trace)
+    expected_request = model_call_trace_fingerprint(started)
+    expected_result = (
+        expected_request
+        if event_type == "model.call_started"
+        else model_call_trace_fingerprint(trace)
+    )
+    earliest = trace.started_at if event_type == "model.call_started" else trace.completed_at
+    if (
+        event.tenant_id != trace.tenant_id
+        or event.type != event_type
+        or event.event_version != 1
+        or event.payload_schema_version != "model_call/v1"
+        or event.target.type != "model.call"
+        or event.target.id.value != trace.id.value
+        or event.correlation_id != trace.correlation_id
+        or event.causation_id != trace.causation_id
+        or event.request_hash != expected_request
+        or event.result_hash != expected_result
+        or earliest is None
+        or event.occurred_at < earliest
+    ):
+        raise InvalidDomainValueError("model call audit binding is invalid")
+
+
+def _model_audit_completeness(
+    traces: tuple[ModelCallTrace, ...],
+    audit_events: tuple[StoredAuditEvent, ...],
+    *,
+    truncated: bool,
+) -> AuditCompletenessView:
+    by_key: dict[tuple[str, str], list[StoredAuditEvent]] = {}
+    trace_ids = {trace.id.value for trace in traces}
+    for stored in audit_events:
+        event = stored.event
+        if event.target.id.value not in trace_ids:
+            raise InvalidDomainValueError("model call audit target is outside the requested scope")
+        if event.type not in {"model.call_started", "model.call_finished"}:
+            continue
+        by_key.setdefault((event.target.id.value, event.type), []).append(stored)
+
+    requirements: list[AuditRequirementView] = []
+    for trace in traces:
+        expected_types: tuple[Literal["model.call_started", "model.call_finished"], ...] = (
+            ("model.call_started",)
+            if trace.status is ModelCallStatus.STARTED
+            else ("model.call_started", "model.call_finished")
+        )
+        for event_type in expected_types:
+            matching = by_key.get((trace.id.value, event_type), [])
+            for stored in matching:
+                _require_model_audit_binding(stored, trace=trace, event_type=event_type)
+            count = len(matching)
+            requirements.append(
+                AuditRequirementView(
+                    model_call_id=trace.id.value,
+                    event_type=event_type,
+                    status="MISSING" if count == 0 else "PRESENT" if count == 1 else "DUPLICATE",
+                    observed_sequences=[stored.sequence for stored in matching],
+                )
+            )
+    missing = sum(item.status == "MISSING" for item in requirements)
+    duplicate = sum(item.status == "DUPLICATE" for item in requirements)
+    complete = not truncated and missing == 0 and duplicate == 0
+    status_value: Literal["COMPLETE", "INCOMPLETE", "PARTIAL"] = (
+        "PARTIAL" if truncated else "COMPLETE" if complete else "INCOMPLETE"
+    )
+    return AuditCompletenessView(
+        status=status_value,
+        complete=complete,
+        scope="DISPLAYED_MODEL_CALLS",
+        expected_event_count=len(requirements),
+        observed_event_count=sum(len(item.observed_sequences) for item in requirements),
+        missing_event_count=missing,
+        duplicate_event_count=duplicate,
+        requirements=requirements,
+        rules_version="1.0.0",
     )
 
 
@@ -1594,6 +1947,67 @@ def build_api_v1_router(
                 "RECOVERY_RESULT_INTEGRITY_FAILED",
                 "Recovery result integrity failed",
                 "the persisted recovery result could not be verified",
+            ) from error
+
+    @router.get(
+        "/incidents/{incident_id}/platform-observability",
+        response_model=PlatformObservabilityView,
+    )
+    async def get_platform_observability(
+        incident_id: str, session: Session, principal: Authenticated
+    ) -> PlatformObservabilityView:
+        _authorized(principal, Permission.AUDIT_READ)
+        owned = await session.scalar(
+            select(IncidentRow.id).where(
+                IncidentRow.id == incident_id,
+                IncidentRow.tenant_id == principal.tenant_id.value,
+            )
+        )
+        if owned is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "incident not found")
+        try:
+            traces, traces_truncated = await ModelCallTraceRepository(session).for_incident(
+                tenant_id=principal.tenant_id,
+                incident_id=IncidentId(incident_id),
+            )
+            progress_rows = (
+                await session.scalars(
+                    select(DiagnosisProgressRow)
+                    .where(
+                        DiagnosisProgressRow.tenant_id == principal.tenant_id.value,
+                        DiagnosisProgressRow.incident_id == incident_id,
+                    )
+                    .order_by(
+                        DiagnosisProgressRow.updated_at.desc(),
+                        DiagnosisProgressRow.workflow_run_id.desc(),
+                    )
+                    .limit(101)
+                )
+            ).all()
+            visible_progress = progress_rows[:100]
+            audit_events = await AuditRepository(session).for_targets(
+                tenant_id=principal.tenant_id,
+                target_type="model.call",
+                target_ids=tuple(OpaqueIdentifier(trace.id.value) for trace in traces),
+            )
+            return PlatformObservabilityView(
+                model_calls=[_model_call_trace_view(trace) for trace in traces],
+                model_calls_truncated=traces_truncated,
+                usage=_model_usage_totals(traces),
+                checkpoints=[_checkpoint_projection_view(row) for row in visible_progress],
+                checkpoints_truncated=len(progress_rows) > 100,
+                audit=_model_audit_completeness(
+                    traces,
+                    audit_events,
+                    truncated=traces_truncated,
+                ),
+            )
+        except InvalidDomainValueError as error:
+            raise problem(
+                status.HTTP_409_CONFLICT,
+                "PLATFORM_OBSERVABILITY_INTEGRITY_FAILED",
+                "Platform observability integrity failed",
+                "the persisted platform observability records could not be verified",
             ) from error
 
     @router.get("/incidents/{incident_id}/evidence", response_model=EvidencePage)

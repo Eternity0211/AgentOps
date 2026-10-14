@@ -694,6 +694,32 @@ class AuditRepository:
         ).all()
         return tuple(_audit_from_row(row) for row in rows)
 
+    async def for_targets(
+        self,
+        *,
+        tenant_id: TenantId,
+        target_type: str,
+        target_ids: tuple[OpaqueIdentifier, ...],
+    ) -> tuple[StoredAuditEvent, ...]:
+        """Read a bounded, tenant-owned target set in immutable sequence order."""
+        if not target_ids:
+            return ()
+        if len(target_ids) > 100 or len({item.value for item in target_ids}) != len(target_ids):
+            raise InvalidDomainValueError("audit target set must be unique and bounded")
+        AuditTarget(target_type, target_ids[0])
+        rows = (
+            await self._session.scalars(
+                select(AuditEventRow)
+                .where(
+                    AuditEventRow.tenant_id == tenant_id.value,
+                    AuditEventRow.target_type == target_type,
+                    AuditEventRow.target_id.in_([item.value for item in target_ids]),
+                )
+                .order_by(AuditEventRow.sequence)
+            )
+        ).all()
+        return tuple(_audit_from_row(row) for row in rows)
+
 
 def _gate_decision_from_row(row: EvidenceGateDecisionRow) -> EvidenceGateDecision:
     reasons = tuple(
@@ -2348,6 +2374,30 @@ class ModelCallTraceRepository:
             )
         )
         return _model_call_from_row(row) if row is not None else None
+
+    async def for_incident(
+        self,
+        *,
+        tenant_id: TenantId,
+        incident_id: IncidentId,
+        limit: int = 100,
+    ) -> tuple[tuple[ModelCallTrace, ...], bool]:
+        """Return newest integrity-checked traces and whether older records were omitted."""
+        if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 100:
+            raise InvalidDomainValueError("model call trace limit must be between 1 and 100")
+        rows = (
+            await self._session.scalars(
+                select(ModelCallTraceRow)
+                .where(
+                    ModelCallTraceRow.tenant_id == tenant_id.value,
+                    ModelCallTraceRow.incident_id == incident_id.value,
+                )
+                .order_by(ModelCallTraceRow.started_at.desc(), ModelCallTraceRow.id.desc())
+                .limit(limit + 1)
+            )
+        ).all()
+        visible = rows[:limit]
+        return tuple(_model_call_from_row(row) for row in visible), len(rows) > limit
 
     async def start(self, trace: ModelCallTrace, audit_event: AuditEvent) -> None:
         fingerprint = model_call_trace_fingerprint(trace)

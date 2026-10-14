@@ -793,6 +793,9 @@ async def test_diagnosis_progress_is_replay_safe_tenant_scoped_and_api_visible(
     viewer = api_app(engine, principal(roles=frozenset({Role.VIEWER})))
     async with AsyncClient(transport=ASGITransport(app=viewer), base_url="http://test") as client:
         response = await client.get("/api/v1/incidents/incident-progress/investigation")
+        platform_response = await client.get(
+            "/api/v1/incidents/incident-progress/platform-observability"
+        )
         empty = await client.get("/api/v1/incidents/incident-without-progress/investigation")
         hidden = await client.get("/api/v1/incidents/incident-other-tenant/investigation")
     assert response.status_code == 200
@@ -801,6 +804,13 @@ async def test_diagnosis_progress_is_replay_safe_tenant_scoped_and_api_visible(
     assert body["budgets"]["replans"] == {"used": 1, "maximum": 1, "remaining": 0}
     assert body["plans"][1]["steps"][0]["status"] == "FAILED"
     assert body["replans"][0]["next_attempt"] == 2
+    assert platform_response.status_code == 200
+    platform = platform_response.json()
+    assert platform["model_calls"] == []
+    assert platform["checkpoints"][0]["workflow_run_id"] == "run-progress"
+    assert platform["checkpoints"][0]["checkpoint_sequence"] == 7
+    assert platform["checkpoints"][0]["status"] == "FAILED"
+    assert platform["audit"]["status"] == "COMPLETE"
     assert empty.status_code == 200 and empty.json() == {"run": None}
     assert hidden.status_code == 404
 
@@ -835,8 +845,13 @@ async def test_diagnosis_progress_is_replay_safe_tenant_scoped_and_api_visible(
     corrupt = api_app(engine, principal(roles=frozenset({Role.VIEWER})))
     async with AsyncClient(transport=ASGITransport(app=corrupt), base_url="http://test") as client:
         integrity = await client.get("/api/v1/incidents/incident-progress/investigation")
+        platform_integrity = await client.get(
+            "/api/v1/incidents/incident-progress/platform-observability"
+        )
     assert integrity.status_code == 409
     assert integrity.json()["code"] == "INVESTIGATION_PROGRESS_INTEGRITY_FAILED"
+    assert platform_integrity.status_code == 409
+    assert platform_integrity.json()["code"] == "PLATFORM_OBSERVABILITY_INTEGRITY_FAILED"
 
 
 async def _seed_legacy_service_migration_rows(postgres_url: str) -> None:
@@ -3788,6 +3803,25 @@ async def test_model_call_trace_repository_records_exact_metadata_and_atomic_aud
         assert await repository.get(TenantId("tenant-1"), started.id) == completed
         assert await repository.get(TenantId("tenant-1"), timed_out_started.id) == timed_out
         assert await repository.get(TenantId("tenant-2"), started.id) is None
+        incident_traces, truncated = await repository.for_incident(
+            tenant_id=TenantId("tenant-1"),
+            incident_id=IncidentId("incident-model-call"),
+        )
+        assert incident_traces == (timed_out, completed)
+        assert truncated is False
+        assert (
+            len(
+                await AuditRepository(session).for_targets(
+                    tenant_id=TenantId("tenant-1"),
+                    target_type="model.call",
+                    target_ids=(
+                        OpaqueIdentifier(timed_out.id.value),
+                        OpaqueIdentifier(completed.id.value),
+                    ),
+                )
+            )
+            == 4
+        )
         row = await session.get(ModelCallTraceRow, started.id.value)
         assert row is not None
         assert row.input_tokens == 100
@@ -3802,6 +3836,32 @@ async def test_model_call_trace_repository_records_exact_metadata_and_atomic_aud
             )
             == 4
         )
+
+    app = api_app(
+        engine,
+        principal(tenant="tenant-1", roles=frozenset({Role.VIEWER})),
+    )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/v1/incidents/incident-model-call/platform-observability")
+        assert response.status_code == 200
+        platform = response.json()
+        assert [item["status"] for item in platform["model_calls"]] == [
+            "TIMED_OUT",
+            "SUCCEEDED",
+        ]
+        assert platform["usage"]["tokens"]["total_tokens"] == 120
+        assert platform["usage"]["costs"] == [{"currency": "USD", "amount_nanounits": 12_345}]
+        assert platform["audit"]["status"] == "COMPLETE"
+        assert platform["audit"]["observed_event_count"] == 4
+        assert platform["checkpoints"] == []
+    foreign = api_app(
+        engine,
+        principal(tenant="tenant-foreign", roles=frozenset({Role.VIEWER})),
+    )
+    async with AsyncClient(transport=ASGITransport(app=foreign), base_url="http://test") as client:
+        assert (
+            await client.get("/api/v1/incidents/incident-model-call/platform-observability")
+        ).status_code == 404
 
     forged = replace(started, id=ModelCallId("model-call-forged"), provider="other-provider")
     forged_fingerprint = model_call_trace_fingerprint(forged)

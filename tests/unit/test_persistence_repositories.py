@@ -44,11 +44,13 @@ from agentops_incident_commander.domain import (
 from agentops_incident_commander.infrastructure.persistence import (
     AlertGroupRow,
     AlertRepository,
+    AuditRepository,
     DiagnosisReportRepository,
     DiagnosisReportRow,
     EvidenceGateDecisionRow,
     JobRepository,
     JobRow,
+    ModelCallTraceRepository,
     ModelCallTraceRow,
     OutboxEventRow,
     OutboxRepository,
@@ -440,6 +442,36 @@ def test_diagnosis_report_hydration_rejects_malformed_document() -> None:
     row.report = {"schema_version": "1.0.0"}
     with pytest.raises(InvalidDomainValueError, match="strict validation"):
         repositories._diagnosis_report_from_row(row)
+
+
+@pytest.mark.anyio
+async def test_platform_observability_repository_reads_are_bounded() -> None:
+    session = AsyncMock()
+    assert (
+        await AuditRepository(session).for_targets(
+            tenant_id=TenantId("tenant-1"),
+            target_type="model.call",
+            target_ids=(),
+        )
+        == ()
+    )
+    for target_ids in (
+        (OpaqueIdentifier("call-1"), OpaqueIdentifier("call-1")),
+        tuple(OpaqueIdentifier(f"call-{index}") for index in range(101)),
+    ):
+        with pytest.raises(InvalidDomainValueError, match="unique and bounded"):
+            await AuditRepository(session).for_targets(
+                tenant_id=TenantId("tenant-1"),
+                target_type="model.call",
+                target_ids=target_ids,
+            )
+    for limit in (0, 101, True, 1.5):
+        with pytest.raises(InvalidDomainValueError, match="between 1 and 100"):
+            await ModelCallTraceRepository(session).for_incident(
+                tenant_id=TenantId("tenant-1"),
+                incident_id=IncidentId("incident-1"),
+                limit=limit,  # type: ignore[arg-type]
+            )
 
 
 @pytest.mark.anyio

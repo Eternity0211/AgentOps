@@ -541,6 +541,133 @@ dd {
   margin-bottom: 0;
 }
 
+.platform-section {
+  margin-top: 36px;
+}
+
+.platform-usage {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.platform-usage dd {
+  margin-top: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.platform-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.8fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.platform-card-heading,
+.model-trace-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.platform-card-heading h3,
+.model-trace-heading strong {
+  margin: 0;
+}
+
+.platform-card-heading > span,
+.model-trace-heading span,
+.checkpoint-list small,
+.audit-requirement-list small {
+  color: var(--muted);
+}
+
+.audit-completeness,
+.trace-status,
+.audit-requirement-list strong {
+  display: inline-flex;
+  width: fit-content;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.audit-complete,
+.audit-present {
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+
+.audit-incomplete,
+.audit-missing,
+.audit-duplicate {
+  color: #ffd4ce;
+  background: #5c2525;
+  border-color: #a64d45;
+}
+
+.audit-partial {
+  color: var(--ink);
+  background: #56451f;
+  border-color: #9c7b32;
+}
+
+.model-trace-list,
+.checkpoint-list,
+.audit-requirement-list {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.model-trace-list > li,
+.checkpoint-list > li,
+.audit-requirement-list > li {
+  min-width: 0;
+  padding: 16px;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+}
+
+.model-trace-heading > div,
+.checkpoint-list > li,
+.audit-requirement-list > li {
+  display: grid;
+  gap: 5px;
+}
+
+.model-trace-list dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.checkpoint-list code {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.platform-audit {
+  margin-top: 18px;
+}
+
+.audit-requirement-list > li {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.audit-requirement-list small {
+  grid-column: 1 / -1;
+}
+
 .diagnosis-list {
   display: grid;
   gap: 18px;
@@ -1084,6 +1211,17 @@ a:focus-visible {
   .recovery-card-heading,
   .version-comparison,
   .signal-comparison {
+    display: grid;
+  }
+
+  .platform-usage,
+  .platform-grid,
+  .model-trace-list dl {
+    grid-template-columns: 1fr;
+  }
+
+  .platform-card-heading,
+  .model-trace-heading {
     display: grid;
   }
 

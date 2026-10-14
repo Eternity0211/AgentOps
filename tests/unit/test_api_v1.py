@@ -16,6 +16,7 @@ from agentops_incident_commander.application import (
     ApprovalLifecycleChange,
     ApprovalReviewSnapshot,
     approval_review_snapshot_from_document,
+    model_call_trace_fingerprint,
 )
 from agentops_incident_commander.apps.api import create_app
 from agentops_incident_commander.apps.api_errors import ApiProblem
@@ -63,6 +64,13 @@ from agentops_incident_commander.domain import (
     InvalidDomainValueError,
     MaintenanceWindowStatus,
     ModelCallId,
+    ModelCallStatus,
+    ModelCallTrace,
+    ModelCost,
+    ModelCostSource,
+    ModelMetering,
+    ModelMeteringUnavailableReason,
+    ModelTokenUsage,
     OpaqueIdentifier,
     PolicyAction,
     PolicyBlastRadius,
@@ -73,6 +81,8 @@ from agentops_incident_commander.domain import (
     PolicyReason,
     PolicyReasonCode,
     Principal,
+    PromptId,
+    PromptVersionReference,
     RedactionStatus,
     ResolvedRollbackTarget,
     RetentionClass,
@@ -80,6 +90,7 @@ from agentops_incident_commander.domain import (
     Role,
     SemanticVersion,
     Sha256Digest,
+    StoredAuditEvent,
     TenantId,
     WorkflowRunId,
 )
@@ -323,6 +334,114 @@ def recovery_records() -> tuple[
         NOW + timedelta(seconds=65),
     )
     return completed, observation, decision
+
+
+def platform_trace(
+    *,
+    call_id: str = "model-call-api",
+    status: ModelCallStatus = ModelCallStatus.SUCCEEDED,
+) -> ModelCallTrace:
+    started = ModelCallTrace(
+        id=ModelCallId(call_id),
+        tenant_id=TenantId("tenant-api"),
+        incident_id=IncidentId("incident-a"),
+        workflow_run_id=WorkflowRunId("run-platform-api"),
+        node="diagnosis.hypothesis",
+        attempt=1,
+        prompt=PromptVersionReference(PromptId("prompt-api"), SemanticVersion("1.0.0")),
+        prompt_fingerprint=Sha256Digest("1" * 64),
+        provider="mock",
+        model="deterministic",
+        temperature_basis_points=0,
+        top_p_basis_points=10_000,
+        max_output_tokens=1_000,
+        seed=7,
+        input_schema_version=SemanticVersion("1.0.0"),
+        output_schema_version=SemanticVersion("1.0.0"),
+        request_hash=Sha256Digest("2" * 64),
+        correlation_id=CorrelationId("correlation-platform-api"),
+        causation_id=CausationId("node-platform-api"),
+        status=ModelCallStatus.STARTED,
+        started_at=NOW,
+    )
+    if status is ModelCallStatus.STARTED:
+        return started
+    metering = (
+        ModelMetering(
+            ModelTokenUsage(100, 20, 10, 5, 120),
+            ModelCost(
+                12_345,
+                "USD",
+                ModelCostSource.RATE_CARD_CALCULATED,
+                SemanticVersion("1.0.0"),
+            ),
+        )
+        if status is ModelCallStatus.SUCCEEDED
+        else ModelMetering(
+            None,
+            None,
+            ModelMeteringUnavailableReason.CALL_FAILED_BEFORE_METERING,
+        )
+    )
+    return started.finish(
+        status=status,
+        completed_at=NOW + timedelta(seconds=2),
+        metering=metering,
+        response_hash=Sha256Digest("3" * 64) if status is ModelCallStatus.SUCCEEDED else None,
+        failure_code=None if status is ModelCallStatus.SUCCEEDED else "provider_failure",
+    )
+
+
+def platform_audit_events(trace: ModelCallTrace) -> tuple[StoredAuditEvent, ...]:
+    started = replace(
+        trace,
+        status=ModelCallStatus.STARTED,
+        completed_at=None,
+        response_hash=None,
+        metering=None,
+        failure_code=None,
+    )
+    started_fingerprint = model_call_trace_fingerprint(started)
+    events = [
+        StoredAuditEvent(
+            10,
+            AuditEvent(
+                id=AuditEventId("audit-model-start-api"),
+                tenant_id=trace.tenant_id,
+                type="model.call_started",
+                event_version=1,
+                payload_schema_version="model_call/v1",
+                actor_id=ActorId("diagnosis-worker"),
+                correlation_id=trace.correlation_id,
+                causation_id=trace.causation_id,
+                target=AuditTarget("model.call", trace.id),
+                occurred_at=trace.started_at,
+                request_hash=started_fingerprint,
+                result_hash=started_fingerprint,
+            ),
+        )
+    ]
+    if trace.status is not ModelCallStatus.STARTED:
+        events.append(
+            StoredAuditEvent(
+                11,
+                AuditEvent(
+                    id=AuditEventId("audit-model-finish-api"),
+                    tenant_id=trace.tenant_id,
+                    type="model.call_finished",
+                    event_version=1,
+                    payload_schema_version="model_call/v1",
+                    actor_id=ActorId("diagnosis-worker"),
+                    correlation_id=trace.correlation_id,
+                    causation_id=trace.causation_id,
+                    target=AuditTarget("model.call", trace.id),
+                    occurred_at=trace.completed_at or NOW,
+                    request_hash=started_fingerprint,
+                    result_hash=model_call_trace_fingerprint(trace),
+                ),
+            )
+        )
+    return tuple(events)
 
 
 def approval_rows(
@@ -1253,6 +1372,135 @@ def test_recovery_projection_rejects_unbound_records_and_validates_every_route()
                 transition("INVESTIGATING", "NEEDS_HUMAN", 6),
             ),
         )
+
+
+@pytest.mark.anyio
+async def test_platform_observability_route_is_scoped_aggregated_and_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import agentops_incident_commander.apps.api_v1 as api_v1
+
+    route = endpoint("/api/v1/incidents/{incident_id}/platform-observability", "GET")
+    with pytest.raises(HTTPException) as missing:
+        await route(
+            incident_id="missing",
+            session=FakeSession(scalar_values=[None]),
+            principal=VIEWER,
+        )
+    assert missing.value.status_code == 404
+
+    completed = platform_trace()
+    timed_out = platform_trace(call_id="model-call-timeout", status=ModelCallStatus.TIMED_OUT)
+
+    class TraceStore:
+        error = False
+
+        def __init__(self, _: object) -> None:
+            pass
+
+        async def for_incident(self, **_: object) -> tuple[tuple[ModelCallTrace, ...], bool]:
+            if self.error:
+                raise InvalidDomainValueError("corrupt trace")
+            return (completed, timed_out), False
+
+    class AuditStore:
+        def __init__(self, _: object) -> None:
+            pass
+
+        async def for_targets(self, **_: object) -> tuple[StoredAuditEvent, ...]:
+            return (*platform_audit_events(completed), *platform_audit_events(timed_out))
+
+    monkeypatch.setattr(api_v1, "ModelCallTraceRepository", TraceStore)
+    monkeypatch.setattr(api_v1, "AuditRepository", AuditStore)
+    visible = await route(
+        incident_id="incident-a",
+        session=FakeSession(scalar_values=["incident-a"], scalar_lists=[[]]),
+        principal=VIEWER,
+    )
+    assert [item.status for item in visible.model_calls] == ["SUCCEEDED", "TIMED_OUT"]
+    assert visible.usage.call_count == 2
+    assert visible.usage.metered_call_count == 1
+    assert visible.usage.unavailable_call_count == 1
+    assert visible.usage.tokens.total_tokens == 120
+    assert visible.usage.costs[0].amount_nanounits == 12_345
+    assert visible.audit.status == "COMPLETE"
+    assert visible.audit.observed_event_count == 4
+    assert visible.checkpoints == []
+
+    TraceStore.error = True
+    with pytest.raises(ApiProblem) as integrity:
+        await route(
+            incident_id="incident-a",
+            session=FakeSession(scalar_values=["incident-a"]),
+            principal=VIEWER,
+        )
+    assert integrity.value.status_code == 409
+    assert integrity.value.code == "PLATFORM_OBSERVABILITY_INTEGRITY_FAILED"
+
+
+def test_platform_audit_completeness_reports_missing_duplicates_partial_and_corruption() -> None:
+    import agentops_incident_commander.apps.api_v1 as api_v1
+
+    trace = platform_trace()
+    start, finish = platform_audit_events(trace)
+    submillisecond_trace = replace(
+        trace,
+        started_at=trace.started_at.replace(microsecond=900),
+        completed_at=trace.completed_at.replace(microsecond=100)
+        if trace.completed_at is not None
+        else None,
+    )
+    assert api_v1._model_call_trace_view(submillisecond_trace).duration_ms == 2_000
+    pending_trace = platform_trace(call_id="model-call-pending", status=ModelCallStatus.STARTED)
+    (pending_start,) = platform_audit_events(pending_trace)
+    ignored = replace(
+        pending_start,
+        sequence=9,
+        event=replace(
+            pending_start.event,
+            id=AuditEventId("audit-model-observed"),
+            type="model.call_observed",
+        ),
+    )
+    pending = api_v1._model_audit_completeness(
+        (pending_trace,), (ignored, pending_start), truncated=False
+    )
+    assert pending.status == "COMPLETE"
+    assert api_v1._model_call_trace_view(pending_trace).duration_ms is None
+    assert api_v1._model_usage_totals((pending_trace,)).pending_call_count == 1
+
+    missing = api_v1._model_audit_completeness((trace,), (start,), truncated=False)
+    assert missing.status == "INCOMPLETE"
+    assert missing.missing_event_count == 1
+
+    duplicate_finish = replace(
+        finish,
+        sequence=12,
+        event=replace(finish.event, id=AuditEventId("audit-model-finish-duplicate")),
+    )
+    duplicate = api_v1._model_audit_completeness(
+        (trace,), (start, finish, duplicate_finish), truncated=False
+    )
+    assert duplicate.status == "INCOMPLETE"
+    assert duplicate.duplicate_event_count == 1
+
+    partial = api_v1._model_audit_completeness((trace,), (start, finish), truncated=True)
+    assert partial.status == "PARTIAL"
+    assert partial.complete is False
+
+    foreign = replace(
+        start,
+        event=replace(start.event, target=AuditTarget("model.call", OpaqueIdentifier("other"))),
+    )
+    with pytest.raises(InvalidDomainValueError, match="outside"):
+        api_v1._model_audit_completeness((trace,), (foreign,), truncated=False)
+
+    corrupt = replace(
+        finish,
+        event=replace(finish.event, result_hash=Sha256Digest("f" * 64)),
+    )
+    with pytest.raises(InvalidDomainValueError, match="binding"):
+        api_v1._model_audit_completeness((trace,), (start, corrupt), truncated=False)
 
 
 @pytest.mark.anyio

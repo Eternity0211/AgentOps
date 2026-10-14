@@ -27,6 +27,7 @@ receive operator authority.
 | `GET /api/v1/incidents/{incident_id}/investigation` | Read the latest bounded Diagnosis progress projection | `incident:read` |
 | `GET /api/v1/incidents/{incident_id}/diagnosis` | Read the latest verified ranked Diagnosis report and matching Evidence Gate decisions | `evidence:read` |
 | `GET /api/v1/incidents/{incident_id}/recovery` | Read the latest integrity-checked recovery execution, deterministic verification, and resulting route | `incident:read` |
+| `GET /api/v1/incidents/{incident_id}/platform-observability` | Read bounded content-free model traces, usage/cost, durable checkpoint projections, and deterministic model-call audit completeness | `audit:read` |
 | `GET /api/v1/incidents/{incident_id}/timeline` | Read lifecycle transitions and cancellation requests | `incident:read` |
 | `GET /api/v1/incidents/{incident_id}/evidence` | List incident-owned Evidence metadata | `evidence:read` |
 | `GET /api/v1/incidents/{incident_id}/evidence/{evidence_id}` | Read one Evidence metadata record | `evidence:read` |
@@ -97,6 +98,27 @@ is not represented by this endpoint. Reads reconstruct domain objects, verify st
 reject multiple verifier results for one execution, and cross-check tenant, Incident, execution,
 service, environment, stable version, Evidence bindings, and route shape. Any mismatch returns
 `RECOVERY_RESULT_INTEGRITY_FAILED` without partial data.
+
+`GET /api/v1/incidents/{incident_id}/platform-observability` returns at most the newest 100
+integrity-checked model-call traces and the newest durable Diagnosis progress projection for at
+most 100 workflow runs. Traces contain Prompt/version/hash, provider/model, node/attempt,
+correlation/causation IDs, request/response hashes, terminal status and latency, exact token
+categories, integer-nanounit cost with source/rate-card provenance, or the typed reason metering is
+unavailable. Prompt, context, response, exception, credential, and telemetry bodies are never
+returned. Token totals are exact only for the displayed bounded trace set, costs remain separated
+by currency, and explicit truncation flags prevent an operator from mistaking a partial window for
+an incident lifetime total.
+
+Checkpoint entries are the latest hash-verified durable operator projection for each Diagnosis
+workflow run. They expose graph version, phase/status, checkpoint sequence, projection fingerprint,
+and observation time; they are deliberately labeled `LATEST_DURABLE_PROJECTION` and do not pretend
+to be raw LangGraph checkpoint payloads or a complete checkpoint history. Model-call audit
+completeness uses deterministic ruleset `1.0.0`: every displayed call requires one exact,
+hash-bound `model.call_started`, and each terminal call additionally requires one exact
+`model.call_finished`. Missing or duplicate requirements produce `INCOMPLETE`; trace truncation
+produces `PARTIAL`; mismatched tenant, target, correlation, causation, schema, timestamp, or hash
+bindings fail closed with `PLATFORM_OBSERVABILITY_INTEGRITY_FAILED`. This scoped UI status does not
+claim the full workflow-path audit completeness that Phase 11 will enforce.
 
 Evidence lists use the same opaque newest-first cursor convention, ordered by collection time and
 Evidence ID. Metadata includes source/query provenance, observation and collection ranges, quality
@@ -172,5 +194,8 @@ duplicate replay, changed-payload conflict, optimistic/state conflicts, cancella
 transactional audit/idempotency counts, and tenant-scoped Evidence metadata plus authorized,
 hash-bound Artifact retrieval. Recovery read coverage additionally proves empty, successful,
 failed-route, cross-tenant, and corrupted-route behavior against real PostgreSQL records.
+Platform-observability coverage proves exact and unavailable metering, per-currency totals,
+tenant hiding, durable checkpoint projection validation, model-call audit requirements, bounded
+reads, and corrupted trace/checkpoint/audit failure paths.
 Framework-level contract tests cover defensive return and cursor branches that the Windows
 coverage tracer cannot observe after SQLAlchemy's async greenlet bridge.

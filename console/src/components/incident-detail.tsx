@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { EvidenceView } from "@/components/evidence-view";
 import { DiagnosisResults } from "@/components/diagnosis-results";
+import { PlatformObservabilityView } from "@/components/platform-observability-view";
 import { RecoveryView } from "@/components/recovery-view";
 import { loadDiagnosis, type DiagnosisResult } from "@/lib/diagnosis";
 import { loadEvidence, type EvidencePage } from "@/lib/evidence";
@@ -17,6 +18,10 @@ import {
   type InvestigationProgress,
 } from "@/lib/investigation";
 import { loadRecovery, type RecoveryResult } from "@/lib/recovery";
+import {
+  loadPlatformObservability,
+  type PlatformObservability,
+} from "@/lib/platform-observability";
 import {
   loadTimeline,
   type TimelineEvent,
@@ -34,6 +39,7 @@ type DetailState =
       diagnosis: DiagnosisResult | null;
       evidence: EvidencePage;
       recovery: RecoveryResult;
+      platform: PlatformObservability;
     };
 
 function displayState(value: string) {
@@ -254,8 +260,17 @@ export function IncidentDetail({
       loadDiagnosis(incidentId, controller.signal),
       loadEvidence(incidentId, undefined, controller.signal),
       loadRecovery(incidentId, controller.signal),
+      loadPlatformObservability(incidentId, controller.signal),
     ]).then(
-      ([incident, timeline, investigation, diagnosis, evidence, recovery]) => {
+      ([
+        incident,
+        timeline,
+        investigation,
+        diagnosis,
+        evidence,
+        recovery,
+        platform,
+      ]) => {
         if (!controller.signal.aborted) {
           setState({
             status: "ready",
@@ -265,6 +280,7 @@ export function IncidentDetail({
             diagnosis,
             evidence,
             recovery,
+            platform,
           });
         }
       },
@@ -330,8 +346,15 @@ export function IncidentDetail({
     );
   }
 
-  const { incident, timeline, investigation, diagnosis, evidence, recovery } =
-    state;
+  const {
+    incident,
+    timeline,
+    investigation,
+    diagnosis,
+    evidence,
+    recovery,
+    platform,
+  } = state;
   return (
     <main>
       <Link className="back-link" href="/incidents">
@@ -384,6 +407,8 @@ export function IncidentDetail({
       <DiagnosisResults result={diagnosis} />
 
       <RecoveryView incidentId={incidentId} recovery={recovery} />
+
+      <PlatformObservabilityView platform={platform} />
 
       <EvidenceView incidentId={incidentId} initialPage={evidence} />
 

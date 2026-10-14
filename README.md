@@ -210,6 +210,12 @@ record, and renders the persisted closure, bounded re-diagnosis, human-handoff, 
 route. It never infers recovery from the executor result, and it explicitly shows that
 `rollback_service` has no separately authorized compensation path and never redeploys the known
 faulty version after failed verification.
+The same detail view now renders a bounded, content-free agent-platform projection: exact
+Prompt/model/node trace metadata, latency, token categories, per-currency integer cost, latest
+durable Diagnosis checkpoint projections, and a backend-computed model-call audit completeness
+decision. Truncation is explicit, raw prompts/responses are absent, and the UI never upgrades this
+scoped `model.call_started`/`model.call_finished` coverage into a claim that the entire workflow
+audit is complete.
 
 From `console/`, use `npm ci` for a locked install, `npm run verify` for formatting, linting,
 strict type checks, unit coverage, and a production build, and `npm run test:browser` for the

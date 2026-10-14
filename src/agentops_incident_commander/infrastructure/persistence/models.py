@@ -613,6 +613,31 @@ class ApprovalLifecycleEventRow(Base):
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class ApprovalReviewSnapshotRow(Base):
+    """Immutable proposal and Policy review content bound to one Approval."""
+
+    __tablename__ = "approval_review_snapshots"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["approval_id", "tenant_id"],
+            ["approvals.id", "approvals.tenant_id"],
+            name="fk_approval_review_approval_tenant",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("snapshot_fingerprint ~ '^[0-9a-f]{64}$'", name="ck_approval_review_hash"),
+        CheckConstraint("jsonb_typeof(snapshot) = 'object'", name="ck_approval_review_document"),
+        Index("ix_approval_review_incident", "tenant_id", "incident_id"),
+    )
+
+    approval_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    incident_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    snapshot: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    snapshot_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
 class ApprovalInvalidationRow(Base):
     """Immutable marker preventing reuse after a material proposal revision."""
 
@@ -648,6 +673,7 @@ class ApprovalInvalidationRow(Base):
     replacement_proposal_version: Mapped[int] = mapped_column(Integer, nullable=False)
     replacement_proposal_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
     replacement_material_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    replacement_proposal: Mapped[dict[str, object] | None] = mapped_column(JSONB)
     invalidated_by: Mapped[str] = mapped_column(String(128), nullable=False)
     invalidated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     audit_event_id: Mapped[str] = mapped_column(String(128), nullable=False)

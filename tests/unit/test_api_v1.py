@@ -11,23 +11,38 @@ from fastapi import HTTPException, Response
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
+from agentops_incident_commander.application import (
+    ApprovalLifecycleChange,
+    ApprovalReviewSnapshot,
+    approval_review_snapshot_from_document,
+)
 from agentops_incident_commander.apps.api import create_app
 from agentops_incident_commander.apps.api_errors import ApiProblem
 from agentops_incident_commander.apps.api_v1 import (
+    ApprovalDecisionRequest,
     ControlRequest,
     SessionFactory,
+    _canonical_hash,
+    _proposal_diff,
     build_api_v1_router,
     new_identifier,
 )
 from agentops_incident_commander.apps.config import ApiSettings
 from agentops_incident_commander.domain import (
     ActorId,
+    AggregateVersion,
+    ApprovalId,
     Artifact,
     ArtifactContent,
     ArtifactExpiredError,
     ArtifactId,
     ArtifactIntegrityError,
     ArtifactNotFoundError,
+    AuditEvent,
+    AuditEventId,
+    AuditTarget,
+    CausationId,
+    CorrelationId,
     EvidenceGateDecision,
     EvidenceGateOutcome,
     EvidenceId,
@@ -35,16 +50,31 @@ from agentops_incident_commander.domain import (
     IncidentSeverity,
     IncidentState,
     InvalidDomainValueError,
+    MaintenanceWindowStatus,
     ModelCallId,
+    OpaqueIdentifier,
+    PolicyAction,
+    PolicyBlastRadius,
+    PolicyDecision,
+    PolicyEnvironment,
+    PolicyEvaluationInput,
+    PolicyOutcome,
+    PolicyReason,
+    PolicyReasonCode,
     Principal,
     RedactionStatus,
     RetentionClass,
+    RiskLevel,
     Role,
+    SemanticVersion,
     Sha256Digest,
     TenantId,
     WorkflowRunId,
 )
 from agentops_incident_commander.infrastructure.persistence.models import (
+    ApprovalInvalidationRow,
+    ApprovalReviewSnapshotRow,
+    ApprovalRow,
     AuditEventRow,
     DiagnosisProgressRow,
     EvidenceRow,
@@ -53,11 +83,21 @@ from agentops_incident_commander.infrastructure.persistence.models import (
     IncidentRow,
     IncidentTransitionRow,
 )
+from agentops_incident_commander.infrastructure.persistence.repositories import (
+    ApprovalLifecycleRepository,
+)
 from agentops_incident_commander.workflows import (
     CounterEvidenceTreatment,
     DiagnosisDisposition,
     DiagnosisReport,
     DiagnosisReportRecord,
+    RecoveryAction,
+    RemediationFailureHandling,
+    RemediationFailureRoute,
+    RemediationProposal,
+    RollbackPrerequisites,
+    RollbackServiceParameters,
+    RollbackVerificationConditions,
     RootCauseCandidate,
     diagnosis_report_fingerprint,
 )
@@ -181,6 +221,104 @@ def evidence_row(
     )
 
 
+def approval_rows(
+    *, approval_id: str = "approval-api", independent: bool = True
+) -> tuple[ApprovalRow, ApprovalReviewSnapshotRow]:
+    proposed = RemediationProposal(
+        schema_version="1.0.0",
+        proposal_id=f"remediation-{approval_id}",
+        proposal_version=1,
+        incident_id="incident-approval-api",
+        candidate_id="candidate-approval-api",
+        evidence_gate_input_fingerprint="c" * 64,
+        evidence_gate_decision_fingerprint="b" * 64,
+        action=RecoveryAction.ROLLBACK_SERVICE,
+        parameters=RollbackServiceParameters(
+            service="orders",
+            introducing_deployment_evidence_id="evidence-deployment",
+        ),
+        prerequisites=RollbackPrerequisites(current_version_evidence_id="evidence-current"),
+        verification_conditions=RollbackVerificationConditions(
+            max_error_rate_basis_points=100,
+            max_p95_latency_ms=500,
+            stability_window_seconds=300,
+        ),
+        failure_handling=RemediationFailureHandling(
+            route=RemediationFailureRoute.HUMAN_HANDOFF,
+            max_rediagnosis_attempts=0,
+        ),
+        risk_assumptions=("The current deployment is faulty.",),
+    )
+    value = PolicyEvaluationInput(
+        tenant_id=TenantId("tenant-api"),
+        incident_id=IncidentId("incident-approval-api"),
+        proposal_id=OpaqueIdentifier(proposed.proposal_id),
+        proposal_version=proposed.proposal_version,
+        proposal_fingerprint=proposed.fingerprint,
+        evidence_gate_decision_fingerprint=Sha256Digest(
+            proposed.evidence_gate_decision_fingerprint
+        ),
+        requester_actor_id=ActorId("operator-approval-api"),
+        requester_roles=frozenset({Role.OPERATOR}),
+        environment=PolicyEnvironment.PRODUCTION,
+        action=PolicyAction.ROLLBACK_SERVICE,
+        service="orders",
+        blast_radius=PolicyBlastRadius.SINGLE_SERVICE,
+        maintenance_window=MaintenanceWindowStatus.ACTIVE,
+        separation_of_duties_required=independent,
+        requested_at=NOW,
+    )
+    decision = PolicyDecision(
+        id=OpaqueIdentifier(f"policy-{approval_id}"),
+        policy_version=SemanticVersion("1.0.0"),
+        input_fingerprint=value.fingerprint,
+        proposal_fingerprint=proposed.fingerprint,
+        outcome=PolicyOutcome.APPROVAL_REQUIRED,
+        risk_level=RiskLevel.HIGH if independent else RiskLevel.LOW,
+        reasons=(
+            PolicyReason(
+                PolicyReasonCode.APPROVAL_REQUIRED,
+                "Human approval is required before rollback execution.",
+            ),
+        ),
+        evaluated_at=NOW,
+        approval_ttl=timedelta(minutes=30),
+    )
+    snapshot = ApprovalReviewSnapshot(proposed, value, decision)
+    approval = ApprovalRow(
+        id=approval_id,
+        tenant_id="tenant-api",
+        incident_id=value.incident_id.value,
+        proposal_id=value.proposal_id.value,
+        proposal_version=value.proposal_version,
+        proposal_fingerprint=value.proposal_fingerprint.value,
+        policy_decision_id=decision.id.value,
+        policy_decision_fingerprint=decision.fingerprint.value,
+        policy_input_fingerprint=value.fingerprint.value,
+        proposer_actor_id=value.requester_actor_id.value,
+        risk_level=decision.risk_level.value,
+        independent_approver_required=independent,
+        status="PENDING",
+        version=1,
+        requested_at=NOW,
+        expires_at=NOW + timedelta(minutes=30),
+        decided_at=None,
+        decided_by=None,
+        decision_reason=None,
+        schema_version="1.0.0",
+    )
+    review = ApprovalReviewSnapshotRow(
+        approval_id=approval_id,
+        tenant_id="tenant-api",
+        incident_id=value.incident_id.value,
+        snapshot=snapshot.document,
+        snapshot_fingerprint=snapshot.fingerprint.value,
+        created_at=NOW,
+        schema_version=snapshot.schema_version,
+    )
+    return approval, review
+
+
 def artifact(
     *,
     artifact_id: str = "artifact-a",
@@ -266,6 +404,112 @@ async def test_session_exposes_only_server_derived_identity_and_authority() -> N
             "remediation:request",
         ],
     }
+
+
+@pytest.mark.anyio
+async def test_approval_read_routes_resume_after_database_awaits() -> None:
+    first, first_review = approval_rows(approval_id="approval-api-a")
+    second, _ = approval_rows(approval_id="approval-api-b", independent=False)
+    second.requested_at = NOW - timedelta(seconds=1)
+    route = endpoint("/api/v1/approvals", "GET")
+    approver = Principal(
+        ActorId("approver-api"), TenantId("tenant-api"), frozenset({Role.APPROVER})
+    )
+    page = await route(
+        session=FakeSession(
+            scalar_values=[first],
+            scalar_lists=[[first, second], []],
+        ),
+        principal=approver,
+        limit=1,
+        cursor=None,
+        approval_status=None,
+    )
+    assert page.items[0].id == first.id
+    assert page.next_cursor is not None
+    continued = await route(
+        session=FakeSession(
+            scalar_values=[second],
+            scalar_lists=[[second], []],
+        ),
+        principal=approver,
+        limit=1,
+        cursor=page.next_cursor,
+        approval_status=None,
+    )
+    assert continued.items[0].id == second.id
+    assert continued.items[0].separation_of_duties.code == "NOT_REQUIRED"
+    assert continued.next_cursor is None
+
+    detail_route = endpoint("/api/v1/approvals/{approval_id}", "GET")
+    detail = await detail_route(
+        approval_id=first.id,
+        session=FakeSession(scalar_values=[first, first_review, None, None]),
+        principal=approver,
+    )
+    assert detail.proposal["proposal_id"] == first.proposal_id
+    with pytest.raises(HTTPException) as missing:
+        await detail_route(
+            approval_id="approval-missing",
+            session=FakeSession(scalar_values=[None]),
+            principal=approver,
+        )
+    assert missing.value.status_code == 404
+    with pytest.raises(ApiProblem) as missing_snapshot:
+        await detail_route(
+            approval_id=first.id,
+            session=FakeSession(scalar_values=[first, None]),
+            principal=approver,
+        )
+    assert missing_snapshot.value.code == "APPROVAL_REVIEW_INTEGRITY_FAILED"
+
+    changes = _proposal_diff(
+        {"removed": 1, "changed": {"before": True}},
+        {"added": 2, "changed": {"after": True}},
+    )
+    assert {change.path for change in changes} == {
+        "$.added",
+        "$.changed.after",
+        "$.changed.before",
+        "$.removed",
+    }
+
+
+@pytest.mark.anyio
+async def test_approval_repository_rejects_corrupt_or_mismatched_review_snapshots() -> None:
+    row_value, review = approval_rows(approval_id="approval-review-integrity")
+    review.snapshot_fingerprint = "f" * 64
+    repository = ApprovalLifecycleRepository(cast(Any, FakeSession(scalar_values=[review])))
+    with pytest.raises(InvalidDomainValueError, match="integrity check failed"):
+        await repository.get_review_snapshot(
+            ApprovalId(row_value.id), tenant_id=TenantId("tenant-api")
+        )
+
+    lookup = ApprovalLifecycleRepository(cast(Any, FakeSession(scalar_values=[row_value])))
+    approval = await lookup.get(ApprovalId(row_value.id), tenant_id=TenantId("tenant-api"))
+    assert approval is not None
+    _, other_review = approval_rows(approval_id="approval-other-review")
+    other_snapshot = approval_review_snapshot_from_document(other_review.snapshot)
+    audit = AuditEvent(
+        id=AuditEventId("audit-review-integrity"),
+        tenant_id=approval.tenant_id,
+        type="approval.requested",
+        event_version=1,
+        payload_schema_version="approval/v1",
+        actor_id=approval.proposer_actor_id,
+        correlation_id=CorrelationId("correlation-review-integrity"),
+        causation_id=CausationId("request-review-integrity"),
+        target=AuditTarget("approval.record", OpaqueIdentifier(approval.id.value)),
+        occurred_at=approval.requested_at,
+        request_hash=approval.policy_decision_fingerprint,
+        result_hash=approval.fingerprint,
+    )
+    mismatched = ApprovalLifecycleRepository(cast(Any, FakeSession(scalar_values=[None])))
+    with pytest.raises(InvalidDomainValueError, match="does not match Approval"):
+        await mismatched.apply(
+            ApprovalLifecycleChange("requested", None, approval, other_snapshot),
+            audit,
+        )
 
 
 @pytest.mark.anyio
@@ -764,6 +1008,194 @@ def idempotency_record(
         created_at=NOW,
         completed_at=NOW if response_body is not None else None,
     )
+
+
+def approval_command() -> ApprovalDecisionRequest:
+    return ApprovalDecisionRequest(
+        expected_version=AggregateVersion.initial().value,
+        reason="Reviewed evidence and rollback scope.",
+        correlation_id="correlation-approval-api",
+        causation_id="decision-approval-api",
+    )
+
+
+def approval_idempotency_record(
+    operation: str,
+    approval_id: str,
+    *,
+    response_body: dict[str, object] | None = None,
+    request_hash: str | None = None,
+) -> IdempotencyRecordRow:
+    command = approval_command()
+    calculated = _canonical_hash(
+        {
+            "operation": operation,
+            "approval_id": approval_id,
+            "command": command.model_dump(mode="json"),
+        }
+    )
+    return IdempotencyRecordRow(
+        tenant_id="tenant-api",
+        actor_id="approver-api",
+        operation=f"approval:{operation}:{approval_id}",
+        idempotency_key="approval-key",
+        request_hash=calculated if request_hash is None else request_hash,
+        response_status=200 if response_body is not None else None,
+        response_body=response_body,
+        created_at=NOW,
+        completed_at=NOW if response_body is not None else None,
+    )
+
+
+@pytest.mark.anyio
+async def test_approval_decision_routes_cover_success_replay_and_refusals() -> None:
+    approver = Principal(
+        ActorId("approver-api"), TenantId("tenant-api"), frozenset({Role.APPROVER})
+    )
+    command_value = approval_command()
+    approve = endpoint(
+        "/api/v1/approvals/{approval_id}/approve",
+        "POST",
+        audit_ids=["audit-approval-api"],
+    )
+    pending, _ = approval_rows()
+    record = approval_idempotency_record("approve", pending.id)
+    response = Response()
+    result = await approve(
+        approval_id=pending.id,
+        command=command_value,
+        idempotency_key="approval-key",
+        session=FakeSession(
+            scalar_values=[1, record, pending, None, pending, pending],
+        ),
+        principal=approver,
+        response=response,
+    )
+    assert result.approval.status == "APPROVED"
+    assert response.headers["Idempotency-Replayed"] == "false"
+    assert record.response_body is not None
+
+    replay_response = Response()
+    replayed = await approve(
+        approval_id="approval-api",
+        command=command_value,
+        idempotency_key="approval-key",
+        session=FakeSession(scalar_values=[None, record]),
+        principal=approver,
+        response=replay_response,
+    )
+    assert replayed == result
+    assert replay_response.headers["Idempotency-Replayed"] == "true"
+
+    conflict = approval_idempotency_record("approve", "approval-api", request_hash="f" * 64)
+    with pytest.raises(ApiProblem) as reused:
+        await approve(
+            approval_id="approval-api",
+            command=command_value,
+            idempotency_key="approval-key",
+            session=FakeSession(scalar_values=[None, conflict]),
+            principal=approver,
+            response=Response(),
+        )
+    assert reused.value.code == "IDEMPOTENCY_CONFLICT"
+
+    incomplete = approval_idempotency_record("approve", "approval-api")
+    with pytest.raises(RuntimeError, match="no response"):
+        await approve(
+            approval_id="approval-api",
+            command=command_value,
+            idempotency_key="approval-key",
+            session=FakeSession(scalar_values=[None, incomplete]),
+            principal=approver,
+            response=Response(),
+        )
+
+    missing_record = approval_idempotency_record("approve", "approval-missing")
+    with pytest.raises(HTTPException) as missing:
+        await approve(
+            approval_id="approval-missing",
+            command=command_value,
+            idempotency_key="approval-key",
+            session=FakeSession(scalar_values=[1, missing_record, None]),
+            principal=approver,
+            response=Response(),
+        )
+    assert missing.value.status_code == 404
+
+    invalidated_pending, _ = approval_rows(approval_id="approval-invalidated")
+    invalidated_record = approval_idempotency_record("approve", invalidated_pending.id)
+    invalidation = ApprovalInvalidationRow(
+        approval_id=invalidated_pending.id,
+        tenant_id="tenant-api",
+        incident_id=invalidated_pending.incident_id,
+        approval_fingerprint="a" * 64,
+        prior_proposal_fingerprint=invalidated_pending.proposal_fingerprint,
+        replacement_proposal_id="remediation-replacement",
+        replacement_proposal_version=2,
+        replacement_proposal_fingerprint="d" * 64,
+        replacement_material_fingerprint="e" * 64,
+        replacement_proposal=None,
+        invalidated_by="operator-approval-api",
+        invalidated_at=NOW + timedelta(seconds=30),
+        audit_event_id="audit-invalidation-api",
+        schema_version="1.0.0",
+    )
+    with pytest.raises(ApiProblem) as invalidated:
+        await approve(
+            approval_id=invalidated_pending.id,
+            command=command_value,
+            idempotency_key="approval-key",
+            session=FakeSession(
+                scalar_values=[1, invalidated_record, invalidated_pending, invalidation]
+            ),
+            principal=approver,
+            response=Response(),
+        )
+    assert invalidated.value.code == "APPROVAL_INVALIDATED"
+
+    terminal, _ = approval_rows(approval_id="approval-terminal")
+    terminal.status = "APPROVED"
+    terminal.version = 2
+    terminal.decided_at = NOW + timedelta(seconds=30)
+    terminal.decided_by = "approver-other"
+    terminal.decision_reason = "Previously approved."
+    terminal_record = approval_idempotency_record("approve", terminal.id)
+    with pytest.raises(ApiProblem) as state_conflict:
+        await approve(
+            approval_id=terminal.id,
+            command=command_value,
+            idempotency_key="approval-key",
+            session=FakeSession(scalar_values=[1, terminal_record, terminal, None, terminal]),
+            principal=approver,
+            response=Response(),
+        )
+    assert state_conflict.value.code == "APPROVAL_STATE_CONFLICT"
+
+    reject = endpoint(
+        "/api/v1/approvals/{approval_id}/reject",
+        "POST",
+        audit_ids=["audit-reject-api"],
+    )
+    rejected_pending, _ = approval_rows(approval_id="approval-reject")
+    rejected_record = approval_idempotency_record("reject", rejected_pending.id)
+    rejected = await reject(
+        approval_id=rejected_pending.id,
+        command=command_value,
+        idempotency_key="approval-key",
+        session=FakeSession(
+            scalar_values=[
+                1,
+                rejected_record,
+                rejected_pending,
+                None,
+                rejected_pending,
+                rejected_pending,
+            ]
+        ),
+        principal=approver,
+        response=Response(),
+    )
+    assert rejected.approval.status == "REJECTED"
 
 
 @pytest.mark.anyio

@@ -64,3 +64,13 @@ Evidence cards, preserves missing evidence and uncertainty, labels model confide
 non-authoritative, and displays only deterministically matched Evidence Gate outcomes, reasons,
 versions, times, and fingerprints. Empty reports remain explicit and invalid or corrupt response
 shapes fail the complete read-only view closed.
+
+`/approvals` is available only when the authenticated session includes `approval:decide`. It pages
+tenant-authorized Approval summaries and shows risk, status, expiry, invalidation, and server-owned
+separation-of-duties feedback. `/approvals/{approval_id}` strictly validates the immutable proposal
+and Policy projection, renders every Policy reason and verification/failure condition, and shows a
+server-generated diff when a persisted material revision invalidates the original Approval.
+Approve/reject forms submit a bounded reason, expected Approval version, correlation/causation
+identities, and a fresh Idempotency Key. Buttons are absent for terminal, expired, invalidated, or
+separation-restricted records. The browser waits for the authoritative response and reloads the
+verified record; it never optimistically marks an Approval or invokes execution.

@@ -150,7 +150,9 @@ class GateStore:
 class InvalidationStore(ApprovalInvalidationStore):
     def __init__(self, existing: ApprovalInvalidation | None = None) -> None:
         self.existing = existing
-        self.records: list[tuple[Approval, ApprovalInvalidation, AuditEvent]] = []
+        self.records: list[
+            tuple[Approval, ApprovalInvalidation, AuditEvent, RemediationProposal]
+        ] = []
 
     async def get_invalidation(
         self, approval_id: ApprovalId, *, tenant_id: TenantId
@@ -162,8 +164,9 @@ class InvalidationStore(ApprovalInvalidationStore):
         current: Approval,
         invalidation: ApprovalInvalidation,
         audit_event: AuditEvent,
+        replacement_proposal: RemediationProposal,
     ) -> None:
-        self.records.append((current, invalidation, audit_event))
+        self.records.append((current, invalidation, audit_event, replacement_proposal))
         self.existing = invalidation
 
 
@@ -241,10 +244,11 @@ async def test_material_revision_invalidates_and_requires_fresh_approval() -> No
     assert result.policy_input.proposal_fingerprint == result.proposal.fingerprint
     assert result.invalidation.replacement_proposal_fingerprint == result.proposal.fingerprint
     assert len(invalidations.records) == 1
-    _, invalidation, audit = invalidations.records[0]
+    _, invalidation, audit, stored_proposal = invalidations.records[0]
     assert audit.type == "approval.invalidated"
     assert audit.request_hash == current.fingerprint
     assert audit.result_hash == invalidation.fingerprint
+    assert stored_proposal == result.proposal
     assert result.proposal.material_fingerprint != prior.material_fingerprint
     with pytest.raises(InvalidDomainValueError, match="Policy outcome"):
         replace(result, outcome=RevisionOutcome.POLICY_DENIED)

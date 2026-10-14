@@ -1,6 +1,10 @@
 {
-  "sha256": "2f9865d30806c1e986b02eb8b52ded7de57ddc746710019dcbe1ce00e39a8255",
+  "sha256": "5fe01b010409a7a99d6bff7073abace2a8aa5255728cafaf1c8b90e1e7cc0eb2",
   "paths": {
+    "/api/v1/approvals": ["get"],
+    "/api/v1/approvals/{approval_id}": ["get"],
+    "/api/v1/approvals/{approval_id}/approve": ["post"],
+    "/api/v1/approvals/{approval_id}/reject": ["post"],
     "/api/v1/audit": ["get"],
     "/api/v1/incidents": ["get"],
     "/api/v1/incidents/{incident_id}": ["get"],
@@ -15,6 +19,15 @@
     "/api/v1/session": ["get"]
   },
   "schemas": [
+    "ApprovalDecisionRequest",
+    "ApprovalDecisionResult",
+    "ApprovalDetailView",
+    "ApprovalInvalidationView",
+    "ApprovalPage",
+    "ApprovalPolicyView",
+    "ApprovalSeparationView",
+    "ApprovalStatus",
+    "ApprovalSummaryView",
     "AuditEventView",
     "AuditPage",
     "BudgetCounterView",
@@ -36,7 +49,9 @@
     "InvestigationProgressEnvelope",
     "InvestigationProgressView",
     "InvestigationStepView",
+    "PolicyReasonView",
     "ProblemDetail",
+    "ProposalDiffEntry",
     "ReplanView",
     "RootCauseCandidateView",
     "SessionView",

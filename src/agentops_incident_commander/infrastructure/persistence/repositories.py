@@ -17,8 +17,10 @@ from agentops_incident_commander.application import (
     HEALTH_VERIFICATION_CLOSURE_AUDIT_SCHEMA_VERSION,
     HEALTH_VERIFICATION_FAILURE_AUDIT_SCHEMA_VERSION,
     ApprovalLifecycleChange,
+    ApprovalReviewSnapshot,
     PromptLifecycleChange,
     VerificationFailureDecision,
+    approval_review_snapshot_from_document,
     decide_verification_failure_route,
     evidence_gate_claim_snapshot,
     evidence_gate_decision_fingerprint,
@@ -147,6 +149,7 @@ from .models import (
     AlertRow,
     ApprovalInvalidationRow,
     ApprovalLifecycleEventRow,
+    ApprovalReviewSnapshotRow,
     ApprovalRow,
     AuditEventRow,
     DiagnosisReportRow,
@@ -1184,6 +1187,53 @@ class ApprovalLifecycleRepository:
         )
         return None if row is None else _approval_from_row(row)
 
+    async def get_review_snapshot(
+        self, approval_id: ApprovalId, *, tenant_id: TenantId
+    ) -> ApprovalReviewSnapshot | None:
+        row = await self._session.scalar(
+            select(ApprovalReviewSnapshotRow).where(
+                ApprovalReviewSnapshotRow.approval_id == approval_id.value,
+                ApprovalReviewSnapshotRow.tenant_id == tenant_id.value,
+            )
+        )
+        if row is None:
+            return None
+        snapshot = approval_review_snapshot_from_document(row.snapshot)
+        if (
+            snapshot.fingerprint.value != row.snapshot_fingerprint
+            or snapshot.schema_version != row.schema_version
+            or snapshot.policy_input.tenant_id.value != row.tenant_id
+            or snapshot.policy_input.incident_id.value != row.incident_id
+        ):
+            raise InvalidDomainValueError("Approval review snapshot integrity check failed")
+        return snapshot
+
+    async def get_replacement_proposal(
+        self, approval_id: ApprovalId, *, tenant_id: TenantId
+    ) -> RemediationProposal | None:
+        row = await self._session.scalar(
+            select(ApprovalInvalidationRow).where(
+                ApprovalInvalidationRow.approval_id == approval_id.value,
+                ApprovalInvalidationRow.tenant_id == tenant_id.value,
+            )
+        )
+        if row is None:
+            return None
+        if row.replacement_proposal is None:
+            raise InvalidDomainValueError("Approval replacement proposal is unavailable")
+        try:
+            proposal = RemediationProposal.model_validate_json(json.dumps(row.replacement_proposal))
+        except ValueError as error:
+            raise InvalidDomainValueError("Approval replacement proposal is invalid") from error
+        if (
+            proposal.proposal_id != row.replacement_proposal_id
+            or proposal.proposal_version != row.replacement_proposal_version
+            or proposal.fingerprint.value != row.replacement_proposal_fingerprint
+            or proposal.material_fingerprint.value != row.replacement_material_fingerprint
+        ):
+            raise InvalidDomainValueError("Approval replacement proposal integrity check failed")
+        return proposal
+
     async def apply(
         self,
         change: ApprovalLifecycleChange,
@@ -1203,7 +1253,34 @@ class ApprovalLifecycleRepository:
                 raise InvalidDomainValueError("Approval already exists")
             self._session.add(_approval_row(change.after))
             await self._session.flush()
+            snapshot = change.review_snapshot
+            if snapshot is None:
+                raise InvalidDomainValueError("Approval request review snapshot is required")
+            if (
+                snapshot.policy_input.tenant_id != change.after.tenant_id
+                or snapshot.policy_input.incident_id != change.after.incident_id
+                or snapshot.policy_input.proposal_id != change.after.proposal_id
+                or snapshot.policy_input.proposal_version != change.after.proposal_version
+                or snapshot.policy_input.proposal_fingerprint != change.after.proposal_fingerprint
+                or snapshot.policy_input.fingerprint != change.after.policy_input_fingerprint
+                or snapshot.policy_decision.id != change.after.policy_decision_id
+                or snapshot.policy_decision.fingerprint != change.after.policy_decision_fingerprint
+            ):
+                raise InvalidDomainValueError("Approval review snapshot does not match Approval")
+            self._session.add(
+                ApprovalReviewSnapshotRow(
+                    approval_id=change.after.id.value,
+                    tenant_id=change.after.tenant_id.value,
+                    incident_id=change.after.incident_id.value,
+                    snapshot=snapshot.document,
+                    snapshot_fingerprint=snapshot.fingerprint.value,
+                    created_at=change.after.requested_at,
+                    schema_version=snapshot.schema_version,
+                )
+            )
         else:
+            if change.review_snapshot is not None:
+                raise InvalidDomainValueError("terminal Approval change cannot replace review")
             if row is None or _approval_from_row(row) != change.before:
                 raise InvalidDomainValueError("stale Approval lifecycle state")
             row.status = change.after.status.value
@@ -1263,6 +1340,7 @@ class ApprovalLifecycleRepository:
         approval: Approval,
         invalidation: ApprovalInvalidation,
         audit_event: AuditEvent,
+        replacement_proposal: RemediationProposal,
     ) -> None:
         row = await self._session.scalar(
             select(ApprovalRow)
@@ -1290,6 +1368,11 @@ class ApprovalLifecycleRepository:
             or audit_event.occurred_at != invalidation.invalidated_at
             or audit_event.request_hash != approval.fingerprint
             or audit_event.result_hash != invalidation.fingerprint
+            or replacement_proposal.proposal_id != invalidation.replacement_proposal_id.value
+            or replacement_proposal.proposal_version != invalidation.replacement_proposal_version
+            or replacement_proposal.fingerprint != invalidation.replacement_proposal_fingerprint
+            or replacement_proposal.material_fingerprint
+            != invalidation.replacement_material_fingerprint
         ):
             raise InvalidDomainValueError("Approval invalidation is not hash-bound")
         self._session.add(
@@ -1307,6 +1390,7 @@ class ApprovalLifecycleRepository:
                 replacement_material_fingerprint=(
                     invalidation.replacement_material_fingerprint.value
                 ),
+                replacement_proposal=replacement_proposal.model_dump(mode="json"),
                 invalidated_by=invalidation.invalidated_by.value,
                 invalidated_at=invalidation.invalidated_at,
                 audit_event_id=audit_event.id.value,

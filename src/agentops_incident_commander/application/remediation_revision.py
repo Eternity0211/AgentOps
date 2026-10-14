@@ -105,6 +105,7 @@ class ApprovalInvalidationStore(Protocol):
         approval: Approval,
         invalidation: ApprovalInvalidation,
         audit_event: AuditEvent,
+        replacement_proposal: RemediationProposal,
     ) -> None: ...
 
 
@@ -182,7 +183,7 @@ class RemediationRevisionService:
             request_hash=approval.fingerprint,
             result_hash=invalidation.fingerprint,
         )
-        await self._invalidations.record_invalidation(approval, invalidation, audit)
+        await self._invalidations.record_invalidation(approval, invalidation, audit, revised)
         try:
             admitted = await self._evidence_gate.admit(revised, tenant_id=approval.tenant_id)
         except InvalidDomainValueError:

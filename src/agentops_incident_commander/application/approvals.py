@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import hashlib
+import json
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Protocol
+from datetime import datetime, timedelta
+from typing import Protocol, cast
 
 from agentops_incident_commander.domain import (
     ActorId,
@@ -20,20 +22,200 @@ from agentops_incident_commander.domain import (
     CausationId,
     CorrelationId,
     EventReason,
+    IncidentId,
     InvalidDomainValueError,
+    MaintenanceWindowStatus,
     OpaqueIdentifier,
     Permission,
+    PolicyAction,
+    PolicyBlastRadius,
     PolicyDecision,
+    PolicyEnvironment,
     PolicyEvaluationInput,
     PolicyOutcome,
+    PolicyReason,
+    PolicyReasonCode,
     Principal,
     RiskLevel,
     Role,
+    SemanticVersion,
+    Sha256Digest,
     TenantId,
     as_utc,
     require_independent_approver,
     require_permission,
 )
+from agentops_incident_commander.workflows import RemediationProposal
+
+APPROVAL_REVIEW_SCHEMA_VERSION = "1.0.0"
+
+
+@dataclass(frozen=True, slots=True)
+class ApprovalReviewSnapshot:
+    """Immutable, hash-bound proposal and Policy context shown to a human reviewer."""
+
+    proposal: RemediationProposal
+    policy_input: PolicyEvaluationInput
+    policy_decision: PolicyDecision
+    schema_version: str = APPROVAL_REVIEW_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.proposal, RemediationProposal):
+            raise InvalidDomainValueError("Approval review proposal is invalid")
+        if not isinstance(self.policy_input, PolicyEvaluationInput) or not isinstance(
+            self.policy_decision, PolicyDecision
+        ):
+            raise InvalidDomainValueError("Approval review Policy context is invalid")
+        if self.schema_version != APPROVAL_REVIEW_SCHEMA_VERSION:
+            raise InvalidDomainValueError("Approval review schema version is unsupported")
+        value = self.policy_input
+        decision = self.policy_decision
+        if (
+            self.proposal.incident_id != value.incident_id.value
+            or self.proposal.proposal_id != value.proposal_id.value
+            or self.proposal.proposal_version != value.proposal_version
+            or self.proposal.fingerprint != value.proposal_fingerprint
+            or self.proposal.action.value != value.action.value
+            or self.proposal.parameters.service != value.service
+            or self.proposal.evidence_gate_decision_fingerprint
+            != value.evidence_gate_decision_fingerprint.value
+            or decision.input_fingerprint != value.fingerprint
+            or decision.proposal_fingerprint != self.proposal.fingerprint
+            or decision.outcome is not PolicyOutcome.APPROVAL_REQUIRED
+            or decision.approval_ttl is None
+        ):
+            raise InvalidDomainValueError("Approval review bindings are inconsistent")
+
+    @property
+    def document(self) -> dict[str, object]:
+        value = self.policy_input
+        decision = self.policy_decision
+        approval_ttl = decision.approval_ttl
+        if approval_ttl is None:  # pragma: no cover - constructor invariant
+            raise InvalidDomainValueError("Approval review decision has no lifetime")
+        return {
+            "policy_decision": {
+                "approval_ttl_seconds": int(approval_ttl.total_seconds()),
+                "evaluated_at": decision.evaluated_at.isoformat(),
+                "id": decision.id.value,
+                "input_fingerprint": decision.input_fingerprint.value,
+                "outcome": decision.outcome.value,
+                "policy_version": decision.policy_version.value,
+                "proposal_fingerprint": decision.proposal_fingerprint.value,
+                "reasons": [
+                    {"code": reason.code.value, "detail": reason.detail}
+                    for reason in decision.reasons
+                ],
+                "risk_level": decision.risk_level.value,
+                "schema_version": decision.schema_version,
+            },
+            "policy_input": {
+                "action": value.action.value,
+                "blast_radius": value.blast_radius.value,
+                "environment": value.environment.value,
+                "evidence_gate_decision_fingerprint": (
+                    value.evidence_gate_decision_fingerprint.value
+                ),
+                "incident_id": value.incident_id.value,
+                "maintenance_window": value.maintenance_window.value,
+                "proposal_fingerprint": value.proposal_fingerprint.value,
+                "proposal_id": value.proposal_id.value,
+                "proposal_version": value.proposal_version,
+                "requested_at": value.requested_at.isoformat(),
+                "requester_actor_id": value.requester_actor_id.value,
+                "requester_roles": sorted(role.value for role in value.requester_roles),
+                "schema_version": value.schema_version,
+                "separation_of_duties_required": value.separation_of_duties_required,
+                "service": value.service,
+                "tenant_id": value.tenant_id.value,
+            },
+            "proposal": self.proposal.model_dump(mode="json"),
+            "schema_version": self.schema_version,
+        }
+
+    @property
+    def fingerprint(self) -> Sha256Digest:
+        canonical = json.dumps(self.document, sort_keys=True, separators=(",", ":")).encode()
+        return Sha256Digest(hashlib.sha256(canonical).hexdigest())
+
+
+def approval_review_snapshot_from_document(
+    document: Mapping[str, object],
+) -> ApprovalReviewSnapshot:
+    """Rebuild and validate persisted review content before it reaches the API."""
+
+    try:
+        proposal_raw = document["proposal"]
+        input_raw = document["policy_input"]
+        decision_raw = document["policy_decision"]
+        if (
+            not isinstance(proposal_raw, Mapping)
+            or not isinstance(input_raw, Mapping)
+            or not isinstance(decision_raw, Mapping)
+        ):
+            raise TypeError
+        proposal = RemediationProposal.model_validate_json(json.dumps(proposal_raw))
+        input_data = cast(Mapping[str, object], input_raw)
+        decision_data = cast(Mapping[str, object], decision_raw)
+        requester_roles = input_data["requester_roles"]
+        reasons = decision_data["reasons"]
+        separation_required = input_data["separation_of_duties_required"]
+        proposal_version = input_data["proposal_version"]
+        approval_ttl_seconds = decision_data["approval_ttl_seconds"]
+        if (
+            not isinstance(requester_roles, list)
+            or not isinstance(reasons, list)
+            or not isinstance(separation_required, bool)
+            or not isinstance(proposal_version, int)
+            or isinstance(proposal_version, bool)
+            or not isinstance(approval_ttl_seconds, int)
+            or isinstance(approval_ttl_seconds, bool)
+        ):
+            raise TypeError
+        policy_input = PolicyEvaluationInput(
+            tenant_id=TenantId(str(input_data["tenant_id"])),
+            incident_id=IncidentId(str(input_data["incident_id"])),
+            proposal_id=OpaqueIdentifier(str(input_data["proposal_id"])),
+            proposal_version=proposal_version,
+            proposal_fingerprint=Sha256Digest(str(input_data["proposal_fingerprint"])),
+            evidence_gate_decision_fingerprint=Sha256Digest(
+                str(input_data["evidence_gate_decision_fingerprint"])
+            ),
+            requester_actor_id=ActorId(str(input_data["requester_actor_id"])),
+            requester_roles=frozenset(Role(str(item)) for item in requester_roles),
+            environment=PolicyEnvironment(str(input_data["environment"])),
+            action=PolicyAction(str(input_data["action"])),
+            service=str(input_data["service"]),
+            blast_radius=PolicyBlastRadius(str(input_data["blast_radius"])),
+            maintenance_window=MaintenanceWindowStatus(str(input_data["maintenance_window"])),
+            separation_of_duties_required=separation_required,
+            requested_at=datetime.fromisoformat(str(input_data["requested_at"])),
+            schema_version=str(input_data["schema_version"]),
+        )
+        decision = PolicyDecision(
+            id=OpaqueIdentifier(str(decision_data["id"])),
+            policy_version=SemanticVersion(str(decision_data["policy_version"])),
+            input_fingerprint=Sha256Digest(str(decision_data["input_fingerprint"])),
+            proposal_fingerprint=Sha256Digest(str(decision_data["proposal_fingerprint"])),
+            outcome=PolicyOutcome(str(decision_data["outcome"])),
+            risk_level=RiskLevel(str(decision_data["risk_level"])),
+            reasons=tuple(
+                PolicyReason(PolicyReasonCode(str(reason["code"])), str(reason["detail"]))
+                for reason in cast(list[Mapping[str, object]], reasons)
+            ),
+            evaluated_at=datetime.fromisoformat(str(decision_data["evaluated_at"])),
+            approval_ttl=timedelta(seconds=approval_ttl_seconds),
+            schema_version=str(decision_data["schema_version"]),
+        )
+        snapshot = ApprovalReviewSnapshot(
+            proposal,
+            policy_input,
+            decision,
+            schema_version=str(document["schema_version"]),
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        raise InvalidDomainValueError("Approval review snapshot is invalid") from error
+    return snapshot
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +223,7 @@ class ApprovalLifecycleChange:
     action: str
     before: Approval | None
     after: Approval
+    review_snapshot: ApprovalReviewSnapshot | None = None
 
 
 class ApprovalLifecycleStore(Protocol):
@@ -76,6 +259,7 @@ class ApprovalLifecycleManager:
         policy_input: PolicyEvaluationInput,
         policy_decision: PolicyDecision,
         *,
+        proposal: RemediationProposal,
         principal: Principal | None,
         correlation_id: CorrelationId,
         causation_id: CausationId,
@@ -110,6 +294,7 @@ class ApprovalLifecycleManager:
             RiskLevel.HIGH,
             RiskLevel.CRITICAL,
         }
+        review_snapshot = ApprovalReviewSnapshot(proposal, policy_input, policy_decision)
         approval = Approval(
             id=ApprovalId(self._approval_id_factory()),
             tenant_id=requester.tenant_id,
@@ -129,7 +314,7 @@ class ApprovalLifecycleManager:
             expires_at=expires_at,
         )
         await self._apply(
-            ApprovalLifecycleChange("requested", None, approval),
+            ApprovalLifecycleChange("requested", None, approval, review_snapshot),
             actor_id=requester.actor_id,
             correlation_id=correlation_id,
             causation_id=causation_id,
@@ -144,6 +329,7 @@ class ApprovalLifecycleManager:
         reason: EventReason,
         correlation_id: CorrelationId,
         causation_id: CausationId,
+        expected_version: AggregateVersion | None = None,
     ) -> Approval:
         return await self._human_decision(
             approval_id,
@@ -152,6 +338,7 @@ class ApprovalLifecycleManager:
             reason=reason,
             correlation_id=correlation_id,
             causation_id=causation_id,
+            expected_version=expected_version,
         )
 
     async def reject(
@@ -162,6 +349,7 @@ class ApprovalLifecycleManager:
         reason: EventReason,
         correlation_id: CorrelationId,
         causation_id: CausationId,
+        expected_version: AggregateVersion | None = None,
     ) -> Approval:
         return await self._human_decision(
             approval_id,
@@ -170,6 +358,7 @@ class ApprovalLifecycleManager:
             reason=reason,
             correlation_id=correlation_id,
             causation_id=causation_id,
+            expected_version=expected_version,
         )
 
     async def expire(
@@ -200,6 +389,7 @@ class ApprovalLifecycleManager:
         reason: EventReason,
         correlation_id: CorrelationId,
         causation_id: CausationId,
+        expected_version: AggregateVersion | None,
     ) -> Approval:
         tenant_id = TenantId("unauthenticated") if principal is None else principal.tenant_id
         approver = require_permission(
@@ -208,6 +398,8 @@ class ApprovalLifecycleManager:
             tenant_id=tenant_id,
         )
         current = await self._required(approval_id, tenant_id=approver.tenant_id)
+        if expected_version is not None and current.version != expected_version:
+            raise InvalidDomainValueError("stale Approval lifecycle version")
         proposer = Principal(
             current.proposer_actor_id,
             current.tenant_id,

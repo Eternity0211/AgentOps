@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import json
 from collections.abc import AsyncIterator, Callable, Iterator, Mapping
@@ -18,7 +19,7 @@ from alembic import command
 from alembic.config import Config
 from fastapi import FastAPI, Request
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import func, select, text
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -210,6 +211,7 @@ from agentops_incident_commander.infrastructure.persistence import (
     ApprovalInvalidationRow,
     ApprovalLifecycleEventRow,
     ApprovalLifecycleRepository,
+    ApprovalReviewSnapshotRow,
     ApprovalRow,
     AuditEventRow,
     AuditRepository,
@@ -328,7 +330,8 @@ async def engine(migrated_url: str) -> AsyncIterator[AsyncEngine]:
                 "idempotency_records, outbox_events, jobs, "
                 "evidence_gate_decisions, model_call_traces, approval_invalidations, "
                 "action_execution_events, action_execution_locks, action_executions, "
-                "approval_lifecycle_events, approvals, prompt_lifecycle_events, "
+                "approval_review_snapshots, approval_lifecycle_events, approvals, "
+                "prompt_lifecycle_events, "
                 "prompt_versions, "
                 "incidents RESTART IDENTITY CASCADE"
             )
@@ -2668,13 +2671,47 @@ async def test_remediation_admission_requires_exact_stored_passing_gate_decision
             await gate.admit(proposal, tenant_id=TenantId("tenant-2"))
 
 
+def approval_review_proposal(value: PolicyEvaluationInput | None = None) -> RemediationProposal:
+    incident_id = "incident-approval-storage" if value is None else value.incident_id.value
+    proposal_id = "remediation-approval-storage" if value is None else value.proposal_id.value
+    proposal_version = 1 if value is None else value.proposal_version
+    gate_fingerprint = "b" * 64 if value is None else value.evidence_gate_decision_fingerprint.value
+    service = "orders" if value is None else value.service
+    return RemediationProposal(
+        schema_version=REMEDIATION_PROPOSAL_SCHEMA_VERSION,
+        proposal_id=proposal_id,
+        proposal_version=proposal_version,
+        incident_id=incident_id,
+        candidate_id="candidate-approval-storage",
+        evidence_gate_input_fingerprint="c" * 64,
+        evidence_gate_decision_fingerprint=gate_fingerprint,
+        action=RecoveryAction.ROLLBACK_SERVICE,
+        parameters=RollbackServiceParameters(
+            service=service,
+            introducing_deployment_evidence_id="evidence-deployment",
+        ),
+        prerequisites=RollbackPrerequisites(current_version_evidence_id="evidence-current"),
+        verification_conditions=RollbackVerificationConditions(
+            max_error_rate_basis_points=100,
+            max_p95_latency_ms=500,
+            stability_window_seconds=300,
+        ),
+        failure_handling=RemediationFailureHandling(
+            route=RemediationFailureRoute.HUMAN_HANDOFF,
+            max_rediagnosis_attempts=0,
+        ),
+        risk_assumptions=("The current deployment is faulty.",),
+    )
+
+
 def approval_policy_input() -> PolicyEvaluationInput:
+    proposal = approval_review_proposal()
     return PolicyEvaluationInput(
         tenant_id=TenantId("tenant-1"),
         incident_id=IncidentId("incident-approval-storage"),
         proposal_id=OpaqueIdentifier("remediation-approval-storage"),
         proposal_version=1,
-        proposal_fingerprint=Sha256Digest("a" * 64),
+        proposal_fingerprint=proposal.fingerprint,
         evidence_gate_decision_fingerprint=Sha256Digest("b" * 64),
         requester_actor_id=ActorId("operator-approval-storage"),
         requester_roles=frozenset({Role.OPERATOR}),
@@ -2748,6 +2785,7 @@ async def test_approval_lifecycle_persists_state_history_and_audit_atomically(
         ).request(
             value,
             decision,
+            proposal=approval_review_proposal(value),
             principal=requester,
             correlation_id=CorrelationId("correlation-approval-storage"),
             causation_id=CausationId("request-approval-storage"),
@@ -2756,7 +2794,46 @@ async def test_approval_lifecycle_persists_state_history_and_audit_atomically(
     async with sessions() as session:
         repository = ApprovalLifecycleRepository(session)
         assert await repository.get(requested.id, tenant_id=TenantId("tenant-1")) == requested
+        review = await repository.get_review_snapshot(requested.id, tenant_id=TenantId("tenant-1"))
+        assert review is not None
+        assert review.proposal == approval_review_proposal(value)
         assert await repository.get(requested.id, tenant_id=TenantId("tenant-2")) is None
+        assert (
+            await repository.get_review_snapshot(requested.id, tenant_id=TenantId("tenant-2"))
+            is None
+        )
+        assert (
+            await repository.get_replacement_proposal(requested.id, tenant_id=TenantId("tenant-1"))
+            is None
+        )
+
+    missing_snapshot_approval = replace(
+        requested,
+        id=ApprovalId("approval-storage-without-review"),
+        policy_decision_id=OpaqueIdentifier("policy-without-review"),
+        policy_decision_fingerprint=Sha256Digest("d" * 64),
+        policy_input_fingerprint=Sha256Digest("e" * 64),
+    )
+    missing_snapshot_audit = AuditEvent(
+        id=AuditEventId("audit-approval-without-review"),
+        tenant_id=missing_snapshot_approval.tenant_id,
+        type="approval.requested",
+        event_version=1,
+        payload_schema_version="approval/v1",
+        actor_id=missing_snapshot_approval.proposer_actor_id,
+        correlation_id=CorrelationId("correlation-approval-without-review"),
+        causation_id=CausationId("request-approval-without-review"),
+        target=AuditTarget("approval.record", OpaqueIdentifier(missing_snapshot_approval.id.value)),
+        occurred_at=missing_snapshot_approval.requested_at,
+        request_hash=missing_snapshot_approval.policy_decision_fingerprint,
+        result_hash=missing_snapshot_approval.fingerprint,
+    )
+    with pytest.raises(InvalidDomainValueError, match="review snapshot is required"):
+        async with sessions.begin() as session:
+            await ApprovalLifecycleRepository(session).apply(
+                ApprovalLifecycleChange("requested", None, missing_snapshot_approval),
+                missing_snapshot_audit,
+            )
 
     async with sessions.begin() as session:
         approved = await approval_manager(
@@ -2786,6 +2863,7 @@ async def test_approval_lifecycle_persists_state_history_and_audit_atomically(
             ).request(
                 value,
                 replace(decision, id=OpaqueIdentifier("policy-approval-storage-2")),
+                proposal=approval_review_proposal(value),
                 principal=requester,
                 correlation_id=CorrelationId("correlation-approval-storage"),
                 causation_id=CausationId("duplicate-approval-storage"),
@@ -2805,6 +2883,12 @@ async def test_approval_lifecycle_persists_state_history_and_audit_atomically(
         request_hash=requested.fingerprint,
         result_hash=approved.fingerprint,
     )
+    with pytest.raises(InvalidDomainValueError, match="cannot replace review"):
+        async with sessions.begin() as session:
+            await ApprovalLifecycleRepository(session).apply(
+                ApprovalLifecycleChange("approved", requested, approved, review),
+                stale_audit,
+            )
     with pytest.raises(InvalidDomainValueError, match="stale Approval"):
         async with sessions.begin() as session:
             await ApprovalLifecycleRepository(session).apply(
@@ -2812,7 +2896,12 @@ async def test_approval_lifecycle_persists_state_history_and_audit_atomically(
                 stale_audit,
             )
 
-    replacement_fingerprint = Sha256Digest("d" * 64)
+    replacement_proposal = approval_review_proposal(value).model_copy(
+        update={
+            "proposal_version": approved.proposal_version + 1,
+            "risk_assumptions": ("The material risk assumption was revised.",),
+        }
+    )
     invalidation = ApprovalInvalidation(
         approval_id=approved.id,
         tenant_id=approved.tenant_id,
@@ -2821,8 +2910,8 @@ async def test_approval_lifecycle_persists_state_history_and_audit_atomically(
         prior_proposal_fingerprint=approved.proposal_fingerprint,
         replacement_proposal_id=approved.proposal_id,
         replacement_proposal_version=approved.proposal_version + 1,
-        replacement_proposal_fingerprint=replacement_fingerprint,
-        replacement_material_fingerprint=Sha256Digest("e" * 64),
+        replacement_proposal_fingerprint=replacement_proposal.fingerprint,
+        replacement_material_fingerprint=replacement_proposal.material_fingerprint,
         invalidated_by=ActorId("operator-approval-storage"),
         invalidated_at=NOW + timedelta(minutes=7),
     )
@@ -2846,12 +2935,14 @@ async def test_approval_lifecycle_persists_state_history_and_audit_atomically(
                 approved,
                 invalidation,
                 replace(invalidation_audit, result_hash=Sha256Digest("f" * 64)),
+                replacement_proposal,
             )
     async with sessions.begin() as session:
         await ApprovalLifecycleRepository(session).record_invalidation(
             approved,
             invalidation,
             invalidation_audit,
+            replacement_proposal,
         )
 
     async with sessions() as session:
@@ -2867,6 +2958,10 @@ async def test_approval_lifecycle_persists_state_history_and_audit_atomically(
         assert (
             await repository.get_invalidation(approved.id, tenant_id=approved.tenant_id)
             == invalidation
+        )
+        assert (
+            await repository.get_replacement_proposal(approved.id, tenant_id=approved.tenant_id)
+            == replacement_proposal
         )
         assert (
             await repository.get_invalidation(approved.id, tenant_id=TenantId("tenant-other"))
@@ -2894,6 +2989,7 @@ async def test_approval_lifecycle_persists_state_history_and_audit_atomically(
                 approved,
                 invalidation,
                 replace(invalidation_audit, id=AuditEventId("audit-invalidation-duplicate")),
+                replacement_proposal,
             )
     with pytest.raises(InvalidDomainValueError, match="stale Approval invalidation"):
         async with sessions.begin() as session:
@@ -2901,7 +2997,365 @@ async def test_approval_lifecycle_persists_state_history_and_audit_atomically(
                 replace(approved, version=approved.version.next()),
                 invalidation,
                 replace(invalidation_audit, id=AuditEventId("audit-invalidation-stale")),
+                replacement_proposal,
             )
+
+
+@pytest.mark.anyio
+async def test_approval_center_is_tenant_scoped_verified_and_idempotent(
+    engine: AsyncEngine,
+) -> None:
+    await add_incident(
+        engine,
+        "incident-approval-storage",
+        tenant="tenant-1",
+        state=IncidentState.AWAITING_APPROVAL,
+    )
+    value = approval_policy_input()
+    decision = approval_policy_decision(value)
+    requester = Principal(
+        value.requester_actor_id,
+        value.tenant_id,
+        frozenset({Role.OPERATOR}),
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        requested = await approval_manager(
+            session,
+            at=NOW + timedelta(minutes=5),
+            approval_id="approval-center-1",
+            audit_id="audit-approval-center-request",
+        ).request(
+            value,
+            decision,
+            proposal=approval_review_proposal(value),
+            principal=requester,
+            correlation_id=CorrelationId("correlation-approval-center"),
+            causation_id=CausationId("request-approval-center"),
+        )
+    low_value = replace(
+        value,
+        proposal_id=OpaqueIdentifier("remediation-approval-low-risk"),
+        requester_actor_id=ActorId("dual-role-approval-center"),
+        requester_roles=frozenset({Role.OPERATOR, Role.APPROVER}),
+        environment=PolicyEnvironment.DEVELOPMENT,
+        separation_of_duties_required=False,
+    )
+    low_proposal = approval_review_proposal(low_value)
+    low_value = replace(low_value, proposal_fingerprint=low_proposal.fingerprint)
+    low_decision = replace(
+        approval_policy_decision(low_value),
+        id=OpaqueIdentifier("policy-approval-low-risk"),
+        risk_level=RiskLevel.LOW,
+    )
+    async with sessions.begin() as session:
+        low_risk = await approval_manager(
+            session,
+            at=NOW + timedelta(minutes=5, seconds=1),
+            approval_id="approval-center-low-risk",
+            audit_id="audit-approval-center-low-risk-request",
+        ).request(
+            low_value,
+            low_decision,
+            proposal=low_proposal,
+            principal=Principal(
+                low_value.requester_actor_id,
+                low_value.tenant_id,
+                low_value.requester_roles,
+            ),
+            correlation_id=CorrelationId("correlation-approval-center-low-risk"),
+            causation_id=CausationId("request-approval-center-low-risk"),
+        )
+
+    approver = Principal(
+        ActorId("approver-center"),
+        TenantId("tenant-1"),
+        frozenset({Role.APPROVER}),
+    )
+    app = api_app(engine, approver, now=NOW + timedelta(minutes=6), audit_id="api-approval")
+    body = {
+        "expected_version": 1,
+        "reason": "Evidence, scope, and verification conditions reviewed.",
+        "correlation_id": "correlation-approval-center",
+        "causation_id": "approve-approval-center",
+    }
+    malformed_type_cursor = (
+        base64.urlsafe_b64encode(json.dumps([123, "approval-center-1"]).encode())
+        .decode()
+        .rstrip("=")
+    )
+    malformed_time_cursor = (
+        base64.urlsafe_b64encode(json.dumps(["not-a-time", "approval-center-1"]).encode())
+        .decode()
+        .rstrip("=")
+    )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        listed = await client.get("/api/v1/approvals", params={"status": "PENDING"})
+        first_page = await client.get("/api/v1/approvals", params={"limit": 1})
+        second_page = await client.get(
+            "/api/v1/approvals", params={"limit": 1, "cursor": first_page.json()["next_cursor"]}
+        )
+        invalid_type_cursor = await client.get(
+            "/api/v1/approvals", params={"cursor": malformed_type_cursor}
+        )
+        invalid_time_cursor = await client.get(
+            "/api/v1/approvals", params={"cursor": malformed_time_cursor}
+        )
+        detail = await client.get("/api/v1/approvals/approval-center-1")
+        low_detail = await client.get("/api/v1/approvals/approval-center-low-risk")
+        missing = await client.get("/api/v1/approvals/approval-missing")
+        approved = await client.post(
+            "/api/v1/approvals/approval-center-1/approve",
+            headers={"Idempotency-Key": "approval-center-key"},
+            json=body,
+        )
+        replay = await client.post(
+            "/api/v1/approvals/approval-center-1/approve",
+            headers={"Idempotency-Key": "approval-center-key"},
+            json=body,
+        )
+        conflict = await client.post(
+            "/api/v1/approvals/approval-center-1/approve",
+            headers={"Idempotency-Key": "approval-center-key"},
+            json={**body, "reason": "Changed replay body."},
+        )
+        stale = await client.post(
+            "/api/v1/approvals/approval-center-1/approve",
+            headers={"Idempotency-Key": "approval-center-stale"},
+            json=body,
+        )
+        missing_decision = await client.post(
+            "/api/v1/approvals/approval-missing/reject",
+            headers={"Idempotency-Key": "approval-center-missing"},
+            json=body,
+        )
+        rejected = await client.post(
+            "/api/v1/approvals/approval-center-low-risk/reject",
+            headers={"Idempotency-Key": "approval-center-reject"},
+            json={
+                **body,
+                "reason": "Low-risk proposal still needs revision.",
+                "correlation_id": "correlation-approval-center-low-risk",
+            },
+        )
+
+    assert listed.status_code == detail.status_code == 200
+    assert {item["id"] for item in listed.json()["items"]} == {
+        requested.id.value,
+        low_risk.id.value,
+    }
+    assert first_page.status_code == second_page.status_code == 200
+    assert first_page.json()["next_cursor"] is not None
+    assert first_page.json()["items"][0]["id"] != second_page.json()["items"][0]["id"]
+    assert invalid_type_cursor.status_code == invalid_time_cursor.status_code == 400
+    assert detail.json()["proposal"]["action"] == "rollback_service"
+    assert detail.json()["policy"]["reasons"][0]["code"] == "APPROVAL_REQUIRED"
+    assert detail.json()["approval"]["separation_of_duties"]["satisfied"] is True
+    assert low_detail.json()["approval"]["separation_of_duties"]["code"] == "NOT_REQUIRED"
+    assert missing.status_code == 404
+    assert approved.status_code == replay.status_code == 200
+    assert approved.json() == replay.json()
+    assert approved.json()["approval"]["status"] == "APPROVED"
+    assert approved.headers["Idempotency-Replayed"] == "false"
+    assert replay.headers["Idempotency-Replayed"] == "true"
+    assert conflict.status_code == 409
+    assert conflict.json()["code"] == "IDEMPOTENCY_CONFLICT"
+    assert stale.status_code == 409
+    assert stale.json()["code"] == "APPROVAL_STATE_CONFLICT"
+    assert missing_decision.status_code == 404
+    assert rejected.status_code == 200
+    assert rejected.json()["approval"]["status"] == "REJECTED"
+
+    self_app = api_app(
+        engine,
+        Principal(
+            ActorId("operator-approval-storage"),
+            TenantId("tenant-1"),
+            frozenset({Role.APPROVER}),
+        ),
+    )
+    async with AsyncClient(transport=ASGITransport(app=self_app), base_url="http://test") as client:
+        self_review = await client.get("/api/v1/approvals/approval-center-1")
+    assert self_review.status_code == 200
+    assert (
+        self_review.json()["approval"]["separation_of_duties"]["code"] == "SELF_APPROVAL_FORBIDDEN"
+    )
+
+    denied_app = api_app(
+        engine,
+        Principal(ActorId("operator-denied"), TenantId("tenant-1"), frozenset({Role.OPERATOR})),
+    )
+    foreign_app = api_app(
+        engine,
+        Principal(ActorId("approver-foreign"), TenantId("tenant-2"), frozenset({Role.APPROVER})),
+    )
+    async with AsyncClient(
+        transport=ASGITransport(app=denied_app), base_url="http://test"
+    ) as client:
+        denied = await client.get("/api/v1/approvals")
+    async with AsyncClient(
+        transport=ASGITransport(app=foreign_app), base_url="http://test"
+    ) as client:
+        hidden = await client.get("/api/v1/approvals/approval-center-1")
+    assert denied.status_code == 403
+    assert hidden.status_code == 404
+
+    async with sessions() as session:
+        stored = await ApprovalLifecycleRepository(session).get(
+            requested.id, tenant_id=requested.tenant_id
+        )
+    assert stored is not None
+    replacement = approval_review_proposal(value).model_copy(
+        update={
+            "proposal_version": 2,
+            "risk_assumptions": ("A materially revised assumption.",),
+        }
+    )
+    invalidation = ApprovalInvalidation(
+        approval_id=stored.id,
+        tenant_id=stored.tenant_id,
+        incident_id=stored.incident_id,
+        approval_fingerprint=stored.fingerprint,
+        prior_proposal_fingerprint=stored.proposal_fingerprint,
+        replacement_proposal_id=OpaqueIdentifier(replacement.proposal_id),
+        replacement_proposal_version=replacement.proposal_version,
+        replacement_proposal_fingerprint=replacement.fingerprint,
+        replacement_material_fingerprint=replacement.material_fingerprint,
+        invalidated_by=requester.actor_id,
+        invalidated_at=NOW + timedelta(minutes=7),
+    )
+    invalidation_audit = AuditEvent(
+        id=AuditEventId("audit-approval-center-invalidated"),
+        tenant_id=stored.tenant_id,
+        type="approval.invalidated",
+        event_version=1,
+        payload_schema_version="approval_invalidation/v1",
+        actor_id=requester.actor_id,
+        correlation_id=CorrelationId("correlation-approval-center"),
+        causation_id=CausationId("revise-approval-center"),
+        target=AuditTarget("approval.record", OpaqueIdentifier(stored.id.value)),
+        occurred_at=invalidation.invalidated_at,
+        request_hash=stored.fingerprint,
+        result_hash=invalidation.fingerprint,
+    )
+    async with sessions.begin() as session:
+        await ApprovalLifecycleRepository(session).record_invalidation(
+            stored, invalidation, invalidation_audit, replacement
+        )
+
+    async with sessions.begin() as session:
+        row = await session.scalar(
+            select(ApprovalInvalidationRow).where(
+                ApprovalInvalidationRow.approval_id == requested.id.value
+            )
+        )
+        assert row is not None
+        row.replacement_proposal = None
+    async with sessions() as session:
+        with pytest.raises(InvalidDomainValueError, match="unavailable"):
+            await ApprovalLifecycleRepository(session).get_replacement_proposal(
+                requested.id, tenant_id=requested.tenant_id
+            )
+    async with sessions.begin() as session:
+        row = await session.scalar(
+            select(ApprovalInvalidationRow).where(
+                ApprovalInvalidationRow.approval_id == requested.id.value
+            )
+        )
+        assert row is not None
+        row.replacement_proposal = {"invalid": "proposal"}
+    async with sessions() as session:
+        with pytest.raises(InvalidDomainValueError, match="proposal is invalid"):
+            await ApprovalLifecycleRepository(session).get_replacement_proposal(
+                requested.id, tenant_id=requested.tenant_id
+            )
+    async with sessions.begin() as session:
+        row = await session.scalar(
+            select(ApprovalInvalidationRow).where(
+                ApprovalInvalidationRow.approval_id == requested.id.value
+            )
+        )
+        assert row is not None
+        row.replacement_proposal = replacement.model_dump(mode="json")
+        row.replacement_proposal_fingerprint = "f" * 64
+    async with sessions() as session:
+        with pytest.raises(InvalidDomainValueError, match="integrity check"):
+            await ApprovalLifecycleRepository(session).get_replacement_proposal(
+                requested.id, tenant_id=requested.tenant_id
+            )
+    async with sessions.begin() as session:
+        row = await session.scalar(
+            select(ApprovalInvalidationRow).where(
+                ApprovalInvalidationRow.approval_id == requested.id.value
+            )
+        )
+        assert row is not None
+        row.replacement_proposal_fingerprint = replacement.fingerprint.value
+
+    invalidated_app = api_app(
+        engine, approver, now=NOW + timedelta(minutes=8), audit_id="api-invalidated"
+    )
+    async with AsyncClient(
+        transport=ASGITransport(app=invalidated_app), base_url="http://test"
+    ) as client:
+        revised = await client.get("/api/v1/approvals/approval-center-1")
+        refused = await client.post(
+            "/api/v1/approvals/approval-center-1/approve",
+            headers={"Idempotency-Key": "approval-invalidated"},
+            json={**body, "expected_version": 2},
+        )
+    assert revised.status_code == 200
+    assert revised.json()["approval"]["invalidated"] is True
+    assert revised.json()["proposal_diff"]
+    assert refused.status_code == 409
+    assert refused.json()["code"] == "APPROVAL_INVALIDATED"
+
+    async with sessions.begin() as session:
+        approval_row = await session.scalar(
+            select(ApprovalRow).where(ApprovalRow.id == requested.id.value)
+        )
+        assert approval_row is not None
+        approval_row.risk_level = RiskLevel.LOW.value
+    async with AsyncClient(
+        transport=ASGITransport(app=invalidated_app), base_url="http://test"
+    ) as client:
+        mismatched = await client.get("/api/v1/approvals/approval-center-1")
+    assert mismatched.status_code == 409
+    assert mismatched.json()["code"] == "APPROVAL_REVIEW_INTEGRITY_FAILED"
+    async with sessions.begin() as session:
+        approval_row = await session.scalar(
+            select(ApprovalRow).where(ApprovalRow.id == requested.id.value)
+        )
+        assert approval_row is not None
+        approval_row.risk_level = RiskLevel.HIGH.value
+
+    async with sessions.begin() as session:
+        await session.execute(
+            delete(ApprovalReviewSnapshotRow).where(
+                ApprovalReviewSnapshotRow.approval_id == low_risk.id.value
+            )
+        )
+    async with AsyncClient(
+        transport=ASGITransport(app=invalidated_app), base_url="http://test"
+    ) as client:
+        missing_snapshot = await client.get("/api/v1/approvals/approval-center-low-risk")
+    assert missing_snapshot.status_code == 409
+    assert missing_snapshot.json()["code"] == "APPROVAL_REVIEW_INTEGRITY_FAILED"
+
+    async with sessions.begin() as session:
+        row = await session.scalar(
+            select(ApprovalReviewSnapshotRow).where(
+                ApprovalReviewSnapshotRow.approval_id == requested.id.value
+            )
+        )
+        assert row is not None
+        row.snapshot_fingerprint = "f" * 64
+    async with AsyncClient(
+        transport=ASGITransport(app=invalidated_app), base_url="http://test"
+    ) as client:
+        corrupt = await client.get("/api/v1/approvals/approval-center-1")
+    assert corrupt.status_code == 409
+    assert corrupt.json()["code"] == "APPROVAL_REVIEW_INTEGRITY_FAILED"
 
 
 @pytest.mark.anyio
@@ -2927,6 +3381,7 @@ async def test_concurrent_approval_decisions_have_exactly_one_winner(
         ).request(
             value,
             decision,
+            proposal=approval_review_proposal(value),
             principal=Principal(
                 ActorId("operator-approval-storage"),
                 TenantId("tenant-1"),
@@ -3008,6 +3463,7 @@ async def test_approval_and_audit_rollback_together_on_duplicate_audit(
             ).request(
                 value,
                 approval_policy_decision(value),
+                proposal=approval_review_proposal(value),
                 principal=Principal(
                     ActorId("operator-approval-storage"),
                     TenantId("tenant-1"),
@@ -3590,6 +4046,16 @@ async def test_diagnosis_report_repository_binds_trace_gate_and_tenant(
     async with sessions.begin() as session:
         row = await session.scalar(select(DiagnosisReportRow))
         assert row is not None
+        row.disposition = DiagnosisDisposition.NEEDS_MORE_EVIDENCE.value
+    async with sessions() as session:
+        with pytest.raises(InvalidDomainValueError, match="duplicated fields disagree"):
+            await DiagnosisReportRepository(session).latest(
+                tenant_id=TenantId("tenant-1"), incident_id=record.incident_id
+            )
+    async with sessions.begin() as session:
+        row = await session.scalar(select(DiagnosisReportRow))
+        assert row is not None
+        row.disposition = record.report.disposition.value
         row.report_fingerprint = "f" * 64
     async with sessions() as session:
         with pytest.raises(InvalidDomainValueError, match="fingerprint"):
@@ -3611,6 +4077,8 @@ async def persisted_approved_action(engine: AsyncEngine, *, suffix: str) -> Appr
         incident_id=incident_id,
         proposal_id=OpaqueIdentifier(f"remediation-action-{suffix}"),
     )
+    proposal = approval_review_proposal(value)
+    value = replace(value, proposal_fingerprint=proposal.fingerprint)
     decision = replace(
         approval_policy_decision(value),
         id=OpaqueIdentifier(f"policy-action-{suffix}"),
@@ -3625,6 +4093,7 @@ async def persisted_approved_action(engine: AsyncEngine, *, suffix: str) -> Appr
         ).request(
             value,
             decision,
+            proposal=proposal,
             principal=Principal(
                 ActorId("operator-approval-storage"),
                 TenantId("tenant-1"),
@@ -5835,6 +6304,9 @@ async def test_authorized_rollback_service_full_chain_closes_once_and_replays(
         incident_id=incident_id,
         proposal_id=OpaqueIdentifier(proposed.proposal_id),
         proposal_fingerprint=proposed.fingerprint,
+        evidence_gate_decision_fingerprint=Sha256Digest(
+            proposed.evidence_gate_decision_fingerprint
+        ),
         service="order",
     )
     evaluated = replace(
@@ -5862,6 +6334,7 @@ async def test_authorized_rollback_service_full_chain_closes_once_and_replays(
         ).request(
             evaluated_input,
             evaluated,
+            proposal=proposed,
             principal=requester,
             correlation_id=CorrelationId("correlation-rollback-full-chain-approval"),
             causation_id=CausationId("causation-rollback-full-chain-request"),

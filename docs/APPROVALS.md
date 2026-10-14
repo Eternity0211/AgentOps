@@ -13,6 +13,13 @@ ID/fingerprint, Policy input fingerprint, proposer, risk level, separation requi
 time, and expiry. Its complete canonical state has a SHA-256 fingerprint. The mutable surface is
 limited to status, optimistic version, decision time, deciding actor, and bounded reason.
 
+Request creation also persists an immutable `approval_review_snapshots` record in the same
+transaction. It contains the complete validated remediation proposal, Policy input, and Policy
+decision, plus a canonical review fingerprint. Reads reconstruct all three typed contracts and
+recheck their fingerprints against the Approval before any content reaches a reviewer. A missing,
+legacy, malformed, cross-scoped, or hash-substituted snapshot is an integrity conflict, never a
+partial review.
+
 The finite lifecycle is:
 
 ```text
@@ -53,6 +60,26 @@ material fingerprint, actor, time, and audit event. One marker per Approval is e
 PostgreSQL. Any later execution check must treat the marker as authoritative even though the
 historical Approval retains its original human decision.
 
+The invalidation row also retains the complete validated replacement proposal. Its full and
+material fingerprints must reproduce the immutable marker. The API computes a stable, sorted
+field-level diff from the two persisted proposal versions; clients do not infer changes from
+displayed hashes or mutable state.
+
+## Approval review API
+
+`GET /api/v1/approvals` and `GET /api/v1/approvals/{approval_id}` require
+`approval:decide`, apply the authenticated tenant predicate, and expose current expiry,
+invalidation, risk, and separation-of-duties feedback. Detail reads fail with
+`APPROVAL_REVIEW_INTEGRITY_FAILED` if the review chain cannot be reproduced.
+
+`POST /api/v1/approvals/{approval_id}/approve` and `/reject` require an expected aggregate
+version, bounded reason, correlation/causation IDs, and `Idempotency-Key`. The durable key is
+scoped by tenant, actor, operation, Approval, and command hash. Exact retries replay the stored
+response; changed reuse, stale or terminal state, and concurrent loss return a conflict. Every
+decision rechecks tenant, Approver RBAC, invalidation, separation, version, and expiry. A decision
+at or after expiry records `EXPIRED` instead of approval. The endpoints only advance the Approval
+lifecycle and cannot invoke the Executor.
+
 Revision processing accepts only the same proposal ID and Incident with a strictly higher version
 and a changed material fingerprint; a version-only bump is rejected. It validates the complete
 Pydantic proposal schema before recording invalidation, then re-resolves the exact passing Evidence
@@ -76,7 +103,11 @@ material changes, duplicate invalidation, Gate rejection, Policy denial, and fre
 routing. PostgreSQL integration tests cover migration round trips, tenant-scoped reads, lifecycle
 history, invalidation markers, state/audit transactionality, rollback on audit conflict, and a
 two-approver race in which row locking permits exactly one terminal decision and one matching
-audit event.
+audit event. API integration additionally covers tenant hiding, permission refusal, strict
+snapshot reconstruction, idempotent decision replay, changed-command conflict, invalidation
+refusal, deterministic proposal diff, and tamper detection. Console unit and desktop/mobile
+browser tests cover strict parsing, expiry/separation feedback, read failures, and non-optimistic
+approve/reject behavior.
 Approval-graph tests additionally cover forged resume data, pending re-interrupt, missing,
 cross-tenant, invalidated, mismatched, rejected, and expired records plus new-worker PostgreSQL
 checkpoint restoration.

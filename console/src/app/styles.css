@@ -150,6 +150,123 @@ input {
   font: inherit;
 }
 
+textarea {
+  width: 100%;
+  padding: 10px;
+  color: var(--text);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font: inherit;
+  resize: vertical;
+}
+
+.approval-filter {
+  grid-template-columns: minmax(220px, 1fr) auto;
+}
+
+tbody th small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.risk,
+.approval-badges > span {
+  display: inline-block;
+  padding: 5px 8px;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.risk-high,
+.risk-critical {
+  color: #ffd4ce;
+  background: #5c2525;
+  border-color: #a64d45;
+}
+
+.risk-medium {
+  color: #241900;
+  background: #ffc76b;
+}
+
+.risk-low {
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+
+.approval-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.control-warning {
+  padding: 16px;
+  color: #ffd4ce;
+  background: #421f1f;
+  border: 1px solid #a64d45;
+}
+
+.approval-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  gap: 20px;
+}
+
+.approval-metadata {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin: 22px 0;
+}
+
+.approval-proposal h3,
+.approval-policy h3 {
+  margin-top: 28px;
+}
+
+.policy-reasons {
+  display: grid;
+  gap: 12px;
+  padding-left: 20px;
+}
+
+.policy-reasons li span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.revision-section,
+.decision-section {
+  margin-top: 36px;
+}
+
+.decision-section form,
+.decision-section label {
+  display: grid;
+  gap: 10px;
+}
+
+.decision-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.secondary-action {
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--line);
+}
+
 .table-scroll {
   overflow-x: auto;
   border: 1px solid var(--line);
@@ -807,6 +924,11 @@ a:focus-visible {
   .artifact-metadata,
   .evidence-query dl,
   .diagnosis-evidence-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .approval-layout,
+  .approval-metadata {
     grid-template-columns: 1fr;
   }
 

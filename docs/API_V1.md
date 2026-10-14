@@ -30,6 +30,10 @@ receive operator authority.
 | `GET /api/v1/incidents/{incident_id}/evidence` | List incident-owned Evidence metadata | `evidence:read` |
 | `GET /api/v1/incidents/{incident_id}/evidence/{evidence_id}` | Read one Evidence metadata record | `evidence:read` |
 | `GET /api/v1/incidents/{incident_id}/evidence/{evidence_id}/artifact` | Retrieve verified immutable Artifact bytes | `evidence:read` |
+| `GET /api/v1/approvals` | List tenant Approval summaries with expiry/invalidation/separation feedback | `approval:decide` |
+| `GET /api/v1/approvals/{approval_id}` | Read a hash-verified immutable proposal and Policy review | `approval:decide` |
+| `POST /api/v1/approvals/{approval_id}/approve` | Record an idempotent optimistic human approval | `approval:decide` |
+| `POST /api/v1/approvals/{approval_id}/reject` | Record an idempotent optimistic human rejection | `approval:decide` |
 | `POST /api/v1/incidents/{incident_id}/controls/start-investigation` | Apply `TRIAGED -> INVESTIGATING` | `investigation:start` |
 | `POST /api/v1/incidents/{incident_id}/controls/cancel` | Apply immediate or safe-boundary deferred cancellation | `investigation:cancel` |
 | `GET /api/v1/audit` | Read the tenant audit sequence | `audit:read` |
@@ -86,6 +90,23 @@ against Evidence before returning bytes. Responses are `private, no-store` and e
 identity, hash, schema-version, and redaction headers. Missing and cross-tenant records are `404`,
 expired content is `410`, integrity or binding failures are `409`, and an unconfigured Artifact
 backend fails closed with `503`.
+
+## Approval review and decisions
+
+Approval lists use an opaque newest-request-first cursor and an optional exact status filter. Each
+summary includes risk, authoritative lifecycle version/status, effective expiry, invalidation, and
+server-derived separation-of-duties feedback for the authenticated Approver. Detail reads rebuild
+the complete typed remediation proposal, Policy input, and Policy decision from an immutable
+snapshot and reproduce all Approval fingerprints. If a material revision exists, the response
+includes its persisted replacement proposal and a deterministic sorted field diff; incomplete or
+tampered content returns `APPROVAL_REVIEW_INTEGRITY_FAILED`.
+
+Approve/reject requests carry the expected Approval version, bounded reason, correlation and
+causation IDs, and `Idempotency-Key`. The transaction serializes the durable idempotency claim,
+Approval row, lifecycle event, and audit event. It rechecks tenant ownership, `approval:decide`,
+invalidation, separation of duties, version, terminal state, and expiry. A late request records
+`EXPIRED`; an invalidated Approval returns `APPROVAL_INVALIDATED`; stale or concurrent decisions
+return `APPROVAL_STATE_CONFLICT`. The API never invokes recovery from these routes.
 
 ## Control idempotency
 

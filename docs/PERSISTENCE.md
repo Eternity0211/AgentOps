@@ -66,6 +66,15 @@ fingerprints, actor, time, and unique audit event. The repository row-locks and 
 Approval before atomically adding the marker and `approval.invalidated` event. The historical human
 decision is retained, while the marker becomes an independent non-reuse guard for later execution.
 
+Revision `20261013_0020` adds immutable `approval_review_snapshots` and the validated replacement
+proposal document on `approval_invalidations`. A review snapshot is one-to-one with an Approval and
+stores the complete remediation proposal, Policy input, and Policy decision under a canonical
+fingerprint. Request creation inserts it atomically with the Approval, lifecycle event, and audit
+record. Detail reads reconstruct the typed contracts and compare all Approval/Policy/proposal
+bindings. Replacement content remains nullable only for upgrade compatibility with historical
+invalidation rows; such a row fails the review API closed because a deterministic diff cannot be
+proven.
+
 Revision `20261009_0016` adds tenant/Incident-scoped `postmortems` and append-only
 `postmortem_revisions`. The head stores the source draft fingerprint and latest optimistic version;
 each immutable revision stores its parent fingerprint, author, bounded content, change summary,

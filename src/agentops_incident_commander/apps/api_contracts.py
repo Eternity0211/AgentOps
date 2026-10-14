@@ -35,7 +35,13 @@ def apply_openapi_conventions(schema: dict[str, Any]) -> dict[str, Any]:
                             "schema": {"$ref": "#/components/schemas/ProblemDetail"}
                         }
                     }
-            if path.endswith("/controls/start-investigation") or path.endswith("/controls/cancel"):
+            is_idempotent_command = (
+                path.endswith("/controls/start-investigation")
+                or path.endswith("/controls/cancel")
+                or path.endswith("/approve")
+                or path.endswith("/reject")
+            )
+            if is_idempotent_command:
                 success = responses.get("200")
                 if isinstance(success, dict):
                     success.setdefault("headers", {})["Idempotency-Replayed"] = {

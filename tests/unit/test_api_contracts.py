@@ -67,6 +67,8 @@ def test_openapi_matches_reviewable_contract_snapshot() -> None:
     for path in (
         "/api/v1/incidents/{incident_id}/controls/start-investigation",
         "/api/v1/incidents/{incident_id}/controls/cancel",
+        "/api/v1/approvals/{approval_id}/approve",
+        "/api/v1/approvals/{approval_id}/reject",
     ):
         assert (
             "Idempotency-Replayed" in schema["paths"][path]["post"]["responses"]["200"]["headers"]

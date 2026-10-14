@@ -24,9 +24,12 @@ from .action_executor import (
     RollbackPreflight,
 )
 from .approvals import (
+    APPROVAL_REVIEW_SCHEMA_VERSION,
     ApprovalLifecycleChange,
     ApprovalLifecycleManager,
     ApprovalLifecycleStore,
+    ApprovalReviewSnapshot,
+    approval_review_snapshot_from_document,
 )
 from .diagnosis_prompts import (
     ApprovedDiagnosisPromptResolver,
@@ -149,6 +152,7 @@ from .tool_gateway import (
 
 __all__ = [
     "ACTION_EXECUTION_AUDIT_SCHEMA_VERSION",
+    "APPROVAL_REVIEW_SCHEMA_VERSION",
     "HEALTH_VERIFICATION_CLOSURE_AUDIT_SCHEMA_VERSION",
     "HEALTH_VERIFICATION_FAILURE_AUDIT_SCHEMA_VERSION",
     "HEALTH_VERIFICATION_SIGNAL_SCHEMA_VERSION",
@@ -160,6 +164,7 @@ __all__ = [
     "ApprovalLifecycleChange",
     "ApprovalLifecycleManager",
     "ApprovalLifecycleStore",
+    "ApprovalReviewSnapshot",
     "ApprovedDiagnosisPromptResolver",
     "AuditWriter",
     "AuthorizedRollbackExecution",
@@ -247,6 +252,7 @@ __all__ = [
     "ToolSchemaConfigurationError",
     "VerificationFailureDecision",
     "VerificationFailureOutcome",
+    "approval_review_snapshot_from_document",
     "compile_investigation_plan",
     "decide_verification_failure_route",
     "evaluate_evidence_bound_health_verification",

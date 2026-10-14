@@ -13,6 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from agentops_incident_commander.application import (
     ApprovalLifecycleChange,
     ApprovalLifecycleManager,
+    ApprovalReviewSnapshot,
+    approval_review_snapshot_from_document,
 )
 from agentops_incident_commander.domain import (
     APPROVAL_SCHEMA_VERSION,
@@ -47,10 +49,48 @@ from agentops_incident_commander.domain import (
     TenantId,
 )
 from agentops_incident_commander.infrastructure.persistence import ApprovalLifecycleRepository
+from agentops_incident_commander.workflows import (
+    RecoveryAction,
+    RemediationFailureHandling,
+    RemediationFailureRoute,
+    RemediationProposal,
+    RollbackPrerequisites,
+    RollbackServiceParameters,
+    RollbackVerificationConditions,
+)
 
 NOW = datetime(2026, 10, 6, 15, 0, tzinfo=UTC)
 TENANT = TenantId("tenant-approval")
 INCIDENT = IncidentId("incident-approval")
+
+
+def proposal(**overrides: Any) -> RemediationProposal:
+    values: dict[str, Any] = {
+        "schema_version": "1.0.0",
+        "proposal_id": "remediation-approval-1",
+        "proposal_version": 1,
+        "incident_id": INCIDENT.value,
+        "candidate_id": "candidate-approval",
+        "evidence_gate_input_fingerprint": "c" * 64,
+        "evidence_gate_decision_fingerprint": "b" * 64,
+        "action": RecoveryAction.ROLLBACK_SERVICE,
+        "parameters": RollbackServiceParameters(
+            service="orders", introducing_deployment_evidence_id="evidence-deployment"
+        ),
+        "prerequisites": RollbackPrerequisites(current_version_evidence_id="evidence-current"),
+        "verification_conditions": RollbackVerificationConditions(
+            max_error_rate_basis_points=100,
+            max_p95_latency_ms=500,
+            stability_window_seconds=300,
+        ),
+        "failure_handling": RemediationFailureHandling(
+            route=RemediationFailureRoute.HUMAN_HANDOFF,
+            max_rediagnosis_attempts=0,
+        ),
+        "risk_assumptions": ("The current deployment is faulty.",),
+    }
+    values.update(overrides)
+    return RemediationProposal.model_validate(values)
 
 
 class Clock:
@@ -86,13 +126,16 @@ def principal(
     return Principal(ActorId(actor), tenant, frozenset(roles))
 
 
-def policy_input(**overrides: Any) -> PolicyEvaluationInput:
+def policy_input(
+    selected_proposal: RemediationProposal | None = None, **overrides: Any
+) -> PolicyEvaluationInput:
+    proposed = proposal() if selected_proposal is None else selected_proposal
     values: dict[str, Any] = {
         "tenant_id": TENANT,
         "incident_id": INCIDENT,
         "proposal_id": OpaqueIdentifier("remediation-approval-1"),
         "proposal_version": 1,
-        "proposal_fingerprint": Sha256Digest("a" * 64),
+        "proposal_fingerprint": proposed.fingerprint,
         "evidence_gate_decision_fingerprint": Sha256Digest("b" * 64),
         "requester_actor_id": ActorId("operator-approval"),
         "requester_roles": frozenset({Role.OPERATOR}),
@@ -155,6 +198,18 @@ async def request_approval(
     return await lifecycle.request(
         selected_input,
         selected_decision,
+        proposal=proposal(
+            proposal_id=selected_input.proposal_id.value,
+            proposal_version=selected_input.proposal_version,
+            incident_id=selected_input.incident_id.value,
+            evidence_gate_decision_fingerprint=(
+                selected_input.evidence_gate_decision_fingerprint.value
+            ),
+            parameters=RollbackServiceParameters(
+                service=selected_input.service,
+                introducing_deployment_evidence_id="evidence-deployment",
+            ),
+        ),
         principal=selected_requester,
         correlation_id=CorrelationId("correlation-approval"),
         causation_id=CausationId("request-approval"),
@@ -177,6 +232,16 @@ async def test_request_and_independent_approval_are_hash_bound_and_audited() -> 
     assert request_audit.type == "approval.requested"
     assert request_audit.request_hash == requested.policy_decision_fingerprint
     assert request_audit.result_hash == requested.fingerprint
+
+    with pytest.raises(InvalidDomainValueError, match="stale Approval lifecycle version"):
+        await lifecycle.approve(
+            requested.id,
+            principal=principal("approver-approval", Role.APPROVER),
+            reason=EventReason("Stale browser state."),
+            correlation_id=CorrelationId("correlation-approval"),
+            causation_id=CausationId("approve-stale"),
+            expected_version=AggregateVersion(2),
+        )
 
     clock.value = NOW + timedelta(minutes=2)
     approved = await lifecycle.approve(
@@ -302,6 +367,7 @@ async def test_requester_and_approver_authorization_fail_closed() -> None:
         await lifecycle.request(
             value,
             policy_decision(value),
+            proposal=proposal(),
             principal=None,
             correlation_id=CorrelationId("correlation-approval"),
             causation_id=CausationId("anonymous-request"),
@@ -441,3 +507,47 @@ def test_approval_contract_rejects_invalid_state_and_is_immutable() -> None:
             reason=EventReason("Invalid pending decision."),
             at=NOW + timedelta(minutes=1),
         )
+
+
+def test_approval_review_snapshot_round_trip_and_invalid_documents_fail_closed() -> None:
+    proposed = proposal()
+    value = policy_input(proposed)
+    decision = policy_decision(value)
+    snapshot = ApprovalReviewSnapshot(proposed, value, decision)
+    assert approval_review_snapshot_from_document(snapshot.document) == snapshot
+    assert len(snapshot.fingerprint.value) == 64
+
+    invalid_snapshots = (
+        (cast(RemediationProposal, object()), value, decision, "1.0.0"),
+        (proposed, cast(PolicyEvaluationInput, object()), decision, "1.0.0"),
+        (proposed, value, decision, "2.0.0"),
+        (
+            proposed.model_copy(update={"candidate_id": "candidate-rebound"}),
+            value,
+            decision,
+            "1.0.0",
+        ),
+    )
+    for proposal_value, input_value, decision_value, schema_version in invalid_snapshots:
+        with pytest.raises(InvalidDomainValueError):
+            ApprovalReviewSnapshot(
+                proposal_value,
+                input_value,
+                decision_value,
+                schema_version=schema_version,
+            )
+
+    malformed_documents: list[dict[str, object]] = [
+        {},
+        {**snapshot.document, "proposal": []},
+        {
+            **snapshot.document,
+            "policy_input": {
+                **cast(dict[str, object], snapshot.document["policy_input"]),
+                "requester_roles": "OPERATOR",
+            },
+        },
+    ]
+    for document in malformed_documents:
+        with pytest.raises(InvalidDomainValueError, match="snapshot is invalid"):
+            approval_review_snapshot_from_document(document)

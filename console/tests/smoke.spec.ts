@@ -384,3 +384,152 @@ test("shows incident lifecycle details and cursor-paged workflow history", async
   );
   expect(overflow).toBe(false);
 });
+
+test("reviews and decides an immutable Approval", async ({ page }) => {
+  await page.route("**/api/v1/session", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        actor_id: "approver-browser",
+        tenant_id: "tenant-browser",
+        roles: ["APPROVER"],
+        permissions: [
+          "incident:read",
+          "evidence:read",
+          "audit:read",
+          "approval:decide",
+        ],
+      }),
+    }),
+  );
+  let status = "PENDING";
+  let version = 1;
+  const summary = () => ({
+    id: "approval-browser",
+    incident_id: "incident-browser",
+    proposal_id: "proposal-browser",
+    proposal_version: 1,
+    proposal_fingerprint: "a".repeat(64),
+    policy_decision_fingerprint: "b".repeat(64),
+    proposer_actor_id: "operator-browser",
+    risk_level: "HIGH",
+    status,
+    version,
+    requested_at: "2026-10-13T01:00:00Z",
+    expires_at: "2026-10-13T02:00:00Z",
+    decided_at: status === "PENDING" ? null : "2026-10-13T01:10:00Z",
+    decided_by: status === "PENDING" ? null : "approver-browser",
+    decision_reason: status === "PENDING" ? null : "Reviewed in browser.",
+    expired: false,
+    invalidated: false,
+    separation_of_duties: {
+      required: true,
+      satisfied: true,
+      code: "INDEPENDENT_APPROVER_PRESENT",
+      detail: "The current approver is independent from the proposer.",
+    },
+    schema_version: "1.0.0",
+  });
+  await page.route("**/api/v1/approvals**", (route) => {
+    const request = route.request();
+    const pathname = new URL(request.url()).pathname;
+    if (request.method() === "POST") {
+      status = "APPROVED";
+      version = 2;
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ approval: summary() }),
+      });
+    }
+    if (pathname.endsWith("/approval-browser")) {
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          approval: summary(),
+          proposal: {
+            schema_version: "1.0.0",
+            proposal_id: "proposal-browser",
+            proposal_version: 1,
+            incident_id: "incident-browser",
+            candidate_id: "candidate-browser",
+            evidence_gate_input_fingerprint: "c".repeat(64),
+            evidence_gate_decision_fingerprint: "d".repeat(64),
+            action: "rollback_service",
+            parameters: {
+              service: "orders",
+              introducing_deployment_evidence_id: "evidence-deployment",
+            },
+            prerequisites: { current_version_evidence_id: "evidence-current" },
+            verification_conditions: {
+              max_error_rate_basis_points: 100,
+              max_p95_latency_ms: 500,
+              stability_window_seconds: 300,
+            },
+            failure_handling: {
+              route: "HUMAN_HANDOFF",
+              max_rediagnosis_attempts: 0,
+            },
+            compensation_eligible: false,
+            risk_assumptions: ["The current deployment is faulty."],
+          },
+          policy: {
+            decision_id: "policy-browser",
+            policy_version: "1.0.0",
+            outcome: "APPROVAL_REQUIRED",
+            risk_level: "HIGH",
+            reasons: [
+              {
+                code: "APPROVAL_REQUIRED",
+                detail: "Human approval is required.",
+              },
+            ],
+            environment: "PRODUCTION",
+            blast_radius: "SINGLE_SERVICE",
+            maintenance_window: "ACTIVE",
+            service: "orders",
+            requester_roles: ["OPERATOR"],
+            separation_of_duties_required: true,
+            evaluated_at: "2026-10-13T01:00:00Z",
+            approval_ttl_seconds: 3600,
+            input_fingerprint: "e".repeat(64),
+            decision_fingerprint: "f".repeat(64),
+            schema_version: "1.0.0",
+          },
+          review_fingerprint: "1".repeat(64),
+          replacement_proposal: null,
+          proposal_diff: [],
+          invalidation: null,
+        }),
+      });
+    }
+    return route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ items: [summary()], next_cursor: null }),
+    });
+  });
+
+  await page.goto("/approvals");
+  await expect(
+    page.getByRole("link", { name: "approval-browser" }),
+  ).toBeVisible();
+  await Promise.all([
+    page.waitForURL("**/approvals/approval-browser"),
+    page.getByRole("link", { name: "approval-browser" }).click(),
+  ]);
+  await expect(
+    page.getByRole("heading", { name: "Rollback orders" }),
+  ).toBeVisible();
+  await expect(page.getByText("Human approval is required.")).toBeVisible();
+  await page.getByLabel("Decision reason").fill("Reviewed in browser.");
+  await page.getByRole("button", { name: "Approve proposal" }).click();
+  await expect(
+    page.getByText("No decision is available for this record."),
+  ).toBeVisible();
+  await expect(
+    page.locator(".approval-badges").getByText("APPROVED"),
+  ).toBeVisible();
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth,
+  );
+  expect(overflow).toBe(false);
+});

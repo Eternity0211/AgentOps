@@ -196,6 +196,13 @@ including query/time/hash/version/quality/expiry/trust/lineage fields. Artifact 
 only on explicit user intent, checked against its immutable Evidence binding and safe response
 headers, and rendered only as bounded escaped text or JSON; unsupported, oversized, expired, or
 unverifiable content remains closed without any workflow mutation.
+The tenant-scoped Approval center renders only hash-verified immutable proposal and Policy
+snapshots, including risk, every structured Policy reason, expiry, and server-derived
+separation-of-duties feedback. Material revisions retain the original review and show a
+server-generated field diff to the persisted replacement proposal while disabling the stale
+Approval. Approve and reject intents carry an optimistic version and Idempotency Key to the
+authoritative Approval lifecycle; the console never predicts a terminal state or treats a late,
+self-approved, invalidated, stale, or corrupt record as authority.
 
 From `console/`, use `npm ci` for a locked install, `npm run verify` for formatting, linting,
 strict type checks, unit coverage, and a production build, and `npm run test:browser` for the

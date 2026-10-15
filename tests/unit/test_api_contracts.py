@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
 from fastapi import HTTPException, Request
 from fastapi.testclient import TestClient
 
@@ -18,6 +19,69 @@ from agentops_incident_commander.domain import ActorId, Principal, Role, TenantI
 
 ROOT = Path(__file__).resolve().parents[2]
 SETTINGS = ApiSettings("postgresql+asyncpg://unused:unused@localhost/unused", "127.0.0.1", 8000)
+
+CONTROL_BODY: dict[str, object] = {
+    "expected_version": 1,
+    "reason": "exercise authorization boundary",
+    "correlation_id": "correlation-contract",
+    "causation_id": "command-contract",
+}
+COMMAND_HEADERS = {"Idempotency-Key": "authorization-contract"}
+PROTECTED_REQUESTS: tuple[tuple[str, str, dict[str, str] | None, dict[str, object] | None], ...] = (
+    ("GET", "/api/v1/session", None, None),
+    ("GET", "/api/v1/approvals", None, None),
+    ("GET", "/api/v1/approvals/approval-contract", None, None),
+    (
+        "POST",
+        "/api/v1/approvals/approval-contract/approve",
+        COMMAND_HEADERS,
+        CONTROL_BODY,
+    ),
+    (
+        "POST",
+        "/api/v1/approvals/approval-contract/reject",
+        COMMAND_HEADERS,
+        CONTROL_BODY,
+    ),
+    ("GET", "/api/v1/audit", None, None),
+    ("GET", "/api/v1/incidents", None, None),
+    ("GET", "/api/v1/incidents/incident-contract", None, None),
+    ("GET", "/api/v1/incidents/incident-contract/diagnosis", None, None),
+    ("GET", "/api/v1/incidents/incident-contract/investigation", None, None),
+    (
+        "GET",
+        "/api/v1/incidents/incident-contract/platform-observability",
+        None,
+        None,
+    ),
+    ("GET", "/api/v1/incidents/incident-contract/recovery", None, None),
+    ("GET", "/api/v1/incidents/incident-contract/evidence", None, None),
+    (
+        "GET",
+        "/api/v1/incidents/incident-contract/evidence/evidence-contract",
+        None,
+        None,
+    ),
+    (
+        "GET",
+        "/api/v1/incidents/incident-contract/evidence/evidence-contract/artifact",
+        None,
+        None,
+    ),
+    ("GET", "/api/v1/incidents/incident-contract/timeline", None, None),
+    (
+        "POST",
+        "/api/v1/incidents/incident-contract/controls/start-investigation",
+        COMMAND_HEADERS,
+        CONTROL_BODY,
+    ),
+    (
+        "POST",
+        "/api/v1/incidents/incident-contract/controls/cancel",
+        COMMAND_HEADERS,
+        CONTROL_BODY,
+    ),
+)
 
 
 class SessionContext:
@@ -60,6 +124,7 @@ def test_openapi_matches_reviewable_contract_snapshot() -> None:
 
     for path, item in schema["paths"].items():
         for operation in item.values():
+            assert {"401", "403"}.issubset(operation["responses"]), path
             for code, response in operation["responses"].items():
                 assert "X-Request-ID" in response["headers"], (path, code)
                 if code.startswith(("4", "5")):
@@ -132,6 +197,62 @@ def test_authentication_problem_and_method_error_use_same_envelope() -> None:
     assert method.status_code == 405
     assert method.json()["code"] == "METHOD_NOT_ALLOWED"
     assert "allow" in method.headers
+
+
+@pytest.mark.parametrize(("method", "path", "headers", "body"), PROTECTED_REQUESTS)
+def test_every_api_operation_fails_closed_without_authentication(
+    method: str,
+    path: str,
+    headers: dict[str, str] | None,
+    body: dict[str, object] | None,
+) -> None:
+    with app_for(None) as client:
+        response = client.request(method, path, headers=headers, json=body)
+
+    assert response.status_code == 401
+    assert response.json()["code"] == "AUTHENTICATION_REQUIRED"
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.headers["x-request-id"] == response.json()["request_id"]
+
+
+@pytest.mark.parametrize(
+    ("role", "method", "path"),
+    (
+        (Role.VIEWER, "GET", "/api/v1/approvals"),
+        (Role.VIEWER, "GET", "/api/v1/approvals/approval-contract"),
+        (Role.VIEWER, "POST", "/api/v1/approvals/approval-contract/approve"),
+        (Role.VIEWER, "POST", "/api/v1/approvals/approval-contract/reject"),
+        (
+            Role.APPROVER,
+            "POST",
+            "/api/v1/incidents/incident-contract/controls/start-investigation",
+        ),
+        (
+            Role.APPROVER,
+            "POST",
+            "/api/v1/incidents/incident-contract/controls/cancel",
+        ),
+    ),
+)
+def test_write_and_approval_routes_reject_roles_without_permission_before_storage(
+    role: Role, method: str, path: str
+) -> None:
+    principal = Principal(
+        ActorId("unauthorized-contract"),
+        TenantId("tenant-contract"),
+        frozenset({role}),
+    )
+    with app_for(principal) as client:
+        response = client.request(
+            method,
+            path,
+            headers=COMMAND_HEADERS if method == "POST" else None,
+            json=CONTROL_BODY if method == "POST" else None,
+        )
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "PERMISSION_DENIED"
+    assert response.headers["content-type"].startswith("application/problem+json")
 
 
 def test_session_returns_server_resolved_principal() -> None:

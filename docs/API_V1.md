@@ -197,5 +197,11 @@ failed-route, cross-tenant, and corrupted-route behavior against real PostgreSQL
 Platform-observability coverage proves exact and unavailable metering, per-currency totals,
 tenant hiding, durable checkpoint projection validation, model-call audit requirements, bounded
 reads, and corrupted trace/checkpoint/audit failure paths.
+The API contract suite enumerates every `/api/v1` operation and proves an anonymous request receives
+the same correlated `401` problem envelope before business storage is used. A separate permission
+matrix proves Viewer cannot read or decide Approvals and Approver cannot start or cancel an
+investigation. The OpenAPI assertion requires documented `401` and `403` responses, problem media
+types, and request-correlation headers for every operation; tenant-hiding tests remain the
+authorization proof for shared read permissions.
 Framework-level contract tests cover defensive return and cursor branches that the Windows
 coverage tracer cannot observe after SQLAlchemy's async greenlet bridge.

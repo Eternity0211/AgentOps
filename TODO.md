@@ -229,7 +229,7 @@ Exit: the system never self-declares recovery; observed success closes the incid
 - [x] Implement approval center with immutable proposal diff, risk/policy reasons, expiry, separation-of-duties feedback, approve/reject.
 - [x] Show execution before/after metrics, service versions, trace links, verification window, failure route, and any separately authorized compensation.
 - [x] Show agent-platform traces, tokens/cost, checkpoints, and audit completeness.
-- [ ] Add component, API contract, authorization, accessibility, and critical-flow browser tests.
+- [x] Add component, API contract, authorization, accessibility, and critical-flow browser tests.
 
 Exit: an operator can understand and safely control a full incident without the UI bypassing backend authority.
 

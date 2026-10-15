@@ -219,8 +219,10 @@ audit is complete.
 
 From `console/`, use `npm ci` for a locked install, `npm run verify` for formatting, linting,
 strict type checks, unit coverage, and a production build, and `npm run test:browser` for the
-desktop/mobile Chromium smoke contract. See [console development](console/README.md) for setup and
-the `/api/v1` base URL contract.
+desktop/mobile Chromium smoke and WCAG contract. See
+[console development](console/README.md) for setup, the `/api/v1` base URL contract, and the
+[Phase 10 verification record](docs/PHASE_10_VERIFICATION.md) for the tested authorization,
+accessibility, and critical-flow boundary.
 
 ## Python 3.12 bootstrap
 
@@ -372,6 +374,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Deterministic fault control](docs/FAULT_INJECTION.md)
 - [Evaluation-only Ground Truth](docs/GROUND_TRUTH.md)
 - [Phase 1 live verification](docs/PHASE_1_VERIFICATION.md)
+- [Phase 10 console verification](docs/PHASE_10_VERIFICATION.md)
 - [Architecture decisions](docs/ADR/README.md)
 - [Delivery plan](TODO.md)
 

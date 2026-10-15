@@ -8,7 +8,8 @@ verification remain authoritative.
 
 - Node.js `22.17.0` and npm `10.9.2` (also recorded in `.nvmrc` and `package.json`);
 - exact dependency versions plus committed `package-lock.json`;
-- ESLint, strict TypeScript, Vitest with 100% thresholds, and Playwright Chromium checks.
+- ESLint, strict TypeScript, Vitest with 100% thresholds, Playwright Chromium checks, and the
+  pinned `@axe-core/playwright` WCAG scanner.
 
 Install and verify from this directory:
 
@@ -93,3 +94,14 @@ Approve/reject forms submit a bounded reason, expected Approval version, correla
 identities, and a fresh Idempotency Key. Buttons are absent for terminal, expired, invalidated, or
 separation-restricted records. The browser waits for the authoritative response and reloads the
 verified record; it never optimistically marks an Approval or invokes execution.
+
+## Phase 10 quality boundary
+
+Component and parser tests keep every console source file at 100% statement, branch, function,
+and line coverage. Browser tests exercise the authenticated shell, filtered/paged Incident list,
+the complete Incident detail projection, and immutable Approval decision flow on desktop and
+mobile Chromium. Stable states in each flow are scanned against WCAG 2.0/2.1 A and AA plus WCAG
+2.2 AA rules; the desktop shell also proves keyboard access to the skip link. The backend suite
+separately proves that every business operation fails closed without authentication, that Viewer
+and Approver roles cannot invoke permissions they do not own, and that tenant-scoped reads hide
+foreign resources. See the committed [Phase 10 verification record](../docs/PHASE_10_VERIFICATION.md).

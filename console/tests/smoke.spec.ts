@@ -1,6 +1,20 @@
-import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import { expect, test, type Page } from "@playwright/test";
 
-async function mockViewerSession(page: import("@playwright/test").Page) {
+async function expectAccessible(page: Page) {
+  const result = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(
+    result.violations.map((violation) => ({
+      id: violation.id,
+      impact: violation.impact,
+      targets: violation.nodes.map((node) => node.target),
+    })),
+  ).toEqual([]);
+}
+
+async function mockViewerSession(page: Page) {
   await page.route("**/api/v1/session", (route) =>
     route.fulfill({
       contentType: "application/json",
@@ -16,7 +30,7 @@ async function mockViewerSession(page: import("@playwright/test").Page) {
 
 test("renders a readable console foundation without horizontal overflow", async ({
   page,
-}) => {
+}, testInfo) => {
   await mockViewerSession(page);
   await page.goto("/");
 
@@ -32,6 +46,15 @@ test("renders a readable console foundation without horizontal overflow", async 
   await expect(page.getByRole("link", { name: "Audit" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Approvals" })).toHaveCount(0);
   await expect(page.getByRole("listitem")).toHaveCount(3);
+  if (!testInfo.project.name.startsWith("mobile")) {
+    await page.keyboard.press("Tab");
+    await expect(
+      page.getByRole("link", { name: "Skip to content" }),
+    ).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#console-content")).toBeFocused();
+  }
+  await expectAccessible(page);
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth,
   );
@@ -94,6 +117,7 @@ test("filters and pages through authorized incidents", async ({ page }) => {
     page.locator("tbody").getByText("SEV1", { exact: true }),
   ).toBeVisible();
 
+  await expectAccessible(page);
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth,
   );
@@ -616,6 +640,7 @@ test("shows incident lifecycle details and cursor-paged workflow history", async
   await expect(page.getByText("2 events loaded")).toBeVisible();
   await expect(page.getByRole("button", { name: /events/ })).toHaveCount(0);
 
+  await expectAccessible(page);
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth,
   );
@@ -749,6 +774,7 @@ test("reviews and decides an immutable Approval", async ({ page }) => {
   await expect(
     page.getByRole("link", { name: "approval-browser" }),
   ).toBeVisible();
+  await expectAccessible(page);
   await Promise.all([
     page.waitForURL("**/approvals/approval-browser"),
     page.getByRole("link", { name: "approval-browser" }).click(),
@@ -757,6 +783,7 @@ test("reviews and decides an immutable Approval", async ({ page }) => {
     page.getByRole("heading", { name: "Rollback orders" }),
   ).toBeVisible();
   await expect(page.getByText("Human approval is required.")).toBeVisible();
+  await expectAccessible(page);
   await page.getByLabel("Decision reason").fill("Reviewed in browser.");
   await page.getByRole("button", { name: "Approve proposal" }).click();
   await expect(
@@ -765,6 +792,7 @@ test("reviews and decides an immutable Approval", async ({ page }) => {
   await expect(
     page.locator(".approval-badges").getByText("APPROVED"),
   ).toBeVisible();
+  await expectAccessible(page);
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth,
   );

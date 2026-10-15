@@ -109,6 +109,15 @@ fingerprint, tenant/Incident binding, and Model Call trace. Evidence Gate decisi
 only when their canonical claim snapshot matches a candidate in the latest report; stale or
 unrelated decisions are never attached.
 
+Revision `20261015_0021` adds `correlation_streams` and immutable `correlation_links`. A composite
+stream key binds each tenant/Correlation ID to exactly one tenant-owned Incident. Link constraints
+enforce the closed eight-component vocabulary, strict nonzero W3C Trace IDs, same-stream causation,
+unique event and component/resource identities, schema version, and canonical SHA-256 fingerprint.
+The repository creates or row-locks the stream claim before append, so concurrent exact delivery
+replays one stored link while cross-Incident rebinding or changed-content replay fails closed.
+Reads require tenant, Incident, and Correlation scope and revalidate every fingerprint plus the
+bounded single-Alert-root causation timeline described in [the correlation contract](CORRELATION.md).
+
 ## Repository concurrency
 
 `IncidentRepository` updates with `WHERE id = ... AND version = ...`. A zero-row update raises the
@@ -128,7 +137,9 @@ Testcontainers starts the same `pgvector/pgvector:0.8.6-pg18` image used by the 
 suite verifies `upgrade -> downgrade -> upgrade`, required tables, Incident load/change/conflict,
 service backfill refusal and success, combined tenant-scoped list filters, immediate and deferred
 cancellation persistence, and concurrent Alert ingestion from sixteen independent transactions
-followed by a replay storm. Unit tests retain fail-closed coverage for defensive paths that valid
+followed by a replay storm. It also verifies correlation-ledger migration, eight-component round
+trip, concurrent exact replay, scope isolation, and fingerprint-tamper refusal. Unit tests retain
+fail-closed coverage for defensive paths that valid
 foreign keys and locks should make unreachable.
 
 The test suite uses an ignored repository-local `.pytest-runtime-*` directory because elevated

@@ -150,6 +150,13 @@ authorship, inherited source Fact/Evidence references, optimistic concurrency, a
 protection, and atomic hash-only audit. Anonymous, read-only, cross-tenant, stale, forged-parent,
 substituted-reference, and corrupt-history paths fail closed.
 
+Phase 11 begins with the versioned [trace, correlation, and causation contract](docs/CORRELATION.md).
+It defines strict nonzero W3C Trace IDs, one tenant/Incident-owned Correlation stream, resolvable
+event-level Causation, and the closed Alert-to-verification component vocabulary. A concurrency-safe
+PostgreSQL ledger now persists content-free links with exact replay, scope isolation, canonical
+fingerprint verification, and tamper detection. Runtime boundary wiring remains open, so this
+foundation does not yet claim complete end-to-end reconstruction.
+
 ## Why this project exists
 
 - Shorten time to diagnose microservice failures.
@@ -342,6 +349,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Comparison with Programming Tutor](docs/COMPARISON_WITH_PROGRAMMING_TUTOR.md)
 - [Data model](docs/DATA_MODEL.md)
 - [Operational persistence foundation](docs/PERSISTENCE.md)
+- [Trace, correlation, and causation](docs/CORRELATION.md)
 - [Control-plane API and worker processes](docs/CONTROL_PLANE_PROCESSES.md)
 - [Authentication principal and RBAC](docs/AUTHORIZATION.md)
 - [Versioned control-plane API](docs/API_V1.md)

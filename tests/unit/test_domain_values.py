@@ -12,6 +12,7 @@ from agentops_incident_commander.domain import (
     AlertId,
     AuditEventId,
     CausationId,
+    CorrelationEventId,
     CorrelationId,
     EventReason,
     IncidentId,
@@ -19,6 +20,7 @@ from agentops_incident_commander.domain import (
     InvalidIdentifierError,
     NaiveDateTimeError,
     OpaqueIdentifier,
+    TraceId,
     as_utc,
     utc_now,
 )
@@ -34,6 +36,7 @@ from agentops_incident_commander.domain import (
         ActorId,
         CorrelationId,
         CausationId,
+        CorrelationEventId,
     ],
 )
 def test_opaque_identifier_types_preserve_valid_values(
@@ -60,6 +63,30 @@ def test_distinct_identifier_types_are_not_equal() -> None:
     """Runtime identity types prevent accidental cross-aggregate comparison."""
     incident_id: object = IncidentId("same")
     assert incident_id != AlertId("same")
+
+
+def test_trace_id_accepts_only_nonzero_lowercase_w3c_identity() -> None:
+    """Trace IDs use the exact W3C 16-byte lowercase wire representation."""
+    trace_id = TraceId("0123456789abcdef0123456789abcdef")
+
+    assert str(trace_id) == "0123456789abcdef0123456789abcdef"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "",
+        "0" * 32,
+        "0123456789abcdef",
+        "0123456789ABCDEF0123456789ABCDEF",
+        "g123456789abcdef0123456789abcdef",
+        "0123456789abcdef0123456789abcdef00",
+    ],
+)
+def test_trace_id_rejects_invalid_wire_values(value: str) -> None:
+    """Invalid, zero, uppercase, and incorrectly sized Trace IDs fail closed."""
+    with pytest.raises(InvalidIdentifierError, match="trace ID"):
+        TraceId(value)
 
 
 @pytest.mark.parametrize("value", [0, -1, True, 1.5])

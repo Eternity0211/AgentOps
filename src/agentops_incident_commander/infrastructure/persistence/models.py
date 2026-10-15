@@ -27,12 +27,14 @@ from agentops_incident_commander.domain import (
     ACTION_EXECUTION_SCHEMA_VERSION,
     APPROVAL_INVALIDATION_SCHEMA_VERSION,
     APPROVAL_SCHEMA_VERSION,
+    CORRELATION_LINK_SCHEMA_VERSION,
     INCIDENT_MEMORY_SCHEMA_VERSION,
     MAX_POSTMORTEM_CONTENT_BYTES,
     MAX_PROMPT_CONTENT_BYTES,
     POSTMORTEM_REVISION_SCHEMA_VERSION,
     ActionExecutionStatus,
     ApprovalStatus,
+    CorrelationComponent,
     EvidenceGateOutcome,
     EvidenceSourceType,
     HealthVerificationOutcome,
@@ -82,6 +84,7 @@ _HEALTH_VERIFICATION_SCENARIOS = ", ".join(
 )
 _DIAGNOSIS_PROGRESS_STATUSES = ", ".join(f"'{value.value}'" for value in DiagnosisProgressStatus)
 _GRAPH_PHASES = ", ".join(f"'{value.value}'" for value in GraphPhase)
+_CORRELATION_COMPONENTS = ", ".join(f"'{value.value}'" for value in CorrelationComponent)
 
 
 class Base(DeclarativeBase):
@@ -284,6 +287,125 @@ class IncidentRow(Base):
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cancellation_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CorrelationStreamRow(Base):
+    """One tenant/Incident ownership claim for a durable correlation stream."""
+
+    __tablename__ = "correlation_streams"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["incident_id", "tenant_id"],
+            ["incidents.id", "incidents.tenant_id"],
+            name="fk_correlation_stream_incident_tenant",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            f"schema_version = '{CORRELATION_LINK_SCHEMA_VERSION}'",
+            name="ck_correlation_stream_schema",
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "correlation_id",
+            "incident_id",
+            name="uq_correlation_stream_scope",
+        ),
+        Index("ix_correlation_stream_incident", "tenant_id", "incident_id"),
+    )
+
+    tenant_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    correlation_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    incident_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class CorrelationLinkRow(Base):
+    """Immutable content-free event link in an Incident correlation stream."""
+
+    __tablename__ = "correlation_links"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "correlation_id", "incident_id"],
+            [
+                "correlation_streams.tenant_id",
+                "correlation_streams.correlation_id",
+                "correlation_streams.incident_id",
+            ],
+            name="fk_correlation_link_stream_scope",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "correlation_id", "causation_id"],
+            [
+                "correlation_links.tenant_id",
+                "correlation_links.correlation_id",
+                "correlation_links.event_id",
+            ],
+            name="fk_correlation_link_parent",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            f"component IN ({_CORRELATION_COMPONENTS})",
+            name="ck_correlation_link_component",
+        ),
+        CheckConstraint(
+            "trace_id ~ '^[0-9a-f]{32}$' AND trace_id <> repeat('0', 32)",
+            name="ck_correlation_link_trace_id",
+        ),
+        CheckConstraint(
+            "(causation_id IS NULL AND component = 'ALERT') OR causation_id IS NOT NULL",
+            name="ck_correlation_link_root",
+        ),
+        CheckConstraint(
+            f"schema_version = '{CORRELATION_LINK_SCHEMA_VERSION}'",
+            name="ck_correlation_link_schema",
+        ),
+        CheckConstraint(
+            "fingerprint ~ '^[0-9a-f]{64}$'",
+            name="ck_correlation_link_fingerprint",
+        ),
+        UniqueConstraint("event_id", name="uq_correlation_link_event"),
+        UniqueConstraint(
+            "tenant_id",
+            "correlation_id",
+            "event_id",
+            name="uq_correlation_link_stream_event",
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "correlation_id",
+            "component",
+            "resource_id",
+            name="uq_correlation_link_resource",
+        ),
+        Index(
+            "ix_correlation_link_incident_sequence",
+            "tenant_id",
+            "incident_id",
+            "sequence",
+        ),
+        Index(
+            "ix_correlation_link_stream_sequence",
+            "tenant_id",
+            "correlation_id",
+            "sequence",
+        ),
+        Index("ix_correlation_link_trace", "trace_id"),
+    )
+
+    sequence: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    event_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    incident_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    component: Mapped[str] = mapped_column(String(32), nullable=False)
+    resource_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    trace_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    correlation_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    causation_id: Mapped[str | None] = mapped_column(String(128))
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
 class EvidenceRow(Base):

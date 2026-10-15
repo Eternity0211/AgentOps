@@ -5,6 +5,7 @@ from .action_execution_store import (
     PostgresActionExecutionStore,
     PostgresLifecycleActionExecutionStore,
 )
+from .correlation_repository import CorrelationLinkRepository, correlation_link_from_row
 from .diagnosis_progress import (
     PostgresDiagnosisProgressRecorder,
     diagnosis_progress_from_row,
@@ -25,6 +26,8 @@ from .models import (
     ApprovalRow,
     AuditEventRow,
     Base,
+    CorrelationLinkRow,
+    CorrelationStreamRow,
     DiagnosisProgressRow,
     DiagnosisReportRow,
     EvidenceGateDecisionRow,
@@ -81,6 +84,9 @@ __all__ = [
     "AuditEventRow",
     "AuditRepository",
     "Base",
+    "CorrelationLinkRepository",
+    "CorrelationLinkRow",
+    "CorrelationStreamRow",
     "DiagnosisProgressRow",
     "DiagnosisReportRepository",
     "DiagnosisReportRow",
@@ -115,5 +121,6 @@ __all__ = [
     "PromptLifecycleEventRow",
     "PromptLifecycleRepository",
     "PromptVersionRow",
+    "correlation_link_from_row",
     "diagnosis_progress_from_row",
 ]

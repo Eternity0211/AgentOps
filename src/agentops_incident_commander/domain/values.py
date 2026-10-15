@@ -10,6 +10,7 @@ from typing import Self
 from .errors import InvalidDomainValueError, InvalidIdentifierError, NaiveDateTimeError
 
 _OPAQUE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+_TRACE_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")
 
 
 def as_utc(value: datetime) -> datetime:
@@ -157,6 +158,27 @@ class CorrelationId(OpaqueIdentifier):
 @dataclass(frozen=True, slots=True)
 class CausationId(OpaqueIdentifier):
     """Identifier of the command or event that directly caused another event."""
+
+
+@dataclass(frozen=True, slots=True)
+class CorrelationEventId(OpaqueIdentifier):
+    """Stable identity of one event in the control-plane correlation ledger."""
+
+
+@dataclass(frozen=True, slots=True)
+class TraceId:
+    """W3C-compatible 16-byte trace identity rendered as lowercase hexadecimal."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        if _TRACE_ID_PATTERN.fullmatch(self.value) is None or self.value == "0" * 32:
+            raise InvalidIdentifierError(
+                "trace ID must contain 32 lowercase hexadecimal characters and cannot be zero"
+            )
+
+    def __str__(self) -> str:
+        return self.value
 
 
 @dataclass(frozen=True, slots=True, order=True)

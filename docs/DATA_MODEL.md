@@ -24,6 +24,7 @@ This is the conceptual model. SQLAlchemy/Alembic implementation must preserve th
 | GroundTruthScenario | evaluator-only scenario/version, root cause, expected evidence, automation eligibility, expected safe outcome/handoff, recovery action, verification, cleanup procedure, and future-tool requirement. |
 | Postmortem | A constrained generated draft binds a closed Incident, exact confirmed facts, resolvable Evidence IDs, active Prompt fingerprint, model-call trace, schema version, and deterministic fingerprint. A mutable optimistic head points to immutable consecutive human revisions with parent/source fingerprints, exact inherited Fact/Evidence IDs, author, time, change summary, content, and audit binding. |
 | AuditEvent | append-only sequence, event type/version, actor, correlation/causation IDs, target, request/result hashes, timestamp. |
+| CorrelationStream / CorrelationLink | A tenant/Correlation ID is bound to exactly one Incident. Immutable versioned links join Alert, Incident, graph, tool, model, Approval, execution, and verification resources through strict W3C Trace IDs and same-stream causation, with canonical fingerprints and a bounded single-root timeline. |
 
 ## Platform configuration and memory
 
@@ -47,6 +48,8 @@ This is the conceptual model. SQLAlchemy/Alembic implementation must preserve th
 - Similarity lookup verifies current-Incident ownership, tenant, freshness, active vector identity,
   dimensions, and a bounded result count; returned references omit vectors and internal lineage.
 - Retention and expiry do not silently delete audit integrity metadata.
+- Correlation metadata follows the distinct trace/correlation/causation semantics and durable
+  ownership, replay, and causation rules in [Trace, Correlation, and Causation](CORRELATION.md).
 - Artifact locators are server-generated rather than client paths. Retrieval revalidates tenant,
   Incident ownership, permission, expiry, byte size, and content hash. The development backend and
   adapter boundary are specified in [Immutable Artifact Storage](ARTIFACT_STORAGE.md).

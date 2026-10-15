@@ -81,7 +81,10 @@ from agentops_incident_commander.domain import (
     AuditTarget,
     AuthorizationError,
     CausationId,
+    CorrelationComponent,
+    CorrelationEventId,
     CorrelationId,
+    CorrelationLink,
     EventMetadata,
     EventReason,
     Evidence,
@@ -180,6 +183,7 @@ from agentops_incident_commander.domain import (
     ToolRetryPolicy,
     ToolRisk,
     ToolSchema,
+    TraceId,
     TrustClassification,
     WorkflowRunId,
     evaluate_health_verification,
@@ -215,6 +219,9 @@ from agentops_incident_commander.infrastructure.persistence import (
     ApprovalRow,
     AuditEventRow,
     AuditRepository,
+    CorrelationLinkRepository,
+    CorrelationLinkRow,
+    CorrelationStreamRow,
     DiagnosisProgressRow,
     DiagnosisReportRepository,
     DiagnosisReportRow,
@@ -585,6 +592,8 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "action_execution_locks",
         "action_executions",
         "audit_events",
+        "correlation_links",
+        "correlation_streams",
         "evidence",
         "evidence_gate_decisions",
         "diagnosis_progress",
@@ -628,6 +637,134 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
                 "AND indexname='ix_incidents_tenant_service_opened')"
             )
         )
+
+
+def correlation_link(
+    component: CorrelationComponent,
+    index: int,
+    *,
+    incident_id: str = "incident-correlation",
+    tenant_id: str = "tenant-api",
+    correlation_id: str = "correlation-ledger",
+    event_id: str | None = None,
+    causation_id: str | None = None,
+) -> CorrelationLink:
+    """Build one deterministic link for PostgreSQL ledger tests."""
+    return CorrelationLink(
+        event_id=CorrelationEventId(event_id or f"correlation-event-{index}"),
+        tenant_id=TenantId(tenant_id),
+        incident_id=IncidentId(incident_id),
+        component=component,
+        resource_id=OpaqueIdentifier(f"correlation-resource-{index}"),
+        trace_id=TraceId(f"{index:032x}"),
+        correlation_id=CorrelationId(correlation_id),
+        causation_id=None if causation_id is None else CausationId(causation_id),
+        occurred_at=NOW + timedelta(seconds=index),
+    )
+
+
+@pytest.mark.anyio
+async def test_correlation_ledger_round_trip_replay_scope_and_tamper_detection(
+    engine: AsyncEngine,
+) -> None:
+    """The ledger reconstructs one owned chain and fails closed on every substitution."""
+    await add_incident(engine, "incident-correlation")
+    await add_incident(engine, "incident-correlation-other")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    links = tuple(
+        correlation_link(
+            component,
+            index,
+            causation_id=None if index == 1 else f"correlation-event-{index - 1}",
+        )
+        for index, component in enumerate(CorrelationComponent, start=1)
+    )
+    async with sessions.begin() as session:
+        repository = CorrelationLinkRepository(session)
+        for item in links:
+            assert await repository.append(item) == item
+        assert (
+            await repository.count(TenantId("tenant-api"), CorrelationId("correlation-ledger")) == 8
+        )
+
+    async with sessions.begin() as session:
+        repository = CorrelationLinkRepository(session)
+        assert await repository.append(links[0]) == links[0]
+        timeline = await repository.by_correlation(
+            TenantId("tenant-api"),
+            IncidentId("incident-correlation"),
+            CorrelationId("correlation-ledger"),
+        )
+        timeline.require_complete()
+        assert timeline.links == links
+
+    changed_replay = replace(links[0], trace_id=TraceId("f" * 32))
+    async with sessions.begin() as session:
+        with pytest.raises(InvalidDomainValueError, match="different immutable content"):
+            await CorrelationLinkRepository(session).append(changed_replay)
+
+    wrong_incident = correlation_link(
+        CorrelationComponent.ALERT,
+        20,
+        incident_id="incident-correlation-other",
+        correlation_id="correlation-ledger",
+        event_id="correlation-wrong-incident",
+    )
+    async with sessions.begin() as session:
+        with pytest.raises(InvalidDomainValueError, match="different Incident"):
+            await CorrelationLinkRepository(session).append(wrong_incident)
+
+    async with sessions.begin() as session:
+        with pytest.raises(AuthorizationError, match="requested scope"):
+            await CorrelationLinkRepository(session).by_correlation(
+                TenantId("tenant-other"),
+                IncidentId("incident-correlation"),
+                CorrelationId("correlation-ledger"),
+            )
+
+    async with engine.begin() as connection:
+        await connection.execute(
+            text(
+                "UPDATE correlation_links SET fingerprint = :fingerprint WHERE event_id = :event_id"
+            ),
+            {"fingerprint": "a" * 64, "event_id": links[-1].event_id.value},
+        )
+    async with sessions.begin() as session:
+        with pytest.raises(InvalidDomainValueError, match="fingerprint mismatch"):
+            await CorrelationLinkRepository(session).by_correlation(
+                TenantId("tenant-api"),
+                IncidentId("incident-correlation"),
+                CorrelationId("correlation-ledger"),
+            )
+
+
+@pytest.mark.anyio
+async def test_correlation_ledger_serializes_concurrent_exact_replay(engine: AsyncEngine) -> None:
+    """Concurrent duplicate delivery creates one stream and one immutable root link."""
+    await add_incident(engine, "incident-correlation-race")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    root = correlation_link(
+        CorrelationComponent.ALERT,
+        30,
+        incident_id="incident-correlation-race",
+        correlation_id="correlation-race",
+        event_id="correlation-race-root",
+    )
+
+    async def append() -> CorrelationLink:
+        async with sessions.begin() as session:
+            return await CorrelationLinkRepository(session).append(root)
+
+    assert tuple(await asyncio.gather(append(), append())) == (root, root)
+    async with sessions.begin() as session:
+        assert (
+            await CorrelationLinkRepository(session).count(
+                TenantId("tenant-api"), CorrelationId("correlation-race")
+            )
+            == 1
+        )
+        assert await session.scalar(select(func.count()).select_from(CorrelationStreamRow)) == 1
+        assert await session.scalar(select(func.count()).select_from(CorrelationLinkRow)) == 1
 
 
 @pytest.mark.anyio

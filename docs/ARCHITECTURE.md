@@ -198,6 +198,19 @@ Approval binds `(incident_id, proposal_hash, policy_decision_id, actor, expiry)`
 
 The MVP keeps that future vocabulary in the domain model and diagrams, but no executable compensation surface is reachable. The repository architecture check parses the `application`, `workflows`, and `infrastructure` packages and fails closed if a compensation module, class, function, or tool identifier is introduced. Enabling one therefore requires the future reversible-tool contract, independent policy and approval controls, verification, tests, and a superseding ADR rather than an accidental route or adapter registration.
 
+## Trace, correlation, and causation
+
+The control plane uses the versioned [correlation contract](CORRELATION.md) rather than treating
+observability identifiers as interchangeable strings. A strict W3C Trace ID joins spans for one
+distributed operation. One tenant-scoped Correlation ID identifies the complete Incident control
+flow. Each Causation ID names the preceding immutable correlation event, creating a resolvable
+single-root chain across Alert, Incident, graph, tool, model, Approval, execution, and verification.
+
+The domain remains framework independent. PostgreSQL owns concurrent stream-to-Incident binding,
+same-stream parent integrity, exact replay, and canonical fingerprint checks. OpenTelemetry remains
+the timing/telemetry layer, while AuditEvent remains the actor and state-change record; neither is
+silently substituted for the durable correlation ledger.
+
 After the complete Phase 9 safety gate, the worker composition root may explicitly enable the
 single `rollback_service` route. The setting is false by default and the disabled path exits before
 preflight or effects. The enabled composition accepts only a server-injected typed deployment

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from threading import RLock
 
@@ -12,6 +13,7 @@ from agentops_incident_commander.simulator.app_types import ServiceName
 
 VERSION_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$")
 DEPLOYMENT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+logger = logging.getLogger("agentops.simulator.deployment")
 
 
 def _validated(value: str, pattern: re.Pattern[str], field: str) -> str:
@@ -77,6 +79,7 @@ class SimulatorDeploymentState:
         self._marker = marker
         self._transition_count = 0
         self._lock = RLock()
+        self._observers: list[Callable[[DeploymentMarker], None]] = []
 
     def current(self) -> DeploymentMarker:
         with self._lock:
@@ -86,6 +89,18 @@ class SimulatorDeploymentState:
     def transition_count(self) -> int:
         with self._lock:
             return self._transition_count
+
+    def subscribe(self, observer: Callable[[DeploymentMarker], None]) -> None:
+        """Register a process-local observer for future deployment transitions."""
+        with self._lock:
+            if observer not in self._observers:
+                self._observers.append(observer)
+
+    def unsubscribe(self, observer: Callable[[DeploymentMarker], None]) -> None:
+        """Remove an observer without making shutdown order significant."""
+        with self._lock:
+            if observer in self._observers:
+                self._observers.remove(observer)
 
     def transition(
         self,
@@ -111,4 +126,15 @@ class SimulatorDeploymentState:
                 previous_version=current.version,
             )
             self._transition_count += 1
-            return self._marker
+            changed = self._marker
+            observers = tuple(self._observers)
+        for observer in observers:
+            try:
+                observer(changed)
+            except Exception:
+                logger.warning(
+                    "deployment_observer_failed service=%s deployment_id=%s",
+                    changed.service,
+                    changed.deployment_id,
+                )
+        return changed

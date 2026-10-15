@@ -29,13 +29,13 @@ The memory fixture retains one touched MiB per Order request up to 32 MiB, with 
 
 The bad-configuration fixture leaves Payment live but makes readiness and authorization fail with generic 503 responses. It accepts no caller-controlled configuration data, and process recreation restores the baseline.
 
-Credentials are read only from mounted secret files. Connection strings, passwords, request payloads, and stock values are not logged. Each dependency operation emits one structured record with only `event`, `dependency`, `operation`, `result`, `duration_ms`, and the validated `correlation_id`. Adapter timeouts and connection failures map to stable HTTP 503 responses; insufficient inventory maps to HTTP 409. Internal exception text is not returned to clients.
+Credentials are read only from mounted secret files. Connection strings, passwords, request payloads, and stock values are not logged. Each dependency operation emits a bounded client Span, low-cardinality count/duration metrics, and one OTLP log with only service, dependency, operation, result, duration, and the validated correlation ID; the local structured record uses the same content boundary. Adapter timeouts and connection failures map to stable HTTP 503 responses; insufficient inventory maps to HTTP 409. Internal exception text is not returned to clients or telemetry.
 
 ## Correlation contract
 
 `X-Correlation-ID` is the sole request-correlation header. Gateway creates a UUID when it is absent. A supplied value must be 1–128 characters from the conservative `[A-Za-z0-9._:-]` set and cannot start with punctuation. The same validated value is returned in every response and forwarded on every internal HTTP request. Invalid values fail with HTTP 400 before a handler or downstream call runs.
 
-This identifier is for correlation, not authentication or authorization. It is attached to structured logs and trace attributes without being treated as trusted identity; it is intentionally excluded from metric dimensions to avoid unbounded cardinality. W3C trace context is propagated independently so traces remain standards-compatible.
+This identifier is for correlation, not authentication or authorization. It is attached to structured logs and trace attributes without being treated as trusted identity; it is intentionally excluded from metric dimensions to avoid unbounded cardinality. W3C trace context is extracted at every server boundary and propagated independently on internal calls, so the Gateway, Order, Inventory, Payment, PostgreSQL, and Redis spans remain in one standards-compatible trace.
 
 ## Runtime composition
 

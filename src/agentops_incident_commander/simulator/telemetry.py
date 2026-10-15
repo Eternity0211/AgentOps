@@ -6,11 +6,13 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 from collections.abc import Mapping
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
-from typing import Any, cast
+from datetime import UTC, datetime
+from typing import Any, Literal, cast
 from urllib.parse import urlsplit
 
 from opentelemetry import metrics, trace
@@ -32,8 +34,11 @@ from opentelemetry.sdk.resources import (
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import Span, SpanKind, Status, StatusCode
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 logger = logging.getLogger("agentops.simulator.telemetry")
+RESOURCE_VALUE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$")
+TRACE_CONTEXT_PROPAGATOR = TraceContextTextMapPropagator()
 
 
 def _enabled(value: str) -> bool:
@@ -49,6 +54,7 @@ class TelemetrySettings:
     timeout_seconds: float
     export_interval_millis: int
     environment: str
+    service_version: str = "1.0.0"
 
     @classmethod
     def from_environment(cls, environment: Mapping[str, str] | None = None) -> TelemetrySettings:
@@ -70,12 +76,19 @@ class TelemetrySettings:
             or parsed_endpoint.fragment
         ):
             raise ValueError("OTEL endpoint must be a credential-free HTTP(S) URL")
+        deployment_environment = source.get("DEPLOYMENT_ENVIRONMENT", "local")
+        service_version = source.get("SERVICE_VERSION", "1.0.0")
+        if RESOURCE_VALUE_PATTERN.fullmatch(deployment_environment) is None:
+            raise ValueError("invalid deployment environment")
+        if RESOURCE_VALUE_PATTERN.fullmatch(service_version) is None:
+            raise ValueError("invalid service version")
         return cls(
             enabled=_enabled(source.get("OTEL_SDK_ENABLED", "false")),
             endpoint=endpoint.rstrip("/"),
             timeout_seconds=timeout,
             export_interval_millis=interval,
-            environment=source.get("DEPLOYMENT_ENVIRONMENT", "local"),
+            environment=deployment_environment,
+            service_version=service_version,
         )
 
 
@@ -101,16 +114,13 @@ class SimulatorTelemetry:
         if not settings.enabled:
             self.tracer = trace.NoOpTracerProvider().get_tracer(__name__)
             meter = metrics.NoOpMeterProvider().get_meter(__name__)
-            self._request_count = meter.create_counter("simulator.http.server.requests")
-            self._request_duration = meter.create_histogram(
-                "simulator.http.server.duration", unit="ms"
-            )
+            self._create_instruments(meter)
             return
 
         resource = Resource.create(
             {
                 SERVICE_NAME: self.service_name,
-                SERVICE_VERSION: "0.1.0",
+                SERVICE_VERSION: settings.service_version,
                 DEPLOYMENT_ENVIRONMENT: settings.environment,
             }
         )
@@ -157,6 +167,11 @@ class SimulatorTelemetry:
         self._logger_provider = logger_provider
         self.tracer = tracer_provider.get_tracer(__name__, "0.1.0")
         meter = meter_provider.get_meter(__name__, "0.1.0")
+        self._create_instruments(meter)
+        self._otel_logger = logger_provider.get_logger(__name__, "0.1.0")
+
+    def _create_instruments(self, meter: Any) -> None:
+        """Create the complete bounded metric vocabulary in enabled and no-op modes."""
         self._request_count = meter.create_counter(
             "simulator.http.server.requests",
             description="Completed simulator HTTP server requests",
@@ -166,21 +181,150 @@ class SimulatorTelemetry:
             unit="ms",
             description="Simulator HTTP server request duration",
         )
-        self._otel_logger = logger_provider.get_logger(__name__, "0.1.0")
+        self._client_count = meter.create_counter(
+            "simulator.http.client.requests",
+            description="Completed simulator downstream HTTP requests",
+        )
+        self._client_duration = meter.create_histogram(
+            "simulator.http.client.duration",
+            unit="ms",
+            description="Simulator downstream HTTP request duration",
+        )
+        self._dependency_count = meter.create_counter(
+            "simulator.dependency.operations",
+            description="Completed simulator dependency operations",
+        )
+        self._dependency_duration = meter.create_histogram(
+            "simulator.dependency.duration",
+            unit="ms",
+            description="Simulator dependency operation duration",
+        )
 
-    def server_span(self, method: str, correlation_id: str) -> AbstractContextManager[Span]:
+    def server_span(
+        self,
+        method: str,
+        correlation_id: str,
+        carrier: Mapping[str, str] | None = None,
+    ) -> AbstractContextManager[Span]:
         """Start a server span with bounded, non-sensitive initial attributes."""
         return cast(
             AbstractContextManager[Span],
             self.tracer.start_as_current_span(
                 f"HTTP {method}",
                 kind=SpanKind.SERVER,
+                context=(
+                    TRACE_CONTEXT_PROPAGATOR.extract(carrier=carrier)
+                    if carrier is not None
+                    else None
+                ),
                 attributes={
                     "http.request.method": method,
                     "agentops.correlation_id": correlation_id,
                 },
             ),
         )
+
+    def inject_trace_context(self, carrier: dict[str, str]) -> None:
+        """Inject only W3C trace context; never forward caller-supplied baggage."""
+        TRACE_CONTEXT_PROPAGATOR.inject(carrier=carrier)
+
+    def complete_client_request(
+        self,
+        span: Span,
+        *,
+        service: str,
+        method: str,
+        route: str,
+        status_code: int | None,
+        started_at: float,
+        correlation_id: str,
+        result: Literal["ok", "error"] | None = None,
+    ) -> None:
+        """Record one downstream outcome without URLs, payloads, or exception details."""
+        status = str(status_code) if status_code is not None else "transport_error"
+        request_result = (
+            result
+            if result is not None
+            else ("ok" if status_code is not None and status_code < 400 else "error")
+        )
+        attributes: dict[str, str | int] = {
+            "server.address": service,
+            "http.request.method": method,
+            "http.route": route,
+            "request.result": request_result,
+        }
+        if status_code is not None:
+            attributes["http.response.status_code"] = status_code
+        else:
+            attributes["error.type"] = "transport"
+        span.set_attributes(attributes)
+        if request_result == "error":
+            span.set_status(Status(StatusCode.ERROR))
+        duration_ms = (time.monotonic() - started_at) * 1000
+        metric_attributes = {
+            "service": service,
+            "method": method,
+            "route": route,
+            "status": status,
+            "result": request_result,
+        }
+        self._client_count.add(1, metric_attributes)
+        self._client_duration.record(duration_ms, metric_attributes)
+        self._emit_log(
+            body="http_client_request",
+            severity=(SeverityNumber.INFO if request_result == "ok" else SeverityNumber.WARN),
+            attributes={
+                **attributes,
+                "service.name": self.service_name,
+                "duration_ms": duration_ms,
+                "agentops.correlation_id": correlation_id,
+            },
+        )
+
+    def record_dependency(
+        self,
+        *,
+        dependency: str,
+        operation: str,
+        result: str,
+        duration_ms: float,
+        correlation_id: str,
+    ) -> None:
+        """Record one bounded PostgreSQL or Redis operation in all three signals."""
+        metric_attributes = {
+            "dependency": dependency,
+            "operation": operation,
+            "result": result,
+        }
+        self._dependency_count.add(1, metric_attributes)
+        self._dependency_duration.record(duration_ms, metric_attributes)
+        self._emit_log(
+            body="dependency_operation",
+            severity=SeverityNumber.INFO if result == "ok" else SeverityNumber.WARN,
+            attributes={
+                "service.name": self.service_name,
+                "dependency": dependency,
+                "operation": operation,
+                "result": result,
+                "duration_ms": duration_ms,
+                "agentops.correlation_id": correlation_id,
+            },
+        )
+
+    def _emit_log(
+        self,
+        *,
+        body: str,
+        severity: SeverityNumber,
+        attributes: Mapping[str, Any],
+    ) -> None:
+        if self._otel_logger is not None:
+            self._otel_logger.emit(
+                severity_number=severity,
+                severity_text=severity.name,
+                body=body,
+                attributes=dict(attributes),
+            )
 
     def client_span(
         self, service: str, method: str, route: str, correlation_id: str
@@ -234,29 +378,30 @@ class SimulatorTelemetry:
             duration_ms,
             correlation_id,
         )
-        if self._otel_logger is not None:
-            self._otel_logger.emit(
-                severity_number=SeverityNumber.INFO,
-                severity_text="INFO",
-                body="http_request",
-                attributes={
-                    **attributes,
-                    "service.name": self.service_name,
-                    "duration_ms": duration_ms,
-                    "agentops.correlation_id": correlation_id,
-                },
-            )
+        self._emit_log(
+            body="http_request",
+            severity=SeverityNumber.INFO,
+            attributes={
+                **attributes,
+                "service.name": self.service_name,
+                "duration_ms": duration_ms,
+                "agentops.correlation_id": correlation_id,
+            },
+        )
 
     def record_deployment(self, attributes: Mapping[str, str]) -> None:
-        """Emit one bounded, queryable deployment marker during process startup."""
-        logger.info(json.dumps(dict(attributes), sort_keys=True))
-        if self._otel_logger is not None:
-            self._otel_logger.emit(
-                severity_number=SeverityNumber.INFO,
-                severity_text="INFO",
-                body="service.deployment.changed",
-                attributes=dict(attributes),
-            )
+        """Emit one bounded marker for startup or a typed deployment transition."""
+        event_attributes = {
+            **dict(attributes),
+            "deployment.environment": self.settings.environment,
+            "event.observed_at": datetime.now(UTC).isoformat(),
+        }
+        logger.info(json.dumps(event_attributes, sort_keys=True))
+        self._emit_log(
+            body="service.deployment.changed",
+            severity=SeverityNumber.INFO,
+            attributes=event_attributes,
+        )
 
     async def shutdown(self) -> None:
         """Flush providers within a fixed application-shutdown deadline."""
@@ -296,5 +441,6 @@ def create_telemetry(
                 timeout_seconds=2,
                 export_interval_millis=5000,
                 environment="local",
+                service_version="1.0.0",
             ),
         )

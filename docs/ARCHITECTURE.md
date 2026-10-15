@@ -218,6 +218,15 @@ present. Only the ordered Approval, successful Execution, and bound Verification
 the timeline. Each operation uses a short PostgreSQL transaction and can resume by Correlation ID
 after worker replacement.
 
+The diagnosed-system layer has a separate bounded telemetry contract. Gateway, Order, Inventory,
+and Payment extract and propagate W3C context while carrying the validated request Correlation ID
+as a non-authoritative trace/log attribute. Server HTTP, allowlisted downstream HTTP, PostgreSQL,
+and Redis operations emit low-cardinality count/duration metrics, linked Spans, and content-free
+OTLP logs. Request bodies, response bodies, full URLs, SQL, Redis keys/values, exception details,
+credentials, fault scenario names, and run identifiers are excluded. Typed deployment state emits
+the same versioned marker on startup and every live transition; observer failure is fail-open and
+cannot affect the deterministic deployment transition or recovery chain.
+
 After the complete Phase 9 safety gate, the worker composition root may explicitly enable the
 single `rollback_service` route. The setting is false by default and the disabled path exits before
 preflight or effects. The enabled composition accepts only a server-injected typed deployment

@@ -402,8 +402,8 @@ def test_database_pool_fault_composes_bounded_store_and_returns_503(
     store.failure = DependencyUnavailable("pool exhausted")
     captured: dict[str, object] = {}
 
-    def create_store(*, tracer: object, exhaust_pool: bool) -> FakeOrderStore:
-        captured.update(tracer=tracer, exhaust_pool=exhaust_pool)
+    def create_store(*, telemetry: object, exhaust_pool: bool) -> FakeOrderStore:
+        captured.update(telemetry=telemetry, exhaust_pool=exhaust_pool)
         return store
 
     monkeypatch.setattr(simulator_app, "PostgresOrderStore", create_store)
@@ -455,8 +455,8 @@ def test_redis_timeout_fault_composes_inventory_store_and_returns_503(
     store.failure = DependencyUnavailable("redis timed out")
     captured: dict[str, object] = {}
 
-    def create_store(*, tracer: object, force_timeout: bool) -> FakeInventoryStore:
-        captured.update(tracer=tracer, force_timeout=force_timeout)
+    def create_store(*, telemetry: object, force_timeout: bool) -> FakeInventoryStore:
+        captured.update(telemetry=telemetry, force_timeout=force_timeout)
         return store
 
     monkeypatch.setattr(simulator_app, "RedisInventoryStore", create_store)

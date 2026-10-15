@@ -105,7 +105,10 @@ def test_version_endpoint_and_startup_event_share_one_marker(
             continue
         if value.get("event.name") == "service.deployment.changed":
             deployment_events.append(value)
-    assert deployment_events == [marker.attributes()]
+    assert len(deployment_events) == 1
+    assert deployment_events[0] | marker.attributes() == deployment_events[0]
+    assert deployment_events[0]["deployment.environment"] == "local"
+    assert deployment_events[0]["event.observed_at"].endswith("+00:00")
 
 
 def test_mutable_deployment_state_is_visible_to_version_endpoint() -> None:
@@ -125,6 +128,70 @@ def test_mutable_deployment_state_is_visible_to_version_endpoint() -> None:
     assert response.json()["version"] == "1.0.0"
     assert response.json()["previous_version"] == "2.0.0"
     assert state.transition_count == 1
+
+
+def test_runtime_transition_emits_a_second_queryable_deployment_marker(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A live rollback emits the same typed marker contract as process startup."""
+    state = SimulatorDeploymentState(
+        DeploymentMarker("payment", "fault-release-2", "2.0.0", "1.0.0")
+    )
+    caplog.set_level(logging.INFO, logger="agentops.simulator.telemetry")
+
+    with TestClient(simulator_app.create_app("payment", deployment_state=state)):
+        state.transition(
+            service="payment",
+            expected_version="2.0.0",
+            stable_version="1.0.0",
+            deployment_id="rollback-operation-1",
+        )
+
+    deployment_events = []
+    for record in caplog.records:
+        try:
+            value = json.loads(record.message)
+        except json.JSONDecodeError:
+            continue
+        if value.get("event.name") == "service.deployment.changed":
+            deployment_events.append(value)
+    assert [event["deployment.id"] for event in deployment_events] == [
+        "fault-release-2",
+        "rollback-operation-1",
+    ]
+    assert deployment_events[1]["service.version"] == "1.0.0"
+    assert deployment_events[1]["service.previous_version"] == "2.0.0"
+    assert deployment_events[1]["deployment.environment"] == "local"
+
+
+def test_deployment_observer_failure_never_reverts_transition(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Telemetry is best effort and cannot become recovery authority."""
+    state = SimulatorDeploymentState(DeploymentMarker("order", "release-2", "2.0.0", None))
+    calls: list[str] = []
+
+    def broken_observer(marker: DeploymentMarker) -> None:
+        calls.append(marker.deployment_id)
+        raise RuntimeError("secret observation detail")
+
+    state.subscribe(broken_observer)
+    state.subscribe(broken_observer)
+    caplog.set_level(logging.WARNING, logger="agentops.simulator.deployment")
+    changed = state.transition(
+        service="order",
+        expected_version="2.0.0",
+        stable_version="1.0.0",
+        deployment_id="rollback-1",
+    )
+    state.unsubscribe(broken_observer)
+    state.unsubscribe(broken_observer)
+
+    assert changed.version == "1.0.0"
+    assert state.transition_count == 1
+    assert calls == ["rollback-1"]
+    assert "deployment_observer_failed service=order deployment_id=rollback-1" in caplog.text
+    assert "secret observation detail" not in caplog.text
 
 
 def test_create_app_rejects_two_deployment_sources() -> None:

@@ -14,7 +14,6 @@ from uuid import uuid4
 import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
-from opentelemetry.propagate import inject
 from pydantic import BaseModel, Field, ValidationError
 
 from agentops_incident_commander.simulator.app_types import ServiceName as ServiceName
@@ -97,21 +96,43 @@ class HttpxServiceCaller:
         if base_url is None:
             raise HTTPException(status_code=500, detail=f"unknown downstream service: {service}")
         headers = {CORRELATION_HEADER: correlation_id}
+        status_code: int | None = None
+        result: Literal["ok", "error"] = "error"
+        started_at = time.monotonic()
+        selected_telemetry = self._telemetry
         try:
             span_context = (
-                self._telemetry.client_span(service, "POST", path, correlation_id)
-                if self._telemetry is not None
+                selected_telemetry.client_span(service, "POST", path, correlation_id)
+                if selected_telemetry is not None
                 else None
             )
             if span_context is None:
                 response = await self._post(base_url, path, payload, headers)
             else:
+                assert selected_telemetry is not None
                 with span_context as span:
-                    inject(headers)
-                    response = await self._post(base_url, path, payload, headers)
-                    span.set_attribute("http.response.status_code", response.status_code)
-            response.raise_for_status()
-            body = response.json()
+                    try:
+                        selected_telemetry.inject_trace_context(headers)
+                        response = await self._post(base_url, path, payload, headers)
+                        status_code = response.status_code
+                        response.raise_for_status()
+                        body = response.json()
+                        result = "ok"
+                    finally:
+                        selected_telemetry.complete_client_request(
+                            span,
+                            service=service,
+                            method="POST",
+                            route=path,
+                            status_code=status_code,
+                            started_at=started_at,
+                            correlation_id=correlation_id,
+                            result=result,
+                        )
+            if span_context is None:
+                status_code = response.status_code
+                response.raise_for_status()
+                body = response.json()
         except (httpx.HTTPError, ValueError) as error:
             raise HTTPException(
                 status_code=502,
@@ -186,7 +207,7 @@ def create_app(
         (
             order_store
             or PostgresOrderStore(
-                tracer=selected_telemetry.tracer,
+                telemetry=selected_telemetry,
                 exhaust_pool=(selected_fault is not None and selected_fault.exhausts_database_pool),
             )
         )
@@ -197,7 +218,7 @@ def create_app(
         (
             inventory_store
             or RedisInventoryStore(
-                tracer=selected_telemetry.tracer,
+                telemetry=selected_telemetry,
                 force_timeout=(selected_fault is not None and selected_fault.times_out_redis),
             )
         )
@@ -207,10 +228,15 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> Any:
+        def deployment_observer(marker: DeploymentMarker) -> None:
+            selected_telemetry.record_deployment(marker.attributes())
+
+        selected_deployment.subscribe(deployment_observer)
         try:
             selected_telemetry.record_deployment(selected_deployment.current().attributes())
             yield
         finally:
+            selected_deployment.unsubscribe(deployment_observer)
             try:
                 if selected_order_store is not None:
                     await selected_order_store.close()
@@ -248,7 +274,11 @@ def create_app(
         started_at = time.monotonic()
         status_code = 500
         route = "unmatched"
-        with selected_telemetry.server_span(request.method, correlation_id) as span:
+        with selected_telemetry.server_span(
+            request.method,
+            correlation_id,
+            dict(request.headers),
+        ) as span:
             try:
                 response = await call_next(request)
                 status_code = response.status_code

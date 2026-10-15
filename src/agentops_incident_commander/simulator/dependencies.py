@@ -92,6 +92,22 @@ class RedisClient(Protocol):
     async def aclose(self) -> None: ...
 
 
+class DependencyTelemetry(Protocol):
+    """Narrow simulator telemetry boundary used by dependency adapters."""
+
+    tracer: Tracer
+
+    def record_dependency(
+        self,
+        *,
+        dependency: str,
+        operation: str,
+        result: str,
+        duration_ms: float,
+        correlation_id: str,
+    ) -> None: ...
+
+
 def _read_secret(path: str) -> str:
     try:
         value = Path(path).read_text(encoding="utf-8").strip()
@@ -108,6 +124,7 @@ async def _observe[ResultT](
     correlation_id: str,
     action: Awaitable[ResultT],
     tracer: Tracer | None = None,
+    telemetry: DependencyTelemetry | None = None,
 ) -> ResultT:
     started_at = time.monotonic()
     result = "ok"
@@ -129,6 +146,7 @@ async def _observe[ResultT](
                 span.set_status(Status(StatusCode.ERROR))
                 raise
     finally:
+        duration_ms = round((time.monotonic() - started_at) * 1000, 3)
         logger.info(
             json.dumps(
                 {
@@ -136,12 +154,27 @@ async def _observe[ResultT](
                     "dependency": dependency,
                     "operation": operation,
                     "result": result,
-                    "duration_ms": round((time.monotonic() - started_at) * 1000, 3),
+                    "duration_ms": duration_ms,
                     "correlation_id": correlation_id,
                 },
                 sort_keys=True,
             )
         )
+        if telemetry is not None:
+            try:
+                telemetry.record_dependency(
+                    dependency=dependency,
+                    operation=operation,
+                    result=result,
+                    duration_ms=duration_ms,
+                    correlation_id=correlation_id,
+                )
+            except Exception:
+                logger.warning(
+                    "dependency_telemetry_failed dependency=%s operation=%s",
+                    dependency,
+                    operation,
+                )
 
 
 class PostgresOrderStore:
@@ -163,6 +196,7 @@ class PostgresOrderStore:
         environment: Mapping[str, str] | None = None,
         *,
         tracer: Tracer | None = None,
+        telemetry: DependencyTelemetry | None = None,
         exhaust_pool: bool = False,
     ) -> None:
         source = os.environ if environment is None else environment
@@ -180,7 +214,8 @@ class PostgresOrderStore:
         self._exhaust_pool = exhaust_pool
         self._exhaustion_lock = asyncio.Lock()
         self._held_connections: list[AbstractAsyncContextManager[PgConnection]] = []
-        self._tracer = tracer
+        self._tracer = telemetry.tracer if telemetry is not None else tracer
+        self._telemetry = telemetry
 
     async def _get_pool(self) -> PgPool:
         if self._pool is None:
@@ -280,7 +315,14 @@ class PostgresOrderStore:
 
             await self._with_connection(query)
 
-        await _observe("postgres", "ready", correlation_id, action(), self._tracer)
+        await _observe(
+            "postgres",
+            "ready",
+            correlation_id,
+            action(),
+            self._tracer,
+            self._telemetry,
+        )
 
     async def save(self, checkout: CheckoutRequest, correlation_id: str) -> bool:
         async def action() -> bool:
@@ -304,7 +346,14 @@ class PostgresOrderStore:
 
             return await self._with_connection(query)
 
-        return await _observe("postgres", "save_order", correlation_id, action(), self._tracer)
+        return await _observe(
+            "postgres",
+            "save_order",
+            correlation_id,
+            action(),
+            self._tracer,
+            self._telemetry,
+        )
 
     async def close(self) -> None:
         if self._pool is not None:
@@ -341,6 +390,7 @@ class RedisInventoryStore:
         *,
         client: RedisClient | None = None,
         tracer: Tracer | None = None,
+        telemetry: DependencyTelemetry | None = None,
         force_timeout: bool = False,
     ) -> None:
         source = os.environ if environment is None else environment
@@ -365,7 +415,8 @@ class RedisInventoryStore:
             )
         self._client = client
         self._timeout = timeout
-        self._tracer = tracer
+        self._tracer = telemetry.tracer if telemetry is not None else tracer
+        self._telemetry = telemetry
         self._force_timeout = force_timeout
 
     async def _bounded[ResultT](
@@ -404,6 +455,7 @@ class RedisInventoryStore:
             correlation_id,
             self._bounded("ready", self._client.ping),
             self._tracer,
+            self._telemetry,
         )
 
     async def reserve(self, checkout: CheckoutRequest, correlation_id: str) -> ReservationOutcome:
@@ -428,7 +480,14 @@ class RedisInventoryStore:
                 raise DependencyUnavailable("redis returned an invalid reservation result")
             return ReservationOutcome(reservation_id, created=result == 1)
 
-        return await _observe("redis", "reserve_inventory", correlation_id, action(), self._tracer)
+        return await _observe(
+            "redis",
+            "reserve_inventory",
+            correlation_id,
+            action(),
+            self._tracer,
+            self._telemetry,
+        )
 
     async def close(self) -> None:
         await self._client.aclose()

@@ -7,6 +7,7 @@ from typing import Any
 
 import httpx
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from opentelemetry.sdk._logs.export import InMemoryLogRecordExporter
 from opentelemetry.sdk.metrics.export import (
@@ -330,12 +331,14 @@ def test_bad_configuration_fault_emits_503_without_cause_label() -> None:
 async def test_http_client_span_propagates_w3c_context() -> None:
     """Internal HTTP carries traceparent and creates a bounded client span."""
     spans = InMemorySpanExporter()
+    metrics = CapturingMetricExporter()
+    logs = in_memory_log_exporter()
     observed = telemetry.SimulatorTelemetry(
         "gateway",
         enabled_settings(),
         span_exporter=spans,
-        metric_exporter=CapturingMetricExporter(),
-        log_exporter=in_memory_log_exporter(),
+        metric_exporter=metrics,
+        log_exporter=logs,
     )
 
     async def handler(request: httpx.Request) -> httpx.Response:
@@ -359,11 +362,24 @@ async def test_http_client_span_propagates_w3c_context() -> None:
     assert client_span.attributes is not None
     assert client_span.attributes["http.route"] == "/v1/orders"
     assert "safe" not in str(client_span.attributes)
+    assert client_span.attributes["request.result"] == "ok"
+    points = metric_points(metrics)
+    assert points["simulator.http.client.requests"][0].attributes == {
+        "service": "order",
+        "method": "POST",
+        "route": "/v1/orders",
+        "status": "200",
+        "result": "ok",
+    }
+    client_log = logs.get_finished_logs()[0].log_record
+    assert client_log.body == "http_client_request"
+    assert client_log.trace_id == client_span.context.trace_id
+    assert client_log.span_id == client_span.context.span_id
 
 
 @pytest.mark.anyio
-async def test_dependency_observation_creates_error_span() -> None:
-    """Dependency failures mark a span as error without adding exception text attributes."""
+async def test_server_span_extracts_inbound_w3c_parent() -> None:
+    """A downstream service continues the caller trace instead of starting a new root."""
     spans = InMemorySpanExporter()
     observed = telemetry.SimulatorTelemetry(
         "order",
@@ -372,12 +388,126 @@ async def test_dependency_observation_creates_error_span() -> None:
         metric_exporter=CapturingMetricExporter(),
         log_exporter=in_memory_log_exporter(),
     )
+    trace_id = "0123456789abcdef0123456789abcdef"
+    parent_span_id = "0123456789abcdef"
+
+    with observed.server_span(
+        "POST",
+        "corr-inbound",
+        {
+            "traceparent": f"00-{trace_id}-{parent_span_id}-01",
+            "baggage": "password=do-not-forward",
+        },
+    ):
+        outbound: dict[str, str] = {}
+        observed.inject_trace_context(outbound)
+    await observed.shutdown()
+
+    span = spans.get_finished_spans()[0]
+    assert f"{span.context.trace_id:032x}" == trace_id
+    assert span.parent is not None
+    assert f"{span.parent.span_id:016x}" == parent_span_id
+    assert outbound["traceparent"].startswith(f"00-{trace_id}-")
+    assert "baggage" not in outbound
+    assert "password" not in str(span.attributes)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("response", "expected_status"),
+    [
+        (httpx.Response(503, json={"detail": "unavailable"}), "503"),
+        (httpx.Response(200, content=b"not-json"), "200"),
+    ],
+)
+async def test_http_client_failure_records_bounded_outcome(
+    response: httpx.Response,
+    expected_status: str,
+) -> None:
+    """HTTP and response-shape failures emit status without payload or error detail."""
+    spans = InMemorySpanExporter()
+    metrics = CapturingMetricExporter()
+    logs = in_memory_log_exporter()
+    observed = telemetry.SimulatorTelemetry(
+        "gateway",
+        enabled_settings(),
+        span_exporter=spans,
+        metric_exporter=metrics,
+        log_exporter=logs,
+    )
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return response
+
+    caller = simulator_app.HttpxServiceCaller(
+        {"order": "http://order:8000"},
+        transport=httpx.MockTransport(handler),
+        telemetry=observed,
+    )
+
+    with pytest.raises(HTTPException, match="downstream order request failed"):
+        await caller.post("order", "/v1/orders", {"password": "secret"}, "corr-failed")
+    await observed.shutdown()
+
+    span = spans.get_finished_spans()[0]
+    assert span.status.status_code is StatusCode.ERROR
+    points = metric_points(metrics)["simulator.http.client.requests"]
+    assert points[0].attributes["status"] == expected_status
+    assert points[0].attributes["result"] == "error"
+    assert "secret" not in str(span.attributes)
+    assert "secret" not in str(logs.get_finished_logs()[0].log_record.attributes)
+
+
+@pytest.mark.anyio
+async def test_http_client_transport_failure_uses_one_bounded_status() -> None:
+    spans = InMemorySpanExporter()
+    metrics = CapturingMetricExporter()
+    observed = telemetry.SimulatorTelemetry(
+        "gateway",
+        enabled_settings(),
+        span_exporter=spans,
+        metric_exporter=metrics,
+        log_exporter=in_memory_log_exporter(),
+    )
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("credential=do-not-record", request=request)
+
+    caller = simulator_app.HttpxServiceCaller(
+        {"order": "http://order:8000"},
+        transport=httpx.MockTransport(handler),
+        telemetry=observed,
+    )
+    with pytest.raises(HTTPException):
+        await caller.post("order", "/v1/orders", {}, "corr-transport")
+    await observed.shutdown()
+
+    point = metric_points(metrics)["simulator.http.client.requests"][0]
+    assert point.attributes["status"] == "transport_error"
+    assert "credential" not in str(spans.get_finished_spans()[0].attributes)
+
+
+@pytest.mark.anyio
+async def test_dependency_observation_creates_error_span() -> None:
+    """Dependency failures mark a span as error without adding exception text attributes."""
+    spans = InMemorySpanExporter()
+    metrics = CapturingMetricExporter()
+    logs = in_memory_log_exporter()
+    observed = telemetry.SimulatorTelemetry(
+        "order",
+        enabled_settings(),
+        span_exporter=spans,
+        metric_exporter=metrics,
+        log_exporter=logs,
+    )
 
     async def fail() -> None:
         raise dependencies.DependencyUnavailable("contains-sensitive-detail")
 
     with pytest.raises(dependencies.DependencyUnavailable):
-        await dependencies._observe("postgres", "ready", "corr-db", fail(), observed.tracer)
+        await dependencies._observe(
+            "postgres", "ready", "corr-db", fail(), observed.tracer, observed
+        )
     await observed.shutdown()
 
     span = spans.get_finished_spans()[0]
@@ -386,6 +516,17 @@ async def test_dependency_observation_creates_error_span() -> None:
     assert span.attributes is not None
     assert span.attributes["db.system.name"] == "postgres"
     assert "contains-sensitive-detail" not in str(span.attributes)
+    point = metric_points(metrics)["simulator.dependency.operations"][0]
+    assert point.attributes == {
+        "dependency": "postgres",
+        "operation": "ready",
+        "result": "error",
+    }
+    dependency_log = logs.get_finished_logs()[0].log_record
+    assert dependency_log.body == "dependency_operation"
+    assert dependency_log.attributes is not None
+    assert dependency_log.attributes["agentops.correlation_id"] == "corr-db"
+    assert "contains-sensitive-detail" not in str(dependency_log.attributes)
 
 
 @pytest.mark.anyio
@@ -430,6 +571,8 @@ async def test_redis_timeout_marks_dependency_span_without_ground_truth_label() 
         {"OTEL_EXPORTER_OTLP_ENDPOINT": "http://user:pass@collector:4318"},
         {"OTEL_EXPORTER_OTLP_ENDPOINT": "http://collector:4318?token=secret"},
         {"OTEL_EXPORTER_OTLP_ENDPOINT": "http://collector:4318/#fragment"},
+        {"DEPLOYMENT_ENVIRONMENT": "bad environment"},
+        {"SERVICE_VERSION": "bad/version"},
     ],
 )
 def test_settings_reject_unbounded_or_sensitive_configuration(
@@ -449,6 +592,7 @@ def test_settings_parse_enabled_defaults_and_trim_endpoint() -> None:
             "OTEL_EXPORT_TIMEOUT_SECONDS": "3",
             "OTEL_METRIC_EXPORT_INTERVAL_MILLIS": "2000",
             "DEPLOYMENT_ENVIRONMENT": "ci",
+            "SERVICE_VERSION": "2.1.0",
         }
     )
 
@@ -458,6 +602,7 @@ def test_settings_parse_enabled_defaults_and_trim_endpoint() -> None:
         timeout_seconds=3.0,
         export_interval_millis=2000,
         environment="ci",
+        service_version="2.1.0",
     )
 
 

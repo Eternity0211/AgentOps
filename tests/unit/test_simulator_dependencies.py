@@ -12,6 +12,7 @@ from typing import Any
 
 import asyncpg  # type: ignore[import-untyped]
 import pytest
+from opentelemetry import trace
 from redis.exceptions import RedisError
 
 from agentops_incident_commander.simulator import dependencies
@@ -161,12 +162,55 @@ class FakeRedis:
         self.closed = True
 
 
+class FailingDependencyTelemetry:
+    """Exercise the fail-open observer boundary without an exporter."""
+
+    tracer = trace.get_tracer(__name__)
+
+    def record_dependency(self, **kwargs: object) -> None:
+        raise RuntimeError("sensitive exporter failure")
+
+
 def test_secret_reader_accepts_trimmed_value(tmp_path: Path) -> None:
     """Credential files are read locally and surrounding line endings are ignored."""
     secret = tmp_path / "password.txt"
     secret.write_text("correct-horse\n", encoding="utf-8")
 
     assert dependencies._read_secret(str(secret)) == "correct-horse"
+
+
+@pytest.mark.anyio
+async def test_dependency_telemetry_failure_does_not_change_operation_result(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Exporter failures remain observable but cannot fail a dependency operation."""
+
+    async def action() -> str:
+        return "ok"
+
+    observer = FailingDependencyTelemetry()
+    caplog.set_level(logging.WARNING, logger="agentops.simulator.dependencies")
+
+    result = await dependencies._observe(
+        "postgres",
+        "ready",
+        "corr-safe",
+        action(),
+        telemetry=observer,
+    )
+
+    assert result == "ok"
+    assert "dependency_telemetry_failed dependency=postgres operation=ready" in caplog.text
+    assert "sensitive exporter failure" not in caplog.text
+
+
+def test_dependency_stores_select_telemetry_tracer() -> None:
+    observer = FailingDependencyTelemetry()
+    postgres = dependencies.PostgresOrderStore(telemetry=observer)
+    redis = dependencies.RedisInventoryStore(client=FakeRedis(), telemetry=observer)
+
+    assert postgres._tracer is observer.tracer
+    assert redis._tracer is observer.tracer
 
 
 @pytest.mark.parametrize("value", [None, "", "x" * 4097])

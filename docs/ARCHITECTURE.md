@@ -232,9 +232,12 @@ Control-plane runtime telemetry uses the separate versioned
 framework independent and payload-free; the infrastructure adapter alone owns OpenTelemetry SDK
 providers. Diagnosis graph nodes and routes, deterministic Evidence Gate outcomes, durable
 model-call lifecycle/metering, and every Tool Gateway attempt now expose fail-open observation
-hooks. The remaining checkpoint, job/lease, approval, recovery, verifier, failure-route, and
-compensation-guard boundaries are tracked as explicit Phase 11 sub-batches, and process composition
-continues to default to no-op until the single-owner lifecycle wiring is verified.
+hooks. A payload-blind saver proxy now observes real PostgreSQL checkpoint save/restore calls;
+tenant/Incident/workflow-scoped durable jobs observe enqueue, lease, heartbeat, retry, completion,
+stale recovery, and terminal routing; and Approval lifecycle plus interrupt/resume routes observe
+their persisted or deterministic outcomes. Recovery, verifier, failure-route, and future-inverse
+guard boundaries remain tracked sub-batches, and process composition continues to default to no-op
+until the single-owner lifecycle wiring is verified.
 
 After the complete Phase 9 safety gate, the worker composition root may explicitly enable the
 single `rollback_service` route. The setting is false by default and the disabled path exits before

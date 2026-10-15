@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime, timedelta
@@ -16,8 +17,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from agentops_incident_commander.application import (
     HEALTH_VERIFICATION_CLOSURE_AUDIT_SCHEMA_VERSION,
     HEALTH_VERIFICATION_FAILURE_AUDIT_SCHEMA_VERSION,
+    NOOP_CONTROL_PLANE_OBSERVER,
     ApprovalLifecycleChange,
     ApprovalReviewSnapshot,
+    ControlPlaneComponent,
+    ControlPlaneObservation,
+    ControlPlaneObserver,
+    ControlPlaneOperation,
+    ControlPlaneOutcome,
     PromptLifecycleChange,
     VerificationFailureDecision,
     approval_review_snapshot_from_document,
@@ -28,6 +35,8 @@ from agentops_incident_commander.application import (
     evidence_gate_input_snapshot,
     health_verification_closure_fingerprint,
     model_call_trace_fingerprint,
+    safely_record,
+    utc_observation_time,
 )
 from agentops_incident_commander.domain import (
     ActionExecution,
@@ -269,6 +278,9 @@ class EvidenceRepository:
 def _job_from_row(row: JobRow) -> Job:
     return Job(
         id=JobId(row.id),
+        tenant_id=TenantId(row.tenant_id),
+        incident_id=IncidentId(row.incident_id),
+        workflow_run_id=WorkflowRunId(row.workflow_run_id),
         type=row.type,
         schema_version=row.schema_version,
         payload_ref=OpaqueIdentifier(row.payload_ref),
@@ -285,12 +297,22 @@ def _job_from_row(row: JobRow) -> Job:
 class JobRepository:
     """Coordinate bounded durable jobs through PostgreSQL row leases."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        *,
+        observer: ControlPlaneObserver = NOOP_CONTROL_PLANE_OBSERVER,
+    ) -> None:
         self._session = session
+        self._observer = observer
 
     async def enqueue(self, job: Job) -> int:
+        started_ns = time.monotonic_ns()
         row = JobRow(
             id=job.id.value,
+            tenant_id=job.tenant_id.value,
+            incident_id=job.incident_id.value,
+            workflow_run_id=job.workflow_run_id.value,
             type=job.type,
             schema_version=job.schema_version,
             payload_ref=job.payload_ref.value,
@@ -306,6 +328,14 @@ class JobRepository:
         )
         self._session.add(row)
         await self._session.flush()
+        self._observe(
+            job,
+            ControlPlaneOperation.JOB_ENQUEUE,
+            ControlPlaneOutcome.SUCCEEDED,
+            started_ns=started_ns,
+            route=JobStatus.PENDING.value,
+            result_code="ENQUEUED",
+        )
         return row.sequence
 
     async def claim(
@@ -316,6 +346,7 @@ class JobRepository:
         lease_duration: timedelta,
         limit: int,
     ) -> tuple[JobLease, ...]:
+        started_ns = time.monotonic_ns()
         current = as_utc(now)
         if lease_duration <= timedelta(0):
             raise InvalidDomainValueError("job lease duration must be positive")
@@ -341,16 +372,19 @@ class JobRepository:
         ).all()
         expires_at = current + lease_duration
         leases: list[JobLease] = []
+        stale_jobs: list[Job] = []
         for row in rows:
+            was_stale = row.status == JobStatus.LEASED.value
             row.status = JobStatus.LEASED.value
             row.attempt_count += 1
             row.lease_owner = worker_id.value
             row.leased_at = current
             row.heartbeat_at = current
             row.lease_expires_at = expires_at
+            item = _job_from_row(row)
             leases.append(
                 JobLease(
-                    job=_job_from_row(row),
+                    job=item,
                     attempt=row.attempt_count,
                     worker_id=worker_id,
                     leased_at=current,
@@ -358,7 +392,29 @@ class JobRepository:
                     expires_at=expires_at,
                 )
             )
+            if was_stale:
+                stale_jobs.append(item)
         await self._session.flush()
+        for lease in leases:
+            if lease.job in stale_jobs:
+                self._observe(
+                    lease.job,
+                    ControlPlaneOperation.JOB_STALE_RECOVERY,
+                    ControlPlaneOutcome.RESUMED,
+                    started_ns=started_ns,
+                    attempt=lease.attempt,
+                    route="STALE_RECLAIM",
+                    result_code="LEASE_RECLAIMED",
+                )
+            self._observe(
+                lease.job,
+                ControlPlaneOperation.JOB_CLAIM,
+                ControlPlaneOutcome.SUCCEEDED,
+                started_ns=started_ns,
+                attempt=lease.attempt,
+                route=JobStatus.LEASED.value,
+                result_code="LEASE_ACQUIRED",
+            )
         return tuple(leases)
 
     async def heartbeat(
@@ -369,6 +425,7 @@ class JobRepository:
         now: datetime,
         lease_duration: timedelta,
     ) -> JobLease:
+        started_ns = time.monotonic_ns()
         current = as_utc(now)
         if lease_duration <= timedelta(0):
             raise InvalidDomainValueError("job heartbeat duration must be positive")
@@ -378,7 +435,7 @@ class JobRepository:
         row.heartbeat_at = current
         row.lease_expires_at = current + lease_duration
         await self._session.flush()
-        return JobLease(
+        lease = JobLease(
             job=_job_from_row(row),
             attempt=row.attempt_count,
             worker_id=worker_id,
@@ -386,14 +443,36 @@ class JobRepository:
             heartbeat_at=current,
             expires_at=row.lease_expires_at,
         )
+        self._observe(
+            lease.job,
+            ControlPlaneOperation.JOB_HEARTBEAT,
+            ControlPlaneOutcome.SUCCEEDED,
+            started_ns=started_ns,
+            attempt=lease.attempt,
+            route=JobStatus.LEASED.value,
+            result_code="LEASE_RENEWED",
+        )
+        return lease
 
     async def complete(
         self, job_id: JobId, worker_id: OpaqueIdentifier, *, completed_at: datetime
     ) -> None:
+        started_ns = time.monotonic_ns()
         current = as_utc(completed_at)
         row = await self._owned_job(job_id, worker_id, current)
+        item = _job_from_row(row)
+        attempt = row.attempt_count
         self._terminalize(row, JobStatus.COMPLETED, current)
         await self._session.flush()
+        self._observe(
+            item,
+            ControlPlaneOperation.JOB_COMPLETE,
+            ControlPlaneOutcome.SUCCEEDED,
+            started_ns=started_ns,
+            attempt=attempt,
+            route=JobStatus.COMPLETED.value,
+            result_code="COMPLETED",
+        )
 
     async def fail(
         self,
@@ -404,6 +483,7 @@ class JobRepository:
         retry_at: datetime,
         error: str,
     ) -> JobStatus:
+        started_ns = time.monotonic_ns()
         current = as_utc(failed_at)
         next_attempt = as_utc(retry_at)
         if next_attempt < current:
@@ -416,6 +496,8 @@ class JobRepository:
         ):
             raise InvalidDomainValueError("job failure must be bounded printable text")
         row = await self._owned_job(job_id, worker_id, current)
+        item = _job_from_row(row)
+        attempt = row.attempt_count
         row.last_error = bounded_error
         if row.attempt_count >= row.max_attempts:
             status = JobStatus(row.failure_route)
@@ -426,11 +508,28 @@ class JobRepository:
             row.available_at = next_attempt
             self._clear_lease(row)
         await self._session.flush()
+        outcome = {
+            JobStatus.PENDING: ControlPlaneOutcome.RETRYING,
+            JobStatus.NEEDS_HUMAN: ControlPlaneOutcome.HANDED_OFF,
+            JobStatus.DEAD_LETTER: ControlPlaneOutcome.FAILED,
+        }[status]
+        self._observe(
+            item,
+            ControlPlaneOperation.JOB_FAIL,
+            outcome,
+            started_ns=started_ns,
+            attempt=attempt,
+            route=status.value,
+            result_code=(
+                "RETRY_SCHEDULED" if status is JobStatus.PENDING else f"ROUTED_{status.value}"
+            ),
+        )
         return status
 
     async def _route_exhausted_stale_leases(self, current: datetime) -> None:
         for route in JobFailureRoute:
-            await self._session.execute(
+            started_ns = time.monotonic_ns()
+            result = await self._session.execute(
                 update(JobRow)
                 .where(
                     JobRow.status == JobStatus.LEASED.value,
@@ -447,7 +546,57 @@ class JobRepository:
                     lease_expires_at=None,
                     last_error="lease expired after final attempt",
                 )
+                .returning(JobRow)
             )
+            status = JobStatus(route.value)
+            for row in result.scalars():
+                self._observe(
+                    _job_from_row(row),
+                    ControlPlaneOperation.JOB_STALE_RECOVERY,
+                    (
+                        ControlPlaneOutcome.HANDED_OFF
+                        if status is JobStatus.NEEDS_HUMAN
+                        else ControlPlaneOutcome.FAILED
+                    ),
+                    started_ns=started_ns,
+                    attempt=row.attempt_count,
+                    route=status.value,
+                    result_code=f"STALE_ROUTED_{status.value}",
+                )
+
+    def _observe(
+        self,
+        job: Job,
+        operation: ControlPlaneOperation,
+        outcome: ControlPlaneOutcome,
+        *,
+        started_ns: int,
+        attempt: int | None = None,
+        route: str,
+        result_code: str,
+    ) -> None:
+        safely_record(
+            self._observer,
+            ControlPlaneObservation(
+                component=ControlPlaneComponent.JOB_LEASE,
+                operation=operation,
+                outcome=outcome,
+                occurred_at=utc_observation_time(),
+                tenant_id=job.tenant_id,
+                incident_id=job.incident_id,
+                correlation_id=job.correlation_id,
+                causation_id=job.causation_id,
+                operation_id=OpaqueIdentifier(job.id.value),
+                workflow_run_id=job.workflow_run_id,
+                duration_ms=max(0, (time.monotonic_ns() - started_ns) // 1_000_000),
+                attempt=attempt,
+                max_attempts=job.max_attempts if attempt is not None else None,
+                route=route,
+                result_code=result_code,
+                subject_name=job.type,
+                subject_version=job.schema_version.rsplit("/", 1)[-1],
+            ),
+        )
 
     async def _owned_job(
         self, job_id: JobId, worker_id: OpaqueIdentifier, current: datetime

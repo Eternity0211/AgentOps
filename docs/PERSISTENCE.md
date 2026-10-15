@@ -121,6 +121,12 @@ The transaction-owning workflow adapter opens a new session for each boundary, a
 to span checkpoints, approval waits, execution, and a verification window without retaining a
 database transaction. Deterministic event identities make a crash between boundaries replay-safe.
 
+Revision `20261015_0022` adds required tenant, Incident, and workflow-run scope to every durable
+job, binds the tenant/Incident pair to the owning Incident, indexes Incident queue history, and
+caps attempts at the control-plane observation contract's bound of 128. An upgrade from the older
+unscoped schema fails closed unless the queue is empty: the migration never guesses ownership for
+in-flight work. New-database upgrades remain compatible with the metadata-created table shape.
+
 ## Repository concurrency
 
 `IncidentRepository` updates with `WHERE id = ... AND version = ...`. A zero-row update raises the
@@ -156,7 +162,11 @@ Phase 6 integrates the official asynchronous PostgreSQL LangGraph saver. Startup
 its idempotent schema setup/migration operation before yielding the saver. Diagnosis graphs compile
 with that saver and use a deterministic thread ID derived from canonical tenant, Incident, and
 workflow-run identity. The raw identities are not exposed in the thread key; tenant, Incident,
-workflow run, and correlation IDs are attached as checkpoint metadata for audit reconstruction.
+workflow run, correlation, and causation IDs are attached as checkpoint metadata for reconstruction.
+The production saver is wrapped by a transparent fail-open observer that records save, restore,
+miss, resume, and fixed-class I/O failure signals after delegating to the official saver. It never
+receives checkpoint channel values, writes, interrupts, task errors, or serialized state as
+telemetry content.
 
 The root graph uses LangGraph's required empty `checkpoint_ns`; non-empty namespaces are reserved
 for compiled subgraphs. A fixed `diagnosis-` thread prefix plus the composite identity hash provides
@@ -255,7 +265,8 @@ handoff remain in their dedicated Phase 2 batch.
 ## Durable worker jobs
 
 Revision `20261003_0005` adds `jobs`, a PostgreSQL queue distinct from outbox publication. Each job
-has a typed ID, dotted type, payload schema and durable payload reference, correlation/causation,
+has a typed ID, dotted type, payload schema and durable payload reference, required tenant/Incident/
+workflow identity, correlation/causation,
 bounded priority, UTC availability, maximum attempts, and an explicit exhaustion route to either
 `DEAD_LETTER` or `NEEDS_HUMAN`. Database checks tie `LEASED` strictly to complete lease metadata
 and terminal statuses strictly to a terminal timestamp.
@@ -269,6 +280,11 @@ claims, duplicate enqueue, heartbeat renewal, foreign-worker refusal, delayed re
 handoff, both stale-final routes, and stale-worker takeover. The worker runtime applies bounded
 concurrency, cooperative shutdown, and persisted cancellation probes as documented in
 `CONTROL_PLANE_PROCESSES.md`.
+
+The repository emits content-free observations after each successful flush for enqueue, claim,
+heartbeat, completion, retry, stale takeover, and exhausted stale routing. These signals report
+typed queue outcomes, never payload references or error text, and do not replace the caller-owned
+transaction or Audit Events. Observer failure cannot alter the lease transition.
 
 ## Tenant ownership and API idempotency
 

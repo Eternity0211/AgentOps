@@ -199,7 +199,7 @@ class JobRow(Base):
     __tablename__ = "jobs"
     __table_args__ = (
         CheckConstraint("priority BETWEEN 0 AND 100", name="ck_jobs_priority"),
-        CheckConstraint("max_attempts >= 1", name="ck_jobs_max_attempts"),
+        CheckConstraint("max_attempts BETWEEN 1 AND 128", name="ck_jobs_max_attempts"),
         CheckConstraint(
             "attempt_count >= 0 AND attempt_count <= max_attempts",
             name="ck_jobs_attempt_count",
@@ -224,12 +224,22 @@ class JobRow(Base):
             "failure_route IN ('DEAD_LETTER', 'NEEDS_HUMAN')",
             name="ck_jobs_failure_route",
         ),
+        ForeignKeyConstraint(
+            ["incident_id", "tenant_id"],
+            ["incidents.id", "incidents.tenant_id"],
+            name="fk_jobs_incident_tenant",
+            ondelete="RESTRICT",
+        ),
         Index("ix_jobs_claim", "status", "available_at", "priority", "sequence"),
         Index("ix_jobs_lease_expiry", "lease_expires_at"),
+        Index("ix_jobs_incident", "tenant_id", "incident_id", "sequence"),
     )
 
     sequence: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     id: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    incident_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    workflow_run_id: Mapped[str] = mapped_column(String(128), nullable=False)
     type: Mapped[str] = mapped_column(String(128), nullable=False)
     schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
     payload_ref: Mapped[str] = mapped_column(String(128), nullable=False)

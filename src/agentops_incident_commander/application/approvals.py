@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -46,6 +47,17 @@ from agentops_incident_commander.domain import (
     require_permission,
 )
 from agentops_incident_commander.workflows import RemediationProposal
+
+from .control_plane_observability import (
+    NOOP_CONTROL_PLANE_OBSERVER,
+    ControlPlaneComponent,
+    ControlPlaneObservation,
+    ControlPlaneObserver,
+    ControlPlaneOperation,
+    ControlPlaneOutcome,
+    safely_record,
+    utc_observation_time,
+)
 
 APPROVAL_REVIEW_SCHEMA_VERSION = "1.0.0"
 
@@ -247,12 +259,14 @@ class ApprovalLifecycleManager:
         approval_id_factory: Callable[[], str],
         audit_id_factory: Callable[[], str],
         expiry_actor_id: ActorId,
+        observer: ControlPlaneObserver = NOOP_CONTROL_PLANE_OBSERVER,
     ) -> None:
         self._store = store
         self._clock = clock
         self._approval_id_factory = approval_id_factory
         self._audit_id_factory = audit_id_factory
         self._expiry_actor_id = expiry_actor_id
+        self._observer = observer
 
     async def request(
         self,
@@ -264,6 +278,7 @@ class ApprovalLifecycleManager:
         correlation_id: CorrelationId,
         causation_id: CausationId,
     ) -> Approval:
+        started_ns = time.monotonic_ns()
         requester = require_permission(
             principal,
             Permission.REMEDIATION_REQUEST,
@@ -319,6 +334,16 @@ class ApprovalLifecycleManager:
             correlation_id=correlation_id,
             causation_id=causation_id,
         )
+        self._observe(
+            approval,
+            ControlPlaneOperation.APPROVAL_REQUEST,
+            ControlPlaneOutcome.SUCCEEDED,
+            correlation_id=correlation_id,
+            causation_id=causation_id,
+            started_ns=started_ns,
+            route=ApprovalStatus.PENDING.value,
+            result_code="REQUESTED",
+        )
         return approval
 
     async def approve(
@@ -369,6 +394,7 @@ class ApprovalLifecycleManager:
         correlation_id: CorrelationId,
         causation_id: CausationId,
     ) -> Approval:
+        started_ns = time.monotonic_ns()
         current = await self._required(approval_id, tenant_id=tenant_id)
         at = as_utc(self._clock())
         if at < current.expires_at:
@@ -378,6 +404,7 @@ class ApprovalLifecycleManager:
             at=at,
             correlation_id=correlation_id,
             causation_id=causation_id,
+            started_ns=started_ns,
         )
 
     async def _human_decision(
@@ -391,6 +418,7 @@ class ApprovalLifecycleManager:
         causation_id: CausationId,
         expected_version: AggregateVersion | None,
     ) -> Approval:
+        started_ns = time.monotonic_ns()
         tenant_id = TenantId("unauthenticated") if principal is None else principal.tenant_id
         approver = require_permission(
             principal,
@@ -414,6 +442,7 @@ class ApprovalLifecycleManager:
                 at=at,
                 correlation_id=correlation_id,
                 causation_id=causation_id,
+                started_ns=started_ns,
             )
         decided = current.decide(status, actor_id=approver.actor_id, reason=reason, at=at)
         await self._apply(
@@ -421,6 +450,20 @@ class ApprovalLifecycleManager:
             actor_id=approver.actor_id,
             correlation_id=correlation_id,
             causation_id=causation_id,
+        )
+        self._observe(
+            decided,
+            ControlPlaneOperation.APPROVAL_DECIDE,
+            (
+                ControlPlaneOutcome.SUCCEEDED
+                if status is ApprovalStatus.APPROVED
+                else ControlPlaneOutcome.REJECTED
+            ),
+            correlation_id=correlation_id,
+            causation_id=causation_id,
+            started_ns=started_ns,
+            route=status.value,
+            result_code=status.value,
         )
         return decided
 
@@ -431,6 +474,7 @@ class ApprovalLifecycleManager:
         at: datetime,
         correlation_id: CorrelationId,
         causation_id: CausationId,
+        started_ns: int,
     ) -> Approval:
         expired = current.decide(
             ApprovalStatus.EXPIRED,
@@ -444,7 +488,49 @@ class ApprovalLifecycleManager:
             correlation_id=correlation_id,
             causation_id=causation_id,
         )
+        self._observe(
+            expired,
+            ControlPlaneOperation.APPROVAL_EXPIRE,
+            ControlPlaneOutcome.EXPIRED,
+            correlation_id=correlation_id,
+            causation_id=causation_id,
+            started_ns=started_ns,
+            route=ApprovalStatus.EXPIRED.value,
+            result_code="EXPIRED",
+        )
         return expired
+
+    def _observe(
+        self,
+        approval: Approval,
+        operation: ControlPlaneOperation,
+        outcome: ControlPlaneOutcome,
+        *,
+        correlation_id: CorrelationId,
+        causation_id: CausationId,
+        started_ns: int,
+        route: str,
+        result_code: str,
+    ) -> None:
+        safely_record(
+            self._observer,
+            ControlPlaneObservation(
+                component=ControlPlaneComponent.APPROVAL,
+                operation=operation,
+                outcome=outcome,
+                occurred_at=utc_observation_time(),
+                tenant_id=approval.tenant_id,
+                incident_id=approval.incident_id,
+                correlation_id=correlation_id,
+                causation_id=causation_id,
+                operation_id=OpaqueIdentifier(approval.id.value),
+                duration_ms=max(0, (time.monotonic_ns() - started_ns) // 1_000_000),
+                route=route,
+                result_code=result_code,
+                subject_name="approval",
+                subject_version=approval.schema_version,
+            ),
+        )
 
     async def _required(self, approval_id: ApprovalId, *, tenant_id: TenantId) -> Approval:
         if not isinstance(approval_id, ApprovalId) or not isinstance(tenant_id, TenantId):

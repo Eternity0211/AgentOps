@@ -173,8 +173,16 @@ The first control-plane observability hardening batch adds a versioned
 adapter for correlated Spans/logs, operation latency, model errors/tokens/integer cost, and Tool
 Gateway attempts/retries. Diagnosis graph nodes/routes, the deterministic Evidence Gate boundary,
 model-call persistence, and tool validation/dispatch now have fail-open injection hooks. Process
-ownership plus checkpoint, lease, approval, recovery, verification, failure-route, and explicit
-compensation-guard instrumentation remain tracked sub-batches; no complete Phase 11 claim is made.
+ownership plus the remaining deterministic recovery, verification, failure-route, and explicit
+future-inverse guard instrumentation remain tracked sub-batches; no complete Phase 11 claim is made.
+
+The second control-plane batch wraps the authoritative PostgreSQL LangGraph saver so checkpoint
+save, restore, miss, resume, and I/O failure are observable without exposing checkpoint payloads.
+Durable jobs now carry required tenant, Incident, workflow-run, correlation, and causation scope;
+enqueue, claim, heartbeat, retry, completion, stale-worker takeover, and terminal handoff/dead-letter
+routes emit fail-open observations. Approval request/decision/expiry and the durable approval
+interrupt/resume routes use the same contract. Recovery execution, deterministic verification,
+failure routing, the future-inverse guard, and process-owned observer lifecycle remain open.
 
 ## Why this project exists
 

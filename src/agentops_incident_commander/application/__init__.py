@@ -41,6 +41,7 @@ from .control_plane_observability import (
     ControlPlaneOutcome,
     NullControlPlaneObserver,
     safely_record,
+    utc_observation_time,
 )
 from .diagnosis_prompts import (
     ApprovedDiagnosisPromptResolver,
@@ -288,5 +289,6 @@ __all__ = [
     "resolve_health_verification_evidence",
     "safely_record",
     "tool_query_fingerprint",
+    "utc_observation_time",
     "validate_diagnosis_tool_proposal",
 ]

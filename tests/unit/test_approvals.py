@@ -11,9 +11,14 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentops_incident_commander.application import (
+    NOOP_CONTROL_PLANE_OBSERVER,
     ApprovalLifecycleChange,
     ApprovalLifecycleManager,
     ApprovalReviewSnapshot,
+    ControlPlaneObservation,
+    ControlPlaneObserver,
+    ControlPlaneOperation,
+    ControlPlaneOutcome,
     approval_review_snapshot_from_document,
 )
 from agentops_incident_commander.domain import (
@@ -118,6 +123,17 @@ class Store:
         self.applied.append((change, audit_event))
 
 
+class RecordingObserver:
+    def __init__(self, *, fail: bool = False) -> None:
+        self.observations: list[ControlPlaneObservation] = []
+        self.fail = fail
+
+    def record(self, observation: ControlPlaneObservation) -> None:
+        if self.fail:
+            raise RuntimeError("telemetry unavailable")
+        self.observations.append(observation)
+
+
 def principal(
     actor: str,
     *roles: Role,
@@ -172,7 +188,12 @@ def policy_decision(value: PolicyEvaluationInput, **overrides: Any) -> PolicyDec
     return PolicyDecision(**values)
 
 
-def manager(store: Store, clock: Clock) -> ApprovalLifecycleManager:
+def manager(
+    store: Store,
+    clock: Clock,
+    *,
+    observer: ControlPlaneObserver = NOOP_CONTROL_PLANE_OBSERVER,
+) -> ApprovalLifecycleManager:
     approval_ids = count(1)
     audit_ids = count(1)
     return ApprovalLifecycleManager(
@@ -181,6 +202,7 @@ def manager(store: Store, clock: Clock) -> ApprovalLifecycleManager:
         approval_id_factory=lambda: f"approval-{next(approval_ids)}",
         audit_id_factory=lambda: f"approval-audit-{next(audit_ids)}",
         expiry_actor_id=ActorId("approval-expiry-worker"),
+        observer=observer,
     )
 
 
@@ -220,7 +242,8 @@ async def request_approval(
 async def test_request_and_independent_approval_are_hash_bound_and_audited() -> None:
     store = Store()
     clock = Clock(NOW + timedelta(minutes=1))
-    lifecycle = manager(store, clock)
+    observer = RecordingObserver()
+    lifecycle = manager(store, clock, observer=observer)
     requested = await request_approval(lifecycle)
     assert requested.schema_version == APPROVAL_SCHEMA_VERSION
     assert requested.status is ApprovalStatus.PENDING
@@ -259,13 +282,19 @@ async def test_request_and_independent_approval_are_hash_bound_and_audited() -> 
     assert approve_audit.type == "approval.approved"
     assert approve_audit.request_hash == requested.fingerprint
     assert approve_audit.result_hash == approved.fingerprint
+    assert [item.operation for item in observer.observations] == [
+        ControlPlaneOperation.APPROVAL_REQUEST,
+        ControlPlaneOperation.APPROVAL_DECIDE,
+    ]
+    assert observer.observations[-1].outcome is ControlPlaneOutcome.SUCCEEDED
 
 
 @pytest.mark.anyio
 async def test_rejection_is_terminal_and_audited() -> None:
     store = Store()
     clock = Clock(NOW + timedelta(minutes=1))
-    lifecycle = manager(store, clock)
+    observer = RecordingObserver()
+    lifecycle = manager(store, clock, observer=observer)
     requested = await request_approval(lifecycle)
     rejected = await lifecycle.reject(
         requested.id,
@@ -276,6 +305,7 @@ async def test_rejection_is_terminal_and_audited() -> None:
     )
     assert rejected.status is ApprovalStatus.REJECTED
     assert store.applied[-1][1].type == "approval.rejected"
+    assert observer.observations[-1].outcome is ControlPlaneOutcome.REJECTED
     with pytest.raises(InvalidDomainValueError, match="only a pending"):
         await lifecycle.approve(
             rejected.id,
@@ -321,6 +351,19 @@ async def test_explicit_and_late_decisions_expire_with_system_actor() -> None:
         assert expired.decided_by == ActorId("approval-expiry-worker")
         assert expired.decision_reason == EventReason("Approval lifetime expired.")
         assert store.applied[-1][1].type == "approval.expired"
+
+
+@pytest.mark.anyio
+async def test_approval_observer_failure_cannot_rollback_lifecycle() -> None:
+    store = Store()
+    lifecycle = manager(
+        store,
+        Clock(NOW + timedelta(minutes=1)),
+        observer=RecordingObserver(fail=True),
+    )
+    requested = await request_approval(lifecycle)
+    assert requested.status is ApprovalStatus.PENDING
+    assert store.values[(TENANT, requested.id)] == requested
 
 
 @pytest.mark.anyio

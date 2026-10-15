@@ -480,12 +480,13 @@ def pending_approval() -> Approval:
 
 def approval_wait_state() -> ApprovalWaitState:
     return ApprovalWaitState(
-        state_schema_version="1.0.0",
+        state_schema_version="1.1.0",
         graph_version="1.0.0",
         tenant_id="tenant-1",
         incident_id="incident-1",
         workflow_run_id="approval-run-1",
         correlation_id="approval-correlation-1",
+        causation_id="approval-event-1",
         approval_id="approval-checkpoint-1",
         proposal_fingerprint="a" * 64,
         policy_decision_fingerprint="b" * 64,

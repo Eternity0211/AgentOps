@@ -6,11 +6,26 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest
+from langchain_core.runnables import RunnableConfig
+from langgraph.checkpoint.base import (
+    ChannelVersions,
+    Checkpoint,
+    CheckpointMetadata,
+    CheckpointTuple,
+    empty_checkpoint,
+)
+from langgraph.checkpoint.memory import InMemorySaver
 
+from agentops_incident_commander.application import (
+    ControlPlaneObservation,
+    ControlPlaneOperation,
+    ControlPlaneOutcome,
+)
 from agentops_incident_commander.domain import InvalidDomainValueError
 from agentops_incident_commander.infrastructure import (
     DIAGNOSIS_CHECKPOINT_NAMESPACE,
     DiagnosisCheckpointIdentity,
+    ObservedCheckpointSaver,
     diagnosis_checkpoint_config,
     diagnosis_checkpoint_serializer,
     postgres_diagnosis_checkpointer,
@@ -22,6 +37,42 @@ from agentops_incident_commander.workflows import (
     GraphPromptReference,
     GraphStateMigrationRegistry,
 )
+
+
+class RecordingObserver:
+    def __init__(self) -> None:
+        self.observations: list[ControlPlaneObservation] = []
+
+    def record(self, observation: ControlPlaneObservation) -> None:
+        self.observations.append(observation)
+
+
+class FailingMemorySaver(InMemorySaver):
+    def __init__(self, *, fail_get: bool = False, fail_put: bool = False) -> None:
+        super().__init__(serde=diagnosis_checkpoint_serializer())
+        self.fail_get = fail_get
+        self.fail_put = fail_put
+
+    async def aget_tuple(self, config: RunnableConfig) -> CheckpointTuple | None:
+        if self.fail_get:
+            raise RuntimeError("checkpoint unavailable")
+        return await super().aget_tuple(config)
+
+    async def aput(
+        self,
+        config: RunnableConfig,
+        checkpoint: Checkpoint,
+        metadata: CheckpointMetadata,
+        new_versions: ChannelVersions,
+    ) -> RunnableConfig:
+        if self.fail_put:
+            raise RuntimeError("checkpoint unavailable")
+        return await super().aput(config, checkpoint, metadata, new_versions)
+
+
+class EmptyMemorySaver(InMemorySaver):
+    async def aget_tuple(self, config: RunnableConfig) -> CheckpointTuple | None:
+        return None
 
 
 def state(**overrides: Any) -> DiagnosisGraphState:
@@ -72,6 +123,7 @@ def test_checkpoint_config_is_stable_correlated_and_content_free() -> None:
         "incident_id": "incident-1",
         "workflow_run_id": "run-1",
         "correlation_id": "correlation-1",
+        "causation_id": "cause-1",
     }
     assert identity.thread_id == DiagnosisCheckpointIdentity.from_state(graph_state).thread_id
     assert "tenant-1" not in identity.thread_id
@@ -95,7 +147,13 @@ def test_thread_identity_isolated_and_full_correlation_must_match() -> None:
 @pytest.mark.parametrize("value", ["", "bad value", 1])
 def test_checkpoint_identity_rejects_invalid_correlation_values(value: Any) -> None:
     with pytest.raises(InvalidDomainValueError, match="identifiers are invalid"):
-        DiagnosisCheckpointIdentity(value, "incident-1", "run-1", "correlation-1")
+        DiagnosisCheckpointIdentity(
+            value,
+            "incident-1",
+            "run-1",
+            "correlation-1",
+            "cause-1",
+        )
     with pytest.raises(InvalidDomainValueError, match="requires Diagnosis"):
         DiagnosisCheckpointIdentity.from_state(value)
 
@@ -114,3 +172,78 @@ async def test_postgres_checkpointer_rejects_non_postgres_urls_before_connecting
     with pytest.raises(InvalidDomainValueError, match="must use PostgreSQL"):
         async with postgres_diagnosis_checkpointer("sqlite:///unsafe.db"):
             pytest.fail("invalid URL must not yield")
+
+
+@pytest.mark.anyio
+async def test_observed_checkpoint_saver_records_save_restore_miss_and_delegates() -> None:
+    observer = RecordingObserver()
+    saver = ObservedCheckpointSaver(
+        InMemorySaver(serde=diagnosis_checkpoint_serializer()),
+        observer,
+    )
+    config = diagnosis_checkpoint_config(state())
+    checkpoint = empty_checkpoint()
+    saved = await saver.aput(
+        config,
+        checkpoint,
+        {"source": "input", "step": -1, "parents": {}},
+        {},
+    )
+    scoped_saved: RunnableConfig = {**saved, "metadata": config["metadata"]}
+    restored = await saver.aget_tuple(scoped_saved)
+    assert restored is not None
+    assert saver.get_next_version(None, None)
+    assert isinstance(saver.config_specs, list)
+    await saver.aput_writes(scoped_saved, (("channel", "value"),), "task-1")
+    assert [item async for item in saver.alist(scoped_saved, limit=1)]
+    await saver.adelete_thread(str(saved["configurable"]["thread_id"]))
+    assert [item.operation for item in observer.observations] == [
+        ControlPlaneOperation.CHECKPOINT_SAVE,
+        ControlPlaneOperation.CHECKPOINT_RESTORE,
+    ]
+    assert observer.observations[0].outcome is ControlPlaneOutcome.SUCCEEDED
+    assert observer.observations[1].outcome is ControlPlaneOutcome.RESUMED
+
+    miss_config = diagnosis_checkpoint_config(state(workflow_run_id="run-miss"))
+    assert await saver.aget_tuple(miss_config) is None
+    assert observer.observations[-1].route == "MISS"
+
+
+@pytest.mark.anyio
+async def test_checkpoint_observation_failure_is_fail_open_for_io_and_bad_metadata() -> None:
+    observer = RecordingObserver()
+    config = diagnosis_checkpoint_config(state())
+    with pytest.raises(RuntimeError, match="unavailable"):
+        await ObservedCheckpointSaver(FailingMemorySaver(fail_get=True), observer).aget_tuple(
+            config
+        )
+    with pytest.raises(RuntimeError, match="unavailable"):
+        await ObservedCheckpointSaver(FailingMemorySaver(fail_put=True), observer).aput(
+            config,
+            empty_checkpoint(),
+            {"source": "input", "step": -1, "parents": {}},
+            {},
+        )
+    assert [item.outcome for item in observer.observations] == [
+        ControlPlaneOutcome.FAILED,
+        ControlPlaneOutcome.FAILED,
+    ]
+
+    malformed: RunnableConfig = {"configurable": {"thread_id": "diagnosis-malformed"}}
+    assert (
+        await ObservedCheckpointSaver(
+            InMemorySaver(serde=diagnosis_checkpoint_serializer()), observer
+        ).aget_tuple(malformed)
+        is None
+    )
+    missing_thread: RunnableConfig = {
+        "configurable": {},
+        "metadata": config["metadata"],
+    }
+    assert (
+        await ObservedCheckpointSaver(
+            EmptyMemorySaver(serde=diagnosis_checkpoint_serializer()), observer
+        ).aget_tuple(missing_thread)
+        is None
+    )
+    assert len(observer.observations) == 2

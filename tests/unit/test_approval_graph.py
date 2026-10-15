@@ -10,6 +10,13 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 from pydantic import ValidationError
 
+from agentops_incident_commander.application import (
+    NOOP_CONTROL_PLANE_OBSERVER,
+    ControlPlaneObservation,
+    ControlPlaneObserver,
+    ControlPlaneOperation,
+    ControlPlaneOutcome,
+)
 from agentops_incident_commander.domain import (
     ActorId,
     AggregateVersion,
@@ -72,6 +79,17 @@ class ApprovalStore:
         return self.invalidation
 
 
+class RecordingObserver:
+    def __init__(self, *, fail: bool = False) -> None:
+        self.observations: list[ControlPlaneObservation] = []
+        self.fail = fail
+
+    def record(self, observation: ControlPlaneObservation) -> None:
+        if self.fail:
+            raise RuntimeError("telemetry unavailable")
+        self.observations.append(observation)
+
+
 def approval(**overrides: Any) -> Approval:
     values: dict[str, Any] = {
         "id": ApprovalId("approval-1"),
@@ -113,12 +131,13 @@ def invalidation(value: Approval) -> ApprovalInvalidation:
 
 def state(**overrides: Any) -> ApprovalWaitState:
     values: dict[str, Any] = {
-        "state_schema_version": "1.0.0",
+        "state_schema_version": "1.1.0",
         "graph_version": "1.0.0",
         "tenant_id": "tenant-1",
         "incident_id": "incident-1",
         "workflow_run_id": "run-1",
         "correlation_id": "correlation-1",
+        "causation_id": "approval-event-1",
         "approval_id": "approval-1",
         "proposal_fingerprint": "a" * 64,
         "policy_decision_fingerprint": "b" * 64,
@@ -131,9 +150,12 @@ def state(**overrides: Any) -> ApprovalWaitState:
 
 
 def runtime(
-    store: ApprovalStore, *, now: datetime = NOW + timedelta(minutes=5)
+    store: ApprovalStore,
+    *,
+    now: datetime = NOW + timedelta(minutes=5),
+    observer: ControlPlaneObserver = NOOP_CONTROL_PLANE_OBSERVER,
 ) -> ApprovalRuntimeContext:
-    return ApprovalRuntimeContext(approvals=store, clock=lambda: now)
+    return ApprovalRuntimeContext(approvals=store, clock=lambda: now, observer=observer)
 
 
 def graph() -> Any:
@@ -147,8 +169,9 @@ async def test_interrupt_contains_only_stable_references_and_reloads_approved_re
     initial = state()
     config = approval_checkpoint_config(initial)
     compiled = graph()
+    observer = RecordingObserver()
 
-    paused = await compiled.ainvoke(initial, config, context=runtime(store))
+    paused = await compiled.ainvoke(initial, config, context=runtime(store, observer=observer))
     payload = paused["__interrupt__"][0].value
     assert payload == {
         "kind": "APPROVAL_REQUIRED",
@@ -167,13 +190,23 @@ async def test_interrupt_contains_only_stable_references_and_reloads_approved_re
         at=NOW + timedelta(minutes=4),
     )
     resumed = await compiled.ainvoke(
-        Command[Any](resume={"action": "RECHECK"}), config, context=runtime(store)
+        Command[Any](resume={"action": "RECHECK"}),
+        config,
+        context=runtime(store, observer=observer),
     )
 
     assert resumed["phase"] is ApprovalGraphPhase.READY_TO_EXECUTE
     assert resumed["error_code"] is None
     assert resumed["checkpoint_sequence"] == 1
     assert store.reads == 1
+    assert [item.operation for item in observer.observations] == [
+        ControlPlaneOperation.APPROVAL_RESUME,
+        ControlPlaneOperation.APPROVAL_RESUME,
+    ]
+    assert [item.outcome for item in observer.observations] == [
+        ControlPlaneOutcome.PAUSED,
+        ControlPlaneOutcome.RESUMED,
+    ]
 
 
 @pytest.mark.anyio
@@ -327,7 +360,13 @@ def test_approval_checkpoint_identity_is_stable_isolated_and_content_free() -> N
 @pytest.mark.parametrize("value", ["", "bad value", 1])
 def test_approval_checkpoint_identity_rejects_invalid_values(value: Any) -> None:
     with pytest.raises(InvalidDomainValueError, match="identifiers are invalid"):
-        ApprovalCheckpointIdentity(value, "incident-1", "run-1", "correlation-1")
+        ApprovalCheckpointIdentity(
+            value,
+            "incident-1",
+            "run-1",
+            "correlation-1",
+            "approval-event-1",
+        )
     with pytest.raises(InvalidDomainValueError, match="requires Approval"):
         ApprovalCheckpointIdentity.from_state(value)
 
@@ -352,6 +391,28 @@ async def test_graph_rejects_non_awaiting_initial_state_and_naive_clock() -> Non
             config,
             context=runtime(ApprovalStore(approval()), now=NOW.replace(tzinfo=None)),
         )
+
+
+@pytest.mark.anyio
+async def test_approval_resume_observer_failure_cannot_change_ready_route() -> None:
+    value = approval().decide(
+        ApprovalStatus.APPROVED,
+        actor_id=ActorId("approver-1"),
+        reason=EventReason("approved"),
+        at=NOW + timedelta(minutes=1),
+    )
+    store = ApprovalStore(value)
+    initial = state(workflow_run_id="run-observer-failure")
+    config = approval_checkpoint_config(initial)
+    compiled = graph()
+    observer = RecordingObserver(fail=True)
+    await compiled.ainvoke(initial, config, context=runtime(store, observer=observer))
+    result = await compiled.ainvoke(
+        Command[Any](resume={"action": "RECHECK"}),
+        config,
+        context=runtime(store, observer=observer),
+    )
+    assert result["phase"] is ApprovalGraphPhase.READY_TO_EXECUTE
 
 
 def test_wait_state_is_strict_normalizes_time_and_forbids_mutation() -> None:

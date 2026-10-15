@@ -33,6 +33,9 @@ from agentops_incident_commander.application import (
     ApprovalLifecycleChange,
     ApprovalLifecycleManager,
     AuthorizedRollbackExecution,
+    ControlPlaneObservation,
+    ControlPlaneOperation,
+    ControlPlaneOutcome,
     EvidenceBoundRemediationProposal,
     EvidenceReferenceResolution,
     FailedHealthVerificationRouter,
@@ -298,6 +301,17 @@ from agentops_incident_commander.workflows import (
 NOW = datetime(2026, 10, 3, 8, 0, tzinfo=UTC)
 
 
+class RecordingControlPlaneObserver:
+    def __init__(self, *, fail: bool = False) -> None:
+        self.observations: list[ControlPlaneObservation] = []
+        self.fail = fail
+
+    def record(self, observation: ControlPlaneObservation) -> None:
+        if self.fail:
+            raise RuntimeError("telemetry unavailable")
+        self.observations.append(observation)
+
+
 @pytest.fixture(scope="module")
 def postgres_url() -> Iterator[str]:
     """Run the same major PostgreSQL image as the local control plane."""
@@ -425,6 +439,9 @@ def job(
 ) -> Job:
     return Job(
         id=JobId(job_id),
+        tenant_id=TenantId("tenant-1"),
+        incident_id=IncidentId("incident-1"),
+        workflow_run_id=WorkflowRunId(f"workflow-{job_id}"),
         type="workflow.investigate",
         schema_version="workflow/v1",
         payload_ref=OpaqueIdentifier(f"payload-{job_id}"),
@@ -435,6 +452,18 @@ def job(
         available_at=NOW,
         max_attempts=max_attempts,
         failure_route=failure_route,
+    )
+
+
+async def add_job_incident(session: AsyncSession) -> None:
+    await IncidentRepository(session).add(
+        Incident.open(
+            IncidentId("incident-1"),
+            TenantId("tenant-1"),
+            IncidentSeverity.SEV2,
+            "orders",
+            opened_at=NOW,
+        )
     )
 
 
@@ -636,6 +665,23 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
                 "SELECT EXISTS (SELECT 1 FROM pg_indexes "
                 "WHERE schemaname='public' "
                 "AND indexname='ix_incidents_tenant_service_opened')"
+            )
+        )
+        job_scope = (
+            await connection.scalars(
+                text(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_schema='public' AND table_name='jobs' "
+                    "AND is_nullable='NO' AND column_name IN "
+                    "('tenant_id', 'incident_id', 'workflow_run_id')"
+                )
+            )
+        ).all()
+        assert set(job_scope) == {"tenant_id", "incident_id", "workflow_run_id"}
+        assert await connection.scalar(
+            text(
+                "SELECT EXISTS (SELECT 1 FROM pg_constraint "
+                "WHERE conname='fk_jobs_incident_tenant')"
             )
         )
 
@@ -1806,6 +1852,7 @@ async def test_job_claims_are_priority_ordered_and_concurrently_disjoint(
 ) -> None:
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     async with sessions.begin() as session:
+        await add_job_incident(session)
         repository = JobRepository(session)
         for index in range(16):
             await repository.enqueue(job(f"job-concurrent-{index}", priority=index))
@@ -1830,8 +1877,10 @@ async def test_job_heartbeat_completion_and_foreign_worker_refusal(engine: Async
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     item = job("job-complete")
     owner = OpaqueIdentifier("worker-owner")
+    observer = RecordingControlPlaneObserver()
     async with sessions.begin() as session:
-        repository = JobRepository(session)
+        await add_job_incident(session)
+        repository = JobRepository(session, observer=observer)
         await repository.enqueue(item)
         lease = (
             await repository.claim(owner, now=NOW, lease_duration=timedelta(minutes=1), limit=1)
@@ -1852,6 +1901,13 @@ async def test_job_heartbeat_completion_and_foreign_worker_refusal(engine: Async
             )
         await repository.complete(item.id, owner, completed_at=NOW + timedelta(seconds=31))
 
+    assert [item.operation for item in observer.observations] == [
+        ControlPlaneOperation.JOB_ENQUEUE,
+        ControlPlaneOperation.JOB_CLAIM,
+        ControlPlaneOperation.JOB_HEARTBEAT,
+        ControlPlaneOperation.JOB_COMPLETE,
+    ]
+
     async with sessions() as session:
         row = await session.scalar(select(JobRow).where(JobRow.id == item.id.value))
         assert row is not None
@@ -1865,6 +1921,7 @@ async def test_job_duplicate_id_is_rejected_and_stale_lease_is_reclaimed(
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     item = job("job-reclaim", max_attempts=2)
     async with sessions.begin() as session:
+        await add_job_incident(session)
         repository = JobRepository(session)
         await repository.enqueue(item)
         await repository.claim(
@@ -1878,8 +1935,9 @@ async def test_job_duplicate_id_is_rejected_and_stale_lease_is_reclaimed(
         async with sessions.begin() as session:
             await JobRepository(session).enqueue(item)
 
+    observer = RecordingControlPlaneObserver()
     async with sessions.begin() as session:
-        reclaimed = await JobRepository(session).claim(
+        reclaimed = await JobRepository(session, observer=observer).claim(
             OpaqueIdentifier("worker-recovery"),
             now=NOW + timedelta(minutes=2),
             lease_duration=timedelta(minutes=1),
@@ -1887,6 +1945,11 @@ async def test_job_duplicate_id_is_rejected_and_stale_lease_is_reclaimed(
         )
         assert reclaimed[0].attempt == 2
         assert reclaimed[0].worker_id == OpaqueIdentifier("worker-recovery")
+    assert [item.operation for item in observer.observations] == [
+        ControlPlaneOperation.JOB_STALE_RECOVERY,
+        ControlPlaneOperation.JOB_CLAIM,
+    ]
+    assert observer.observations[0].outcome is ControlPlaneOutcome.RESUMED
 
 
 @pytest.mark.anyio
@@ -1894,8 +1957,10 @@ async def test_job_failure_retries_then_routes_to_human(engine: AsyncEngine) -> 
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     item = job("job-human", max_attempts=2, failure_route=JobFailureRoute.NEEDS_HUMAN)
     owner = OpaqueIdentifier("worker-human")
+    observer = RecordingControlPlaneObserver()
     async with sessions.begin() as session:
-        repository = JobRepository(session)
+        await add_job_incident(session)
+        repository = JobRepository(session, observer=observer)
         await repository.enqueue(item)
         await repository.claim(owner, now=NOW, lease_duration=timedelta(minutes=1), limit=1)
         assert (
@@ -1910,7 +1975,7 @@ async def test_job_failure_retries_then_routes_to_human(engine: AsyncEngine) -> 
         )
 
     async with sessions.begin() as session:
-        repository = JobRepository(session)
+        repository = JobRepository(session, observer=observer)
         assert not await repository.claim(
             owner,
             now=NOW + timedelta(minutes=1),
@@ -1933,6 +1998,11 @@ async def test_job_failure_retries_then_routes_to_human(engine: AsyncEngine) -> 
             )
             is JobStatus.NEEDS_HUMAN
         )
+    assert [
+        item.outcome
+        for item in observer.observations
+        if item.operation is ControlPlaneOperation.JOB_FAIL
+    ] == [ControlPlaneOutcome.RETRYING, ControlPlaneOutcome.HANDED_OFF]
 
 
 @pytest.mark.anyio
@@ -1949,6 +2019,7 @@ async def test_job_expired_final_lease_routes_terminally(
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     item = job(f"job-stale-{route.value.lower()}", max_attempts=1, failure_route=route)
     async with sessions.begin() as session:
+        await add_job_incident(session)
         repository = JobRepository(session)
         await repository.enqueue(item)
         await repository.claim(
@@ -1958,8 +2029,9 @@ async def test_job_expired_final_lease_routes_terminally(
             limit=1,
         )
 
+    observer = RecordingControlPlaneObserver()
     async with sessions.begin() as session:
-        assert not await JobRepository(session).claim(
+        assert not await JobRepository(session, observer=observer).claim(
             OpaqueIdentifier("worker-recovery"),
             now=NOW + timedelta(minutes=2),
             lease_duration=timedelta(minutes=1),
@@ -1970,6 +2042,30 @@ async def test_job_expired_final_lease_routes_terminally(
         assert row is not None
         assert row.status == expected.value
         assert row.last_error == "lease expired after final attempt"
+    assert observer.observations[0].operation is ControlPlaneOperation.JOB_STALE_RECOVERY
+    assert observer.observations[0].outcome is (
+        ControlPlaneOutcome.HANDED_OFF
+        if expected is JobStatus.NEEDS_HUMAN
+        else ControlPlaneOutcome.FAILED
+    )
+
+
+@pytest.mark.anyio
+async def test_job_observer_failure_cannot_change_persistence(engine: AsyncEngine) -> None:
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    item = job("job-observer-failure")
+    async with sessions.begin() as session:
+        await add_job_incident(session)
+        sequence = await JobRepository(
+            session,
+            observer=RecordingControlPlaneObserver(fail=True),
+        ).enqueue(item)
+        assert sequence > 0
+    async with sessions() as session:
+        assert (
+            await session.scalar(select(JobRow.id).where(JobRow.id == item.id.value))
+            == item.id.value
+        )
 
 
 @pytest.mark.anyio

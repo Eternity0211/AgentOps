@@ -65,13 +65,27 @@ schema, version, permission, and diagnosis write/unsafe-argument refusal emits `
 codes are stable gateway classifications; adapter exception details and arguments/results are never
 observable fields.
 
+## Durable coordination instrumentation
+
+PostgreSQL Diagnosis and Approval checkpointers now yield a transparent saver proxy. It delegates
+the authoritative call first, then records `CHECKPOINT_SAVE` or `CHECKPOINT_RESTORE` with
+`SAVED`/`HIT`/`MISS` or a fixed I/O failure code. Scope comes only from validated checkpoint config;
+channel values, pending writes, serialized state, task errors, and interrupt payloads never enter
+the observation.
+
+Durable jobs persist tenant, Incident, and workflow-run identity in addition to correlation and
+causation. The repository observes enqueue, claim, heartbeat, completion, bounded retry, stale lease
+takeover, and exhausted stale routing. Attempts and maximum attempts are bounded to 128. Error text,
+payload references, worker identities, and lease timestamps are excluded. Approval lifecycle
+transitions emit only after aggregate/audit storage succeeds. The Approval graph separately emits
+actual durable pause, authoritative resume, re-pause, or human-handoff outcomes.
+
 ## Composition boundary
 
-The current batch establishes the adapter and injectible hooks. They intentionally default to no-op
-so a library test or incomplete process composition cannot create global SDK state. A following
-Phase 11 batch owns one observer in each API/worker process, supplies it to runtime compositions, and
-shuts it down within a bounded deadline. Checkpoint, lease/job, approval, recovery, verification,
-failure-route, and compensation-guard hooks remain explicitly open until their listed sub-batches
+All hooks default to no-op so a library test or incomplete process composition cannot create global
+SDK state. A following Phase 11 batch owns one observer in each API/worker process, supplies it to
+runtime compositions, and shuts it down within a bounded deadline. Recovery, verification,
+failure-route, and future-inverse-guard hooks remain explicitly open until their listed sub-batches
 pass.
 
 ## Verification
@@ -81,3 +95,8 @@ credential-free configuration, signal-specific endpoints, disabled mode, bounded
 Span/log export, exact token/cost metrics, tool retry sequences, all Diagnosis node routes,
 Evidence Gate pass, and pause/resume behavior. Existing model/tool/graph behavior and audits remain
 unchanged when no observer is configured.
+
+The durability suite additionally covers saver save/restore/miss/I/O failure delegation,
+PostgreSQL migration and scoped foreign keys, concurrent disjoint job claims, heartbeat, retry,
+completion, stale takeover, dead-letter/human handoff, Approval request/decision/expiry, and
+new-worker Approval resume. Raising observers prove telemetry failure cannot change any result.

@@ -93,6 +93,12 @@ after each resume and permits only a valid, unexpired, fingerprint-matched `APPR
 reach execution readiness. A later Executor batch must independently repeat all required checks
 immediately before mutation.
 
+Every successfully stored request, approval, rejection, or expiry emits one content-free,
+fail-open control-plane observation after the lifecycle store accepts the matching aggregate and
+Audit Event. The observation contains only scope identities, Approval ID, schema, duration, and
+typed status; it cannot carry the review snapshot, reason, proposal, or Policy content. Exporter
+failure cannot roll back or change the Approval transition.
+
 ## Verification
 
 Unit tests cover request, approve, reject, explicit and lazy expiry, terminal-state refusal,

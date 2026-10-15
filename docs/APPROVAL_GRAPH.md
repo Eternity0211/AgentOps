@@ -6,11 +6,17 @@ cannot approve a proposal, alter an Approval, or execute recovery.
 
 ## Persisted state and interrupt
 
-`ApprovalWaitState` is a strict, frozen, versioned state containing only bounded identifiers,
+`ApprovalWaitState` schema `1.1.0` is a strict, frozen, versioned state containing only bounded identifiers,
 proposal and Policy-decision fingerprints, phase, error code, checkpoint sequence, and UTC update
-time. Its PostgreSQL thread identity is a SHA-256 digest of tenant, Incident, and workflow-run
+time. It includes the resolvable causation identity required to join pause/resume telemetry to the
+Incident correlation chain. Its PostgreSQL thread identity is a SHA-256 digest of tenant, Incident, and workflow-run
 identity with an `approval-` prefix. Raw correlation fields remain checkpoint metadata for audit
 reconstruction and are checked against restored state.
+
+The earlier pre-release `1.0.0` shape did not persist causation and is intentionally not
+auto-upgraded: inventing a parent would corrupt the correlation chain. Such a checkpoint fails
+closed and requires an operator to recreate the wait from the authoritative Approval and durable
+correlation ledger; `1.1.0` checkpoints remain worker-restart resumable.
 
 An `AWAITING_APPROVAL` node emits a durable `APPROVAL_REQUIRED` interrupt containing only:
 
@@ -50,3 +56,7 @@ checkpoint identities. A PostgreSQL container test closes the first saver and gr
 interrupt is pending, changes the external Approval to `APPROVED`, creates a new saver and graph,
 and proves that the new worker restores the checkpoint and reloads the authoritative record before
 entering `READY_TO_EXECUTE`.
+
+The node emits `PAUSED` only when LangGraph actually raises its durable interrupt. A `RECHECK`
+resume emits `RESUMED`, another `PAUSED`, or `HANDED_OFF` with the stable deterministic route code.
+The Approval record remains the sole authority, and observation failure cannot change a route.

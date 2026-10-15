@@ -9,6 +9,7 @@ import pytest
 from agentops_incident_commander.domain import (
     CausationId,
     CorrelationId,
+    IncidentId,
     InvalidDomainValueError,
     Job,
     JobFailureRoute,
@@ -16,6 +17,8 @@ from agentops_incident_commander.domain import (
     JobLease,
     NaiveDateTimeError,
     OpaqueIdentifier,
+    TenantId,
+    WorkflowRunId,
 )
 
 NOW = datetime(2026, 10, 3, 8, 0, tzinfo=UTC)
@@ -24,6 +27,9 @@ NOW = datetime(2026, 10, 3, 8, 0, tzinfo=UTC)
 def job(**overrides: object) -> Job:
     values: dict[str, object] = {
         "id": JobId("job-1"),
+        "tenant_id": TenantId("tenant-1"),
+        "incident_id": IncidentId("incident-1"),
+        "workflow_run_id": WorkflowRunId("workflow-1"),
         "type": "workflow.investigate",
         "schema_version": "workflow/v1",
         "payload_ref": OpaqueIdentifier("payload-1"),
@@ -53,8 +59,9 @@ def test_job_preserves_typed_queue_contract() -> None:
         ("priority", True, "must be an integer"),
         ("priority", -1, "between 0 and 100"),
         ("priority", 101, "between 0 and 100"),
-        ("max_attempts", 0, "positive integer"),
-        ("max_attempts", True, "positive integer"),
+        ("max_attempts", 0, "between 1 and 128"),
+        ("max_attempts", 129, "between 1 and 128"),
+        ("max_attempts", True, "between 1 and 128"),
     ],
 )
 def test_job_rejects_invalid_fields(field: str, value: object, message: str) -> None:

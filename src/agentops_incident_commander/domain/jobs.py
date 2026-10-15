@@ -8,7 +8,16 @@ from datetime import datetime
 from enum import StrEnum
 
 from .errors import InvalidDomainValueError
-from .values import CausationId, CorrelationId, JobId, OpaqueIdentifier, as_utc
+from .values import (
+    CausationId,
+    CorrelationId,
+    IncidentId,
+    JobId,
+    OpaqueIdentifier,
+    TenantId,
+    WorkflowRunId,
+    as_utc,
+)
 
 _TYPE_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9_]*){1,7}$")
 _VERSION_PATTERN = re.compile(r"^[a-z][a-z0-9_-]{0,31}/v[1-9][0-9]*$")
@@ -36,6 +45,9 @@ class Job:
     """One bounded unit of workflow work referring to a durable payload."""
 
     id: JobId
+    tenant_id: TenantId
+    incident_id: IncidentId
+    workflow_run_id: WorkflowRunId
     type: str
     schema_version: str
     payload_ref: OpaqueIdentifier
@@ -60,8 +72,9 @@ class Job:
             not isinstance(self.max_attempts, int)
             or isinstance(self.max_attempts, bool)
             or self.max_attempts < 1
+            or self.max_attempts > 128
         ):
-            raise InvalidDomainValueError("job max attempts must be a positive integer")
+            raise InvalidDomainValueError("job max attempts must be between 1 and 128")
         object.__setattr__(self, "created_at", as_utc(self.created_at))
         object.__setattr__(self, "available_at", as_utc(self.available_at))
         if self.available_at < self.created_at:

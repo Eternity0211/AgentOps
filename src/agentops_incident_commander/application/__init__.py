@@ -31,6 +31,17 @@ from .approvals import (
     ApprovalReviewSnapshot,
     approval_review_snapshot_from_document,
 )
+from .control_plane_observability import (
+    CONTROL_PLANE_OBSERVATION_SCHEMA_VERSION,
+    NOOP_CONTROL_PLANE_OBSERVER,
+    ControlPlaneComponent,
+    ControlPlaneObservation,
+    ControlPlaneObserver,
+    ControlPlaneOperation,
+    ControlPlaneOutcome,
+    NullControlPlaneObserver,
+    safely_record,
+)
 from .diagnosis_prompts import (
     ApprovedDiagnosisPromptResolver,
     DiagnosisPromptStore,
@@ -153,10 +164,12 @@ from .tool_gateway import (
 __all__ = [
     "ACTION_EXECUTION_AUDIT_SCHEMA_VERSION",
     "APPROVAL_REVIEW_SCHEMA_VERSION",
+    "CONTROL_PLANE_OBSERVATION_SCHEMA_VERSION",
     "HEALTH_VERIFICATION_CLOSURE_AUDIT_SCHEMA_VERSION",
     "HEALTH_VERIFICATION_FAILURE_AUDIT_SCHEMA_VERSION",
     "HEALTH_VERIFICATION_SIGNAL_SCHEMA_VERSION",
     "MAX_POLICY_SERVICES",
+    "NOOP_CONTROL_PLANE_OBSERVER",
     "POSTMORTEM_MODEL_INPUT_SCHEMA_VERSION",
     "POSTMORTEM_NODE_NAME",
     "ActionSnapshotWriter",
@@ -174,6 +187,11 @@ __all__ = [
     "CompiledToolCall",
     "ConfirmedRollbackFailure",
     "ConstrainedPostmortemGenerator",
+    "ControlPlaneComponent",
+    "ControlPlaneObservation",
+    "ControlPlaneObserver",
+    "ControlPlaneOperation",
+    "ControlPlaneOutcome",
     "CreatePostmortemRecord",
     "CurrentServiceVersionStore",
     "DiagnosisPromptStore",
@@ -198,6 +216,7 @@ __all__ = [
     "IncidentMemorySearchStore",
     "ModelCallTraceManager",
     "ModelCallTraceStore",
+    "NullControlPlaneObserver",
     "PassingVerificationRouter",
     "PersistedRollbackHealthVerifier",
     "PlanningBudgets",
@@ -267,6 +286,7 @@ __all__ = [
     "model_call_trace_fingerprint",
     "resolve_gate_evidence_references",
     "resolve_health_verification_evidence",
+    "safely_record",
     "tool_query_fingerprint",
     "validate_diagnosis_tool_proposal",
 ]

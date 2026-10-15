@@ -11,6 +11,10 @@ from typing import Any, cast
 
 import pytest
 
+from agentops_incident_commander.application import (
+    ControlPlaneObservation,
+    ControlPlaneOutcome,
+)
 from agentops_incident_commander.application.tool_gateway import (
     ToolAdapterContext,
     ToolAdapterFailure,
@@ -145,6 +149,14 @@ class SequenceAdapter:
         return cast(Mapping[str, Any], outcome)
 
 
+class RecordingObserver:
+    def __init__(self) -> None:
+        self.observations: list[ControlPlaneObservation] = []
+
+    def record(self, observation: ControlPlaneObservation) -> None:
+        self.observations.append(observation)
+
+
 class SlowAdapter:
     async def invoke(
         self, context: ToolAdapterContext, arguments: Mapping[str, Any]
@@ -180,6 +192,7 @@ def gateway(
     *,
     registry: ToolRegistry | None = None,
     sleeper: Any = asyncio.sleep,
+    observer: Any = None,
 ) -> ToolGateway:
     ids = count(1)
     return ToolGateway(
@@ -189,6 +202,7 @@ def gateway(
         clock=lambda: NOW,
         audit_id_factory=lambda: f"audit-tool-{next(ids)}",
         sleeper=sleeper,
+        **({"observer": observer} if observer is not None else {}),
     )
 
 
@@ -405,10 +419,21 @@ async def test_gateway_retries_only_classified_allowed_failures_with_bounded_bac
         delays.append(delay)
 
     audit = FakeAuditWriter()
-    result = await gateway(definition, adapter, audit, sleeper=sleep).invoke(request())
+    observer = RecordingObserver()
+    result = await gateway(definition, adapter, audit, sleeper=sleep, observer=observer).invoke(
+        request()
+    )
     assert result.attempts == 3
     assert delays == [0.01, 0.015]
     assert [event.type for event in audit.events] == ["tool.call_started", "tool.call_succeeded"]
+    assert [item.outcome for item in observer.observations] == [
+        ControlPlaneOutcome.STARTED,
+        ControlPlaneOutcome.RETRYING,
+        ControlPlaneOutcome.RETRYING,
+        ControlPlaneOutcome.SUCCEEDED,
+    ]
+    assert [item.attempt for item in observer.observations[1:]] == [1, 2, 3]
+    assert all("secret" not in str(item) for item in observer.observations)
 
 
 @pytest.mark.anyio

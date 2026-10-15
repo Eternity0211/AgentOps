@@ -15,6 +15,11 @@ from .checkpoints import (
     postgres_approval_checkpointer,
     postgres_diagnosis_checkpointer,
 )
+from .control_plane_telemetry import (
+    ControlPlaneTelemetrySettings,
+    OpenTelemetryControlPlaneObserver,
+    create_control_plane_observer,
+)
 from .diagnosis_runtime import (
     CheckpointExecutionStatus,
     DiagnosisCheckpointObservation,
@@ -79,6 +84,7 @@ __all__ = [
     "ApprovalCheckpointIdentity",
     "CheckpointExecutionStatus",
     "CollectedHealthVerification",
+    "ControlPlaneTelemetrySettings",
     "DeploymentRollbackBackend",
     "DeploymentVersionObserver",
     "DeterministicDiagnosisMockModel",
@@ -105,6 +111,7 @@ __all__ = [
     "NewAlertCountBackend",
     "NewAlertCountResult",
     "NewAlertCountSample",
+    "OpenTelemetryControlPlaneObserver",
     "PostgresPersistedHealthVerifier",
     "PostmortemMockScenario",
     "ServerBoundRollbackAdapter",
@@ -112,6 +119,7 @@ __all__ = [
     "approval_checkpoint_config",
     "checkpoint_observation",
     "compiled_diagnosis_runner",
+    "create_control_plane_observer",
     "diagnosis_checkpoint_config",
     "diagnosis_checkpoint_serializer",
     "postgres_approval_checkpointer",

@@ -227,6 +227,15 @@ credentials, fault scenario names, and run identifiers are excluded. Typed deplo
 the same versioned marker on startup and every live transition; observer failure is fail-open and
 cannot affect the deterministic deployment transition or recovery chain.
 
+Control-plane runtime telemetry uses the separate versioned
+[control-plane observation contract](CONTROL_PLANE_OBSERVABILITY.md). Its application-layer port is
+framework independent and payload-free; the infrastructure adapter alone owns OpenTelemetry SDK
+providers. Diagnosis graph nodes and routes, deterministic Evidence Gate outcomes, durable
+model-call lifecycle/metering, and every Tool Gateway attempt now expose fail-open observation
+hooks. The remaining checkpoint, job/lease, approval, recovery, verifier, failure-route, and
+compensation-guard boundaries are tracked as explicit Phase 11 sub-batches, and process composition
+continues to default to no-op until the single-owner lifecycle wiring is verified.
+
 After the complete Phase 9 safety gate, the worker composition root may explicitly enable the
 single `rollback_service` route. The setting is false by default and the disabled path exits before
 preflight or effects. The enabled composition accepts only a server-injected typed deployment

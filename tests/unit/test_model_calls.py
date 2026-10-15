@@ -10,6 +10,8 @@ from typing import Any, cast
 import pytest
 
 from agentops_incident_commander.application import (
+    ControlPlaneObservation,
+    ControlPlaneOutcome,
     ModelCallTraceManager,
     model_call_trace_fingerprint,
 )
@@ -110,13 +112,25 @@ class MemoryStore:
         self.audit.append(audit_event)
 
 
+class RecordingObserver:
+    def __init__(self) -> None:
+        self.observations: list[ControlPlaneObservation] = []
+
+    def record(self, observation: ControlPlaneObservation) -> None:
+        self.observations.append(observation)
+
+
 @pytest.mark.anyio
 async def test_manager_records_exact_content_free_start_and_success_metadata() -> None:
     store = MemoryStore()
+    observer = RecordingObserver()
     ids = count(1)
     moments = iter((NOW, NOW, NOW + timedelta(seconds=2), NOW + timedelta(seconds=2)))
     manager = ModelCallTraceManager(
-        store, clock=lambda: next(moments), id_factory=lambda: f"trace-id-{next(ids)}"
+        store,
+        clock=lambda: next(moments),
+        id_factory=lambda: f"trace-id-{next(ids)}",
+        observer=observer,
     )
     started = await manager.start(
         tenant_id=TenantId("tenant-1"),
@@ -149,6 +163,14 @@ async def test_manager_records_exact_content_free_start_and_success_metadata() -
     assert not hasattr(completed, "prompt_content")
     assert not hasattr(completed, "request_body")
     assert not hasattr(completed, "response_body")
+    assert [item.outcome for item in observer.observations] == [
+        ControlPlaneOutcome.STARTED,
+        ControlPlaneOutcome.SUCCEEDED,
+    ]
+    assert observer.observations[-1].duration_ms == 2000
+    assert observer.observations[-1].model_metering == metering()
+    assert observer.observations[-1].subject_name == "mock"
+    assert observer.observations[-1].subject_version == "model-v1"
 
 
 @pytest.mark.parametrize(

@@ -7,6 +7,7 @@ import hashlib
 import json
 import math
 import re
+import time
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
@@ -20,6 +21,7 @@ from agentops_incident_commander.domain import (
     CausationId,
     CorrelationId,
     IncidentId,
+    OpaqueIdentifier,
     Principal,
     RetryableToolError,
     SemanticVersion,
@@ -32,6 +34,17 @@ from agentops_incident_commander.domain import (
     WorkflowRunId,
     require_permission,
     utc_now,
+)
+
+from .control_plane_observability import (
+    NOOP_CONTROL_PLANE_OBSERVER,
+    ControlPlaneComponent,
+    ControlPlaneObservation,
+    ControlPlaneObserver,
+    ControlPlaneOperation,
+    ControlPlaneOutcome,
+    safely_record,
+    utc_observation_time,
 )
 
 TOOL_AUDIT_SCHEMA_VERSION = "tool-call/v1"
@@ -423,6 +436,7 @@ class ToolGateway:
         clock: Clock = utc_now,
         audit_id_factory: IdFactory,
         sleeper: Sleeper = asyncio.sleep,
+        observer: ControlPlaneObserver = NOOP_CONTROL_PLANE_OBSERVER,
     ) -> None:
         enabled = {definition.identity: definition for definition in registry.catalog()}
         if set(adapters) != set(enabled):
@@ -439,6 +453,7 @@ class ToolGateway:
         self._clock = clock
         self._audit_id_factory = audit_id_factory
         self._sleeper = sleeper
+        self._observer = observer
 
     def diagnosis_catalog(self) -> tuple[ToolDefinition, ...]:
         return self._registry.catalog(access_class=ToolAccessClass.READ)
@@ -450,6 +465,7 @@ class ToolGateway:
         return await self._invoke(call, diagnosis=True)
 
     async def _invoke(self, call: ToolCallRequest, *, diagnosis: bool) -> ToolCallResult:
+        invocation_started = time.monotonic_ns()
         request_hash = call.request_hash
         try:
             definition = self._registry.resolve(call.tool_name, call.tool_version)
@@ -477,6 +493,12 @@ class ToolGateway:
                 request_hash=request_hash,
                 result_hash=_digest({"error": type(exc).__name__}),
             )
+            self._observe(
+                call,
+                ControlPlaneOutcome.REJECTED,
+                started_ns=invocation_started,
+                result_code=(exc.code if isinstance(exc, ToolGatewayError) else "REQUEST_REJECTED"),
+            )
             raise
 
         await self._audit(
@@ -485,6 +507,7 @@ class ToolGateway:
             request_hash=request_hash,
             result_hash=None,
         )
+        self._observe(call, ControlPlaneOutcome.STARTED)
         context = ToolAdapterContext(
             call_id=call.call_id,
             incident_id=call.incident_id,
@@ -497,6 +520,7 @@ class ToolGateway:
         attempts = 0
         while attempts < definition.retry_policy.max_attempts:
             attempts += 1
+            attempt_started = time.monotonic_ns()
             try:
                 raw_result = await asyncio.wait_for(
                     self._adapters[definition.identity].invoke(context, call.arguments()),
@@ -517,6 +541,14 @@ class ToolGateway:
                     )
             except asyncio.CancelledError:
                 await self._audit_failure(call, request_hash, "CANCELLED", attempts, definition)
+                self._observe(
+                    call,
+                    ControlPlaneOutcome.CANCELLED,
+                    started_ns=attempt_started,
+                    attempts=attempts,
+                    definition=definition,
+                    result_code="CANCELLED",
+                )
                 raise
             except TimeoutError:
                 classification = RetryableToolError.TIMEOUT
@@ -534,6 +566,14 @@ class ToolGateway:
                 if exc.attempts == 0:
                     exc.attempts = attempts
                 await self._audit_failure(call, request_hash, exc.code, attempts, definition)
+                self._observe(
+                    call,
+                    ControlPlaneOutcome.FAILED,
+                    started_ns=attempt_started,
+                    attempts=attempts,
+                    definition=definition,
+                    result_code=exc.code,
+                )
                 raise
             except Exception as exc:
                 failure = ToolGatewayError(
@@ -548,6 +588,14 @@ class ToolGateway:
                     f"{definition.audit.event_type}_succeeded",
                     request_hash=request_hash,
                     result_hash=result_hash,
+                )
+                self._observe(
+                    call,
+                    ControlPlaneOutcome.SUCCEEDED,
+                    started_ns=attempt_started,
+                    attempts=attempts,
+                    definition=definition,
+                    result_code="OK",
                 )
                 return ToolCallResult(
                     call_id=call.call_id,
@@ -564,6 +612,15 @@ class ToolGateway:
                 and attempts < definition.retry_policy.max_attempts
             )
             if retryable:
+                assert isinstance(failure, ToolGatewayError)
+                self._observe(
+                    call,
+                    ControlPlaneOutcome.RETRYING,
+                    started_ns=attempt_started,
+                    attempts=attempts,
+                    definition=definition,
+                    result_code=failure.code,
+                )
                 delay_ms = min(
                     definition.retry_policy.initial_backoff_ms * (2 ** (attempts - 1)),
                     definition.retry_policy.max_backoff_ms,
@@ -572,6 +629,18 @@ class ToolGateway:
                 continue
             assert isinstance(failure, ToolGatewayError)
             await self._audit_failure(call, request_hash, failure.code, attempts, definition)
+            self._observe(
+                call,
+                (
+                    ControlPlaneOutcome.TIMED_OUT
+                    if failure.code == "TOOL_TIMEOUT"
+                    else ControlPlaneOutcome.FAILED
+                ),
+                started_ns=attempt_started,
+                attempts=attempts,
+                definition=definition,
+                result_code=failure.code,
+            )
             raise failure
         raise AssertionError(
             "bounded tool loop exhausted without a terminal result"
@@ -590,6 +659,44 @@ class ToolGateway:
             f"{definition.audit.event_type}_failed",
             request_hash=request_hash,
             result_hash=_digest({"attempts": attempts, "error": code}),
+        )
+
+    def _observe(
+        self,
+        call: ToolCallRequest,
+        outcome: ControlPlaneOutcome,
+        *,
+        started_ns: int | None = None,
+        attempts: int | None = None,
+        definition: ToolDefinition | None = None,
+        result_code: str | None = None,
+    ) -> None:
+        safely_record(
+            self._observer,
+            ControlPlaneObservation(
+                component=ControlPlaneComponent.TOOL,
+                operation=ControlPlaneOperation.TOOL_CALL,
+                outcome=outcome,
+                occurred_at=utc_observation_time(),
+                tenant_id=call.principal.tenant_id,
+                incident_id=call.incident_id,
+                correlation_id=call.correlation_id,
+                causation_id=call.causation_id,
+                operation_id=OpaqueIdentifier(call.call_id.value),
+                workflow_run_id=call.workflow_run_id,
+                duration_ms=(
+                    max(0, (time.monotonic_ns() - started_ns) // 1_000_000)
+                    if started_ns is not None
+                    else None
+                ),
+                attempt=attempts,
+                max_attempts=(
+                    definition.retry_policy.max_attempts if definition is not None else None
+                ),
+                result_code=result_code,
+                subject_name=call.tool_name,
+                subject_version=call.tool_version.value,
+            ),
         )
 
     async def _audit(

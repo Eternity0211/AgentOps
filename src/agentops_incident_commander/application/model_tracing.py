@@ -27,6 +27,16 @@ from agentops_incident_commander.domain import (
     WorkflowRunId,
 )
 
+from .control_plane_observability import (
+    NOOP_CONTROL_PLANE_OBSERVER,
+    ControlPlaneComponent,
+    ControlPlaneObservation,
+    ControlPlaneObserver,
+    ControlPlaneOperation,
+    ControlPlaneOutcome,
+    safely_record,
+)
+
 
 class ModelCallTraceStore(Protocol):
     async def start(self, trace: ModelCallTrace, audit_event: AuditEvent) -> None: ...
@@ -114,10 +124,12 @@ class ModelCallTraceManager:
         *,
         clock: Callable[[], datetime],
         id_factory: Callable[[], str],
+        observer: ControlPlaneObserver = NOOP_CONTROL_PLANE_OBSERVER,
     ) -> None:
         self._store = store
         self._clock = clock
         self._id_factory = id_factory
+        self._observer = observer
 
     async def start(
         self,
@@ -157,6 +169,25 @@ class ModelCallTraceManager:
                 result_hash=fingerprint,
             ),
         )
+        safely_record(
+            self._observer,
+            ControlPlaneObservation(
+                component=ControlPlaneComponent.MODEL,
+                operation=ControlPlaneOperation.MODEL_CALL,
+                outcome=ControlPlaneOutcome.STARTED,
+                occurred_at=trace.started_at,
+                tenant_id=trace.tenant_id,
+                incident_id=trace.incident_id,
+                correlation_id=trace.correlation_id,
+                causation_id=trace.causation_id,
+                operation_id=OpaqueIdentifier(trace.id.value),
+                workflow_run_id=trace.workflow_run_id,
+                attempt=trace.attempt,
+                route=trace.node,
+                subject_name=trace.provider,
+                subject_version=trace.model,
+            ),
+        )
         return trace
 
     async def finish(
@@ -185,6 +216,37 @@ class ModelCallTraceManager:
                 actor_id=actor_id,
                 request_hash=model_call_trace_fingerprint(started),
                 result_hash=model_call_trace_fingerprint(completed),
+            ),
+        )
+        assert completed.completed_at is not None
+        outcomes = {
+            ModelCallStatus.SUCCEEDED: ControlPlaneOutcome.SUCCEEDED,
+            ModelCallStatus.FAILED: ControlPlaneOutcome.FAILED,
+            ModelCallStatus.TIMED_OUT: ControlPlaneOutcome.TIMED_OUT,
+            ModelCallStatus.REFUSED: ControlPlaneOutcome.REFUSED,
+        }
+        safely_record(
+            self._observer,
+            ControlPlaneObservation(
+                component=ControlPlaneComponent.MODEL,
+                operation=ControlPlaneOperation.MODEL_CALL,
+                outcome=outcomes[completed.status],
+                occurred_at=completed.completed_at,
+                tenant_id=completed.tenant_id,
+                incident_id=completed.incident_id,
+                correlation_id=completed.correlation_id,
+                causation_id=completed.causation_id,
+                operation_id=OpaqueIdentifier(completed.id.value),
+                workflow_run_id=completed.workflow_run_id,
+                duration_ms=int(
+                    (completed.completed_at - completed.started_at).total_seconds() * 1000
+                ),
+                attempt=completed.attempt,
+                route=completed.node,
+                result_code=completed.failure_code,
+                subject_name=completed.provider,
+                subject_version=completed.model,
+                model_metering=completed.metering,
             ),
         )
         return completed

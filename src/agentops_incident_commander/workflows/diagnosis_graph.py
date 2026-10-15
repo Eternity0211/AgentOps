@@ -4,20 +4,41 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import Callable
+import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 from hashlib import sha256
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.errors import GraphInterrupt
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.runtime import Runtime
 from langgraph.types import interrupt
 
-from agentops_incident_commander.domain import InvalidDomainValueError, utc_now
+from agentops_incident_commander.application.control_plane_observability import (
+    NOOP_CONTROL_PLANE_OBSERVER,
+    ControlPlaneComponent,
+    ControlPlaneObservation,
+    ControlPlaneObserver,
+    ControlPlaneOperation,
+    ControlPlaneOutcome,
+    safely_record,
+    utc_observation_time,
+)
+from agentops_incident_commander.domain import (
+    CausationId,
+    CorrelationId,
+    IncidentId,
+    InvalidDomainValueError,
+    OpaqueIdentifier,
+    TenantId,
+    WorkflowRunId,
+    utc_now,
+)
 
 from .diagnosis import InvestigationPlan
 from .diagnosis_progress import (
@@ -209,6 +230,7 @@ class DiagnosisRuntimeContext:
     progress: DiagnosisProgressRecorder
     clock: Callable[[], datetime] = field(default=utc_now)
     control: DiagnosisControlPort = field(default_factory=ContinueDiagnosisControl)
+    observer: ControlPlaneObserver = field(default=NOOP_CONTROL_PLANE_OBSERVER)
 
 
 async def load_context_node(
@@ -445,13 +467,25 @@ def build_diagnosis_graph(
 ]:
     """Compile the bounded Diagnosis graph without a checkpointer."""
     builder = StateGraph(DiagnosisGraphState, context_schema=DiagnosisRuntimeContext)
-    builder.add_node("load_context", load_context_node)
-    builder.add_node("plan", plan_node)
-    builder.add_node("execute_read_tools", execute_read_tools_node)
-    builder.add_node("persist_evidence", persist_evidence_node)
-    builder.add_node("hypothesis", hypothesis_node)
-    builder.add_node("evidence_gate", evidence_gate_node)
-    builder.add_node("human_handoff", human_handoff_node)
+    builder.add_node("load_context", cast(Any, _observed_node("load_context", load_context_node)))
+    builder.add_node("plan", cast(Any, _observed_node("plan", plan_node)))
+    builder.add_node(
+        "execute_read_tools",
+        cast(Any, _observed_node("execute_read_tools", execute_read_tools_node)),
+    )
+    builder.add_node(
+        "persist_evidence",
+        cast(Any, _observed_node("persist_evidence", persist_evidence_node)),
+    )
+    builder.add_node("hypothesis", cast(Any, _observed_node("hypothesis", hypothesis_node)))
+    builder.add_node(
+        "evidence_gate",
+        cast(Any, _observed_node("evidence_gate", evidence_gate_node)),
+    )
+    builder.add_node(
+        "human_handoff",
+        cast(Any, _observed_node("human_handoff", human_handoff_node)),
+    )
     builder.add_edge(START, "load_context")
     builder.add_conditional_edges(
         "load_context", route_after_context, {"plan": "plan", "cancelled": END}
@@ -492,6 +526,138 @@ def build_diagnosis_graph(
     )
     builder.add_edge("human_handoff", END)
     return builder.compile(checkpointer=checkpointer)
+
+
+DiagnosisNode = Callable[
+    [DiagnosisGraphState, Runtime[DiagnosisRuntimeContext]],
+    Awaitable[dict[str, object]],
+]
+_NODE_OPERATIONS = {
+    "load_context": ControlPlaneOperation.GRAPH_LOAD_CONTEXT,
+    "plan": ControlPlaneOperation.GRAPH_PLAN,
+    "execute_read_tools": ControlPlaneOperation.GRAPH_EXECUTE_READ_TOOLS,
+    "persist_evidence": ControlPlaneOperation.GRAPH_PERSIST_EVIDENCE,
+    "hypothesis": ControlPlaneOperation.GRAPH_HYPOTHESIS,
+    "evidence_gate": ControlPlaneOperation.EVIDENCE_GATE_EVALUATE,
+    "human_handoff": ControlPlaneOperation.GRAPH_HUMAN_HANDOFF,
+}
+
+
+def _observed_node(node_name: str, node: DiagnosisNode) -> DiagnosisNode:
+    async def observed(
+        state: DiagnosisGraphState,
+        runtime: Runtime[DiagnosisRuntimeContext],
+    ) -> dict[str, object]:
+        started_ns = time.monotonic_ns()
+        try:
+            update = await node(state, runtime)
+        except GraphInterrupt:
+            _record_node_observation(
+                state,
+                runtime,
+                node_name=node_name,
+                outcome=ControlPlaneOutcome.PAUSED,
+                started_ns=started_ns,
+                route="PAUSED",
+            )
+            raise
+        except asyncio.CancelledError:
+            _record_node_observation(
+                state,
+                runtime,
+                node_name=node_name,
+                outcome=ControlPlaneOutcome.CANCELLED,
+                started_ns=started_ns,
+                route="CANCELLED",
+            )
+            raise
+        except Exception:
+            _record_node_observation(
+                state,
+                runtime,
+                node_name=node_name,
+                outcome=ControlPlaneOutcome.FAILED,
+                started_ns=started_ns,
+                route="FAILED",
+                result_code="UNHANDLED_EXCEPTION",
+            )
+            raise
+        phase = update.get("phase", state.phase)
+        assert isinstance(phase, GraphPhase)
+        outcome = ControlPlaneOutcome.SUCCEEDED
+        if phase is GraphPhase.CANCELLED:
+            outcome = ControlPlaneOutcome.CANCELLED
+        elif node_name == "human_handoff":
+            outcome = ControlPlaneOutcome.HANDED_OFF
+        elif node_name == "evidence_gate" and phase is GraphPhase.COMPLETE:
+            outcome = ControlPlaneOutcome.PASSED
+        error_code = update.get("error_code")
+        _record_node_observation(
+            state,
+            runtime,
+            node_name=node_name,
+            outcome=outcome,
+            started_ns=started_ns,
+            route=_node_route(node_name, phase),
+            result_code=error_code if isinstance(error_code, str) else None,
+        )
+        return update
+
+    return observed
+
+
+def _record_node_observation(
+    state: DiagnosisGraphState,
+    runtime: Runtime[DiagnosisRuntimeContext],
+    *,
+    node_name: str,
+    outcome: ControlPlaneOutcome,
+    started_ns: int,
+    route: str,
+    result_code: str | None = None,
+) -> None:
+    safely_record(
+        runtime.context.observer,
+        ControlPlaneObservation(
+            component=(
+                ControlPlaneComponent.EVIDENCE_GATE
+                if node_name == "evidence_gate"
+                else ControlPlaneComponent.DIAGNOSIS_GRAPH
+            ),
+            operation=_NODE_OPERATIONS[node_name],
+            outcome=outcome,
+            occurred_at=utc_observation_time(),
+            tenant_id=TenantId(state.tenant_id),
+            incident_id=IncidentId(state.incident_id),
+            correlation_id=CorrelationId(state.correlation_id),
+            causation_id=CausationId(state.causation_id),
+            operation_id=OpaqueIdentifier(node_operation_id(state, node_name)),
+            workflow_run_id=WorkflowRunId(state.workflow_run_id),
+            duration_ms=max(0, (time.monotonic_ns() - started_ns) // 1_000_000),
+            route=route,
+            result_code=result_code,
+            subject_name=node_name,
+            subject_version=state.graph_version,
+        ),
+    )
+
+
+def _node_route(node_name: str, phase: GraphPhase) -> str:
+    if phase is GraphPhase.CANCELLED:
+        return "CANCELLED"
+    routes = {
+        ("load_context", GraphPhase.PLANNING): "PLAN",
+        ("plan", GraphPhase.INVESTIGATING): "INVESTIGATE",
+        ("plan", GraphPhase.HUMAN_HANDOFF): "HANDOFF",
+        ("execute_read_tools", GraphPhase.INVESTIGATING): "PERSIST",
+        ("persist_evidence", GraphPhase.HYPOTHESIS): "HYPOTHESIS",
+        ("hypothesis", GraphPhase.EVIDENCE_REVIEW): "GATE",
+        ("evidence_gate", GraphPhase.COMPLETE): "COMPLETE",
+        ("evidence_gate", GraphPhase.PLANNING): "REPLAN",
+        ("evidence_gate", GraphPhase.HUMAN_HANDOFF): "HANDOFF",
+        ("human_handoff", GraphPhase.HUMAN_HANDOFF): "END",
+    }
+    return routes.get((node_name, phase), "INVALID")
 
 
 def node_operation_id(state: DiagnosisGraphState, node_name: str) -> str:

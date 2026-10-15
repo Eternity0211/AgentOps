@@ -168,6 +168,14 @@ the same versioned deployment marker with environment and UTC observation time; 
 failure cannot change deployment state or recovery outcomes. See
 [simulator observability](docs/OBSERVABILITY.md) for the exact signal vocabulary.
 
+The first control-plane observability hardening batch adds a versioned
+[content-free operation contract](docs/CONTROL_PLANE_OBSERVABILITY.md) and an isolated OpenTelemetry
+adapter for correlated Spans/logs, operation latency, model errors/tokens/integer cost, and Tool
+Gateway attempts/retries. Diagnosis graph nodes/routes, the deterministic Evidence Gate boundary,
+model-call persistence, and tool validation/dispatch now have fail-open injection hooks. Process
+ownership plus checkpoint, lease, approval, recovery, verification, failure-route, and explicit
+compensation-guard instrumentation remain tracked sub-batches; no complete Phase 11 claim is made.
+
 ## Why this project exists
 
 - Shorten time to diagnose microservice failures.
@@ -390,6 +398,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Local Compose foundation](docs/COMPOSE.md)
 - [Simulator service contracts](docs/SIMULATOR_SERVICES.md)
 - [Simulator observability baseline](docs/OBSERVABILITY.md)
+- [Control-plane observability contract](docs/CONTROL_PLANE_OBSERVABILITY.md)
 - [Deterministic fault control](docs/FAULT_INJECTION.md)
 - [Evaluation-only Ground Truth](docs/GROUND_TRUTH.md)
 - [Phase 1 live verification](docs/PHASE_1_VERIFICATION.md)

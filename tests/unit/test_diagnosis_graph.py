@@ -9,11 +9,18 @@ from typing import Any, cast
 import pytest
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.errors import NodeCancelledError
 from langgraph.runtime import Runtime
 from langgraph.types import Command
 from pydantic import ValidationError
 
-from agentops_incident_commander.application import ToolGatewayError
+from agentops_incident_commander.application import (
+    NOOP_CONTROL_PLANE_OBSERVER,
+    ControlPlaneComponent,
+    ControlPlaneObservation,
+    ControlPlaneOutcome,
+    ToolGatewayError,
+)
 from agentops_incident_commander.domain import EvidenceSourceType, InvalidDomainValueError
 from agentops_incident_commander.infrastructure import (
     MockModelMalformedOutput,
@@ -154,6 +161,14 @@ class Clock:
         return NOW + timedelta(seconds=self.calls)
 
 
+class RecordingObserver:
+    def __init__(self) -> None:
+        self.observations: list[ControlPlaneObservation] = []
+
+    def record(self, observation: ControlPlaneObservation) -> None:
+        self.observations.append(observation)
+
+
 class FakeServices:
     def __init__(
         self,
@@ -232,6 +247,13 @@ class FakeServices:
         assert graph_state.phase is GraphPhase.HUMAN_HANDOFF
         self.record("human_handoff", operation_id)
         self.handoffs += 1
+
+
+class CancelledServices(FakeServices):
+    async def load_context(
+        self, graph_state: DiagnosisGraphState, *, operation_id: str
+    ) -> ContextLoadResult:
+        raise asyncio.CancelledError
 
 
 class ApprovedPrompts:
@@ -356,11 +378,19 @@ class ModelFailureServices(FakeServices):
         return await super().hypothesize(graph_state, operation_id=operation_id)
 
 
-def context(services: FakeServices, control: Any = None) -> DiagnosisRuntimeContext:
+def context(
+    services: FakeServices,
+    control: Any = None,
+    observer: Any = NOOP_CONTROL_PLANE_OBSERVER,
+) -> DiagnosisRuntimeContext:
     progress = RecordingProgress()
     if control is None:
-        return DiagnosisRuntimeContext(services, ApprovedPrompts(), progress, Clock())
-    return DiagnosisRuntimeContext(services, ApprovedPrompts(), progress, Clock(), control)
+        return DiagnosisRuntimeContext(
+            services, ApprovedPrompts(), progress, Clock(), observer=observer
+        )
+    return DiagnosisRuntimeContext(
+        services, ApprovedPrompts(), progress, Clock(), control, observer
+    )
 
 
 class StaticControl:
@@ -433,6 +463,51 @@ async def test_graph_pass_path_parallelizes_reads_and_returns_only_references() 
         "hypothesis",
         "evidence_gate",
     ]
+
+
+@pytest.mark.anyio
+async def test_graph_observes_every_node_route_and_evidence_gate_outcome() -> None:
+    services = FakeServices()
+    observer = RecordingObserver()
+
+    result = await build_diagnosis_graph().ainvoke(
+        state(), context=context(services, observer=observer)
+    )
+
+    assert result["phase"] is GraphPhase.COMPLETE
+    assert [item.subject_name for item in observer.observations] == [
+        "load_context",
+        "plan",
+        "execute_read_tools",
+        "persist_evidence",
+        "hypothesis",
+        "evidence_gate",
+    ]
+    assert [item.route for item in observer.observations] == [
+        "PLAN",
+        "INVESTIGATE",
+        "PERSIST",
+        "HYPOTHESIS",
+        "GATE",
+        "COMPLETE",
+    ]
+    assert observer.observations[-1].component is ControlPlaneComponent.EVIDENCE_GATE
+    assert observer.observations[-1].outcome is ControlPlaneOutcome.PASSED
+    assert all(item.correlation_id.value == "correlation-1" for item in observer.observations)
+
+
+@pytest.mark.anyio
+async def test_graph_observes_task_cancellation_without_changing_it() -> None:
+    observer = RecordingObserver()
+
+    with pytest.raises(NodeCancelledError):
+        await build_diagnosis_graph().ainvoke(
+            state(), context=context(CancelledServices(), observer=observer)
+        )
+
+    assert len(observer.observations) == 1
+    assert observer.observations[0].outcome is ControlPlaneOutcome.CANCELLED
+    assert observer.observations[0].route == "CANCELLED"
 
 
 def test_compiled_graph_topology_contains_only_reviewed_bounded_paths() -> None:
@@ -786,21 +861,26 @@ async def test_cancel_stops_at_each_safe_boundary_before_its_effect(cancel_at: s
 async def test_pause_interrupt_resumes_same_checkpoint_without_duplicate_effect() -> None:
     services = FakeServices()
     control = PauseAtControl()
+    observer = RecordingObserver()
     graph = build_diagnosis_graph(
         checkpointer=InMemorySaver(serde=diagnosis_checkpoint_serializer())
     )
     config: RunnableConfig = {"configurable": {"thread_id": "diagnosis-pause-resume"}}
 
-    paused = await graph.ainvoke(state(), config, context=context(services, control))
+    paused = await graph.ainvoke(state(), config, context=context(services, control, observer))
 
     assert services.operations == []
     assert paused["__interrupt__"][0].value["kind"] == "DIAGNOSIS_PAUSED"
     resumed = await graph.ainvoke(
-        Command[Any](resume={"action": "RESUME"}), config, context=context(services, control)
+        Command[Any](resume={"action": "RESUME"}),
+        config,
+        context=context(services, control, observer),
     )
     assert resumed["phase"] is GraphPhase.COMPLETE
     assert len(services.operations) == 8
     assert control.operations[0] == control.operations[1]
+    assert observer.observations[0].outcome is ControlPlaneOutcome.PAUSED
+    assert observer.observations[0].route == "PAUSED"
 
 
 @pytest.mark.anyio

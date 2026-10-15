@@ -117,6 +117,9 @@ The repository creates or row-locks the stream claim before append, so concurren
 replays one stored link while cross-Incident rebinding or changed-content replay fails closed.
 Reads require tenant, Incident, and Correlation scope and revalidate every fingerprint plus the
 bounded single-Alert-root causation timeline described in [the correlation contract](CORRELATION.md).
+The transaction-owning workflow adapter opens a new session for each boundary, allowing an Incident
+to span checkpoints, approval waits, execution, and a verification window without retaining a
+database transaction. Deterministic event identities make a crash between boundaries replay-safe.
 
 ## Repository concurrency
 
@@ -138,7 +141,8 @@ suite verifies `upgrade -> downgrade -> upgrade`, required tables, Incident load
 service backfill refusal and success, combined tenant-scoped list filters, immediate and deferred
 cancellation persistence, and concurrent Alert ingestion from sixteen independent transactions
 followed by a replay storm. It also verifies correlation-ledger migration, eight-component round
-trip, concurrent exact replay, scope isolation, and fingerprint-tamper refusal. Unit tests retain
+trip, transaction-owned concurrent exact replay, scope isolation, and fingerprint-tamper refusal.
+Unit tests retain
 fail-closed coverage for defensive paths that valid
 foreign keys and locks should make unreachable.
 

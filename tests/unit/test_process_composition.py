@@ -6,15 +6,30 @@ import asyncio
 import inspect
 import signal
 from collections.abc import Coroutine
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from agentops_incident_commander.apps import api, config, worker
+from agentops_incident_commander.apps.correlation import (
+    IncidentCorrelationRuntime,
+    compose_incident_correlation_runtime,
+)
+from agentops_incident_commander.infrastructure.persistence import PostgresCorrelationLinkStore
+from agentops_incident_commander.workflows import IncidentCorrelationWorkflow
 
 DATABASE_URL = "postgresql+asyncpg://agentops:local-only@postgres/agentops"
+
+
+def test_worker_composes_transaction_owning_correlation_runtime() -> None:
+    sessions = object()
+    runtime = compose_incident_correlation_runtime(cast(Any, sessions))
+
+    assert isinstance(runtime, IncidentCorrelationRuntime)
+    assert isinstance(runtime.workflow, IncidentCorrelationWorkflow)
+    assert isinstance(runtime.workflow._store, PostgresCorrelationLinkStore)
 
 
 def test_api_settings_load_defaults_and_overrides() -> None:

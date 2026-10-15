@@ -60,13 +60,44 @@ This ledger is distinct from OpenTelemetry storage and the append-only business 
 - correlation links prove control-flow resource relationships; and
 - audit events prove actor-visible decisions and state changes.
 
-The runtime-wiring batch must append links at the eight authoritative component boundaries. Until
-that integration and its full-chain tests pass, the parent Phase 11 TODO remains open.
+## Runtime boundary workflow
+
+`IncidentCorrelationWorkflow` is the deterministic, framework-independent coordinator for the
+eight authoritative boundaries. It does not execute a tool, call a model, approve a proposal,
+mutate a service, or declare recovery. It accepts only the resulting typed authoritative objects:
+
+- a normalized `Alert` and tenant-matched `Incident` establish the root and ownership binding;
+- a `DiagnosisGraphState` must carry the current Correlation ID and the preceding ledger event as
+  its Causation ID;
+- a successful `ToolCallResult` must exactly match its scoped `ToolCallRequest`, whose Causation ID
+  names the preceding ledger event;
+- a successful terminal `ModelCallTrace` must match tenant, Incident, Correlation, and preceding
+  Causation identity;
+- the Approval must be `APPROVED`, the ActionExecution must be `SUCCEEDED`, and the Verification
+  decision must bind that exact execution.
+
+Graph, Tool, and Model events may repeat during bounded investigation and replanning. Approval is
+refused until at least one of each exists; after Approval, only Execution and then Verification are
+legal. Verification completes the chain but its PASS/FAIL outcome remains authoritative only to the
+existing deterministic routers.
+
+Event IDs are deterministically derived from schema, tenant, Incident, Correlation, component, and
+resource identity. Retries therefore address the same immutable event. Authoritative occurrence
+times and per-boundary W3C Trace IDs remain fingerprinted, so replay with a substituted time or
+Trace ID fails closed. A cursor contains only the verified content-free timeline; `resume()` rebuilds
+it from PostgreSQL after worker replacement and revalidates the runtime order.
+
+`PostgresCorrelationLinkStore` owns one short transaction per append/read, and the worker
+composition root exposes the workflow without holding a transaction over the long-lived Incident.
+Starting is crash-safe: a retry replays the deterministic Alert root before adding the Incident
+binding if a worker stopped between those two commits.
 
 ## Verification
 
 Unit tests cover Trace ID wire validation, typed identities, canonical fingerprints, bounded size,
 single-root causation, strict ordering, scope isolation, duplicates, missing components, and full
-eight-component reconstruction. PostgreSQL integration tests cover migration presence, round trip,
-exact replay, concurrent duplicate delivery, one-Incident ownership, cross-tenant read refusal, and
-stored-fingerprint tamper detection.
+eight-component reconstruction. Workflow tests cover typed boundary admission, repeated
+investigation events, safety-chain ordering, deterministic replay, completion, and crash resume.
+PostgreSQL integration tests cover migration presence, round trip, transaction-owned concurrent
+duplicate delivery, one-Incident ownership, cross-tenant read refusal, and stored-fingerprint
+tamper detection.

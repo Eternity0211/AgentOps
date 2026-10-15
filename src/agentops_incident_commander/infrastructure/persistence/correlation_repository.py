@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from agentops_incident_commander.domain import (
     CORRELATION_LINK_SCHEMA_VERSION,
@@ -179,3 +179,25 @@ class CorrelationLinkRepository:
             )
         )
         return int(value or 0)
+
+
+class PostgresCorrelationLinkStore:
+    """Transaction-owning workflow adapter safe across long-lived Incident processing."""
+
+    def __init__(self, sessions: async_sessionmaker[AsyncSession]) -> None:
+        self._sessions = sessions
+
+    async def append(self, link: CorrelationLink) -> CorrelationLink:
+        async with self._sessions.begin() as session:
+            return await CorrelationLinkRepository(session).append(link)
+
+    async def by_correlation(
+        self,
+        tenant_id: TenantId,
+        incident_id: IncidentId,
+        correlation_id: CorrelationId,
+    ) -> CorrelationTimeline:
+        async with self._sessions.begin() as session:
+            return await CorrelationLinkRepository(session).by_correlation(
+                tenant_id, incident_id, correlation_id
+            )

@@ -235,9 +235,9 @@ Exit: an operator can understand and safely control a full incident without the 
 
 ## Phase 11 — Dual-layer observability and audit hardening
 
-- [ ] Standardize trace/correlation/causation IDs across alert, incident, graph, tool, model, approval, execution, and verification.
+- [x] Standardize trace/correlation/causation IDs across alert, incident, graph, tool, model, approval, execution, and verification.
   - [x] Define the versioned typed identity/link/timeline contract and concurrency-safe, tenant/Incident-scoped immutable PostgreSQL correlation ledger.
-  - [ ] Wire all eight authoritative runtime boundaries and prove complete reconstruction, propagation, replay, and refusal paths.
+  - [x] Wire all eight authoritative runtime boundaries and prove complete reconstruction, propagation, replay, and refusal paths.
 - [ ] Instrument diagnosed-system service metrics/logs/traces and deployment markers.
 - [ ] Instrument graph nodes/routes, model latency/errors/tokens/cost, tool calls/retries, evidence gate, checkpoints, jobs/leases, approvals, recovery executions, verification, failure routes, and compensation.
 - [ ] Create dashboards and actionable alerts for both observability layers.

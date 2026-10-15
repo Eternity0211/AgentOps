@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
-from typing import cast
+from typing import Any, cast
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -30,6 +30,7 @@ from agentops_incident_commander.infrastructure.persistence import (
     CorrelationLinkRepository,
     CorrelationLinkRow,
     CorrelationStreamRow,
+    PostgresCorrelationLinkStore,
     correlation_link_from_row,
 )
 
@@ -87,6 +88,25 @@ def session_with(
     ]
     session.add = Mock()
     return session
+
+
+class SessionContext:
+    def __init__(self, session: AsyncMock) -> None:
+        self.session = session
+
+    async def __aenter__(self) -> AsyncMock:
+        return self.session
+
+    async def __aexit__(self, *_: object) -> None:
+        return None
+
+
+class SessionFactory:
+    def __init__(self, *sessions: AsyncMock) -> None:
+        self.sessions = iter(sessions)
+
+    def begin(self) -> SessionContext:
+        return SessionContext(next(self.sessions))
 
 
 def test_row_hydration_handles_parent_and_detects_tamper() -> None:
@@ -187,3 +207,16 @@ async def test_count_normalizes_database_scalar() -> None:
 
     assert await repository.count(TenantId("tenant-1"), CorrelationId("correlation-1")) == 3
     assert await repository.count(TenantId("tenant-1"), CorrelationId("correlation-1")) == 0
+
+
+@pytest.mark.anyio
+async def test_transaction_owning_store_appends_and_reads_across_sessions() -> None:
+    item = link()
+    append_session = session_with(scalar_values=["incident-1", stream(), None], scalar_lists=[[]])
+    read_session = session_with(scalar_values=[stream()], scalar_lists=[[row(item)]])
+    store = PostgresCorrelationLinkStore(cast(Any, SessionFactory(append_session, read_session)))
+
+    assert await store.append(item) == item
+    assert (
+        await store.by_correlation(item.tenant_id, item.incident_id, item.correlation_id)
+    ).links == (item,)

@@ -9,6 +9,12 @@ from .approval_graph import (
     await_approval_node,
     build_approval_graph,
 )
+from .correlation import (
+    CORRELATION_WORKFLOW_SCHEMA_VERSION,
+    CorrelationCursor,
+    CorrelationLinkStore,
+    IncidentCorrelationWorkflow,
+)
 from .diagnosis import (
     DIAGNOSIS_PLAN_SCHEMA_VERSION,
     DIAGNOSIS_REPORT_SCHEMA_VERSION,
@@ -100,6 +106,7 @@ from .state import (
 
 __all__ = [
     "APPROVAL_GRAPH_STATE_SCHEMA_VERSION",
+    "CORRELATION_WORKFLOW_SCHEMA_VERSION",
     "DIAGNOSIS_GRAPH_STATE_SCHEMA_VERSION",
     "DIAGNOSIS_NODE_NAMES",
     "DIAGNOSIS_PLAN_SCHEMA_VERSION",
@@ -123,6 +130,8 @@ __all__ = [
     "ApprovalWaitState",
     "ContextLoadResult",
     "ContinueDiagnosisControl",
+    "CorrelationCursor",
+    "CorrelationLinkStore",
     "CounterEvidenceTreatment",
     "DiagnosisControlPort",
     "DiagnosisDisposition",
@@ -143,6 +152,7 @@ __all__ = [
     "GraphPromptReference",
     "GraphStateMigrationRegistry",
     "HypothesisNodeResult",
+    "IncidentCorrelationWorkflow",
     "InvestigationPlan",
     "InvestigationPlanProgress",
     "InvestigationStep",

@@ -154,8 +154,10 @@ Phase 11 begins with the versioned [trace, correlation, and causation contract](
 It defines strict nonzero W3C Trace IDs, one tenant/Incident-owned Correlation stream, resolvable
 event-level Causation, and the closed Alert-to-verification component vocabulary. A concurrency-safe
 PostgreSQL ledger now persists content-free links with exact replay, scope isolation, canonical
-fingerprint verification, and tamper detection. Runtime boundary wiring remains open, so this
-foundation does not yet claim complete end-to-end reconstruction.
+fingerprint verification, and tamper detection. A worker-owned deterministic workflow now admits
+only typed authoritative Alert, Incident, graph, tool, model, Approval, successful execution, and
+bound verification records; it enforces causation and safety-chain order, supports repeated bounded
+investigation events, and resumes from short transaction-owned PostgreSQL operations.
 
 ## Why this project exists
 

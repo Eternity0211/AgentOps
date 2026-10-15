@@ -211,6 +211,13 @@ same-stream parent integrity, exact replay, and canonical fingerprint checks. Op
 the timing/telemetry layer, while AuditEvent remains the actor and state-change record; neither is
 silently substituted for the durable correlation ledger.
 
+A deterministic worker-owned correlation workflow observes typed authoritative boundary results;
+it never performs their effects. Alert and Incident establish the chain, graph/tool/model events
+may repeat during bounded investigation, and Approval cannot enter the chain until all three are
+present. Only the ordered Approval, successful Execution, and bound Verification tail can complete
+the timeline. Each operation uses a short PostgreSQL transaction and can resume by Correlation ID
+after worker replacement.
+
 After the complete Phase 9 safety gate, the worker composition root may explicitly enable the
 single `rollback_service` route. The setting is false by default and the disabled path exits before
 preflight or effects. The enabled composition accepts only a server-injected typed deployment

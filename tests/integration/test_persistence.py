@@ -246,6 +246,7 @@ from agentops_incident_commander.infrastructure.persistence import (
     OutboxEventRow,
     OutboxRepository,
     PostgresActionExecutionStore,
+    PostgresCorrelationLinkStore,
     PostgresDiagnosisProgressRecorder,
     PostgresFailedHealthVerificationRouter,
     PostgresLifecycleActionExecutionStore,
@@ -743,6 +744,7 @@ async def test_correlation_ledger_serializes_concurrent_exact_replay(engine: Asy
     """Concurrent duplicate delivery creates one stream and one immutable root link."""
     await add_incident(engine, "incident-correlation-race")
     sessions = async_sessionmaker(engine, expire_on_commit=False)
+    store = PostgresCorrelationLinkStore(sessions)
     root = correlation_link(
         CorrelationComponent.ALERT,
         30,
@@ -752,8 +754,7 @@ async def test_correlation_ledger_serializes_concurrent_exact_replay(engine: Asy
     )
 
     async def append() -> CorrelationLink:
-        async with sessions.begin() as session:
-            return await CorrelationLinkRepository(session).append(root)
+        return await store.append(root)
 
     assert tuple(await asyncio.gather(append(), append())) == (root, root)
     async with sessions.begin() as session:

@@ -5,7 +5,11 @@ from .action_execution_store import (
     PostgresActionExecutionStore,
     PostgresLifecycleActionExecutionStore,
 )
-from .correlation_repository import CorrelationLinkRepository, correlation_link_from_row
+from .correlation_repository import (
+    CorrelationLinkRepository,
+    PostgresCorrelationLinkStore,
+    correlation_link_from_row,
+)
 from .diagnosis_progress import (
     PostgresDiagnosisProgressRecorder,
     diagnosis_progress_from_row,
@@ -111,6 +115,7 @@ __all__ = [
     "OutboxEventRow",
     "OutboxRepository",
     "PostgresActionExecutionStore",
+    "PostgresCorrelationLinkStore",
     "PostgresDiagnosisProgressRecorder",
     "PostgresFailedHealthVerificationRouter",
     "PostgresLifecycleActionExecutionStore",

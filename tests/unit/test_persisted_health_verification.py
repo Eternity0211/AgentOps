@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import replace
 from datetime import timedelta
 from types import SimpleNamespace
@@ -12,6 +13,10 @@ import test_live_health_verification_collection as live
 from test_health_verification import execution
 
 import agentops_incident_commander.infrastructure.persisted_health_verification as subject
+from agentops_incident_commander.application import (
+    ControlPlaneObservation,
+    ControlPlaneOutcome,
+)
 from agentops_incident_commander.domain import (
     ActionExecution,
     ActionExecutionStatus,
@@ -22,6 +27,8 @@ from agentops_incident_commander.domain import (
     AuditEventId,
     CorrelationId,
     HealthVerificationDecision,
+    HealthVerificationOutcome,
+    HealthVerificationReasonCode,
     InvalidDomainValueError,
     OpaqueIdentifier,
     Principal,
@@ -148,6 +155,25 @@ class Collector:
         return self.result
 
 
+class RaisingCollector:
+    def __init__(self, error: BaseException) -> None:
+        self.error = error
+
+    async def collect(self, _: object) -> Any:
+        raise self.error
+
+
+class RecordingObserver:
+    def __init__(self, *, fail: bool = False) -> None:
+        self.fail = fail
+        self.values: list[ControlPlaneObservation] = []
+
+    def record(self, value: ControlPlaneObservation) -> None:
+        if self.fail:
+            raise RuntimeError("telemetry unavailable")
+        self.values.append(value)
+
+
 def verifier(
     collected: object,
     storage: Storage,
@@ -155,10 +181,12 @@ def verifier(
     request_value: object | None = None,
     decision_id: object | None = None,
     audit_id: object | None = None,
+    observer: RecordingObserver | None = None,
+    collector_value: object | None = None,
 ) -> PostgresPersistedHealthVerifier:
     request = live.request() if request_value is None else request_value
     return PostgresPersistedHealthVerifier(
-        cast(Any, Collector(collected)),
+        cast(Any, Collector(collected) if collector_value is None else collector_value),
         storage,
         cast(Any, Sessions()),
         request_factory=lambda _: cast(Any, request),
@@ -170,6 +198,7 @@ def verifier(
             Any, AuditEventId("audit-persisted-live") if audit_id is None else audit_id
         ),
         clock=lambda: live.NOW + timedelta(seconds=62),
+        observer=RecordingObserver() if observer is None else observer,
     )
 
 
@@ -190,12 +219,17 @@ async def collected() -> CollectedHealthVerification:
 async def test_persists_resolves_records_and_replays() -> None:
     bundle = await collected()
     storage = Storage()
-    service = verifier(bundle, storage)
+    observer = RecordingObserver()
+    service = verifier(bundle, storage, observer=observer)
     result = await service.verify(
         completed_execution(), principal=live.PRINCIPAL, correlation_id=CorrelationId("corr")
     )
     assert VerificationStore.recorded == result
     assert len(EvidenceStore.values) == 5
+    assert [value.outcome for value in observer.values] == [
+        ControlPlaneOutcome.STARTED,
+        ControlPlaneOutcome.PASSED,
+    ]
 
     VerificationStore.existing = (bundle.observation, result)
     assert (
@@ -206,6 +240,84 @@ async def test_persists_resolves_records_and_replays() -> None:
         )
         == result
     )
+    assert observer.values[-1].outcome is ControlPlaneOutcome.REPLAYED
+    assert observer.values[-1].result_code == "REPLAY_PASS"
+
+
+@pytest.mark.anyio
+async def test_fail_timeout_and_observer_failure_remain_non_authoritative(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bundle = await collected()
+    action = completed_execution()
+    passed = await verifier(bundle, Storage()).verify(
+        action,
+        principal=live.PRINCIPAL,
+        correlation_id=CorrelationId("corr-pass-template"),
+    )
+    EvidenceStore.values = {}
+    VerificationStore.existing = None
+    failed = replace(
+        passed,
+        outcome=HealthVerificationOutcome.FAIL,
+        reasons=(HealthVerificationReasonCode.P95_LATENCY_ABOVE_LIMIT,),
+    )
+
+    async def fail_decision(*_: object, **__: object) -> object:
+        return SimpleNamespace(decision=failed)
+
+    monkeypatch.setattr(subject, "evaluate_evidence_bound_health_verification", fail_decision)
+    failed_observer = RecordingObserver()
+    result = await verifier(bundle, Storage(), observer=failed_observer).verify(
+        action,
+        principal=live.PRINCIPAL,
+        correlation_id=CorrelationId("corr-fail"),
+    )
+    assert result.outcome is HealthVerificationOutcome.FAIL
+    assert failed_observer.values[-1].outcome is ControlPlaneOutcome.FAILED
+    assert failed_observer.values[-1].result_code == "DECISION_FAIL"
+
+    timeout_observer = RecordingObserver()
+    with pytest.raises(TimeoutError):
+        await verifier(
+            bundle,
+            Storage(),
+            observer=timeout_observer,
+            collector_value=RaisingCollector(TimeoutError("secret backend detail")),
+        ).verify(
+            action,
+            principal=live.PRINCIPAL,
+            correlation_id=CorrelationId("corr-timeout"),
+        )
+    assert timeout_observer.values[-1].outcome is ControlPlaneOutcome.TIMED_OUT
+    assert timeout_observer.values[-1].result_code == "COLLECTION_TIMEOUT"
+    assert all("secret" not in repr(value) for value in timeout_observer.values)
+
+    cancelled_observer = RecordingObserver()
+    with pytest.raises(asyncio.CancelledError):
+        await verifier(
+            bundle,
+            Storage(),
+            observer=cancelled_observer,
+            collector_value=RaisingCollector(asyncio.CancelledError()),
+        ).verify(
+            action,
+            principal=live.PRINCIPAL,
+            correlation_id=CorrelationId("corr-cancelled"),
+        )
+    assert cancelled_observer.values[-1].outcome is ControlPlaneOutcome.CANCELLED
+
+    VerificationStore.existing = (bundle.observation, passed)
+    replay = await verifier(
+        bundle,
+        Storage(),
+        observer=RecordingObserver(fail=True),
+    ).verify(
+        action,
+        principal=live.PRINCIPAL,
+        correlation_id=CorrelationId("corr-observer-failure"),
+    )
+    assert replay == passed
 
 
 @pytest.mark.anyio

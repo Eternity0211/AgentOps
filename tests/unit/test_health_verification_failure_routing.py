@@ -11,6 +11,10 @@ from test_health_verification import decision, observation
 from test_remediation_schemas import proposal
 
 from agentops_incident_commander.application import (
+    ControlPlaneComponent,
+    ControlPlaneObservation,
+    ControlPlaneOperation,
+    ControlPlaneOutcome,
     FailedHealthVerificationRouter,
     VerificationFailureDecision,
     VerificationFailureOutcome,
@@ -101,6 +105,17 @@ class Store:
         ).incident
 
 
+class RecordingObserver:
+    def __init__(self, *, fail: bool = False) -> None:
+        self.fail = fail
+        self.values: list[ControlPlaneObservation] = []
+
+    def record(self, value: ControlPlaneObservation) -> None:
+        if self.fail:
+            raise RuntimeError("telemetry unavailable")
+        self.values.append(value)
+
+
 def test_failure_decision_consumes_one_bounded_attempt_then_hands_off() -> None:
     failed = failed_decision()
     remediation = scoped_proposal()
@@ -169,10 +184,12 @@ def test_failure_decision_invariants_reject_inconsistent_state_and_budget() -> N
 async def test_failure_router_emits_bound_non_compensable_route() -> None:
     failed = failed_decision()
     store = Store((observation(), failed))
+    observer = RecordingObserver()
     router = FailedHealthVerificationRouter(
         store,
         clock=lambda: NOW,
         audit_event_id_factory=lambda: AuditEventId("audit-verification-failure"),
+        observer=observer,
     )
     incident = await router.route(
         failed.id,
@@ -189,6 +206,65 @@ async def test_failure_router_emits_bound_non_compensable_route() -> None:
     assert audit.request_hash == failed.fingerprint
     assert audit.result_hash == route.fingerprint
     assert audit.type == "health.verification_failed"
+    assert [value.component for value in observer.values] == [
+        ControlPlaneComponent.FAILURE_ROUTE,
+        ControlPlaneComponent.REVERSIBILITY_GUARD,
+    ]
+    assert [value.operation for value in observer.values] == [
+        ControlPlaneOperation.VERIFICATION_FAILURE_ROUTE,
+        ControlPlaneOperation.FUTURE_INVERSE_GUARD,
+    ]
+    assert [value.outcome for value in observer.values] == [
+        ControlPlaneOutcome.RETRYING,
+        ControlPlaneOutcome.BLOCKED,
+    ]
+    assert observer.values[-1].result_code == "KNOWN_FAULTY_VERSION_REDEPLOY_BLOCKED"
+
+
+@pytest.mark.anyio
+async def test_handoff_route_and_observer_failure_preserve_authoritative_state() -> None:
+    failed = failed_decision()
+    handoff = scoped_proposal(
+        failure_handling=RemediationFailureHandling(
+            route=RemediationFailureRoute.HUMAN_HANDOFF,
+            max_rediagnosis_attempts=0,
+        )
+    )
+    store = Store((observation(), failed))
+    observer = RecordingObserver()
+    incident = await FailedHealthVerificationRouter(
+        store,
+        clock=lambda: NOW,
+        audit_event_id_factory=lambda: AuditEventId("audit-verification-handoff"),
+        observer=observer,
+    ).route(
+        failed.id,
+        failed.incident_id,
+        handoff,
+        used_rediagnosis_attempts=0,
+        principal=operator(),
+        correlation_id=CorrelationId("correlation-verification-handoff"),
+    )
+    assert incident.state is IncidentState.NEEDS_HUMAN
+    assert observer.values[0].outcome is ControlPlaneOutcome.HANDED_OFF
+    assert observer.values[0].route == "NEEDS_HUMAN"
+
+    fail_open_store = Store((observation(), failed))
+    fail_open = await FailedHealthVerificationRouter(
+        fail_open_store,
+        clock=lambda: NOW,
+        audit_event_id_factory=lambda: AuditEventId("audit-verification-fail-open"),
+        observer=RecordingObserver(fail=True),
+    ).route(
+        failed.id,
+        failed.incident_id,
+        handoff,
+        used_rediagnosis_attempts=0,
+        principal=operator(),
+        correlation_id=CorrelationId("correlation-verification-fail-open"),
+    )
+    assert fail_open.state is IncidentState.NEEDS_HUMAN
+    assert fail_open_store.call is not None
 
 
 @pytest.mark.anyio

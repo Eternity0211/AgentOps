@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -38,6 +39,17 @@ from agentops_incident_commander.workflows import (
     RecoveryAction,
     RemediationFailureRoute,
     RemediationProposal,
+)
+
+from .control_plane_observability import (
+    NOOP_CONTROL_PLANE_OBSERVER,
+    ControlPlaneComponent,
+    ControlPlaneObservation,
+    ControlPlaneObserver,
+    ControlPlaneOperation,
+    ControlPlaneOutcome,
+    safely_record,
+    utc_observation_time,
 )
 
 HEALTH_VERIFICATION_FAILURE_AUDIT_SCHEMA_VERSION: Final = "health_verification_failure/v1"
@@ -174,10 +186,12 @@ class FailedHealthVerificationRouter:
         *,
         clock: Callable[[], datetime],
         audit_event_id_factory: Callable[[], AuditEventId],
+        observer: ControlPlaneObserver = NOOP_CONTROL_PLANE_OBSERVER,
     ) -> None:
         self._store = store
         self._clock = clock
         self._audit_event_id_factory = audit_event_id_factory
+        self._observer = observer
 
     async def route(
         self,
@@ -189,6 +203,7 @@ class FailedHealthVerificationRouter:
         principal: Principal | None,
         correlation_id: CorrelationId,
     ) -> Incident:
+        started_ns = time.monotonic_ns()
         authenticated = require_authenticated(principal)
         actor = require_permission(
             authenticated,
@@ -237,6 +252,68 @@ class FailedHealthVerificationRouter:
             decision.fingerprint,
             route.fingerprint,
         )
-        return await self._store.route_failure(
+        incident = await self._store.route_failure(
             decision, proposal, route, metadata=metadata, audit_event=audit
+        )
+        duration_ms = max(0, (time.monotonic_ns() - started_ns) // 1_000_000)
+        route_name = route.outcome.value
+        self._observe(
+            decision,
+            proposal,
+            component=ControlPlaneComponent.FAILURE_ROUTE,
+            operation=ControlPlaneOperation.VERIFICATION_FAILURE_ROUTE,
+            outcome=(
+                ControlPlaneOutcome.RETRYING
+                if route.outcome is VerificationFailureOutcome.REDIAGNOSE
+                else ControlPlaneOutcome.HANDED_OFF
+            ),
+            correlation_id=correlation_id,
+            duration_ms=duration_ms,
+            route=route_name,
+            result_code=route_name,
+        )
+        self._observe(
+            decision,
+            proposal,
+            component=ControlPlaneComponent.REVERSIBILITY_GUARD,
+            operation=ControlPlaneOperation.FUTURE_INVERSE_GUARD,
+            outcome=ControlPlaneOutcome.BLOCKED,
+            correlation_id=correlation_id,
+            duration_ms=duration_ms,
+            route=route_name,
+            result_code="KNOWN_FAULTY_VERSION_REDEPLOY_BLOCKED",
+        )
+        return incident
+
+    def _observe(
+        self,
+        decision: HealthVerificationDecision,
+        proposal: RemediationProposal,
+        *,
+        component: ControlPlaneComponent,
+        operation: ControlPlaneOperation,
+        outcome: ControlPlaneOutcome,
+        correlation_id: CorrelationId,
+        duration_ms: int,
+        route: str,
+        result_code: str,
+    ) -> None:
+        safely_record(
+            self._observer,
+            ControlPlaneObservation(
+                component=component,
+                operation=operation,
+                outcome=outcome,
+                occurred_at=utc_observation_time(),
+                tenant_id=decision.tenant_id,
+                incident_id=decision.incident_id,
+                correlation_id=correlation_id,
+                causation_id=CausationId(decision.id.value),
+                operation_id=decision.id,
+                duration_ms=duration_ms,
+                route=route,
+                result_code=result_code,
+                subject_name="rollback_service",
+                subject_version=proposal.schema_version,
+            ),
         )

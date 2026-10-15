@@ -137,6 +137,17 @@ redispatch: a later identical delivery observes the durable `STARTED` record and
 That conservative result remains available for the later deterministic failure-routing and stale
 execution recovery policy; the known faulty version is never inferred as a compensation target.
 
+## Content-free execution observations
+
+The Executor accepts an optional fail-open control-plane observer. Its operation identity is the
+request idempotency key, while tenant, Incident, correlation, and causation remain typed fields.
+It records a start plus one stable result for capability refusal, durable success, confirmed
+failure, timeout, uncertainty/handoff, exact replay, cancellation, or fail-closed infrastructure
+failure. Durable classifications are observed only after claim/replay or terminal persistence;
+the observer receives no Approval content, target reference, deployment version, Artifact content,
+provider result, exception text, or credential. Observer failure cannot alter capability checks,
+preflight, snapshots, locks, dispatch, idempotency, audit, or Incident transitions.
+
 ## Verification
 
 Unit tests cover every lifecycle outcome, immutable/versioned transitions, canonical fingerprint
@@ -162,7 +173,9 @@ substitution refusal.
 Executor tests prove fixed preflight/claim/dispatch/finish ordering, disabled and rejected
 pre-effect refusal, terminal classification persistence, cancellation and finish-failure replay
 safety, atomic replay auditing, and eight-way PostgreSQL duplicate delivery with exactly one
-adapter dispatch. Together with Approval lifecycle/graph tests, the Phase 8 exit matrix covers
+adapter dispatch. They also prove content-free observations for every terminal classification,
+capability refusal, timeout, replay, and cancellation, including fail-open observer behavior.
+Together with Approval lifecycle/graph tests, the Phase 8 exit matrix covers
 concurrent approval, rejection and lazy expiry routing, successful mutation classification,
 terminal replay, duplicate delivery, adapter timeout, unauthorized roles, and attempts to bypass
 Incident, Evidence Gate, Policy, Approval, target-resolution, or capability controls. The runtime

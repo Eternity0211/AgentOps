@@ -243,7 +243,7 @@ Exit: an operator can understand and safely control a full incident without the 
   - [x] Define the versioned content-free control-plane observation contract and bounded OpenTelemetry traces, metrics, logs, model-usage, and tool-retry adapter.
   - [x] Add fail-open observation hooks for every Diagnosis graph node/route, model-call lifecycle, Tool Gateway attempt/retry/refusal/timeout, and deterministic Evidence Gate route.
   - [x] Instrument PostgreSQL checkpoints, jobs/leases, and approval lifecycle/resume boundaries.
-  - [ ] Instrument recovery executions, deterministic verification, failure routes, and explicit compensation-guard outcomes.
+  - [x] Instrument recovery executions, deterministic verification, failure routes, and explicit compensation-guard outcomes.
   - [ ] Wire one process-owned observer through API/worker compositions and prove correlated end-to-end success, refusal, retry, pause/resume, and failure signals.
 - [ ] Create dashboards and actionable alerts for both observability layers.
 - [ ] Add structured logging schema, redaction, payload limits, and no-secret telemetry tests.

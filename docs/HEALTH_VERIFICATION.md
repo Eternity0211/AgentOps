@@ -89,6 +89,21 @@ This decision describes observed post-action health only. It does not transition
 enable the real mutation route, create compensation, or redeploy the known faulty version. Those
 application routes remain separate deterministic work.
 
+## Content-free verification and failure-route observations
+
+The persisted verifier accepts an optional fail-open observer and uses the successful
+ActionExecution ID as both operation identity and causation. It records PASS or FAIL only after the
+immutable Evidence/Artifact bundle has been re-resolved and the deterministic decision and audit
+have committed. An exact stored decision is labeled replay before any collection. Collection
+timeout, cancellation, or fail-closed errors use fixed codes without signal values, Evidence
+content, Artifact bytes, query text, exception text, or credentials.
+
+After a persisted FAIL, the transaction-owning router records the actual bounded route as either
+`REDIAGNOSE` or `NEEDS_HUMAN`. It also records the explicit future-inverse guard
+`KNOWN_FAULTY_VERSION_REDEPLOY_BLOCKED`. The guard is observational proof of ADR 0005's prohibition,
+not an executable compensation feature. Both signals occur after the authoritative Incident route;
+observer failure cannot change the route, budget, or persisted decision.
+
 ## Durable verification record
 
 PostgreSQL stores each accepted observation and deterministic decision as one immutable

@@ -2,13 +2,23 @@
 
 from __future__ import annotations
 
+import asyncio
+import time
 from collections.abc import Callable
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from agentops_incident_commander.application import (
+    NOOP_CONTROL_PLANE_OBSERVER,
+    ControlPlaneComponent,
+    ControlPlaneObservation,
+    ControlPlaneObserver,
+    ControlPlaneOperation,
+    ControlPlaneOutcome,
     evaluate_evidence_bound_health_verification,
+    safely_record,
+    utc_observation_time,
 )
 from agentops_incident_commander.domain import (
     ActionExecution,
@@ -21,6 +31,7 @@ from agentops_incident_commander.domain import (
     CausationId,
     CorrelationId,
     HealthVerificationDecision,
+    HealthVerificationOutcome,
     InvalidDomainValueError,
     OpaqueIdentifier,
     Principal,
@@ -51,6 +62,7 @@ class PostgresPersistedHealthVerifier:
         decision_id_factory: Callable[[ActionExecution], OpaqueIdentifier],
         audit_event_id_factory: Callable[[], AuditEventId],
         clock: Callable[[], datetime],
+        observer: ControlPlaneObserver = NOOP_CONTROL_PLANE_OBSERVER,
     ) -> None:
         self._collector = collector
         self._artifact_storage = artifact_storage
@@ -59,6 +71,7 @@ class PostgresPersistedHealthVerifier:
         self._decision_id_factory = decision_id_factory
         self._audit_event_id_factory = audit_event_id_factory
         self._clock = clock
+        self._observer = observer
 
     async def verify(
         self,
@@ -73,6 +86,81 @@ class PostgresPersistedHealthVerifier:
             raise InvalidDomainValueError("persisted health verification inputs are invalid")
         if not isinstance(correlation_id, CorrelationId):
             raise InvalidDomainValueError("persisted health verification inputs are invalid")
+        started_ns = time.monotonic_ns()
+        self._observe(
+            execution,
+            ControlPlaneOutcome.STARTED,
+            correlation_id=correlation_id,
+            started_ns=started_ns,
+            route="COLLECT_AND_DECIDE",
+            result_code="STARTED",
+        )
+        try:
+            decision, replayed = await self._verify(
+                execution,
+                principal=principal,
+                correlation_id=correlation_id,
+            )
+        except asyncio.CancelledError:
+            self._observe(
+                execution,
+                ControlPlaneOutcome.CANCELLED,
+                correlation_id=correlation_id,
+                started_ns=started_ns,
+                route="SAFE_BOUNDARY",
+                result_code="CANCELLED",
+            )
+            raise
+        except TimeoutError:
+            self._observe(
+                execution,
+                ControlPlaneOutcome.TIMED_OUT,
+                correlation_id=correlation_id,
+                started_ns=started_ns,
+                route="FAIL_CLOSED",
+                result_code="COLLECTION_TIMEOUT",
+            )
+            raise
+        except Exception:
+            self._observe(
+                execution,
+                ControlPlaneOutcome.FAILED,
+                correlation_id=correlation_id,
+                started_ns=started_ns,
+                route="FAIL_CLOSED",
+                result_code="VERIFICATION_FAILED",
+            )
+            raise
+        self._observe(
+            execution,
+            (
+                ControlPlaneOutcome.REPLAYED
+                if replayed
+                else (
+                    ControlPlaneOutcome.PASSED
+                    if decision.outcome is HealthVerificationOutcome.PASS
+                    else ControlPlaneOutcome.FAILED
+                )
+            ),
+            correlation_id=correlation_id,
+            started_ns=started_ns,
+            route=decision.outcome.value,
+            result_code=(
+                f"REPLAY_{decision.outcome.value}"
+                if replayed
+                else f"DECISION_{decision.outcome.value}"
+            ),
+            subject_version=decision.schema_version,
+        )
+        return decision
+
+    async def _verify(
+        self,
+        execution: ActionExecution,
+        *,
+        principal: Principal | None,
+        correlation_id: CorrelationId,
+    ) -> tuple[HealthVerificationDecision, bool]:
         actor = require_authenticated(principal)
         if actor.tenant_id != execution.tenant_id:
             raise InvalidDomainValueError("health verifier principal scope is invalid")
@@ -89,7 +177,7 @@ class PostgresPersistedHealthVerifier:
             decision = existing[1]
             if decision.execution_fingerprint != execution.fingerprint:
                 raise InvalidDomainValueError("stored health verification execution differs")
-            return decision
+            return decision, True
 
         request = self._request_factory(execution)
         if not isinstance(request, HealthVerificationCollectionRequest):
@@ -209,4 +297,39 @@ class PostgresPersistedHealthVerifier:
             )
         if stored_decision != decision:  # pragma: no cover - repository contract defense
             raise InvalidDomainValueError("stored health verification decision differs")
-        return stored_decision
+        return stored_decision, False
+
+    def _observe(
+        self,
+        execution: ActionExecution,
+        outcome: ControlPlaneOutcome,
+        *,
+        correlation_id: CorrelationId,
+        started_ns: int,
+        route: str,
+        result_code: str,
+        subject_version: str = "1.0.0",
+    ) -> None:
+        safely_record(
+            self._observer,
+            ControlPlaneObservation(
+                component=ControlPlaneComponent.VERIFICATION,
+                operation=ControlPlaneOperation.HEALTH_VERIFY,
+                outcome=outcome,
+                occurred_at=utc_observation_time(),
+                tenant_id=execution.tenant_id,
+                incident_id=execution.incident_id,
+                correlation_id=correlation_id,
+                causation_id=CausationId(execution.id.value),
+                operation_id=execution.id,
+                duration_ms=(
+                    None
+                    if outcome is ControlPlaneOutcome.STARTED
+                    else max(0, (time.monotonic_ns() - started_ns) // 1_000_000)
+                ),
+                route=route,
+                result_code=result_code,
+                subject_name="health_verification",
+                subject_version=subject_version,
+            ),
+        )

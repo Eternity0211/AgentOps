@@ -12,6 +12,8 @@ import pytest
 
 from agentops_incident_commander.application import (
     AuthorizedRollbackExecution,
+    ControlPlaneObservation,
+    ControlPlaneOutcome,
     RollbackActionExecutor,
 )
 from agentops_incident_commander.domain import (
@@ -225,6 +227,17 @@ class Dispatcher:
         )
 
 
+class RecordingObserver:
+    def __init__(self, *, fail: bool = False) -> None:
+        self.fail = fail
+        self.values: list[ControlPlaneObservation] = []
+
+    def record(self, value: ControlPlaneObservation) -> None:
+        if self.fail:
+            raise RuntimeError("telemetry unavailable")
+        self.values.append(value)
+
+
 def executor(
     *,
     events: list[str] | None = None,
@@ -234,6 +247,7 @@ def executor(
     dispatcher: Dispatcher | None = None,
     execution_ids: list[object] | None = None,
     audit_ids: list[object] | None = None,
+    observer: RecordingObserver | None = None,
 ) -> tuple[RollbackActionExecutor, Preflight, Snapshots, Store, Dispatcher, list[str]]:
     recorded = [] if events is None else events
     prepared_preflight = Preflight(recorded) if preflight is None else preflight
@@ -260,6 +274,7 @@ def executor(
         execution_id_factory=lambda: cast(OpaqueIdentifier, next(generated_executions)),
         audit_event_id_factory=lambda: cast(AuditEventId, next(generated_audits)),
         clock=lambda: NOW + timedelta(seconds=1),
+        observer=RecordingObserver() if observer is None else observer,
     )
     return (
         service,
@@ -273,9 +288,17 @@ def executor(
 
 async def run(service: RollbackActionExecutor, **overrides: Any) -> ActionExecution:
     values: dict[str, Any] = {
-        "request": cast(Any, object()),
+        "request": cast(
+            Any,
+            SimpleNamespace(
+                incident_id=INCIDENT,
+                approval_id=ApprovalId("approval-executor"),
+                idempotency_key=IdempotencyKey("rollback-executor"),
+                schema_version="1.0.0",
+            ),
+        ),
         "proposal": cast(Any, object()),
-        "policy_input": cast(Any, object()),
+        "policy_input": cast(Any, SimpleNamespace(tenant_id=TENANT)),
         "policy_decision": cast(Any, object()),
         "principal": None,
         "correlation_id": CORRELATION,
@@ -287,7 +310,8 @@ async def run(service: RollbackActionExecutor, **overrides: Any) -> ActionExecut
 
 @pytest.mark.anyio
 async def test_executor_orders_durable_claim_dispatch_and_terminal_commit() -> None:
-    service, _, _, store, dispatcher, events = executor()
+    observer = RecordingObserver()
+    service, _, _, store, dispatcher, events = executor(observer=observer)
     completed = await run(service)
 
     assert completed.status is ActionExecutionStatus.SUCCEEDED
@@ -301,6 +325,12 @@ async def test_executor_orders_durable_claim_dispatch_and_terminal_commit() -> N
     assert finished_audit.request_hash != finished_audit.result_hash
     assert finished_audit.result_hash == completed.fingerprint
     assert started_audit.correlation_id == finished_audit.correlation_id == CORRELATION
+    assert [value.outcome for value in observer.values] == [
+        ControlPlaneOutcome.STARTED,
+        ControlPlaneOutcome.SUCCEEDED,
+    ]
+    assert observer.values[-1].route == "VERIFYING"
+    assert observer.values[-1].result_code == "SUCCEEDED"
 
 
 @pytest.mark.anyio
@@ -316,18 +346,27 @@ async def test_executor_persists_every_non_success_dispatch_classification(
     status: ActionExecutionStatus,
 ) -> None:
     events: list[str] = []
+    observer = RecordingObserver()
     service, _, _, store, _, _ = executor(
         events=events,
         dispatcher=Dispatcher(events, status=status),
+        observer=observer,
     )
     completed = await run(service)
     assert completed.status is status
     assert store.stored == completed
+    expected = {
+        ActionExecutionStatus.FAILED: ControlPlaneOutcome.FAILED,
+        ActionExecutionStatus.TIMED_OUT: ControlPlaneOutcome.TIMED_OUT,
+        ActionExecutionStatus.UNCERTAIN: ControlPlaneOutcome.HANDED_OFF,
+    }[status]
+    assert observer.values[-1].outcome is expected
 
 
 @pytest.mark.anyio
 async def test_terminal_retry_records_replay_without_second_dispatch() -> None:
-    service, _, _, store, dispatcher, events = executor()
+    observer = RecordingObserver()
+    service, _, _, store, dispatcher, events = executor(observer=observer)
     completed = await run(service)
     replayed = await run(service)
 
@@ -339,6 +378,8 @@ async def test_terminal_retry_records_replay_without_second_dispatch() -> None:
     assert replay_audit.target.id == completed.id
     assert replay_audit.request_hash == completed.request_fingerprint
     assert replay_audit.result_hash == completed.fingerprint
+    assert observer.values[-1].outcome is ControlPlaneOutcome.REPLAYED
+    assert observer.values[-1].result_code == "REPLAY_SUCCEEDED"
 
 
 @pytest.mark.anyio
@@ -414,6 +455,60 @@ async def test_executor_refuses_before_claim_when_any_pre_effect_boundary_fails(
             await run(service)
         assert dispatcher.calls == 0
         assert store.stored is None
+
+
+@pytest.mark.anyio
+async def test_capability_and_unexpected_failures_are_observable_without_error_payloads() -> None:
+    events: list[str] = []
+    disabled_observer = RecordingObserver()
+    disabled, _, _, _, _, _ = executor(
+        events=events,
+        dispatcher=Dispatcher(
+            events,
+            enable_error=InvalidDomainValueError("secret capability detail"),
+        ),
+        observer=disabled_observer,
+    )
+    with pytest.raises(InvalidDomainValueError):
+        await run(disabled)
+    assert disabled_observer.values[-1].outcome is ControlPlaneOutcome.REFUSED
+    assert disabled_observer.values[-1].result_code == "CAPABILITY_DISABLED"
+
+    failed_observer = RecordingObserver()
+    failed, _, _, _, _, _ = executor(
+        events=[],
+        preflight=Preflight([], error=RuntimeError("secret provider detail")),
+        observer=failed_observer,
+    )
+    with pytest.raises(RuntimeError):
+        await run(failed)
+    assert failed_observer.values[-1].outcome is ControlPlaneOutcome.FAILED
+    assert failed_observer.values[-1].result_code == "EXECUTION_FAILED"
+    assert all("secret" not in repr(value) for value in failed_observer.values)
+
+    timeout_observer = RecordingObserver()
+    timed_out, _, _, _, _, _ = executor(
+        events=[],
+        dispatcher=Dispatcher([], dispatch_error=TimeoutError("backend timeout")),
+        observer=timeout_observer,
+    )
+    with pytest.raises(TimeoutError):
+        await run(timed_out)
+    assert timeout_observer.values[-1].outcome is ControlPlaneOutcome.TIMED_OUT
+    assert timeout_observer.values[-1].result_code == "EXECUTION_TIMEOUT"
+
+
+@pytest.mark.anyio
+async def test_observer_failure_cannot_change_authoritative_execution() -> None:
+    service, _, _, store, dispatcher, _ = executor(observer=RecordingObserver(fail=True))
+    completed = await run(service)
+    assert completed.status is ActionExecutionStatus.SUCCEEDED
+    assert store.stored == completed
+    assert dispatcher.calls == 1
+
+    unscoped, _, _, _, _, _ = executor(observer=RecordingObserver(fail=True))
+    unobserved = await run(unscoped, request=object(), policy_input=object())
+    assert unobserved.status is ActionExecutionStatus.SUCCEEDED
 
 
 @pytest.mark.anyio

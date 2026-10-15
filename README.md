@@ -181,8 +181,14 @@ save, restore, miss, resume, and I/O failure are observable without exposing che
 Durable jobs now carry required tenant, Incident, workflow-run, correlation, and causation scope;
 enqueue, claim, heartbeat, retry, completion, stale-worker takeover, and terminal handoff/dead-letter
 routes emit fail-open observations. Approval request/decision/expiry and the durable approval
-interrupt/resume routes use the same contract. Recovery execution, deterministic verification,
-failure routing, the future-inverse guard, and process-owned observer lifecycle remain open.
+interrupt/resume routes use the same contract.
+
+The third control-plane batch instruments rollback execution classifications and exact replay,
+persisted deterministic verification PASS/FAIL/timeout/replay, bounded failed-verification routing,
+and the explicit block against automatically redeploying the known faulty version. Signals are
+content-free and occur after their authoritative persistence boundary; raising observers cannot
+change recovery, idempotency, verification, or Incident routing. Process-owned observer lifecycle
+and correlated end-to-end signal proofs remain open.
 
 ## Why this project exists
 

@@ -131,6 +131,38 @@ def metric_points(exporter: CapturingMetricExporter) -> dict[str, list[Any]]:
     return points
 
 
+@pytest.mark.anyio
+async def test_seeded_secret_never_crosses_control_plane_signal_boundaries() -> None:
+    secret = "sk-" + "supersecret123456"
+    spans = InMemorySpanExporter()
+    metrics = CapturingMetricExporter()
+    logs = InMemoryLogRecordExporter()  # type: ignore[no-untyped-call]
+    observer = OpenTelemetryControlPlaneObserver(
+        settings(),
+        span_exporter=spans,
+        metric_exporter=metrics,
+        log_exporter=logs,
+    )
+    observer.record(
+        observation(
+            component=ControlPlaneComponent.MODEL,
+            operation=ControlPlaneOperation.MODEL_CALL,
+            subject_name=f"provider-{secret}",
+            subject_version="model-v1",
+            model_metering=metering(),
+        )
+    )
+    await observer.shutdown()
+
+    assert secret not in str(spans.get_finished_spans())
+    assert secret not in str(logs.get_finished_logs())
+    assert secret not in str(metric_points(metrics))
+    span = spans.get_finished_spans()[0]
+    assert span.attributes is not None
+    assert span.attributes["agentops.correlation_id"] == "correlation-1"
+    assert "[REDACTED]" in str(span.attributes["agentops.subject.name"])
+
+
 @pytest.mark.parametrize(
     ("overrides", "message"),
     [

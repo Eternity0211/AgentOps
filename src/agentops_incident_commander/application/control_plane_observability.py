@@ -16,10 +16,13 @@ from agentops_incident_commander.domain import (
     InvalidDomainValueError,
     ModelMetering,
     OpaqueIdentifier,
+    StructuredLogEvent,
+    StructuredLogSeverity,
     TenantId,
     WorkflowRunId,
     as_utc,
 )
+from agentops_incident_commander.structured_logging import emit_structured_log
 
 CONTROL_PLANE_OBSERVATION_SCHEMA_VERSION = "1.0"
 _BOUNDED_COMPONENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
@@ -201,10 +204,14 @@ def safely_record(
     try:
         observer.record(observation)
     except Exception:
-        logger.warning(
-            "control_plane_observation_failed component=%s operation=%s",
-            observation.component.value,
-            observation.operation.value,
+        emit_structured_log(
+            logger,
+            StructuredLogEvent.CONTROL_PLANE_OBSERVATION_FAILED,
+            StructuredLogSeverity.WARN,
+            {
+                "agentops.component": observation.component.value,
+                "agentops.operation": observation.operation.value,
+            },
         )
 
 

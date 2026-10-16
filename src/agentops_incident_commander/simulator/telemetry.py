@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
 import re
@@ -36,6 +35,15 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import Span, SpanKind, Status, StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
+from agentops_incident_commander.domain import (
+    StructuredLogEvent,
+    StructuredLogRecord,
+    StructuredLogSeverity,
+    safe_structured_log_record,
+    sanitize_structured_log_scalar,
+)
+from agentops_incident_commander.structured_logging import emit_structured_record
+
 logger = logging.getLogger("agentops.simulator.telemetry")
 RESOURCE_VALUE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$")
 TRACE_CONTEXT_PROPAGATOR = TraceContextTextMapPropagator()
@@ -43,6 +51,12 @@ TRACE_CONTEXT_PROPAGATOR = TraceContextTextMapPropagator()
 
 def _enabled(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _safe_text(value: str) -> str:
+    sanitized, _, _ = sanitize_structured_log_scalar(value)
+    assert isinstance(sanitized, str)
+    return sanitized
 
 
 @dataclass(frozen=True, slots=True)
@@ -207,10 +221,11 @@ class SimulatorTelemetry:
         carrier: Mapping[str, str] | None = None,
     ) -> AbstractContextManager[Span]:
         """Start a server span with bounded, non-sensitive initial attributes."""
+        safe_method = _safe_text(method)
         return cast(
             AbstractContextManager[Span],
             self.tracer.start_as_current_span(
-                f"HTTP {method}",
+                f"HTTP {safe_method}",
                 kind=SpanKind.SERVER,
                 context=(
                     TRACE_CONTEXT_PROPAGATOR.extract(carrier=carrier)
@@ -218,8 +233,8 @@ class SimulatorTelemetry:
                     else None
                 ),
                 attributes={
-                    "http.request.method": method,
-                    "agentops.correlation_id": correlation_id,
+                    "http.request.method": safe_method,
+                    "agentops.correlation_id": _safe_text(correlation_id),
                 },
             ),
         )
@@ -241,16 +256,20 @@ class SimulatorTelemetry:
         result: Literal["ok", "error"] | None = None,
     ) -> None:
         """Record one downstream outcome without URLs, payloads, or exception details."""
+        safe_service = _safe_text(service)
+        safe_method = _safe_text(method)
+        safe_route = _safe_text(route)
+        safe_correlation_id = _safe_text(correlation_id)
         status = str(status_code) if status_code is not None else "transport_error"
-        request_result = (
+        request_result = _safe_text(
             result
             if result is not None
             else ("ok" if status_code is not None and status_code < 400 else "error")
         )
         attributes: dict[str, str | int] = {
-            "server.address": service,
-            "http.request.method": method,
-            "http.route": route,
+            "server.address": safe_service,
+            "http.request.method": safe_method,
+            "http.route": safe_route,
             "request.result": request_result,
         }
         if status_code is not None:
@@ -262,22 +281,24 @@ class SimulatorTelemetry:
             span.set_status(Status(StatusCode.ERROR))
         duration_ms = (time.monotonic() - started_at) * 1000
         metric_attributes = {
-            "service": service,
-            "method": method,
-            "route": route,
+            "service": safe_service,
+            "method": safe_method,
+            "route": safe_route,
             "status": status,
             "result": request_result,
         }
         self._client_count.add(1, metric_attributes)
         self._client_duration.record(duration_ms, metric_attributes)
         self._emit_log(
-            body="http_client_request",
-            severity=(SeverityNumber.INFO if request_result == "ok" else SeverityNumber.WARN),
+            event=StructuredLogEvent.HTTP_CLIENT_REQUEST,
+            severity=(
+                StructuredLogSeverity.INFO if request_result == "ok" else StructuredLogSeverity.WARN
+            ),
             attributes={
                 **attributes,
                 "service.name": self.service_name,
                 "duration_ms": duration_ms,
-                "agentops.correlation_id": correlation_id,
+                "agentops.correlation_id": safe_correlation_id,
             },
         )
 
@@ -291,55 +312,72 @@ class SimulatorTelemetry:
         correlation_id: str,
     ) -> None:
         """Record one bounded PostgreSQL or Redis operation in all three signals."""
+        safe_dependency = _safe_text(dependency)
+        safe_operation = _safe_text(operation)
+        safe_result = _safe_text(result)
+        safe_correlation_id = _safe_text(correlation_id)
         metric_attributes = {
-            "dependency": dependency,
-            "operation": operation,
-            "result": result,
+            "dependency": safe_dependency,
+            "operation": safe_operation,
+            "result": safe_result,
         }
         self._dependency_count.add(1, metric_attributes)
         self._dependency_duration.record(duration_ms, metric_attributes)
         self._emit_log(
-            body="dependency_operation",
-            severity=SeverityNumber.INFO if result == "ok" else SeverityNumber.WARN,
+            event=StructuredLogEvent.DEPENDENCY_OPERATION,
+            severity=(
+                StructuredLogSeverity.INFO if safe_result == "ok" else StructuredLogSeverity.WARN
+            ),
             attributes={
                 "service.name": self.service_name,
-                "dependency": dependency,
-                "operation": operation,
-                "result": result,
+                "dependency": safe_dependency,
+                "operation": safe_operation,
+                "result": safe_result,
                 "duration_ms": duration_ms,
-                "agentops.correlation_id": correlation_id,
+                "agentops.correlation_id": safe_correlation_id,
             },
         )
 
     def _emit_log(
         self,
         *,
-        body: str,
-        severity: SeverityNumber,
+        event: StructuredLogEvent,
+        severity: StructuredLogSeverity,
         attributes: Mapping[str, Any],
-    ) -> None:
+    ) -> StructuredLogRecord:
+        record = safe_structured_log_record(event, severity, attributes)
+        emit_structured_record(logger, record)
         if self._otel_logger is not None:
+            otel_severity = {
+                StructuredLogSeverity.DEBUG: SeverityNumber.DEBUG,
+                StructuredLogSeverity.INFO: SeverityNumber.INFO,
+                StructuredLogSeverity.WARN: SeverityNumber.WARN,
+                StructuredLogSeverity.ERROR: SeverityNumber.ERROR,
+            }[record.severity]
             self._otel_logger.emit(
-                severity_number=severity,
-                severity_text=severity.name,
-                body=body,
-                attributes=dict(attributes),
+                severity_number=otel_severity,
+                severity_text=otel_severity.name,
+                body=record.event.value,
+                attributes=record.as_dict(),
             )
+        return record
 
     def client_span(
         self, service: str, method: str, route: str, correlation_id: str
     ) -> AbstractContextManager[Span]:
         """Start an internal client span without recording a URL or request body."""
+        safe_service = _safe_text(service)
+        safe_method = _safe_text(method)
         return cast(
             AbstractContextManager[Span],
             self.tracer.start_as_current_span(
-                f"{method} {service}",
+                f"{safe_method} {safe_service}",
                 kind=SpanKind.CLIENT,
                 attributes={
-                    "server.address": service,
-                    "http.request.method": method,
-                    "http.route": route,
-                    "agentops.correlation_id": correlation_id,
+                    "server.address": safe_service,
+                    "http.request.method": safe_method,
+                    "http.route": _safe_text(route),
+                    "agentops.correlation_id": _safe_text(correlation_id),
                 },
             ),
         )
@@ -355,37 +393,34 @@ class SimulatorTelemetry:
         correlation_id: str,
     ) -> None:
         """Record the stable route, status, duration, and one safe access log."""
+        safe_method = _safe_text(method)
+        safe_route = _safe_text(route)
+        safe_correlation_id = _safe_text(correlation_id)
         attributes: dict[str, str | int] = {
-            "http.request.method": method,
-            "http.route": route,
+            "http.request.method": safe_method,
+            "http.route": safe_route,
             "http.response.status_code": status_code,
         }
-        span.update_name(f"{method} {route}")
+        span.update_name(f"{safe_method} {safe_route}")
         span.set_attributes(attributes)
         if status_code >= 500:
             span.set_status(Status(StatusCode.ERROR))
         duration_ms = (time.monotonic() - started_at) * 1000
-        metric_attributes = {"method": method, "route": route, "status": str(status_code)}
+        metric_attributes = {
+            "method": safe_method,
+            "route": safe_route,
+            "status": str(status_code),
+        }
         self._request_count.add(1, metric_attributes)
         self._request_duration.record(duration_ms, metric_attributes)
-        logger.info(
-            "http_request service=%s method=%s route=%s status=%s "
-            "duration_ms=%.3f correlation_id=%s",
-            self.service_name,
-            method,
-            route,
-            status_code,
-            duration_ms,
-            correlation_id,
-        )
         self._emit_log(
-            body="http_request",
-            severity=SeverityNumber.INFO,
+            event=StructuredLogEvent.HTTP_REQUEST,
+            severity=StructuredLogSeverity.INFO,
             attributes={
                 **attributes,
                 "service.name": self.service_name,
                 "duration_ms": duration_ms,
-                "agentops.correlation_id": correlation_id,
+                "agentops.correlation_id": safe_correlation_id,
             },
         )
 
@@ -396,10 +431,9 @@ class SimulatorTelemetry:
             "deployment.environment": self.settings.environment,
             "event.observed_at": datetime.now(UTC).isoformat(),
         }
-        logger.info(json.dumps(event_attributes, sort_keys=True))
         self._emit_log(
-            body="service.deployment.changed",
-            severity=SeverityNumber.INFO,
+            event=StructuredLogEvent.SERVICE_DEPLOYMENT_CHANGED,
+            severity=StructuredLogSeverity.INFO,
             attributes=event_attributes,
         )
 
@@ -422,7 +456,11 @@ class SimulatorTelemetry:
                 timeout=(self.settings.timeout_seconds * 3) + 1,
             )
         except TimeoutError:
-            logger.warning("telemetry_shutdown_timeout service=%s", self.service_name)
+            self._emit_log(
+                event=StructuredLogEvent.TELEMETRY_SHUTDOWN_TIMEOUT,
+                severity=StructuredLogSeverity.WARN,
+                attributes={"service.name": self.service_name},
+            )
 
 
 def create_telemetry(
@@ -432,7 +470,13 @@ def create_telemetry(
     try:
         return SimulatorTelemetry(service, TelemetrySettings.from_environment(environment))
     except Exception:
-        logger.warning("telemetry_initialization_failed service=%s", service)
+        fallback_service = f"agentops-simulator-{_safe_text(service)}"
+        record = safe_structured_log_record(
+            StructuredLogEvent.TELEMETRY_INITIALIZATION_FAILED,
+            StructuredLogSeverity.WARN,
+            {"service.name": fallback_service},
+        )
+        emit_structured_record(logger, record)
         return SimulatorTelemetry(
             service,
             TelemetrySettings(

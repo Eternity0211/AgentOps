@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import dataclass
 
 from opentelemetry import trace
+
+from agentops_incident_commander.domain import StructuredLogEvent, StructuredLogSeverity
+from agentops_incident_commander.structured_logging import emit_structured_log
 
 logger = logging.getLogger("agentops.simulator.memory")
 DEFAULT_CHUNK_BYTES = 1024 * 1024
@@ -56,5 +58,10 @@ class BoundedMemoryRetention:
             "process.memory.retention_allocations": snapshot.allocation_count,
         }
         trace.get_current_span().set_attributes(attributes)
-        logger.warning(json.dumps({"event": "memory_retention", **attributes}, sort_keys=True))
+        emit_structured_log(
+            logger,
+            StructuredLogEvent.MEMORY_RETENTION,
+            StructuredLogSeverity.WARN,
+            attributes,
+        )
         return snapshot

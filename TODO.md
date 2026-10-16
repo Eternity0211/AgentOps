@@ -246,7 +246,7 @@ Exit: an operator can understand and safely control a full incident without the 
   - [x] Instrument recovery executions, deterministic verification, failure routes, and explicit compensation-guard outcomes.
   - [x] Wire one process-owned observer through API/worker compositions and prove correlated end-to-end success, refusal, retry, pause/resume, and failure signals.
 - [x] Create dashboards and actionable alerts for both observability layers.
-- [ ] Add structured logging schema, redaction, payload limits, and no-secret telemetry tests.
+- [x] Add structured logging schema, redaction, payload limits, and no-secret telemetry tests.
 - [ ] Enforce append-only audit permissions and integrity/sequence checks; document retention/export.
 - [ ] Add audit completeness assertions for every workflow path.
 

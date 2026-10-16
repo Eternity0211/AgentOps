@@ -36,6 +36,13 @@ from agentops_incident_commander.application.control_plane_observability import 
     ControlPlaneObservation,
     ControlPlaneOutcome,
 )
+from agentops_incident_commander.domain import (
+    StructuredLogEvent,
+    StructuredLogRecord,
+    StructuredLogSeverity,
+    safe_structured_log_record,
+)
+from agentops_incident_commander.structured_logging import emit_structured_log
 
 logger = logging.getLogger("agentops.control_plane.telemetry")
 _RESOURCE_VALUE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$")
@@ -198,18 +205,29 @@ class OpenTelemetryControlPlaneObserver:
         self._tool_retries = meter.create_counter("agentops.tool.retries")
 
     def record(self, observation: ControlPlaneObservation) -> None:
+        severity = (
+            StructuredLogSeverity.ERROR
+            if observation.outcome in _ERROR_OUTCOMES
+            else StructuredLogSeverity.INFO
+        )
+        log_record = safe_structured_log_record(
+            StructuredLogEvent.CONTROL_PLANE_OPERATION,
+            severity,
+            self._span_and_log_attributes(observation),
+        )
+        attributes = log_record.as_dict()
         metric_attributes = {
             "component": observation.component.value,
             "operation": observation.operation.value,
             "outcome": observation.outcome.value,
         }
-        if observation.route is not None:
-            metric_attributes["route"] = observation.route
+        route = attributes.get("agentops.route")
+        if isinstance(route, str):
+            metric_attributes["route"] = route
         self._operations.add(1, metric_attributes)
         if observation.duration_ms is not None:
             self._duration.record(observation.duration_ms, metric_attributes)
 
-        attributes = self._span_and_log_attributes(observation)
         end_ns = int(observation.occurred_at.timestamp() * 1_000_000_000)
         duration_ns = (observation.duration_ms or 0) * 1_000_000
         span = self.tracer.start_span(
@@ -220,10 +238,10 @@ class OpenTelemetryControlPlaneObserver:
         if observation.outcome in _ERROR_OUTCOMES:
             span.set_status(Status(StatusCode.ERROR))
         with trace.use_span(span, end_on_exit=False):
-            self._emit_log(observation, attributes)
+            self._emit_log(log_record)
         span.end(end_time=end_ns)
-        self._record_model_metrics(observation)
-        self._record_tool_metrics(observation)
+        self._record_model_metrics(observation, attributes)
+        self._record_tool_metrics(observation, attributes)
 
     def _span_and_log_attributes(
         self, observation: ControlPlaneObservation
@@ -278,27 +296,32 @@ class OpenTelemetryControlPlaneObserver:
 
     def _emit_log(
         self,
-        observation: ControlPlaneObservation,
-        attributes: Mapping[str, str | int],
+        record: StructuredLogRecord,
     ) -> None:
         if self._otel_logger is None:
             return
         severity = (
-            SeverityNumber.ERROR if observation.outcome in _ERROR_OUTCOMES else SeverityNumber.INFO
+            SeverityNumber.ERROR
+            if record.severity is StructuredLogSeverity.ERROR
+            else SeverityNumber.INFO
         )
         self._otel_logger.emit(
             severity_number=severity,
             severity_text=severity.name,
-            body="control_plane.operation",
-            attributes=dict(attributes),
+            body=record.event.value,
+            attributes=record.as_dict(),
         )
 
-    def _record_model_metrics(self, observation: ControlPlaneObservation) -> None:
+    def _record_model_metrics(
+        self,
+        observation: ControlPlaneObservation,
+        attributes: Mapping[str, str | int | float | bool],
+    ) -> None:
         if observation.component is not ControlPlaneComponent.MODEL:
             return
         dimensions = {
-            "provider": observation.subject_name or "unknown",
-            "model": observation.subject_version or "unknown",
+            "provider": str(attributes.get("agentops.subject.name", "unknown")),
+            "model": str(attributes.get("agentops.subject.version", "unknown")),
             "outcome": observation.outcome.value,
         }
         if observation.outcome is ControlPlaneOutcome.STARTED:
@@ -327,12 +350,16 @@ class OpenTelemetryControlPlaneObserver:
             },
         )
 
-    def _record_tool_metrics(self, observation: ControlPlaneObservation) -> None:
+    def _record_tool_metrics(
+        self,
+        observation: ControlPlaneObservation,
+        attributes: Mapping[str, str | int | float | bool],
+    ) -> None:
         if observation.component is not ControlPlaneComponent.TOOL:
             return
         dimensions = {
-            "tool": observation.subject_name or "unknown",
-            "version": observation.subject_version or "unknown",
+            "tool": str(attributes.get("agentops.subject.name", "unknown")),
+            "version": str(attributes.get("agentops.subject.version", "unknown")),
             "outcome": observation.outcome.value,
         }
         if observation.attempt is not None:
@@ -358,7 +385,12 @@ class OpenTelemetryControlPlaneObserver:
                 timeout=(self.settings.timeout_seconds * 3) + 1,
             )
         except TimeoutError:
-            logger.warning("control_plane_telemetry_shutdown_timeout")
+            emit_structured_log(
+                logger,
+                StructuredLogEvent.CONTROL_PLANE_TELEMETRY_SHUTDOWN_TIMEOUT,
+                StructuredLogSeverity.WARN,
+                {},
+            )
 
 
 def create_control_plane_observer(
@@ -372,7 +404,12 @@ def create_control_plane_observer(
         )
         return OpenTelemetryControlPlaneObserver(settings)
     except Exception:
-        logger.warning("control_plane_telemetry_initialization_failed service=%s", service_name)
+        emit_structured_log(
+            logger,
+            StructuredLogEvent.CONTROL_PLANE_TELEMETRY_INITIALIZATION_FAILED,
+            StructuredLogSeverity.WARN,
+            {"service.name": service_name},
+        )
         return OpenTelemetryControlPlaneObserver(
             ControlPlaneTelemetrySettings(
                 enabled=False,

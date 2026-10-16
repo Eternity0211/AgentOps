@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import json
 import logging
 import signal
 from collections.abc import Coroutine
@@ -311,7 +312,9 @@ async def test_worker_owns_one_observer_for_handlers_and_fail_open_shutdown(
     assert created == [("agentops-worker", {"OTEL_SDK_ENABLED": "false"})]
     assert received == [observer]
     assert observer.shutdown_calls == 1
-    assert "control_plane_observer_shutdown_failed role=worker" in caplog.text
+    event = json.loads(caplog.records[-1].message)
+    assert event["event.name"] == "control_plane_observer_shutdown_failed"
+    assert event["process.role"] == "worker"
     assert "secret exporter shutdown detail" not in caplog.text
 
 

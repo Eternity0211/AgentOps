@@ -206,6 +206,14 @@ secret, and background plugin downloads are disabled. Dashboards and alerts rema
 signals only and cannot replace Incident-owned Evidence, policy, approval, execution, or health
 verification.
 
+The sixth observability batch adds the shared [structured logging safety
+contract](docs/STRUCTURED_LOGGING.md). All simulator and control-plane Python/OTLP logs now use one
+versioned flat event schema, secret redaction, control-character removal, 256-byte UTF-8 string
+limits, a 4,096-byte record cap, deterministic identity-preserving truncation, and content-free
+payload refusal. Simulator Span/metric external values and control-plane Span/log/model-tool
+dimensions share the same sanitizer. Seeded-secret tests prove the secret is absent from all three
+signal types while correlation survives; telemetry remains fail-open and non-authoritative.
+
 ## Why this project exists
 
 - Shorten time to diagnose microservice failures.
@@ -429,6 +437,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Simulator service contracts](docs/SIMULATOR_SERVICES.md)
 - [Simulator observability baseline](docs/OBSERVABILITY.md)
 - [Control-plane observability contract](docs/CONTROL_PLANE_OBSERVABILITY.md)
+- [Structured logging safety contract](docs/STRUCTURED_LOGGING.md)
 - [Observability alert runbooks](docs/OBSERVABILITY_RUNBOOKS.md)
 - [Deterministic fault control](docs/FAULT_INJECTION.md)
 - [Evaluation-only Ground Truth](docs/GROUND_TRUTH.md)

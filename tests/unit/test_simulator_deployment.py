@@ -190,7 +190,10 @@ def test_deployment_observer_failure_never_reverts_transition(
     assert changed.version == "1.0.0"
     assert state.transition_count == 1
     assert calls == ["rollback-1"]
-    assert "deployment_observer_failed service=order deployment_id=rollback-1" in caplog.text
+    event = json.loads(caplog.records[-1].message)
+    assert event["event.name"] == "deployment_observer_failed"
+    assert event["service.name"] == "agentops-simulator-order"
+    assert event["deployment.id"] == "rollback-1"
     assert "secret observation detail" not in caplog.text
 
 

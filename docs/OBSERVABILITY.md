@@ -21,6 +21,13 @@ Each process uses a resource with `service.name=agentops-simulator-{role}`, pack
 - `http_client_request` and `dependency_operation` OTLP logs contain the same bounded dimensions, duration, and validated correlation ID and inherit the active trace/span IDs.
 - Each process emits `service.deployment.changed` at startup and after every in-process typed deployment transition. Event schema `1.0` contains service, deployment ID, current and optional previous version, deployment environment, and an explicit UTC `event.observed_at`. A matching `/versionz` response exposes the typed deployment facts for deterministic health verification. The observation time is not represented as an unverified rollout start time.
 
+Every standard-library and OTLP log passes the shared [structured logging safety
+contract](STRUCTURED_LOGGING.md). Its closed schema, redaction rules, control-character removal,
+UTF-8 byte limits, deterministic truncation, and content-free refusal route are identical across
+the simulator and control plane. External strings used by simulator Span names/attributes and
+metric dimensions pass the same scalar sanitizer, preventing a secret from escaping through a
+non-log signal.
+
 Exporter work is batched with bounded queues and two-second default export deadlines. Telemetry configuration or background export failure degrades to no-op/lost telemetry and cannot turn a valid business request, dependency result, or deployment transition into a failure. Shutdown flush is also bounded. These behaviors prioritize simulator availability; Collector target loss now raises the shared `AgentOpsTelemetryCollectorDown` rule without turning missing telemetry into evidence of health.
 
 ## Configuration
@@ -73,7 +80,7 @@ Loki, and Tempo URLs are fixed internal service names rather than caller-control
 
 ## Verification boundary
 
-Unit tests use in-memory exporters to assert inbound and outbound W3C hierarchy, server/client/dependency metric names and bounded attributes, OTLP log trace/span linkage, startup and live-transition deployment markers, payload/error-detail exclusion, invalid configuration, disabled mode, observer/exporter failure isolation, and bounded shutdown. Static tests assert all service OTLP settings, all three Collector destinations, safe dashboard queries, immutable provisioning, alert metadata/runbook coverage, and absence of high-cardinality identity labels.
+Unit tests use in-memory exporters to assert inbound and outbound W3C hierarchy, server/client/dependency metric names and bounded attributes, OTLP log trace/span linkage, startup and live-transition deployment markers, payload/error-detail exclusion, seeded-secret absence across logs/Spans/metrics, invalid configuration, disabled mode, observer/exporter failure isolation, and bounded shutdown. Static tests assert all service OTLP settings, all three Collector destinations, safe dashboard queries, immutable provisioning, alert metadata/runbook coverage, and absence of high-cardinality identity labels.
 
 The dashboard batch additionally passed `promtool` validation for all nine rules and a live isolated
 Compose run: Grafana loaded both dashboards plus the three read-only data sources, Prometheus

@@ -39,9 +39,12 @@ from agentops_incident_commander.domain import (
     IncidentId,
     InvalidDomainValueError,
     OpaqueIdentifier,
+    StructuredLogEvent,
+    StructuredLogSeverity,
     TenantId,
     WorkflowRunId,
 )
+from agentops_incident_commander.structured_logging import emit_structured_log
 from agentops_incident_commander.workflows import ApprovalWaitState, DiagnosisGraphState
 
 # LangGraph reserves non-empty namespaces for compiled subgraphs; Diagnosis is the root graph.
@@ -377,7 +380,12 @@ def _record_checkpoint_observation(
             ),
         )
     except Exception:
-        logger.warning("checkpoint_observation_dropped operation=%s", operation.value)
+        emit_structured_log(
+            logger,
+            StructuredLogEvent.CHECKPOINT_OBSERVATION_DROPPED,
+            StructuredLogSeverity.WARN,
+            {"agentops.operation": operation.value},
+        )
 
 
 @asynccontextmanager

@@ -200,7 +200,10 @@ async def test_dependency_telemetry_failure_does_not_change_operation_result(
     )
 
     assert result == "ok"
-    assert "dependency_telemetry_failed dependency=postgres operation=ready" in caplog.text
+    warning = json.loads(caplog.records[-1].message)
+    assert warning["event.name"] == "dependency_telemetry_failed"
+    assert warning["dependency"] == "postgres"
+    assert warning["operation"] == "ready"
     assert "sensitive exporter failure" not in caplog.text
 
 
@@ -250,14 +253,13 @@ async def test_postgres_save_is_idempotent_and_observable(
         "corr-db",
     )
     event = json.loads(caplog.records[-1].message)
-    assert event | {"duration_ms": 0} == {
-        "event": "dependency_operation",
-        "dependency": "postgres",
-        "operation": "save_order",
-        "result": "ok",
-        "duration_ms": 0,
-        "correlation_id": "corr-db",
-    }
+    assert event["event.name"] == "dependency_operation"
+    assert event["log.schema.version"] == "1.0.0"
+    assert event["dependency"] == "postgres"
+    assert event["operation"] == "save_order"
+    assert event["result"] == "ok"
+    assert event["duration_ms"] >= 0
+    assert event["agentops.correlation_id"] == "corr-db"
     assert "widget-1" not in caplog.text
 
 
@@ -403,12 +405,10 @@ async def test_postgres_pool_exhaustion_is_bounded_observable_and_released(
         for record in caplog.records
         if "dependency_pool_acquire_timeout" in record.message
     )
-    assert pool_event == {
-        "dependency": "postgres",
-        "event": "dependency_pool_acquire_timeout",
-        "pool_idle": 0,
-        "pool_size": 5,
-    }
+    assert pool_event["event.name"] == "dependency_pool_acquire_timeout"
+    assert pool_event["dependency"] == "postgres"
+    assert pool_event["pool_idle"] == 0
+    assert pool_event["pool_size"] == 5
     assert "db-pool-exhaustion" not in caplog.text
 
     await store.close()
@@ -549,7 +549,7 @@ async def test_redis_maps_client_failures_and_logs_error(
 
     event = json.loads(caplog.records[-1].message)
     assert event["result"] == "error"
-    assert event["correlation_id"] == "corr-error"
+    assert event["agentops.correlation_id"] == "corr-error"
     assert "offline" not in caplog.text
 
 
@@ -596,20 +596,16 @@ async def test_forced_redis_timeout_is_repeatable_observable_and_side_effect_fre
         for record in caplog.records
         if "dependency_timeout" in record.message
     ]
-    assert timeout_events == [
-        {
-            "dependency": "redis",
-            "event": "dependency_timeout",
-            "operation": "ready",
-            "timeout_ms": 1.0,
-        },
-        {
-            "dependency": "redis",
-            "event": "dependency_timeout",
-            "operation": "reserve_inventory",
-            "timeout_ms": 1.0,
-        },
+    assert [event["event.name"] for event in timeout_events] == [
+        "dependency_timeout",
+        "dependency_timeout",
     ]
+    assert [event["operation"] for event in timeout_events] == [
+        "ready",
+        "reserve_inventory",
+    ]
+    assert all(event["dependency"] == "redis" for event in timeout_events)
+    assert all(event["timeout_ms"] == 1.0 for event in timeout_events)
     assert "redis-timeout" not in caplog.text
 
 

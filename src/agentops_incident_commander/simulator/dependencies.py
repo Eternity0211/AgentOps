@@ -19,7 +19,9 @@ from opentelemetry import trace
 from opentelemetry.trace import SpanKind, Status, StatusCode, Tracer
 from redis.exceptions import RedisError
 
+from agentops_incident_commander.domain import StructuredLogEvent, StructuredLogSeverity
 from agentops_incident_commander.simulator.models import CheckoutRequest
+from agentops_incident_commander.structured_logging import emit_structured_log
 
 logger = logging.getLogger("agentops.simulator.dependencies")
 
@@ -147,18 +149,17 @@ async def _observe[ResultT](
                 raise
     finally:
         duration_ms = round((time.monotonic() - started_at) * 1000, 3)
-        logger.info(
-            json.dumps(
-                {
-                    "event": "dependency_operation",
-                    "dependency": dependency,
-                    "operation": operation,
-                    "result": result,
-                    "duration_ms": duration_ms,
-                    "correlation_id": correlation_id,
-                },
-                sort_keys=True,
-            )
+        emit_structured_log(
+            logger,
+            StructuredLogEvent.DEPENDENCY_OPERATION,
+            StructuredLogSeverity.INFO,
+            {
+                "dependency": dependency,
+                "operation": operation,
+                "result": result,
+                "duration_ms": duration_ms,
+                "agentops.correlation_id": correlation_id,
+            },
         )
         if telemetry is not None:
             try:
@@ -170,10 +171,11 @@ async def _observe[ResultT](
                     correlation_id=correlation_id,
                 )
             except Exception:
-                logger.warning(
-                    "dependency_telemetry_failed dependency=%s operation=%s",
-                    dependency,
-                    operation,
+                emit_structured_log(
+                    logger,
+                    StructuredLogEvent.DEPENDENCY_TELEMETRY_FAILED,
+                    StructuredLogSeverity.WARN,
+                    {"dependency": dependency, "operation": operation},
                 )
 
 
@@ -293,16 +295,15 @@ class PostgresOrderStore:
                 ),
             )
         except TimeoutError as error:
-            logger.warning(
-                json.dumps(
-                    {
-                        "event": "dependency_pool_acquire_timeout",
-                        "dependency": "postgres",
-                        "pool_size": pool.get_size(),
-                        "pool_idle": pool.get_idle_size(),
-                    },
-                    sort_keys=True,
-                )
+            emit_structured_log(
+                logger,
+                StructuredLogEvent.DEPENDENCY_POOL_ACQUIRE_TIMEOUT,
+                StructuredLogSeverity.WARN,
+                {
+                    "dependency": "postgres",
+                    "pool_size": pool.get_size(),
+                    "pool_idle": pool.get_idle_size(),
+                },
             )
             raise DependencyUnavailable("postgres operation failed") from error
         except (asyncpg.PostgresError, OSError) as error:
@@ -433,16 +434,15 @@ class RedisInventoryStore:
             return cast(ResultT, await asyncio.wait_for(invoke(), timeout=self._timeout))
         except TimeoutError as error:
             trace.get_current_span().set_attribute("error.type", "timeout")
-            logger.warning(
-                json.dumps(
-                    {
-                        "event": "dependency_timeout",
-                        "dependency": "redis",
-                        "operation": operation,
-                        "timeout_ms": round(self._timeout * 1000, 3),
-                    },
-                    sort_keys=True,
-                )
+            emit_structured_log(
+                logger,
+                StructuredLogEvent.DEPENDENCY_TIMEOUT,
+                StructuredLogSeverity.WARN,
+                {
+                    "dependency": "redis",
+                    "operation": operation,
+                    "timeout_ms": round(self._timeout * 1000, 3),
+                },
             )
             raise DependencyUnavailable("redis operation failed") from error
         except (RedisError, OSError) as error:

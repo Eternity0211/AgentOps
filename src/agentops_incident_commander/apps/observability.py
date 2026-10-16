@@ -6,6 +6,8 @@ import logging
 from typing import Protocol
 
 from agentops_incident_commander.application import ControlPlaneObserver
+from agentops_incident_commander.domain import StructuredLogEvent, StructuredLogSeverity
+from agentops_incident_commander.structured_logging import emit_structured_log
 
 logger = logging.getLogger("agentops.control_plane.process_observability")
 
@@ -26,4 +28,9 @@ async def shutdown_process_observer(
     try:
         await observer.shutdown()
     except Exception:
-        logger.warning("control_plane_observer_shutdown_failed role=%s", process_role)
+        emit_structured_log(
+            logger,
+            StructuredLogEvent.CONTROL_PLANE_OBSERVER_SHUTDOWN_FAILED,
+            StructuredLogSeverity.WARN,
+            {"process.role": process_role},
+        )

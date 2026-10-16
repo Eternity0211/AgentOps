@@ -9,7 +9,9 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from threading import RLock
 
+from agentops_incident_commander.domain import StructuredLogEvent, StructuredLogSeverity
 from agentops_incident_commander.simulator.app_types import ServiceName
+from agentops_incident_commander.structured_logging import emit_structured_log
 
 VERSION_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$")
 DEPLOYMENT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
@@ -132,9 +134,13 @@ class SimulatorDeploymentState:
             try:
                 observer(changed)
             except Exception:
-                logger.warning(
-                    "deployment_observer_failed service=%s deployment_id=%s",
-                    changed.service,
-                    changed.deployment_id,
+                emit_structured_log(
+                    logger,
+                    StructuredLogEvent.DEPLOYMENT_OBSERVER_FAILED,
+                    StructuredLogSeverity.WARN,
+                    {
+                        "service.name": f"agentops-simulator-{changed.service}",
+                        "deployment.id": changed.deployment_id,
+                    },
                 )
         return changed

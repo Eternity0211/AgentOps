@@ -26,6 +26,12 @@ The observer port belongs to the application layer and defaults to a no-op. `saf
 adapter failures, logs only component/operation names, and never lets telemetry alter graph state,
 model-call persistence, Tool Gateway audit, retry behavior, or any recovery authority.
 
+All local and OTLP logs additionally use the shared [structured logging safety
+contract](STRUCTURED_LOGGING.md). The control-plane operation Span and model/tool metric dimensions
+are derived from the same sanitized flat record used by its log. Unknown or nested values cannot
+be represented; seeded credential patterns are redacted before any of the three signal types can
+export them. Record truncation preserves the correlation identities required for reconstruction.
+
 ## OpenTelemetry signals
 
 The infrastructure adapter owns isolated SDK providers and bounded OTLP/HTTP queues. It emits:
@@ -121,7 +127,8 @@ request handling, worker completion, or authoritative persistence.
 
 ## Verification
 
-Tests cover strict contract rejection, absence of content fields, adapter failure isolation,
+Tests cover strict contract rejection, absence of content fields, cross-signal seeded-secret
+redaction, Unicode/whole-record payload bounds, adapter failure isolation,
 credential-free configuration, signal-specific endpoints, disabled mode, bounded shutdown, linked
 Span/log export, exact token/cost metrics, tool retry sequences, all Diagnosis node routes,
 Evidence Gate pass, and pause/resume behavior. Existing model/tool/graph behavior and audits remain

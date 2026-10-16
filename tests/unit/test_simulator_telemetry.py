@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -121,6 +122,43 @@ def metric_points(exporter: CapturingMetricExporter) -> dict[str, list[Any]]:
                 for metric in scope_metric.metrics:
                     result.setdefault(metric.name, []).extend(metric.data.data_points)
     return result
+
+
+@pytest.mark.anyio
+async def test_seeded_secret_never_crosses_simulator_signal_boundaries() -> None:
+    secret = "sk-" + "supersecret123456"
+    spans = InMemorySpanExporter()
+    metrics = CapturingMetricExporter()
+    logs = in_memory_log_exporter()
+    observed = telemetry.SimulatorTelemetry(
+        "gateway",
+        enabled_settings(),
+        span_exporter=spans,
+        metric_exporter=metrics,
+        log_exporter=logs,
+    )
+
+    with observed.client_span(
+        f"payment-{secret}", "POST", "/v1/authorizations", "correlation-safe"
+    ) as span:
+        observed.complete_client_request(
+            span,
+            service=f"payment-{secret}",
+            method="POST",
+            route="/v1/authorizations",
+            status_code=503,
+            started_at=0,
+            correlation_id="correlation-safe",
+        )
+    await observed.shutdown()
+
+    assert secret not in str(spans.get_finished_spans())
+    assert secret not in str(logs.get_finished_logs())
+    assert secret not in str(metric_points(metrics))
+    finished_span = spans.get_finished_spans()[0]
+    assert finished_span.attributes is not None
+    assert finished_span.attributes["agentops.correlation_id"] == "correlation-safe"
+    assert "[REDACTED]" in str(finished_span.attributes["server.address"])
 
 
 def test_enabled_http_telemetry_exports_safe_spans_metrics_and_logs() -> None:
@@ -642,7 +680,9 @@ def test_factory_falls_back_when_configuration_is_invalid(
     observed = telemetry.create_telemetry("gateway", {})
 
     assert observed.settings.enabled is False
-    assert "telemetry_initialization_failed service=gateway" in caplog.text
+    event = json.loads(caplog.records[-1].message)
+    assert event["event.name"] == "telemetry_initialization_failed"
+    assert event["service.name"] == "agentops-simulator-gateway"
     assert "bad" not in caplog.text
 
 
@@ -704,4 +744,6 @@ async def test_shutdown_timeout_is_nonfatal(
 
     await observed.shutdown()
 
-    assert "telemetry_shutdown_timeout service=agentops-simulator-gateway" in caplog.text
+    event = json.loads(caplog.records[-1].message)
+    assert event["event.name"] == "telemetry_shutdown_timeout"
+    assert event["service.name"] == "agentops-simulator-gateway"

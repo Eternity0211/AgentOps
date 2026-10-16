@@ -250,6 +250,13 @@ views, not an alternate Evidence Store, audit ledger, Policy Engine, approval su
 Health Verifier. Grafana is loopback-bound with anonymous Viewer access, a file-secret-protected
 administrator, immutable provisioning, and disabled background plugin downloads.
 
+Both telemetry layers share the versioned [structured logging contract](STRUCTURED_LOGGING.md).
+Every runtime log is a closed flat scalar record with deterministic redaction, control-character
+removal, per-value and whole-record UTF-8 limits, explicit truncation, and a content-free refusal
+route. Simulator external Span/metric strings and control-plane Span/log/model-tool dimensions are
+sanitized at the same adapter boundary. Logging and exporter failures remain fail-open and cannot
+become evidence, audit, policy, execution, or recovery authority.
+
 After the complete Phase 9 safety gate, the worker composition root may explicitly enable the
 single `rollback_service` route. The setting is false by default and the disabled path exits before
 preflight or effects. The enabled composition accepts only a server-injected typed deployment

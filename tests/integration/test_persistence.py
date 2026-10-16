@@ -13,6 +13,7 @@ from itertools import count, pairwise
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
+from uuid import uuid4
 
 import pytest
 from alembic import command
@@ -190,6 +191,7 @@ from agentops_incident_commander.domain import (
     TraceId,
     TrustClassification,
     WorkflowRunId,
+    audit_event_fingerprint,
     evaluate_health_verification,
 )
 from agentops_incident_commander.infrastructure import (
@@ -223,6 +225,7 @@ from agentops_incident_commander.infrastructure.persistence import (
     ApprovalRow,
     AuditEventRow,
     AuditRepository,
+    AuditTenantSequenceRow,
     CorrelationLinkRepository,
     CorrelationLinkRow,
     CorrelationStreamRow,
@@ -391,10 +394,15 @@ def group_ids() -> Callable[[], AlertGroupId]:
     return lambda: AlertGroupId(f"group-{next(sequence)}")
 
 
-def audit_event(event_id: str, correlation_id: str = "audit-correlation") -> AuditEvent:
+def audit_event(
+    event_id: str,
+    correlation_id: str = "audit-correlation",
+    *,
+    tenant_id: str = "tenant-1",
+) -> AuditEvent:
     return AuditEvent(
         id=AuditEventId(event_id),
-        tenant_id=TenantId("tenant-1"),
+        tenant_id=TenantId(tenant_id),
         type="incident.transitioned",
         event_version=1,
         payload_schema_version="incident/v1",
@@ -623,6 +631,7 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "action_execution_locks",
         "action_executions",
         "audit_events",
+        "audit_tenant_sequences",
         "correlation_links",
         "correlation_streams",
         "evidence",
@@ -1604,6 +1613,7 @@ async def test_audit_repository_appends_and_reads_correlation_timeline(
         await repository.append(audit_event("audit-other", "other-correlation"))
 
     assert first.sequence < second.sequence
+    assert first.tenant_sequence + 1 == second.tenant_sequence
     async with sessions() as session:
         timeline = await AuditRepository(session).by_correlation(CorrelationId("audit-correlation"))
 
@@ -1620,17 +1630,285 @@ async def test_audit_sequence_is_unique_under_concurrent_appends(engine: AsyncEn
     """Independent writers receive one globally unique monotonically ordered sequence."""
     sessions = async_sessionmaker(engine, expire_on_commit=False)
 
-    async def append(index: int) -> int:
+    async def append(index: int) -> tuple[int, int]:
         async with sessions.begin() as session:
             stored = await AuditRepository(session).append(
                 audit_event(f"audit-concurrent-{index}", "concurrent-correlation")
             )
-            return stored.sequence
+            return stored.sequence, stored.tenant_sequence
 
-    sequences = await asyncio.gather(*(append(index) for index in range(16)))
-    ordered = sorted(sequences)
-    assert len(set(ordered)) == 16
-    assert all(later > earlier for earlier, later in pairwise(ordered))
+    assignments = await asyncio.gather(*(append(index) for index in range(16)))
+    global_sequences = sorted(item[0] for item in assignments)
+    tenant_sequences = sorted(item[1] for item in assignments)
+    assert len(set(global_sequences)) == 16
+    assert all(later > earlier for earlier, later in pairwise(global_sequences))
+    assert len(set(tenant_sequences)) == 16
+    assert all(later == earlier + 1 for earlier, later in pairwise(tenant_sequences))
+
+
+@pytest.mark.anyio
+async def test_audit_export_is_contiguous_replayable_and_bound_to_tenant_head(
+    engine: AsyncEngine,
+) -> None:
+    tenant_id = TenantId("tenant-audit-export")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        repository = AuditRepository(session)
+        for index in range(1, 4):
+            await repository.append(
+                audit_event(
+                    f"audit-export-{index}",
+                    "audit-export-correlation",
+                    tenant_id=tenant_id.value,
+                )
+            )
+
+    async with sessions() as session:
+        repository = AuditRepository(session)
+        first = await repository.export_page(tenant_id=tenant_id, after_sequence=0, limit=2)
+        replay = await repository.export_page(tenant_id=tenant_id, after_sequence=0, limit=2)
+        second = await repository.export_page(
+            tenant_id=tenant_id,
+            after_sequence=first.manifest.next_after_sequence or 0,
+            limit=2,
+        )
+        exhausted = await repository.export_page(tenant_id=tenant_id, after_sequence=3, limit=2)
+        never_used = await repository.export_page(
+            tenant_id=TenantId("tenant-audit-never-used"),
+            after_sequence=0,
+            limit=2,
+        )
+        head = await session.get(AuditTenantSequenceRow, tenant_id.value)
+
+    assert first == replay
+    assert [item.tenant_sequence for item in first.events] == [1, 2]
+    assert first.manifest.next_after_sequence == 2
+    assert [item.tenant_sequence for item in second.events] == [3]
+    assert second.manifest.next_after_sequence is None
+    assert exhausted.events == ()
+    assert never_used.events == ()
+    assert head is not None and head.last_sequence == 3
+
+    async with sessions() as session:
+        repository = AuditRepository(session)
+        with pytest.raises(InvalidDomainValueError, match="cursor exceeds"):
+            await repository.export_page(tenant_id=tenant_id, after_sequence=4, limit=2)
+        with pytest.raises(InvalidDomainValueError, match="between 1 and 100"):
+            await repository.export_page(tenant_id=tenant_id, after_sequence=0, limit=101)
+        with pytest.raises(InvalidDomainValueError, match="non-negative"):
+            await repository.export_page(tenant_id=tenant_id, after_sequence=-1, limit=2)
+        with pytest.raises(InvalidDomainValueError, match="cursor exceeds"):
+            await repository.export_page(
+                tenant_id=TenantId("tenant-audit-never-used"),
+                after_sequence=1,
+                limit=2,
+            )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("column", "replacement", "message"),
+    [
+        (
+            "event_fingerprint",
+            "'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'",
+            "fingerprint",
+        ),
+        ("tenant_sequence", "10", "head"),
+    ],
+)
+async def test_audit_export_fails_closed_on_tamper_or_sequence_gap(
+    engine: AsyncEngine,
+    column: str,
+    replacement: str,
+    message: str,
+) -> None:
+    tenant = f"tenant-audit-tamper-{column}"
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        repository = AuditRepository(session)
+        await repository.append(audit_event(f"audit-tamper-{column}-1", tenant_id=tenant))
+        await repository.append(audit_event(f"audit-tamper-{column}-2", tenant_id=tenant))
+
+    async with engine.connect() as connection:
+        transaction = await connection.begin()
+        try:
+            await connection.execute(
+                text("ALTER TABLE audit_events DISABLE TRIGGER audit_events_reject_row_mutation")
+            )
+            await connection.execute(
+                text(f"UPDATE audit_events SET {column} = {replacement} WHERE id = :event_id"),
+                {"event_id": f"audit-tamper-{column}-2"},
+            )
+            await connection.execute(
+                text("ALTER TABLE audit_events ENABLE TRIGGER audit_events_reject_row_mutation")
+            )
+            async with AsyncSession(bind=connection, expire_on_commit=False) as session:
+                with pytest.raises(InvalidDomainValueError, match=message):
+                    await AuditRepository(session).export_page(
+                        tenant_id=TenantId(tenant), after_sequence=0, limit=10
+                    )
+        finally:
+            await transaction.rollback()
+
+
+@pytest.mark.anyio
+async def test_audit_export_fails_closed_when_tenant_head_exposes_deleted_tail(
+    engine: AsyncEngine,
+) -> None:
+    tenant = "tenant-audit-deleted-tail"
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        repository = AuditRepository(session)
+        await repository.append(audit_event("audit-deleted-tail-1", tenant_id=tenant))
+        await repository.append(audit_event("audit-deleted-tail-2", tenant_id=tenant))
+
+    async with engine.connect() as connection:
+        transaction = await connection.begin()
+        try:
+            await connection.execute(
+                text("ALTER TABLE audit_events DISABLE TRIGGER audit_events_reject_row_mutation")
+            )
+            await connection.execute(
+                text("DELETE FROM audit_events WHERE id = 'audit-deleted-tail-2'")
+            )
+            await connection.execute(
+                text("ALTER TABLE audit_events ENABLE TRIGGER audit_events_reject_row_mutation")
+            )
+            async with AsyncSession(bind=connection, expire_on_commit=False) as session:
+                with pytest.raises(InvalidDomainValueError, match="missing record"):
+                    await AuditRepository(session).export_page(
+                        tenant_id=TenantId(tenant), after_sequence=0, limit=10
+                    )
+        finally:
+            await transaction.rollback()
+
+
+@pytest.mark.anyio
+async def test_audit_export_rejects_a_gap_at_the_page_boundary(engine: AsyncEngine) -> None:
+    tenant = "tenant-audit-boundary-gap"
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        repository = AuditRepository(session)
+        await repository.append(audit_event("audit-boundary-gap-1", tenant_id=tenant))
+        await repository.append(audit_event("audit-boundary-gap-2", tenant_id=tenant))
+
+    async with engine.connect() as connection:
+        transaction = await connection.begin()
+        try:
+            await connection.execute(
+                text("ALTER TABLE audit_events DISABLE TRIGGER audit_events_reject_row_mutation")
+            )
+            await connection.execute(
+                text(
+                    "UPDATE audit_events SET tenant_sequence = 3 WHERE id = 'audit-boundary-gap-2'"
+                )
+            )
+            await connection.execute(
+                text(
+                    "UPDATE audit_tenant_sequences SET last_sequence = 3 "
+                    "WHERE tenant_id = :tenant_id"
+                ),
+                {"tenant_id": tenant},
+            )
+            await connection.execute(
+                text("ALTER TABLE audit_events ENABLE TRIGGER audit_events_reject_row_mutation")
+            )
+            async with AsyncSession(bind=connection, expire_on_commit=False) as session:
+                with pytest.raises(InvalidDomainValueError, match="not contiguous"):
+                    await AuditRepository(session).export_page(
+                        tenant_id=TenantId(tenant), after_sequence=0, limit=1
+                    )
+        finally:
+            await transaction.rollback()
+
+
+@pytest.mark.anyio
+async def test_runtime_audit_role_can_append_but_has_no_mutation_or_head_access(
+    engine: AsyncEngine,
+) -> None:
+    role = f"audit_runtime_{uuid4().hex}"
+    event = audit_event(
+        f"audit-role-{uuid4().hex}",
+        tenant_id=f"tenant-role-{uuid4().hex}",
+    )
+    quoted_role = f'"{role}"'
+    try:
+        async with engine.begin() as connection:
+            await connection.execute(text(f"CREATE ROLE {quoted_role} NOLOGIN"))
+            await connection.execute(text(f"GRANT USAGE ON SCHEMA public TO {quoted_role}"))
+            await connection.execute(text(f"GRANT SELECT, INSERT ON audit_events TO {quoted_role}"))
+            await connection.execute(
+                text(f"GRANT SELECT ON audit_tenant_sequences TO {quoted_role}")
+            )
+            await connection.execute(
+                text(f"GRANT USAGE, SELECT ON SEQUENCE audit_events_sequence_seq TO {quoted_role}")
+            )
+
+        async with engine.begin() as connection:
+            privileges = (
+                await connection.execute(
+                    text(
+                        "SELECT has_table_privilege(:role, 'audit_events', 'SELECT'), "
+                        "has_table_privilege(:role, 'audit_events', 'INSERT'), "
+                        "has_table_privilege(:role, 'audit_events', 'UPDATE'), "
+                        "has_table_privilege(:role, 'audit_events', 'DELETE'), "
+                        "has_table_privilege(:role, 'audit_events', 'TRUNCATE'), "
+                        "has_table_privilege(:role, 'audit_tenant_sequences', 'SELECT'), "
+                        "has_table_privilege(:role, 'audit_tenant_sequences', 'UPDATE')"
+                    ),
+                    {"role": role},
+                )
+            ).one()
+            assert tuple(privileges) == (True, True, False, False, False, True, False)
+
+        async with engine.begin() as connection:
+            await connection.execute(text(f"SET LOCAL ROLE {quoted_role}"))
+            await connection.execute(
+                text(
+                    "INSERT INTO audit_events "
+                    "(id, tenant_id, event_type, event_version, payload_schema_version, "
+                    "actor_id, correlation_id, causation_id, target_type, target_id, "
+                    "request_hash, result_hash, event_fingerprint, occurred_at) VALUES "
+                    "(:id, :tenant_id, :event_type, :event_version, :payload_schema_version, "
+                    ":actor_id, :correlation_id, :causation_id, :target_type, :target_id, "
+                    ":request_hash, :result_hash, :event_fingerprint, :occurred_at)"
+                ),
+                {
+                    "id": event.id.value,
+                    "tenant_id": event.tenant_id.value,
+                    "event_type": event.type,
+                    "event_version": event.event_version,
+                    "payload_schema_version": event.payload_schema_version,
+                    "actor_id": event.actor_id.value,
+                    "correlation_id": event.correlation_id.value,
+                    "causation_id": event.causation_id.value,
+                    "target_type": event.target.type,
+                    "target_id": event.target.id.value,
+                    "request_hash": event.request_hash.value if event.request_hash else None,
+                    "result_hash": event.result_hash.value if event.result_hash else None,
+                    "event_fingerprint": audit_event_fingerprint(event).value,
+                    "occurred_at": event.occurred_at,
+                },
+            )
+
+        for statement in (
+            "UPDATE audit_events SET actor_id = 'attacker' WHERE id = :event_id",
+            "DELETE FROM audit_events WHERE id = :event_id",
+            "TRUNCATE audit_events",
+        ):
+            async with engine.connect() as connection:
+                transaction = await connection.begin()
+                try:
+                    await connection.execute(text(f"SET LOCAL ROLE {quoted_role}"))
+                    with pytest.raises(DBAPIError, match="permission denied"):
+                        await connection.execute(text(statement), {"event_id": event.id.value})
+                finally:
+                    await transaction.rollback()
+    finally:
+        async with engine.begin() as connection:
+            await connection.execute(text(f"DROP OWNED BY {quoted_role}"))
+            await connection.execute(text(f"DROP ROLE {quoted_role}"))
 
 
 @pytest.mark.anyio
@@ -1676,6 +1954,7 @@ async def test_audit_database_constraints_reject_invalid_raw_hash(engine: AsyncE
                 target_id="incident-1",
                 request_hash="A" * 64,
                 result_hash=None,
+                event_fingerprint="c" * 64,
                 occurred_at=NOW,
             )
         )

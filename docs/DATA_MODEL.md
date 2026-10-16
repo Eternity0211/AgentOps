@@ -23,7 +23,7 @@ This is the conceptual model. SQLAlchemy/Alembic implementation must preserve th
 | CompensationExecution | future-only safe inverse for an explicitly reversible action; original action/verification, independent policy/approval, idempotency key, before/after state, and result. It is not created for failed `rollback_service`. |
 | GroundTruthScenario | evaluator-only scenario/version, root cause, expected evidence, automation eligibility, expected safe outcome/handoff, recovery action, verification, cleanup procedure, and future-tool requirement. |
 | Postmortem | A constrained generated draft binds a closed Incident, exact confirmed facts, resolvable Evidence IDs, active Prompt fingerprint, model-call trace, schema version, and deterministic fingerprint. A mutable optimistic head points to immutable consecutive human revisions with parent/source fingerprints, exact inherited Fact/Evidence IDs, author, time, change summary, content, and audit binding. |
-| AuditEvent | append-only sequence, event type/version, actor, correlation/causation IDs, target, request/result hashes, timestamp. |
+| AuditEvent | append-only global and contiguous per-tenant sequences, event type/version, actor, correlation/causation IDs, target, request/result hashes, timestamp, and canonical immutable-field fingerprint. |
 | CorrelationStream / CorrelationLink | A tenant/Correlation ID is bound to exactly one Incident. Immutable versioned links join Alert, Incident, graph, tool, model, Approval, execution, and verification resources through strict W3C Trace IDs and same-stream causation, with canonical fingerprints and a bounded single-root timeline. |
 
 ## Platform configuration and memory
@@ -43,7 +43,10 @@ This is the conceptual model. SQLAlchemy/Alembic implementation must preserve th
 - Store large/raw telemetry as Artifacts; keep normalized indexes and immutable hashes in PostgreSQL.
 - Use explicit optimistic versions on mutable aggregates.
 - Enforce unique idempotency scope at the database level.
-- Audit rows are append-only to the application role; corrections are compensating events.
+- Audit rows are append-only to the application role; corrections are new events. A private
+  transactional tenant head and canonical event/page fingerprints make bounded exports fail closed
+  on gaps, duplicates, cross-tenant records, or field tampering. See [Audit ledger integrity,
+  export, and retention](AUDIT_LEDGER.md).
 - Embeddings retain source/version metadata and never erase the authoritative textual reference.
 - Similarity lookup verifies current-Incident ownership, tenant, freshness, active vector identity,
   dimensions, and a bounded result count; returned references omit vectors and internal lineage.

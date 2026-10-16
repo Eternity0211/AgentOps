@@ -96,6 +96,7 @@ from agentops_incident_commander.domain import (
     StoredAuditEvent,
     TenantId,
     WorkflowRunId,
+    audit_event_fingerprint,
 )
 from agentops_incident_commander.infrastructure.persistence.models import (
     ApprovalInvalidationRow,
@@ -177,7 +178,9 @@ class FakeSession:
 
     def add(self, value: object) -> None:
         if isinstance(value, AuditEventRow):
-            value.sequence = 1
+            assigned = 1 + sum(isinstance(item, AuditEventRow) for item in self.added)
+            value.sequence = assigned
+            value.tenant_sequence = assigned
         self.added.append(value)
 
     async def flush(self) -> None:
@@ -413,43 +416,49 @@ def platform_audit_events(trace: ModelCallTrace) -> tuple[StoredAuditEvent, ...]
         failure_code=None,
     )
     started_fingerprint = model_call_trace_fingerprint(started)
+    started_event = AuditEvent(
+        id=AuditEventId("audit-model-start-api"),
+        tenant_id=trace.tenant_id,
+        type="model.call_started",
+        event_version=1,
+        payload_schema_version="model_call/v1",
+        actor_id=ActorId("diagnosis-worker"),
+        correlation_id=trace.correlation_id,
+        causation_id=trace.causation_id,
+        target=AuditTarget("model.call", trace.id),
+        occurred_at=trace.started_at,
+        request_hash=started_fingerprint,
+        result_hash=started_fingerprint,
+    )
     events = [
         StoredAuditEvent(
             10,
-            AuditEvent(
-                id=AuditEventId("audit-model-start-api"),
-                tenant_id=trace.tenant_id,
-                type="model.call_started",
-                event_version=1,
-                payload_schema_version="model_call/v1",
-                actor_id=ActorId("diagnosis-worker"),
-                correlation_id=trace.correlation_id,
-                causation_id=trace.causation_id,
-                target=AuditTarget("model.call", trace.id),
-                occurred_at=trace.started_at,
-                request_hash=started_fingerprint,
-                result_hash=started_fingerprint,
-            ),
+            1,
+            started_event,
+            audit_event_fingerprint(started_event),
         )
     ]
     if trace.status is not ModelCallStatus.STARTED:
+        finished_event = AuditEvent(
+            id=AuditEventId("audit-model-finish-api"),
+            tenant_id=trace.tenant_id,
+            type="model.call_finished",
+            event_version=1,
+            payload_schema_version="model_call/v1",
+            actor_id=ActorId("diagnosis-worker"),
+            correlation_id=trace.correlation_id,
+            causation_id=trace.causation_id,
+            target=AuditTarget("model.call", trace.id),
+            occurred_at=trace.completed_at or NOW,
+            request_hash=started_fingerprint,
+            result_hash=model_call_trace_fingerprint(trace),
+        )
         events.append(
             StoredAuditEvent(
                 11,
-                AuditEvent(
-                    id=AuditEventId("audit-model-finish-api"),
-                    tenant_id=trace.tenant_id,
-                    type="model.call_finished",
-                    event_version=1,
-                    payload_schema_version="model_call/v1",
-                    actor_id=ActorId("diagnosis-worker"),
-                    correlation_id=trace.correlation_id,
-                    causation_id=trace.causation_id,
-                    target=AuditTarget("model.call", trace.id),
-                    occurred_at=trace.completed_at or NOW,
-                    request_hash=started_fingerprint,
-                    result_hash=model_call_trace_fingerprint(trace),
-                ),
+                2,
+                finished_event,
+                audit_event_fingerprint(finished_event),
             )
         )
     return tuple(events)
@@ -1466,14 +1475,16 @@ def test_platform_audit_completeness_reports_missing_duplicates_partial_and_corr
     assert api_v1._model_call_trace_view(submillisecond_trace).duration_ms == 2_000
     pending_trace = platform_trace(call_id="model-call-pending", status=ModelCallStatus.STARTED)
     (pending_start,) = platform_audit_events(pending_trace)
+    ignored_event = replace(
+        pending_start.event,
+        id=AuditEventId("audit-model-observed"),
+        type="model.call_observed",
+    )
     ignored = replace(
         pending_start,
         sequence=9,
-        event=replace(
-            pending_start.event,
-            id=AuditEventId("audit-model-observed"),
-            type="model.call_observed",
-        ),
+        event=ignored_event,
+        event_fingerprint=audit_event_fingerprint(ignored_event),
     )
     pending = api_v1._model_audit_completeness(
         (pending_trace,), (ignored, pending_start), truncated=False
@@ -1486,10 +1497,12 @@ def test_platform_audit_completeness_reports_missing_duplicates_partial_and_corr
     assert missing.status == "INCOMPLETE"
     assert missing.missing_event_count == 1
 
+    duplicate_event = replace(finish.event, id=AuditEventId("audit-model-finish-duplicate"))
     duplicate_finish = replace(
         finish,
         sequence=12,
-        event=replace(finish.event, id=AuditEventId("audit-model-finish-duplicate")),
+        event=duplicate_event,
+        event_fingerprint=audit_event_fingerprint(duplicate_event),
     )
     duplicate = api_v1._model_audit_completeness(
         (trace,), (start, finish, duplicate_finish), truncated=False
@@ -1501,16 +1514,22 @@ def test_platform_audit_completeness_reports_missing_duplicates_partial_and_corr
     assert partial.status == "PARTIAL"
     assert partial.complete is False
 
+    foreign_event = replace(
+        start.event, target=AuditTarget("model.call", OpaqueIdentifier("other"))
+    )
     foreign = replace(
         start,
-        event=replace(start.event, target=AuditTarget("model.call", OpaqueIdentifier("other"))),
+        event=foreign_event,
+        event_fingerprint=audit_event_fingerprint(foreign_event),
     )
     with pytest.raises(InvalidDomainValueError, match="outside"):
         api_v1._model_audit_completeness((trace,), (foreign,), truncated=False)
 
+    corrupt_event = replace(finish.event, result_hash=Sha256Digest("f" * 64))
     corrupt = replace(
         finish,
-        event=replace(finish.event, result_hash=Sha256Digest("f" * 64)),
+        event=corrupt_event,
+        event_fingerprint=audit_event_fingerprint(corrupt_event),
     )
     with pytest.raises(InvalidDomainValueError, match="binding"):
         api_v1._model_audit_completeness((trace,), (start, corrupt), truncated=False)
@@ -1587,31 +1606,66 @@ async def test_timeline_and_audit_route_return_paths() -> None:
         )
     assert missing.value.status_code == 404
 
-    audit = AuditEventRow(
-        sequence=10,
-        id="audit-a",
-        tenant_id="tenant-api",
-        event_type="incident.transitioned",
+    audit_event = AuditEvent(
+        id=AuditEventId("audit-a"),
+        tenant_id=TenantId("tenant-api"),
+        type="incident.transitioned",
         event_version=1,
         payload_schema_version="incident/v1",
-        actor_id="operator-api",
-        correlation_id="correlation-api",
-        causation_id="command-api",
-        target_type="incident.lifecycle",
-        target_id="incident-a",
+        actor_id=ActorId("operator-api"),
+        correlation_id=CorrelationId("correlation-api"),
+        causation_id=CausationId("command-api"),
+        target=AuditTarget("incident.lifecycle", IncidentId("incident-a")),
+        request_hash=Sha256Digest("a" * 64),
+        result_hash=Sha256Digest("b" * 64),
+        occurred_at=NOW,
+    )
+    audit = AuditEventRow(
+        sequence=10,
+        tenant_sequence=1,
+        id=audit_event.id.value,
+        tenant_id=audit_event.tenant_id.value,
+        event_type=audit_event.type,
+        event_version=audit_event.event_version,
+        payload_schema_version=audit_event.payload_schema_version,
+        actor_id=audit_event.actor_id.value,
+        correlation_id=audit_event.correlation_id.value,
+        causation_id=audit_event.causation_id.value,
+        target_type=audit_event.target.type,
+        target_id=audit_event.target.id.value,
         request_hash="a" * 64,
         result_hash="b" * 64,
-        occurred_at=NOW,
+        event_fingerprint=audit_event_fingerprint(audit_event).value,
+        occurred_at=audit_event.occurred_at,
     )
     audit_route = endpoint("/api/v1/audit", "GET")
     page = await audit_route(
-        session=FakeSession(scalar_lists=[[audit, audit]]),
+        session=FakeSession(scalar_values=[1], scalar_lists=[[audit]]),
         principal=VIEWER,
         limit=1,
         after_sequence=0,
     )
     assert page.items[0].sequence == 10
-    assert page.next_after_sequence == 10
+    assert page.items[0].tenant_sequence == 1
+    assert page.manifest.item_count == 1
+    assert page.manifest.next_after_sequence is None
+    assert page.next_after_sequence is None
+    with pytest.raises(ApiProblem) as integrity_failure:
+        await audit_route(
+            session=FakeSession(scalar_values=[2], scalar_lists=[[audit]]),
+            principal=VIEWER,
+            limit=2,
+            after_sequence=0,
+        )
+    assert integrity_failure.value.code == "AUDIT_INTEGRITY_FAILED"
+    with pytest.raises(ApiProblem) as missing_head:
+        await audit_route(
+            session=FakeSession(scalar_values=[None], scalar_lists=[[audit]]),
+            principal=VIEWER,
+            limit=2,
+            after_sequence=0,
+        )
+    assert missing_head.value.code == "AUDIT_INTEGRITY_FAILED"
 
 
 def idempotency_record(

@@ -229,20 +229,26 @@ confirmation/action references, tenant identifiers, or cross-tenant counts from 
 
 ## Append-only audit ledger
 
-Revision `20261003_0003` adds `audit_events`. Its database-assigned 64-bit sequence is the global
-ordering key; the stable event ID prevents replay from creating the same logical event twice.
+Revision `20261003_0003` adds `audit_events`. Revision `20261016_0023` adds a database-assigned,
+contiguous per-tenant sequence and a private transactional tenant head while retaining the original
+64-bit global ordering key. The stable event ID prevents replay from creating the same logical
+event twice.
 Each row records a versioned dotted event type, payload schema version, actor, correlation and
 causation IDs, typed target, UTC occurrence time, and optional canonical request/result SHA-256
-digests. Request and result bodies are deliberately excluded so the ledger does not become an
-uncontrolled secret store.
+digests. A canonical fingerprint covers every immutable field and is recomputed on reads. Request
+and result bodies are deliberately excluded so the ledger does not become an uncontrolled secret
+store.
 
-The application adapter exposes append and correlation-timeline reads only. PostgreSQL privileges
-are narrowed with explicit `REVOKE`, while owner-visible triggers independently reject `UPDATE`,
-`DELETE`, and `TRUNCATE`. Database constraints also reject noncanonical hashes inserted outside
-the typed domain path. Integration tests prove migration round trips, ordered reads, sixteen
-concurrent inserts with unique increasing sequences, direct raw mutation refusal, and invalid raw
-hash refusal. Stronger integrity mechanisms such as hash chaining or external anchoring remain an
-explicit later threat/deployment decision rather than an unverified current claim.
+The application adapter exposes append, integrity-checked correlation/target reads, and bounded
+tenant export. PostgreSQL privileges deny runtime mutation of tenant heads and audit rows,
+while owner-visible triggers independently reject `UPDATE`, `DELETE`, and `TRUNCATE`. Export uses
+the tenant sequence as its cursor and binds each page to a reproducible manifest; head comparison
+detects internal gaps and a missing tail. Database constraints reject malformed hashes and
+duplicate tenant sequences. Integration tests prove migration round trips, sixteen concurrent
+assignments, application-role append/mutation denial, deterministic export replay, and fail-closed
+tamper/gap behavior. Retention, authorized export procedure, legal holds, and the limits of the
+current non-anchored design are specified in [Audit ledger integrity, export, and
+retention](AUDIT_LEDGER.md).
 
 ## Transactional outbox
 

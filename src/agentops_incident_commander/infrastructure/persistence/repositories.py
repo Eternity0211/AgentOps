@@ -59,6 +59,7 @@ from agentops_incident_commander.domain import (
     ArtifactId,
     AuditEvent,
     AuditEventId,
+    AuditExportPage,
     AuditTarget,
     AuthorizationError,
     CausationId,
@@ -141,6 +142,8 @@ from agentops_incident_commander.domain import (
     TrustClassification,
     WorkflowRunId,
     as_utc,
+    audit_event_fingerprint,
+    build_audit_export_page,
     evaluate_health_verification,
     select_alert_group,
 )
@@ -161,6 +164,7 @@ from .models import (
     ApprovalReviewSnapshotRow,
     ApprovalRow,
     AuditEventRow,
+    AuditTenantSequenceRow,
     DiagnosisReportRow,
     EvidenceGateDecisionRow,
     EvidenceRow,
@@ -786,22 +790,25 @@ class OutboxRepository:
 
 
 def _audit_from_row(row: AuditEventRow) -> StoredAuditEvent:
+    event = AuditEvent(
+        id=AuditEventId(row.id),
+        tenant_id=TenantId(row.tenant_id),
+        type=row.event_type,
+        event_version=row.event_version,
+        payload_schema_version=row.payload_schema_version,
+        actor_id=ActorId(row.actor_id),
+        correlation_id=CorrelationId(row.correlation_id),
+        causation_id=CausationId(row.causation_id),
+        target=AuditTarget(row.target_type, OpaqueIdentifier(row.target_id)),
+        request_hash=None if row.request_hash is None else Sha256Digest(row.request_hash),
+        result_hash=None if row.result_hash is None else Sha256Digest(row.result_hash),
+        occurred_at=row.occurred_at,
+    )
     return StoredAuditEvent(
         sequence=row.sequence,
-        event=AuditEvent(
-            id=AuditEventId(row.id),
-            tenant_id=TenantId(row.tenant_id),
-            type=row.event_type,
-            event_version=row.event_version,
-            payload_schema_version=row.payload_schema_version,
-            actor_id=ActorId(row.actor_id),
-            correlation_id=CorrelationId(row.correlation_id),
-            causation_id=CausationId(row.causation_id),
-            target=AuditTarget(row.target_type, OpaqueIdentifier(row.target_id)),
-            request_hash=None if row.request_hash is None else Sha256Digest(row.request_hash),
-            result_hash=None if row.result_hash is None else Sha256Digest(row.result_hash),
-            occurred_at=row.occurred_at,
-        ),
+        tenant_sequence=row.tenant_sequence,
+        event=event,
+        event_fingerprint=Sha256Digest(row.event_fingerprint),
     )
 
 
@@ -812,7 +819,7 @@ class AuditRepository:
         self._session = session
 
     async def append(self, event: AuditEvent) -> StoredAuditEvent:
-        """Append one immutable event and return its global database sequence."""
+        """Append one fingerprinted event and return its database-owned sequences."""
         row = AuditEventRow(
             id=event.id.value,
             tenant_id=event.tenant_id.value,
@@ -826,6 +833,7 @@ class AuditRepository:
             target_id=event.target.id.value,
             request_hash=None if event.request_hash is None else event.request_hash.value,
             result_hash=None if event.result_hash is None else event.result_hash.value,
+            event_fingerprint=audit_event_fingerprint(event).value,
             occurred_at=event.occurred_at,
         )
         self._session.add(row)
@@ -842,6 +850,60 @@ class AuditRepository:
             )
         ).all()
         return tuple(_audit_from_row(row) for row in rows)
+
+    async def export_page(
+        self,
+        *,
+        tenant_id: TenantId,
+        after_sequence: int,
+        limit: int,
+    ) -> AuditExportPage:
+        """Read one integrity-checked, tenant-contiguous export page."""
+        if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1 or limit > 100:
+            raise InvalidDomainValueError("audit export limit must be between 1 and 100")
+        if (
+            not isinstance(after_sequence, int)
+            or isinstance(after_sequence, bool)
+            or after_sequence < 0
+        ):
+            raise InvalidDomainValueError("audit export cursor must be a non-negative integer")
+        head = await self._session.scalar(
+            select(AuditTenantSequenceRow.last_sequence)
+            .where(AuditTenantSequenceRow.tenant_id == tenant_id.value)
+            .with_for_update(read=True)
+        )
+        if head is None:
+            if after_sequence != 0:
+                raise InvalidDomainValueError("audit export cursor exceeds the tenant sequence")
+        elif after_sequence > head:
+            raise InvalidDomainValueError("audit export cursor exceeds the tenant sequence")
+        rows = (
+            await self._session.scalars(
+                select(AuditEventRow)
+                .where(
+                    AuditEventRow.tenant_id == tenant_id.value,
+                    AuditEventRow.tenant_sequence > after_sequence,
+                )
+                .order_by(AuditEventRow.tenant_sequence)
+                .limit(limit + 1)
+            )
+        ).all()
+        stored = tuple(_audit_from_row(row) for row in rows)
+        if stored and (head is None or stored[-1].tenant_sequence > head):
+            raise InvalidDomainValueError("audit export tenant head does not match its records")
+        visible = stored[:limit]
+        last_visible = visible[-1].tenant_sequence if visible else after_sequence
+        has_more = head is not None and head > last_visible
+        if has_more and len(stored) <= limit:
+            raise InvalidDomainValueError("audit export tenant sequence has a missing record")
+        if len(stored) > limit and stored[limit].tenant_sequence != last_visible + 1:
+            raise InvalidDomainValueError("audit export tenant sequence is not contiguous")
+        return build_audit_export_page(
+            visible,
+            tenant_id=tenant_id,
+            after_sequence=after_sequence,
+            has_more=has_more,
+        )
 
     async def for_targets(
         self,

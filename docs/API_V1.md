@@ -41,9 +41,14 @@ receive operator authority.
 | `GET /api/v1/audit` | Read the tenant audit sequence | `audit:read` |
 
 Incident and timeline lists use opaque cursors; callers must not construct or interpret them.
-Audit pagination uses the append-only global sequence as `after_sequence`. Page size is bounded to
-1–100. All orders have deterministic tie breakers, so concurrent inserts do not reorder already
-returned records.
+Audit pagination uses the contiguous per-tenant sequence as `after_sequence`; the item `sequence`
+field remains the PostgreSQL-wide chronology and `tenant_sequence` is the export cursor. Page size
+is bounded to 1–100. Each event includes its canonical event fingerprint, and each response has an
+`audit-export/v1` manifest binding Tenant ID, input cursor, item range/count, continuation cursor,
+and ordered page fingerprint. Reads recompute event fingerprints, compare the private tenant head,
+and reject gaps, duplicate identities, tampering, or cursor overshoot with
+`AUDIT_INTEGRITY_FAILED`; no partial page is returned. See [Audit ledger integrity, export, and
+retention](AUDIT_LEDGER.md) for manifest verification and retention boundaries.
 
 `GET /api/v1/incidents` accepts optional exact `severity`, `state`, and `service` filters that are
 combined with the authenticated tenant predicate before cursor pagination. Severity and state use

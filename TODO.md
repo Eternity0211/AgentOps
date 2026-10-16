@@ -247,7 +247,7 @@ Exit: an operator can understand and safely control a full incident without the 
   - [x] Wire one process-owned observer through API/worker compositions and prove correlated end-to-end success, refusal, retry, pause/resume, and failure signals.
 - [x] Create dashboards and actionable alerts for both observability layers.
 - [x] Add structured logging schema, redaction, payload limits, and no-secret telemetry tests.
-- [ ] Enforce append-only audit permissions and integrity/sequence checks; document retention/export.
+- [x] Enforce append-only audit permissions and integrity/sequence checks; document retention/export.
 - [ ] Add audit completeness assertions for every workflow path.
 
 Exit: one correlation ID reconstructs the incident and agent-control flow without exposing secrets, and required audit events are complete and immutable to application roles.

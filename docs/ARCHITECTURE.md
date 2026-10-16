@@ -257,6 +257,14 @@ route. Simulator external Span/metric strings and control-plane Span/log/model-t
 sanitized at the same adapter boundary. Logging and exporter failures remain fail-open and cannot
 become evidence, audit, policy, execution, or recovery authority.
 
+The durable [audit ledger](AUDIT_LEDGER.md) assigns both a global chronology and a contiguous
+database-owned tenant sequence. Every immutable event field is fingerprinted and revalidated on
+read. Authorized export pages are tenant-scoped, bounded, head-checked, and bound to reproducible
+manifests; any fingerprint mismatch, gap, duplicate, cross-tenant row, or missing tail fails closed.
+Application roles can read sequence heads for verification but cannot mutate heads or history.
+This is database-enforced integrity within the current owner trust boundary, not a claim of hash
+chaining or external anchoring.
+
 After the complete Phase 9 safety gate, the worker composition root may explicitly enable the
 single `rollback_service` route. The setting is false by default and the disabled path exits before
 preflight or effects. The enabled composition accepts only a server-injected typed deployment

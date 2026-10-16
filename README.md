@@ -214,6 +214,13 @@ payload refusal. Simulator Span/metric external values and control-plane Span/lo
 dimensions share the same sanitizer. Seeded-secret tests prove the secret is absent from all three
 signal types while correlation survives; telemetry remains fail-open and non-authoritative.
 
+The seventh Phase 11 batch hardens the [audit ledger](docs/AUDIT_LEDGER.md) with transactional
+per-tenant sequencing, canonical immutable-event fingerprints, application-role mutation denial,
+head-checked fail-closed reads, and reproducible bounded export manifests. The accompanying
+retention runbook states the current indefinite online behavior, deployment-owned archive and legal
+hold responsibilities, and the explicit absence of external anchoring rather than overstating the
+database-owner threat boundary.
+
 ## Why this project exists
 
 - Shorten time to diagnose microservice failures.
@@ -438,6 +445,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Simulator observability baseline](docs/OBSERVABILITY.md)
 - [Control-plane observability contract](docs/CONTROL_PLANE_OBSERVABILITY.md)
 - [Structured logging safety contract](docs/STRUCTURED_LOGGING.md)
+- [Audit ledger integrity, export, and retention](docs/AUDIT_LEDGER.md)
 - [Observability alert runbooks](docs/OBSERVABILITY_RUNBOOKS.md)
 - [Deterministic fault control](docs/FAULT_INJECTION.md)
 - [Evaluation-only Ground Truth](docs/GROUND_TRUTH.md)

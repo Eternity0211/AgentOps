@@ -74,7 +74,6 @@ from agentops_incident_commander.infrastructure.persistence.diagnosis_progress i
 from agentops_incident_commander.infrastructure.persistence.models import (
     ApprovalInvalidationRow,
     ApprovalRow,
-    AuditEventRow,
     DiagnosisProgressRow,
     EvidenceRow,
     IdempotencyRecordRow,
@@ -519,6 +518,7 @@ class PlatformObservabilityView(ApiModel):
 
 class AuditEventView(ApiModel):
     sequence: int
+    tenant_sequence: int
     id: str
     type: str
     event_version: int
@@ -530,11 +530,24 @@ class AuditEventView(ApiModel):
     target_id: str
     request_hash: str | None
     result_hash: str | None
+    event_fingerprint: str
     occurred_at: datetime
+
+
+class AuditExportManifestView(ApiModel):
+    schema_version: str
+    tenant_id: str
+    after_sequence: int
+    first_sequence: int | None
+    last_sequence: int | None
+    item_count: int
+    page_fingerprint: str
+    next_after_sequence: int | None
 
 
 class AuditPage(ApiModel):
     items: list[AuditEventView]
+    manifest: AuditExportManifestView
     next_after_sequence: int | None
 
 
@@ -2272,38 +2285,57 @@ def build_api_v1_router(
         after_sequence: Annotated[int, Query(ge=0)] = 0,
     ) -> AuditPage:
         _authorized(principal, Permission.AUDIT_READ)
-        rows = (
-            await session.scalars(
-                select(AuditEventRow)
-                .where(
-                    AuditEventRow.tenant_id == principal.tenant_id.value,
-                    AuditEventRow.sequence > after_sequence,
-                )
-                .order_by(AuditEventRow.sequence)
-                .limit(limit + 1)
+        try:
+            page = await AuditRepository(session).export_page(
+                tenant_id=principal.tenant_id,
+                after_sequence=after_sequence,
+                limit=limit,
             )
-        ).all()
-        visible = rows[:limit]
+        except InvalidDomainValueError as error:
+            raise problem(
+                status.HTTP_409_CONFLICT,
+                "AUDIT_INTEGRITY_FAILED",
+                "Audit integrity failed",
+                "the persisted audit ledger could not be verified",
+            ) from error
         return AuditPage(
             items=[
                 AuditEventView(
-                    sequence=row.sequence,
-                    id=row.id,
-                    type=row.event_type,
-                    event_version=row.event_version,
-                    payload_schema_version=row.payload_schema_version,
-                    actor_id=row.actor_id,
-                    correlation_id=row.correlation_id,
-                    causation_id=row.causation_id,
-                    target_type=row.target_type,
-                    target_id=row.target_id,
-                    request_hash=row.request_hash,
-                    result_hash=row.result_hash,
-                    occurred_at=row.occurred_at,
+                    sequence=stored.sequence,
+                    tenant_sequence=stored.tenant_sequence,
+                    id=stored.event.id.value,
+                    type=stored.event.type,
+                    event_version=stored.event.event_version,
+                    payload_schema_version=stored.event.payload_schema_version,
+                    actor_id=stored.event.actor_id.value,
+                    correlation_id=stored.event.correlation_id.value,
+                    causation_id=stored.event.causation_id.value,
+                    target_type=stored.event.target.type,
+                    target_id=stored.event.target.id.value,
+                    request_hash=(
+                        None
+                        if stored.event.request_hash is None
+                        else stored.event.request_hash.value
+                    ),
+                    result_hash=(
+                        None if stored.event.result_hash is None else stored.event.result_hash.value
+                    ),
+                    event_fingerprint=stored.event_fingerprint.value,
+                    occurred_at=stored.event.occurred_at,
                 )
-                for row in visible
+                for stored in page.events
             ],
-            next_after_sequence=visible[-1].sequence if len(rows) > limit else None,
+            manifest=AuditExportManifestView(
+                schema_version=page.manifest.schema_version,
+                tenant_id=page.manifest.tenant_id.value,
+                after_sequence=page.manifest.after_sequence,
+                first_sequence=page.manifest.first_sequence,
+                last_sequence=page.manifest.last_sequence,
+                item_count=page.manifest.item_count,
+                page_fingerprint=page.manifest.page_fingerprint.value,
+                next_after_sequence=page.manifest.next_after_sequence,
+            ),
+            next_after_sequence=page.manifest.next_after_sequence,
         )
 
     async def run_control(

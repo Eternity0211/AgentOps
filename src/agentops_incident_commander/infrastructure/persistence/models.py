@@ -10,6 +10,7 @@ from sqlalchemy import (
     BigInteger,
     CheckConstraint,
     DateTime,
+    FetchedValue,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
@@ -91,6 +92,16 @@ class Base(DeclarativeBase):
     """Metadata root for control-plane migrations."""
 
 
+class AuditTenantSequenceRow(Base):
+    """Database-owned head for one tenant's contiguous audit sequence."""
+
+    __tablename__ = "audit_tenant_sequences"
+    __table_args__ = (CheckConstraint("last_sequence >= 1", name="ck_audit_tenant_head_positive"),)
+
+    tenant_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    last_sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+
 class AuditEventRow(Base):
     """Database-protected append-only audit ledger row."""
 
@@ -105,12 +116,26 @@ class AuditEventRow(Base):
             "result_hash IS NULL OR result_hash ~ '^[0-9a-f]{64}$'",
             name="ck_audit_result_hash",
         ),
+        CheckConstraint(
+            "event_fingerprint ~ '^[0-9a-f]{64}$'",
+            name="ck_audit_event_fingerprint",
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "tenant_sequence",
+            name="uq_audit_tenant_sequence",
+        ),
         Index("ix_audit_correlation_sequence", "correlation_id", "sequence"),
         Index("ix_audit_tenant_sequence", "tenant_id", "sequence"),
         Index("ix_audit_target_sequence", "target_type", "target_id", "sequence"),
     )
 
     sequence: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_sequence: Mapped[int] = mapped_column(
+        BigInteger,
+        nullable=False,
+        server_default=FetchedValue(),
+    )
     id: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
     tenant_id: Mapped[str] = mapped_column(String(128), nullable=False)
     event_type: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -123,6 +148,7 @@ class AuditEventRow(Base):
     target_id: Mapped[str] = mapped_column(String(128), nullable=False)
     request_hash: Mapped[str | None] = mapped_column(String(64))
     result_hash: Mapped[str | None] = mapped_column(String(64))
+    event_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 

@@ -1,5 +1,5 @@
 {
-  "sha256": "1d87dffebed51a16fcc44375d953643a5fbf0be1ddc3e399f0f6d36988acfff3",
+  "sha256": "227be3f3460c2ab8263409aa5df35d34f086367eb2639b1d5f923f5d0ad739a1",
   "paths": {
     "/api/v1/approvals": ["get"],
     "/api/v1/approvals/{approval_id}": ["get"],
@@ -32,6 +32,7 @@
     "ApprovalSummaryView",
     "AuditCompletenessView",
     "AuditEventView",
+    "AuditExportManifestView",
     "AuditPage",
     "AuditRequirementView",
     "BudgetCounterView",

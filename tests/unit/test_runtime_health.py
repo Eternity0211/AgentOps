@@ -63,12 +63,13 @@ def test_endpoints_use_loopback_and_allowlisted_ports() -> None:
             "PROMETHEUS_PORT": "19090",
             "LOKI_PORT": "13100",
             "TEMPO_PORT": "13200",
+            "GRAFANA_PORT": "13000",
         }
     )
 
-    assert len(checks) == 6
+    assert len(checks) == 7
     assert checks[0].url == "http://[::1]:18080/readyz"
-    assert checks[-1].url == "http://[::1]:13200/ready"
+    assert checks[-1].url == "http://[::1]:13000/api/health"
 
 
 @pytest.mark.parametrize(
@@ -96,6 +97,7 @@ def test_response_validators_accept_complete_contracts() -> None:
         valid_targets(),
         b"ready",
         b"READY",
+        b'{"database":"ok","version":"13.1.5"}',
     )
 
     for check, payload in zip(checks, payloads, strict=True):
@@ -120,6 +122,8 @@ def test_response_validators_accept_complete_contracts() -> None:
             b'{"data":{"activeTargets":[{"labels":{"job":"other"}}]}}',
             "not up",
         ),
+        (runtime_health._grafana_health, b'{"database":"starting"}', "health contract"),
+        (runtime_health._grafana_health, b'{"database":"ok","version":""}', "health contract"),
     ],
 )
 def test_response_validators_reject_incomplete_contracts(

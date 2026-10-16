@@ -1,0 +1,165 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Agent-platform workflow, model, tool, durability, approval, execution, and verification health. Telemetry is not execution authority.",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [
+    {
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": true,
+      "title": "Operational runbooks",
+      "type": "link",
+      "url": "https://github.com/Eternity0211/AgentOps/blob/main/docs/OBSERVABILITY_RUNBOOKS.md"
+    }
+  ],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "agentops-prometheus"},
+      "description": "Terminal operation failures and timeouts divided by non-start/retry outcomes.",
+      "fieldConfig": {"defaults": {"max": 100, "min": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 5}]}, "unit": "percent"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "100 * sum(rate(agentops_control_plane_operations_total{component=~\"$component\",outcome=~\"FAILED|TIMED_OUT\"}[5m])) / clamp_min(sum(rate(agentops_control_plane_operations_total{component=~\"$component\",outcome!~\"STARTED|RETRYING\"}[5m])), 0.001)", "legendFormat": "failure ratio", "refId": "A"}],
+      "title": "Control-plane failure ratio",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "agentops-prometheus"},
+      "description": "Active alerts for the agent-platform layer.",
+      "fieldConfig": {"defaults": {"thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "id": 2,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "count(ALERTS{alertstate=\"firing\",layer=\"agent-platform\"}) or vector(0)", "legendFormat": "firing", "refId": "A"}],
+      "title": "Firing platform alerts",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "agentops-prometheus"},
+      "description": "Registered model token rate across typed categories; raw prompts and responses are never metrics.",
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "id": 3,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "sum(rate(agentops_model_tokens_total{token_type=\"total\"}[5m]))", "legendFormat": "tokens/s", "refId": "A"}],
+      "title": "Model token rate",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "agentops-prometheus"},
+      "description": "Integer nanounit cost rate from persisted model metering; values are not floating-point currency claims.",
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+      "id": 4,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "sum(rate(agentops_model_cost_total[5m]))", "legendFormat": "nanounits/s", "refId": "A"}],
+      "title": "Model cost rate (nanounits)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "agentops-prometheus"},
+      "description": "Low-cardinality operation rate across graph, model, tool, deterministic gate, durability, approval, execution, and verification components.",
+      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+      "id": 5,
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [{"expr": "sum by (component, outcome) (rate(agentops_control_plane_operations_total{component=~\"$component\"}[5m]))", "legendFormat": "{{component}} {{outcome}}", "refId": "A"}],
+      "title": "Operations by component and outcome",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "agentops-prometheus"},
+      "description": "P95 terminal duration by component; starting events do not report duration.",
+      "fieldConfig": {"defaults": {"unit": "ms"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+      "id": 6,
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le, component) (rate(agentops_control_plane_duration_milliseconds_bucket{component=~\"$component\"}[5m])))", "legendFormat": "{{component}}", "refId": "A"}],
+      "title": "Operation P95 duration",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "agentops-prometheus"},
+      "description": "Registered model starts and typed errors by provider/model.",
+      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 8, "x": 0, "y": 12},
+      "id": 7,
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {"expr": "sum by (provider, model) (rate(agentops_model_calls_total[5m]))", "legendFormat": "calls {{provider}}/{{model}}", "refId": "A"},
+        {"expr": "sum by (provider, model) (rate(agentops_model_errors_total[5m]))", "legendFormat": "errors {{provider}}/{{model}}", "refId": "B"}
+      ],
+      "title": "Model calls and errors",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "agentops-prometheus"},
+      "description": "Tool attempts and bounded retries. Raising retry limits is not the first response.",
+      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 8, "x": 8, "y": 12},
+      "id": 8,
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {"expr": "sum by (tool, version) (rate(agentops_tool_attempts_total[5m]))", "legendFormat": "attempts {{tool}} v{{version}}", "refId": "A"},
+        {"expr": "sum by (tool, version) (rate(agentops_tool_retries_total[5m]))", "legendFormat": "retries {{tool}} v{{version}}", "refId": "B"}
+      ],
+      "title": "Tool attempts and retries",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "agentops-loki"},
+      "description": "Content-free operation logs retain correlation and causation for navigation without exposing prompts, tool payloads, evidence, or exception details.",
+      "gridPos": {"h": 7, "w": 8, "x": 16, "y": 12},
+      "id": 9,
+      "options": {"dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true},
+      "targets": [{"expr": "{service_name=~\"agentops-(api|worker)\"}", "queryType": "range", "refId": "A"}],
+      "title": "Agent-platform logs",
+      "type": "logs"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 41,
+  "tags": ["agentops", "agent-platform"],
+  "templating": {
+    "list": [
+      {
+        "allValue": ".*",
+        "current": {"text": "All", "value": "$__all"},
+        "datasource": {"type": "prometheus", "uid": "agentops-prometheus"},
+        "definition": "label_values(agentops_control_plane_operations_total, component)",
+        "includeAll": true,
+        "label": "Component",
+        "multi": true,
+        "name": "component",
+        "query": {"query": "label_values(agentops_control_plane_operations_total, component)", "refId": "StandardVariableQuery"},
+        "refresh": 1,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "AgentOps / Agent platform",
+  "uid": "agentops-platform",
+  "version": 1,
+  "weekStart": ""
+}

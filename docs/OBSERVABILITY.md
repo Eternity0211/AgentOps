@@ -21,7 +21,7 @@ Each process uses a resource with `service.name=agentops-simulator-{role}`, pack
 - `http_client_request` and `dependency_operation` OTLP logs contain the same bounded dimensions, duration, and validated correlation ID and inherit the active trace/span IDs.
 - Each process emits `service.deployment.changed` at startup and after every in-process typed deployment transition. Event schema `1.0` contains service, deployment ID, current and optional previous version, deployment environment, and an explicit UTC `event.observed_at`. A matching `/versionz` response exposes the typed deployment facts for deterministic health verification. The observation time is not represented as an unverified rollout start time.
 
-Exporter work is batched with bounded queues and two-second default export deadlines. Telemetry configuration or background export failure degrades to no-op/lost telemetry and cannot turn a valid business request, dependency result, or deployment transition into a failure. Shutdown flush is also bounded. These behaviors prioritize simulator availability; exporter failures remain visible in local SDK diagnostics and gain actionable alerting in the dashboard/alert batch of Phase 11.
+Exporter work is batched with bounded queues and two-second default export deadlines. Telemetry configuration or background export failure degrades to no-op/lost telemetry and cannot turn a valid business request, dependency result, or deployment transition into a failure. Shutdown flush is also bounded. These behaviors prioritize simulator availability; Collector target loss now raises the shared `AgentOpsTelemetryCollectorDown` rule without turning missing telemetry into evidence of health.
 
 ## Configuration
 
@@ -50,10 +50,36 @@ OTLP logs    -> Collector OTLP/HTTP exporter   -> Loki /otlp
 OTLP traces  -> Collector OTLP/HTTP exporter   -> Tempo :4318
 ```
 
-Prometheus, Loki, Tempo, and the Collector share the internal observability network; the Collector additionally joins the internal simulator network to receive OTLP. No Collector receiver is published to the host. Prometheus, Loki, and Tempo also join a separate host-ingress network solely for their loopback-bound diagnostic/query ports; they never join Gateway ingress.
+Prometheus, Loki, Tempo, Grafana, and the Collector share the internal observability network; the Collector additionally joins the internal simulator network to receive OTLP. No Collector receiver is published to the host. Prometheus, Loki, Tempo, and Grafana also join a separate host-ingress network solely for their loopback-bound diagnostic/query ports; they never join Gateway ingress.
+
+## Dashboard and alert contract
+
+Grafana provisions the immutable **AgentOps / Diagnosed system** dashboard from the repository. It
+shows request rate, HTTP 5xx ratio, P95 latency, status split, dependency failures, Collector
+health, active diagnosed-system alerts, and content-free Loki logs. Prometheus resource conversion
+adds the bounded `service_name` resource attribute to metric series; tenant, Incident, correlation,
+causation, operation, workflow, scenario, and run identities remain excluded from metric labels.
+
+The diagnosed-system alert group evaluates sustained high 5xx ratio, sustained high P95 latency,
+and dependency failures. Rate/latency alerts require meaningful traffic so an idle or sparse series
+does not page. Every rule has a fixed name, `layer`, `severity`, summary, description, hold window,
+and a direct [runbook](OBSERVABILITY_RUNBOOKS.md). Alerts initiate investigation; they do not prove a
+root cause or authorize recovery.
+
+Grafana is loopback-only, anonymous access is `Viewer`, and its administrator password comes from
+an ignored file secret. Provisioned dashboards/data sources are not UI-editable and default plugin
+preinstallation/auto-update is disabled, keeping the read-only container reproducible. Prometheus,
+Loki, and Tempo URLs are fixed internal service names rather than caller-controlled endpoints.
 
 ## Verification boundary
 
-Unit tests use in-memory exporters to assert inbound and outbound W3C hierarchy, server/client/dependency metric names and bounded attributes, OTLP log trace/span linkage, startup and live-transition deployment markers, payload/error-detail exclusion, invalid configuration, disabled mode, observer/exporter failure isolation, and bounded shutdown. Static tests assert all service OTLP settings and all three Collector destinations.
+Unit tests use in-memory exporters to assert inbound and outbound W3C hierarchy, server/client/dependency metric names and bounded attributes, OTLP log trace/span linkage, startup and live-transition deployment markers, payload/error-detail exclusion, invalid configuration, disabled mode, observer/exporter failure isolation, and bounded shutdown. Static tests assert all service OTLP settings, all three Collector destinations, safe dashboard queries, immutable provisioning, alert metadata/runbook coverage, and absence of high-cardinality identity labels.
+
+The dashboard batch additionally passed `promtool` validation for all nine rules and a live isolated
+Compose run: Grafana loaded both dashboards plus the three read-only data sources, Prometheus
+reported both rule groups healthy, and Grafana emitted no error-level startup records. A direct
+content-free OTLP verification confirmed the exact Prometheus metric names and `service_name`
+resource label used by the dashboards. This is configuration/functional evidence, not a paging,
+retention, capacity, or production reliability claim.
 
 The 2026-10-02 Phase 1 run observed the Collector scrape target as `up`, queried `simulator_http_server_requests_total` including the injected Order 500 and Gateway 502 series, listed Loki OTLP resource labels, and returned simulator traces from Tempo search. The exact functional evidence and limitations are recorded in `docs/PHASE_1_VERIFICATION.md`; this single run is not a throughput, retention, or reliability measurement.

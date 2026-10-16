@@ -197,6 +197,15 @@ cannot alter process results. Tests preserve one Correlation ID across exported 
 retry, pause/resume, and failure signals, and the PostgreSQL recovery E2E proves refusal, success,
 verification, and replay all reach the one worker observer.
 
+The fifth observability batch provisions two repository-owned Grafana dashboards: one for diagnosed
+service RED/dependency/log signals and one for graph/model/tool/durability/approval/recovery health.
+Prometheus evaluates nine versioned, severity/layer-labeled rules with sustained-volume guards and
+direct operational runbook links. Grafana's Prometheus, Loki, and Tempo data sources are fixed,
+internal, and read-only; anonymous local access is Viewer-only, the administrator uses a file
+secret, and background plugin downloads are disabled. Dashboards and alerts remain operational
+signals only and cannot replace Incident-owned Evidence, policy, approval, execution, or health
+verification.
+
 ## Why this project exists
 
 - Shorten time to diagnose microservice failures.
@@ -217,7 +226,7 @@ An LLM can propose; it cannot execute arbitrary commands, mutate infrastructure 
 
 ## Planned stack
 
-Python 3.12, FastAPI, LangGraph, Pydantic, SQLAlchemy, Alembic, PostgreSQL/pgvector, OpenTelemetry, Prometheus, Loki, Tempo, Docker Compose, Pytest, Testcontainers, and a small Next.js/React console.
+Python 3.12, FastAPI, LangGraph, Pydantic, SQLAlchemy, Alembic, PostgreSQL/pgvector, OpenTelemetry, Prometheus, Loki, Tempo, Grafana, Docker Compose, Pytest, Testcontainers, and a small Next.js/React console.
 
 ## Administration console
 
@@ -304,7 +313,7 @@ python scripts/dev.py status
 python scripts/dev.py down
 ```
 
-`up` validates the static Compose contract and Docker daemon, builds/starts with Compose `--wait`, then checks Gateway readiness/version, Prometheus/Loki/Tempo readiness, and the Collector's Prometheus target. A post-start failure automatically stops partial containers without deleting named volumes. `status` repeats the observable health contract. `down` removes containers and orphans but deliberately does not remove persistent volumes.
+`up` validates the static Compose contract and Docker daemon, builds/starts with Compose `--wait`, then checks Gateway readiness/version, Prometheus/Loki/Tempo/Grafana readiness, and the Collector's Prometheus target. A post-start failure automatically stops partial containers without deleting named volumes. `status` repeats the observable health contract. `down` removes containers and orphans but deliberately does not remove persistent volumes. Grafana is available at `http://127.0.0.1:3000` by default and loads the two AgentOps dashboards without manual import.
 
 The fault controller syntax and safe state/cleanup framework are available for all six scenarios. The focused in-process smoke suite verifies the four-service baseline, each fault symptom, and restoration to a fresh baseline without requiring Docker. Container E2E and evaluation commands remain reserved:
 
@@ -373,11 +382,11 @@ The runner never forwards arbitrary shell text: every task maps to an immutable 
 
 ## Compose foundation
 
-Copy `.env.example` to the ignored `.env` file, then create the three ignored runtime secret files referenced by `CONTROL_DB_PASSWORD_FILE`, `SIMULATOR_DB_PASSWORD_FILE`, and `SIMULATOR_REDIS_PASSWORD_FILE`. Each file must contain a distinct, non-empty local-only credential. The isolated evaluator additionally uses `GROUND_TRUTH_ACCESS_FILE` only with `compose.evaluation.yaml`. The repository does not commit working credentials or unsafe fallback passwords; absent secret files prevent profile startup.
+Copy `.env.example` to the ignored `.env` file, then create the four ignored runtime secret files referenced by `CONTROL_DB_PASSWORD_FILE`, `SIMULATOR_DB_PASSWORD_FILE`, `SIMULATOR_REDIS_PASSWORD_FILE`, and `GRAFANA_ADMIN_PASSWORD_FILE`. Each file must contain a distinct, non-empty local-only credential. The isolated evaluator additionally uses `GROUND_TRUTH_ACCESS_FILE` only with `compose.evaluation.yaml`. The repository does not commit working credentials or unsafe fallback passwords; absent secret files prevent profile startup.
 
-The current topology is intentionally profile-scoped: `control-plane` provides its isolated PostgreSQL store, `simulator` provides the diagnosed PostgreSQL and Redis dependencies, and `observability` provides Prometheus, Loki, Tempo, and the OpenTelemetry Collector. Persistent stores use named volumes; runtime root filesystems are read-only; CPU, memory, and process counts are bounded; and published observability ports bind to `127.0.0.1` by default. `python scripts/dev.py compose` renders every profile with synthetic secret sentinels and verifies those invariants without starting containers or exposing the sentinels.
+The current topology is intentionally profile-scoped: `control-plane` provides its isolated PostgreSQL store, `simulator` provides the diagnosed PostgreSQL and Redis dependencies, and `observability` provides Prometheus, Loki, Tempo, Grafana, and the OpenTelemetry Collector. Persistent stores use named volumes; runtime root filesystems are read-only; CPU, memory, and process counts are bounded; and published observability ports bind to `127.0.0.1` by default. `python scripts/dev.py compose` renders every profile with synthetic secret sentinels and verifies those invariants without starting containers or exposing the sentinels.
 
-The image tags are explicit release versions selected from the upstream PostgreSQL, Redis, Prometheus, Grafana Loki/Tempo, and OpenTelemetry Collector release streams on 2026-10-01. Digest locking and the update/SBOM policy remain a later hardening item and are not claimed here.
+The image tags are explicit release versions selected from the upstream PostgreSQL, Redis, Prometheus, Grafana, Loki, Tempo, and OpenTelemetry Collector release streams. Digest locking and the update/SBOM policy remain a later hardening item and are not claimed here.
 
 The simulator includes API Gateway, Order, Inventory, and Payment services plus isolated PostgreSQL and Redis dependencies. Order writes are idempotent, Inventory reservations are atomic and idempotent, and dependency-aware readiness fails closed. Services emit bounded traces, HTTP metrics, and trace-linked logs through the OpenTelemetry Collector toward Prometheus, Loki, and Tempo. Six deterministic scenarios cover deployment-induced HTTP 500s, database pool exhaustion, Redis timeout, downstream latency, memory leak, and bad configuration. Their labels live behind a separate evaluator image, Compose file/profile, internal network, read-only path, and credential; runtime/model-capable paths are protected by leakage-canary tests.
 
@@ -420,6 +429,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Simulator service contracts](docs/SIMULATOR_SERVICES.md)
 - [Simulator observability baseline](docs/OBSERVABILITY.md)
 - [Control-plane observability contract](docs/CONTROL_PLANE_OBSERVABILITY.md)
+- [Observability alert runbooks](docs/OBSERVABILITY_RUNBOOKS.md)
 - [Deterministic fault control](docs/FAULT_INJECTION.md)
 - [Evaluation-only Ground Truth](docs/GROUND_TRUTH.md)
 - [Phase 1 live verification](docs/PHASE_1_VERIFICATION.md)

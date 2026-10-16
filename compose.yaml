@@ -225,6 +225,8 @@ services:
     configs:
       - source: prometheus_config
         target: /etc/prometheus/prometheus.yml
+      - source: prometheus_alert_rules
+        target: /etc/prometheus/rules/agentops-alerts.yml
     volumes:
       - prometheus_data:/prometheus
     tmpfs:
@@ -322,6 +324,56 @@ services:
       retries: 6
       start_period: 10s
 
+  grafana:
+    <<: [*runtime-defaults, *small-resources]
+    image: grafana/grafana:13.1.5
+    profiles: [observability]
+    environment:
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_PLUGINS_PREINSTALL_AUTO_UPDATE: "false"
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-agentops-admin}
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    secrets: [grafana_admin_password]
+    configs:
+      - source: grafana_datasources
+        target: /etc/grafana/provisioning/datasources/agentops.yml
+      - source: grafana_dashboard_provider
+        target: /etc/grafana/provisioning/dashboards/agentops.yml
+      - source: grafana_diagnosed_dashboard
+        target: /etc/grafana/dashboards/diagnosed-system.json
+      - source: grafana_control_plane_dashboard
+        target: /etc/grafana/dashboards/agent-platform.json
+    volumes:
+      - grafana_data:/var/lib/grafana
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    ports:
+      - name: grafana-http
+        target: 3000
+        published: ${GRAFANA_PORT:-3000}
+        host_ip: ${BIND_ADDRESS:-127.0.0.1}
+        protocol: tcp
+    networks: [observability, observability-ingress]
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+      tempo:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:3000/api/health]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
 networks:
   ingress:
     internal: false
@@ -341,16 +393,27 @@ volumes:
   prometheus_data:
   loki_data:
   tempo_data:
+  grafana_data:
 
 configs:
   prometheus_config:
     file: ./config/observability/prometheus.yml
+  prometheus_alert_rules:
+    file: ./config/observability/alerts.yml
   loki_config:
     file: ./config/observability/loki.yml
   tempo_config:
     file: ./config/observability/tempo.yml
   otel_collector_config:
     file: ./config/observability/otel-collector.yml
+  grafana_datasources:
+    file: ./config/observability/grafana/datasources.yml
+  grafana_dashboard_provider:
+    file: ./config/observability/grafana/dashboards.yml
+  grafana_diagnosed_dashboard:
+    file: ./config/observability/grafana/diagnosed-system.json
+  grafana_control_plane_dashboard:
+    file: ./config/observability/grafana/agent-platform.json
 
 secrets:
   control_db_password:
@@ -359,3 +422,5 @@ secrets:
     file: ${SIMULATOR_DB_PASSWORD_FILE:?set SIMULATOR_DB_PASSWORD_FILE to a local secret file}
   simulator_redis_password:
     file: ${SIMULATOR_REDIS_PASSWORD_FILE:?set SIMULATOR_REDIS_PASSWORD_FILE to a local secret file}
+  grafana_admin_password:
+    file: ${GRAFANA_ADMIN_PASSWORD_FILE:?set GRAFANA_ADMIN_PASSWORD_FILE to a local secret file}

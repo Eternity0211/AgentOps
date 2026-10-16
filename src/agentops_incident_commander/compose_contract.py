@@ -27,6 +27,7 @@ EXPECTED_SERVICES = {
     "loki",
     "tempo",
     "otel-collector",
+    "grafana",
 }
 EXPECTED_NETWORKS = {"control-plane", "simulator", "observability"}
 HOST_INGRESS_NETWORKS = {"ingress", "observability-ingress"}
@@ -37,11 +38,13 @@ EXPECTED_VOLUMES = {
     "prometheus_data",
     "loki_data",
     "tempo_data",
+    "grafana_data",
 }
 EXPECTED_SECRETS = {
     "control_db_password": "control-db-password.txt",
     "simulator_db_password": "simulator-db-password.txt",
     "simulator_redis_password": "simulator-redis-password.txt",
+    "grafana_admin_password": "grafana-admin-password.txt",
 }
 
 
@@ -67,6 +70,7 @@ def render_compose_config(
             ("CONTROL_DB_PASSWORD_FILE", "control-db-password.txt"),
             ("SIMULATOR_DB_PASSWORD_FILE", "simulator-db-password.txt"),
             ("SIMULATOR_REDIS_PASSWORD_FILE", "simulator-redis-password.txt"),
+            ("GRAFANA_ADMIN_PASSWORD_FILE", "grafana-admin-password.txt"),
         )
     }
     for path in secret_paths.values():
@@ -125,7 +129,7 @@ def validate_compose_config(config: Mapping[str, Any]) -> tuple[str, ...]:
     if not isinstance(services, dict):
         return ("services must be an object",)
     if set(services) != EXPECTED_SERVICES:
-        violations.append("services must match the approved Phase 1B topology")
+        violations.append("services must match the approved runtime topology")
 
     for name, service in sorted(services.items()):
         if not isinstance(service, dict):

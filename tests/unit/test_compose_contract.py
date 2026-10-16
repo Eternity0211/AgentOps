@@ -88,6 +88,8 @@ def test_observability_config_routes_three_signal_pipelines() -> None:
     assert "traces:\n      receivers: [otlp]" in collector
     assert "exporters: [otlp_http/tempo]" in collector
     assert "targets: [otel-collector:9464]" in prometheus
+    assert "resource_to_telemetry_conversion:\n      enabled: true" in collector
+    assert "/etc/prometheus/rules/agentops-alerts.yml" in prometheus
 
 
 def test_observability_backends_use_a_separate_host_ingress(
@@ -99,7 +101,7 @@ def test_observability_backends_use_a_separate_host_ingress(
     assert isinstance(networks, dict)
     assert isinstance(services, dict)
     assert networks["observability-ingress"].get("internal") is not True
-    for service_name in ("prometheus", "loki", "tempo"):
+    for service_name in ("prometheus", "loki", "tempo", "grafana"):
         service = services[service_name]
         assert isinstance(service, dict)
         assert set(service["networks"]) == {"observability", "observability-ingress"}
@@ -115,6 +117,31 @@ def test_collector_uses_last_published_multi_arch_release(
     collector = services["otel-collector"]
     assert isinstance(collector, dict)
     assert collector["image"] == "otel/opentelemetry-collector-contrib:0.161.0"
+
+
+def test_grafana_is_read_only_provisioned_and_secret_protected(
+    rendered_config: dict[str, object],
+) -> None:
+    """Dashboards are repository-owned while the local administrator uses a file secret."""
+    services = rendered_config["services"]
+    assert isinstance(services, dict)
+    grafana = services["grafana"]
+    assert isinstance(grafana, dict)
+
+    assert grafana["image"] == "grafana/grafana:13.1.5"
+    assert grafana["environment"]["GF_AUTH_ANONYMOUS_ORG_ROLE"] == "Viewer"
+    assert grafana["environment"]["GF_PLUGINS_PREINSTALL_DISABLED"] == "true"
+    assert grafana["environment"]["GF_PLUGINS_PREINSTALL_AUTO_UPDATE"] == "false"
+    assert grafana["environment"]["GF_SECURITY_ADMIN_PASSWORD__FILE"] == (
+        "/run/secrets/grafana_admin_password"
+    )
+    assert [item["source"] for item in grafana["secrets"]] == ["grafana_admin_password"]
+    assert {item["source"] for item in grafana["configs"]} == {
+        "grafana_datasources",
+        "grafana_dashboard_provider",
+        "grafana_diagnosed_dashboard",
+        "grafana_control_plane_dashboard",
+    }
 
 
 def test_validation_reports_service_and_topology_violations(
@@ -151,7 +178,7 @@ def test_validation_reports_service_and_topology_violations(
 
     violations = compose_contract.validate_compose_config(invalid)
 
-    assert "services must match the approved Phase 1B topology" in violations
+    assert "services must match the approved runtime topology" in violations
     assert "service unexpected must be an object" in violations
     assert "service control-postgres must not be privileged" in violations
     assert "service control-postgres published ports must bind to loopback" in violations
@@ -234,7 +261,7 @@ def test_main_success(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFix
     monkeypatch.setattr(compose_contract, "validate_compose_config", lambda config: ())
 
     assert compose_contract.main() == 0
-    assert "passed services=11" in capsys.readouterr().out
+    assert "passed services=12" in capsys.readouterr().out
 
 
 def test_main_reports_violations(

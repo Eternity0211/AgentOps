@@ -1,0 +1,134 @@
+groups:
+  - name: agentops-diagnosed-system
+    interval: 30s
+    rules:
+      - alert: AgentOpsDiagnosedSystemHighErrorRate
+        expr: |
+          (
+            sum by (service_name) (rate(simulator_http_server_requests_total{status=~"5.."}[5m]))
+            /
+            clamp_min(sum by (service_name) (rate(simulator_http_server_requests_total[5m])), 0.001)
+          ) > 0.05
+          and on (service_name)
+          sum by (service_name) (rate(simulator_http_server_requests_total[5m])) > 0.1
+        for: 5m
+        labels:
+          layer: diagnosed-system
+          severity: critical
+        annotations:
+          summary: Diagnosed service HTTP 5xx ratio is above 5%
+          description: Service {{ $labels.service_name }} has sustained HTTP 5xx failures at meaningful request volume.
+          runbook_url: https://github.com/Eternity0211/AgentOps/blob/main/docs/OBSERVABILITY_RUNBOOKS.md#diagnosed-system-high-error-rate
+      - alert: AgentOpsDiagnosedSystemHighP95Latency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le, service_name) (rate(simulator_http_server_duration_milliseconds_bucket[5m]))
+          ) > 1000
+          and on (service_name)
+          sum by (service_name) (rate(simulator_http_server_requests_total[5m])) > 0.1
+        for: 5m
+        labels:
+          layer: diagnosed-system
+          severity: warning
+        annotations:
+          summary: Diagnosed service P95 latency is above one second
+          description: Service {{ $labels.service_name }} has sustained P95 request latency above 1,000 ms.
+          runbook_url: https://github.com/Eternity0211/AgentOps/blob/main/docs/OBSERVABILITY_RUNBOOKS.md#diagnosed-system-high-p95-latency
+      - alert: AgentOpsDiagnosedSystemDependencyFailures
+        expr: |
+          sum by (service_name, dependency) (
+            rate(simulator_dependency_operations_total{result!="ok"}[5m])
+          ) > 0
+        for: 3m
+        labels:
+          layer: diagnosed-system
+          severity: warning
+        annotations:
+          summary: Diagnosed service dependency calls are failing
+          description: Service {{ $labels.service_name }} has sustained failures against {{ $labels.dependency }}.
+          runbook_url: https://github.com/Eternity0211/AgentOps/blob/main/docs/OBSERVABILITY_RUNBOOKS.md#diagnosed-system-dependency-failures
+
+  - name: agentops-control-plane
+    interval: 30s
+    rules:
+      - alert: AgentOpsControlPlaneFailureRatioHigh
+        expr: |
+          (
+            sum(rate(agentops_control_plane_operations_total{outcome=~"FAILED|TIMED_OUT"}[5m]))
+            /
+            clamp_min(
+              sum(rate(agentops_control_plane_operations_total{outcome!~"STARTED|RETRYING"}[5m])),
+              0.001
+            )
+          ) > 0.05
+          and
+          sum(rate(agentops_control_plane_operations_total{outcome!~"STARTED|RETRYING"}[5m])) > 0.02
+        for: 5m
+        labels:
+          layer: agent-platform
+          severity: critical
+        annotations:
+          summary: Agent platform failure ratio is above 5%
+          description: Deterministic and agent-workflow operations are failing or timing out above the sustained threshold.
+          runbook_url: https://github.com/Eternity0211/AgentOps/blob/main/docs/OBSERVABILITY_RUNBOOKS.md#agent-platform-failure-ratio
+      - alert: AgentOpsControlPlaneJobStaleRecovery
+        expr: |
+          sum(rate(agentops_control_plane_operations_total{operation="JOB_STALE_RECOVERY"}[10m])) > 0
+        for: 1m
+        labels:
+          layer: agent-platform
+          severity: warning
+        annotations:
+          summary: A durable job lease required stale-worker recovery
+          description: At least one expired worker lease was reclaimed or routed terminally; inspect worker availability and the durable audit trail.
+          runbook_url: https://github.com/Eternity0211/AgentOps/blob/main/docs/OBSERVABILITY_RUNBOOKS.md#agent-platform-stale-job-recovery
+      - alert: AgentOpsRecoveryExecutionFailure
+        expr: |
+          sum(rate(agentops_control_plane_operations_total{operation="RECOVERY_EXECUTE",outcome=~"FAILED|TIMED_OUT|HANDED_OFF"}[5m])) > 0
+        for: 1m
+        labels:
+          layer: agent-platform
+          severity: critical
+        annotations:
+          summary: An approved recovery execution did not complete successfully
+          description: Recovery failed, timed out, or required human handling; never bypass the persisted failure route or deterministic verifier.
+          runbook_url: https://github.com/Eternity0211/AgentOps/blob/main/docs/OBSERVABILITY_RUNBOOKS.md#recovery-execution-failure
+      - alert: AgentOpsToolRetryRatioHigh
+        expr: |
+          (
+            sum(rate(agentops_tool_retries_total[5m]))
+            /
+            clamp_min(sum(rate(agentops_tool_attempts_total[5m])), 0.001)
+          ) > 0.25
+          and
+          sum(rate(agentops_tool_attempts_total[5m])) > 0.02
+        for: 5m
+        labels:
+          layer: agent-platform
+          severity: warning
+        annotations:
+          summary: Read-only Tool Gateway retry ratio is above 25%
+          description: Tool dependencies are unstable or timing out; inspect bounded retry outcomes without increasing retry limits first.
+          runbook_url: https://github.com/Eternity0211/AgentOps/blob/main/docs/OBSERVABILITY_RUNBOOKS.md#tool-gateway-retry-ratio
+      - alert: AgentOpsModelCallErrors
+        expr: |
+          sum by (provider, model) (rate(agentops_model_errors_total[5m])) > 0
+        for: 3m
+        labels:
+          layer: agent-platform
+          severity: warning
+        annotations:
+          summary: Registered model calls are failing
+          description: Provider {{ $labels.provider }} model {{ $labels.model }} has sustained typed model-call failures.
+          runbook_url: https://github.com/Eternity0211/AgentOps/blob/main/docs/OBSERVABILITY_RUNBOOKS.md#model-call-errors
+      - alert: AgentOpsTelemetryCollectorDown
+        expr: up{job="otel-collector"} == 0
+        for: 2m
+        labels:
+          layer: shared-observability
+          severity: critical
+        annotations:
+          summary: OpenTelemetry Collector metrics target is down
+          description: Both diagnosed-system and agent-platform telemetry may be incomplete; operational telemetry loss never grants recovery authority.
+          runbook_url: https://github.com/Eternity0211/AgentOps/blob/main/docs/OBSERVABILITY_RUNBOOKS.md#telemetry-collector-down

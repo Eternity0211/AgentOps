@@ -245,7 +245,7 @@ Exit: an operator can understand and safely control a full incident without the 
   - [x] Instrument PostgreSQL checkpoints, jobs/leases, and approval lifecycle/resume boundaries.
   - [x] Instrument recovery executions, deterministic verification, failure routes, and explicit compensation-guard outcomes.
   - [x] Wire one process-owned observer through API/worker compositions and prove correlated end-to-end success, refusal, retry, pause/resume, and failure signals.
-- [ ] Create dashboards and actionable alerts for both observability layers.
+- [x] Create dashboards and actionable alerts for both observability layers.
 - [ ] Add structured logging schema, redaction, payload limits, and no-secret telemetry tests.
 - [ ] Enforce append-only audit permissions and integrity/sequence checks; document retention/export.
 - [ ] Add audit completeness assertions for every workflow path.

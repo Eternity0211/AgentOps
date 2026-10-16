@@ -242,6 +242,14 @@ the worker passes it to every work handler, and the rollback composition uses an
 verifier factory so Executor, verifier, and router cannot silently diverge. Isolated library hooks
 continue to default to no-op and no global SDK provider is installed.
 
+The local observability composition provisions two repository-owned Grafana dashboards over fixed
+internal Prometheus, Loki, and Tempo data sources. Prometheus evaluates separate diagnosed-system
+and agent-platform rule groups with stable severity/layer labels, sustained thresholds, and
+runbook links. Dashboard and rule queries use only bounded metric dimensions. They are diagnostic
+views, not an alternate Evidence Store, audit ledger, Policy Engine, approval surface, Executor, or
+Health Verifier. Grafana is loopback-bound with anonymous Viewer access, a file-secret-protected
+administrator, immutable provisioning, and disabled background plugin downloads.
+
 After the complete Phase 9 safety gate, the worker composition root may explicitly enable the
 single `rollback_service` route. The setting is false by default and the disabled path exits before
 preflight or effects. The enabled composition accepts only a server-injected typed deployment
@@ -272,7 +280,7 @@ validated history visible and offers only a read retry.
 
 ## Deployment topology
 
-The reference Compose topology separates `api`, `worker`, `console`, control-plane `postgres`, observability backends, OTel Collector, and simulator services. The simulator includes its own PostgreSQL and Redis as diagnosed dependencies. Redis is not a control-plane queue or cache in the MVP. The runtime and Ground Truth evaluator use different Compose profiles/networks/credentials so runtime containers cannot read evaluation labels.
+The reference Compose topology separates `api`, `worker`, `console`, control-plane `postgres`, Prometheus/Loki/Tempo/Grafana, OTel Collector, and simulator services. The simulator includes its own PostgreSQL and Redis as diagnosed dependencies. Redis is not a control-plane queue or cache in the MVP. The runtime and Ground Truth evaluator use different Compose profiles/networks/credentials so runtime containers cannot read evaluation labels.
 
 ## Dependency direction
 

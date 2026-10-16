@@ -153,7 +153,7 @@ def test_environment_loads_only_allowlisted_runtime_dotenv_values(tmp_path: Path
     dotenv = tmp_path / ".env"
     dotenv.write_text(
         "# local ports\n\nignored-line\nPROMETHEUS_PORT=19090\n"
-        "LOKI_PORT=13100\nCONTROL_DB_PASSWORD=do-not-load\n",
+        "LOKI_PORT=13100\nGRAFANA_PORT=13000\nCONTROL_DB_PASSWORD=do-not-load\n",
         encoding="utf-8",
     )
 
@@ -161,6 +161,7 @@ def test_environment_loads_only_allowlisted_runtime_dotenv_values(tmp_path: Path
 
     assert environment["PROMETHEUS_PORT"] == "29090"
     assert environment["LOKI_PORT"] == "13100"
+    assert environment["GRAFANA_PORT"] == "13000"
     assert "CONTROL_DB_PASSWORD" not in environment
 
 

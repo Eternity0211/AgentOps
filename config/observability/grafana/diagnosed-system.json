@@ -1,0 +1,148 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Diagnosed-system RED and dependency signals. Use evidence-backed investigation; dashboard values never authorize recovery.",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [
+    {
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": true,
+      "title": "Operational runbooks",
+      "type": "link",
+      "url": "https://github.com/Eternity0211/AgentOps/blob/main/docs/OBSERVABILITY_RUNBOOKS.md"
+    }
+  ],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "agentops-prometheus"},
+      "description": "Total completed diagnosed-system requests per second over five minutes.",
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "sum(rate(simulator_http_server_requests_total{service_name=~\"$service\"}[5m]))", "legendFormat": "requests/s", "refId": "A"}],
+      "title": "Request rate",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "agentops-prometheus"},
+      "description": "HTTP 5xx share at the selected services. Thresholds match the actionable alert.",
+      "fieldConfig": {"defaults": {"max": 100, "min": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 5}]}, "unit": "percent"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "id": 2,
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "100 * sum(rate(simulator_http_server_requests_total{service_name=~\"$service\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(simulator_http_server_requests_total{service_name=~\"$service\"}[5m])), 0.001)", "legendFormat": "5xx ratio", "refId": "A"}],
+      "title": "HTTP 5xx ratio",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "agentops-prometheus"},
+      "description": "Active Prometheus alert instances for the diagnosed-system layer.",
+      "fieldConfig": {"defaults": {"thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "id": 3,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "count(ALERTS{alertstate=\"firing\",layer=\"diagnosed-system\"}) or vector(0)", "legendFormat": "firing", "refId": "A"}],
+      "title": "Firing diagnosed-system alerts",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "agentops-prometheus"},
+      "description": "Collector scrape health. A down target means both observability layers may be incomplete.",
+      "fieldConfig": {"defaults": {"mappings": [{"options": {"0": {"color": "red", "text": "DOWN"}, "1": {"color": "green", "text": "UP"}}, "type": "value"}], "min": 0, "max": 1}, "overrides": []},
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+      "id": 4,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [{"expr": "up{job=\"otel-collector\"}", "legendFormat": "collector", "refId": "A"}],
+      "title": "Telemetry collector",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "agentops-prometheus"},
+      "description": "P95 from the server-duration histogram, split by service.",
+      "fieldConfig": {"defaults": {"unit": "ms"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+      "id": 5,
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le, service_name) (rate(simulator_http_server_duration_milliseconds_bucket{service_name=~\"$service\"}[5m])))", "legendFormat": "{{service_name}}", "refId": "A"}],
+      "title": "Server request P95 latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "agentops-prometheus"},
+      "description": "Completed request rate split by service and bounded status code.",
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+      "id": 6,
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [{"expr": "sum by (service_name, status) (rate(simulator_http_server_requests_total{service_name=~\"$service\"}[5m]))", "legendFormat": "{{service_name}} {{status}}", "refId": "A"}],
+      "title": "Requests by service and status",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "agentops-prometheus"},
+      "description": "Failed PostgreSQL or Redis operations. Inspect corresponding evidence before forming a diagnosis.",
+      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 12, "x": 0, "y": 12},
+      "id": 7,
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [{"expr": "sum by (service_name, dependency) (rate(simulator_dependency_operations_total{service_name=~\"$service\",result!=\"ok\"}[5m]))", "legendFormat": "{{service_name}} {{dependency}}", "refId": "A"}],
+      "title": "Dependency failures",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "agentops-loki"},
+      "description": "Content-free diagnosed-system logs. Correlation IDs are for navigation, not metric labels.",
+      "gridPos": {"h": 7, "w": 12, "x": 12, "y": 12},
+      "id": 8,
+      "options": {"dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true},
+      "targets": [{"expr": "{service_name=~\"agentops-simulator-.+\"}", "queryType": "range", "refId": "A"}],
+      "title": "Diagnosed-system logs",
+      "type": "logs"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 41,
+  "tags": ["agentops", "diagnosed-system"],
+  "templating": {
+    "list": [
+      {
+        "allValue": ".*",
+        "current": {"text": "All", "value": "$__all"},
+        "datasource": {"type": "prometheus", "uid": "agentops-prometheus"},
+        "definition": "label_values(simulator_http_server_requests_total, service_name)",
+        "includeAll": true,
+        "label": "Service",
+        "multi": true,
+        "name": "service",
+        "query": {"query": "label_values(simulator_http_server_requests_total, service_name)", "refId": "StandardVariableQuery"},
+        "refresh": 1,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "AgentOps / Diagnosed system",
+  "uid": "agentops-diagnosed",
+  "version": 1,
+  "weekStart": ""
+}

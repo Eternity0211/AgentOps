@@ -144,3 +144,19 @@ PostgreSQL recovery E2E proves the same observer receives capability refusal, ex
 verification PASS, and exact replay. A full adapter export test sends success, refusal, retry,
 pause, resume, and failure records under one Correlation ID and proves every emitted Span/log keeps
 that identity without a payload field.
+
+## Dashboard and alert contract
+
+The immutable **AgentOps / Agent platform** Grafana dashboard uses the same process-owned export
+stream to show operation outcome/rate/P95, model calls/errors/tokens/integer-nanounit cost, Tool
+Gateway attempts/retries, active platform alerts, and content-free Loki logs. Its Prometheus queries
+use only the contract's bounded dimensions; tenant, Incident, correlation, causation, operation, and
+workflow identities remain in logs/Spans rather than metric labels.
+
+Versioned Prometheus rules cover sustained platform failure ratio, stale Job recovery, unsuccessful
+recovery execution, Tool retry ratio, model-call errors, and shared Collector loss. Expected policy
+refusals/rejections are not counted as platform failures. Volume and hold-window guards avoid sparse
+single-event alerting except for safety-critical recovery failure/stale recovery. Each rule includes
+layer/severity metadata and a direct [operational runbook](OBSERVABILITY_RUNBOOKS.md). Responders must
+inspect durable correlation/audit/action/verification records; neither a dashboard nor an alert may
+replay work, authorize mutation, or declare recovery.

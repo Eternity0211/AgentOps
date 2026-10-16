@@ -57,7 +57,14 @@ COMPOSE_PROFILES = (
     "observability",
 )
 RUNTIME_ENVIRONMENT_KEYS = frozenset(
-    {"BIND_ADDRESS", "GATEWAY_PORT", "PROMETHEUS_PORT", "LOKI_PORT", "TEMPO_PORT"}
+    {
+        "BIND_ADDRESS",
+        "GATEWAY_PORT",
+        "PROMETHEUS_PORT",
+        "LOKI_PORT",
+        "TEMPO_PORT",
+        "GRAFANA_PORT",
+    }
 )
 DOCKER_DAEMON = CommandSpec(
     "docker-daemon",

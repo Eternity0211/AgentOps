@@ -100,6 +100,16 @@ def _prometheus_targets(payload: bytes) -> None:
     raise RuntimeHealthError("OpenTelemetry Collector metrics target is not up")
 
 
+def _grafana_health(payload: bytes) -> None:
+    value = _json_object(payload, "Grafana health")
+    if (
+        value.get("database") != "ok"
+        or not isinstance(value.get("version"), str)
+        or not value["version"]
+    ):
+        raise RuntimeHealthError("Grafana health contract failed")
+
+
 def endpoints(environment: Mapping[str, str] | None = None) -> tuple[Endpoint, ...]:
     """Build the fixed loopback endpoint contract from allowlisted port settings."""
     source = os.environ if environment is None else environment
@@ -108,6 +118,7 @@ def endpoints(environment: Mapping[str, str] | None = None) -> tuple[Endpoint, .
     prometheus = _port(source, "PROMETHEUS_PORT", 9090)
     loki = _port(source, "LOKI_PORT", 3100)
     tempo = _port(source, "TEMPO_PORT", 3200)
+    grafana = _port(source, "GRAFANA_PORT", 3000)
     return (
         Endpoint("gateway-ready", f"http://{host}:{gateway}/readyz", _gateway_ready),
         Endpoint("gateway-version", f"http://{host}:{gateway}/versionz", _gateway_version),
@@ -123,6 +134,7 @@ def endpoints(environment: Mapping[str, str] | None = None) -> tuple[Endpoint, .
         ),
         Endpoint("loki-ready", f"http://{host}:{loki}/ready", _contains(b"ready", "Loki")),
         Endpoint("tempo-ready", f"http://{host}:{tempo}/ready", _contains(b"ready", "Tempo")),
+        Endpoint("grafana-ready", f"http://{host}:{grafana}/api/health", _grafana_health),
     )
 
 

@@ -41,7 +41,7 @@ QUALITY_COMMANDS = (
         60,
     ),
     CommandSpec("types", ("uv", "run", "--frozen", "mypy", "src", "scripts", "tests"), 120),
-    CommandSpec("tests", ("uv", "run", "--frozen", "pytest"), 120),
+    CommandSpec("tests", ("uv", "run", "--frozen", "pytest"), 300),
     CommandSpec(
         "planning-docs",
         ("pwsh", "-NoProfile", "-File", "scripts/check_planning_docs.ps1"),
@@ -170,7 +170,7 @@ def command_specs(
         )
     if task == "test":
         if suite == "unit":
-            return (CommandSpec("tests", ("uv", "run", "--frozen", "pytest"), 120),)
+            return (CommandSpec("tests", ("uv", "run", "--frozen", "pytest"), 300),)
         if suite == "smoke":
             return (
                 CommandSpec(
@@ -197,7 +197,7 @@ def command_specs(
             CommandSpec(
                 "pre-commit",
                 ("uv", "run", "--frozen", "pre-commit", "run", "--all-files"),
-                180,
+                360,
             ),
         )
     if task == "up":

@@ -613,6 +613,18 @@ class ToolGateway:
             )
             if retryable:
                 assert isinstance(failure, ToolGatewayError)
+                await self._audit(
+                    call,
+                    f"{definition.audit.event_type}_retried",
+                    request_hash=request_hash,
+                    result_hash=_digest(
+                        {
+                            "attempt": attempts,
+                            "error": failure.code,
+                            "max_attempts": definition.retry_policy.max_attempts,
+                        }
+                    ),
+                )
                 self._observe(
                     call,
                     ControlPlaneOutcome.RETRYING,

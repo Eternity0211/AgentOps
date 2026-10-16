@@ -52,16 +52,18 @@ object. It then executes this fixed sequence:
 3. Validate arguments against the supported strict JSON Schema subset.
 4. Append a request-hash-only `tool.call_started` audit event before dispatch.
 5. Invoke only the exact server-registered adapter under its per-attempt timeout.
-6. Retry only explicitly classified failures that the definition allows, using bounded exponential
-   backoff and the total-attempt ceiling.
+6. Retry only explicitly classified failures that the definition allows, append one hash-only
+   `tool.call_retried` event per intermediate attempt, then use bounded exponential backoff and the
+   total-attempt ceiling.
 7. Canonicalize and validate the output, then enforce the result byte ceiling.
-8. Append a success or failure audit event containing request/result or request/error hashes.
+8. Append one success or failure audit event containing request/result or request/error hashes.
 
 Unknown, disabled, unauthorized, malformed, and oversized inputs emit `tool.call_rejected` without
 dispatch. Cancellation, timeout, classified dependency failure, unexpected adapter failure,
 malformed output, and oversized output emit `tool.call_failed`. Audit persistence is fail-closed:
 an unavailable writer prevents dispatch rather than silently producing an unaudited call. Audit
 events contain hashes and identifiers, never arguments, results, exception messages, or telemetry.
+The retry hash contains only attempt number, classified error code, and configured maximum attempts.
 
 The built-in validator intentionally supports a bounded JSON Schema subset: strict objects,
 required fields, scalar types, finite numeric bounds, string length/pattern, enum/const, and bounded
@@ -151,7 +153,8 @@ idempotency invariants, mandatory hash-only audit metadata, duplicate/unknown/di
 enablement configuration errors, deterministic catalog filtering, every supported schema
 constraint, authorization/rejection, dispatch, timeout, classified retry/backoff, cancellation,
 unexpected failure, output validation, result limits, and audit failure. A PostgreSQL integration
-test proves started/succeeded events persist through the append-only `AuditRepository`.
+test proves a classified retry persists the complete started/retried/succeeded sequence through the
+append-only `AuditRepository` and satisfies the public workflow completeness assertion.
 The metrics adapter suite additionally covers its exact registry metadata, backend result bounds,
 canonical success response, invalid/oversized windows, metric substitution, out-of-window samples,
 and missing or additional scope labels.

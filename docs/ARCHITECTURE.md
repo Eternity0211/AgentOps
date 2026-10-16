@@ -261,6 +261,10 @@ The durable [audit ledger](AUDIT_LEDGER.md) assigns both a global chronology and
 database-owned tenant sequence. Every immutable event field is fingerprinted and revalidated on
 read. Authorized export pages are tenant-scoped, bounded, head-checked, and bound to reproducible
 manifests; any fingerprint mismatch, gap, duplicate, cross-tenant row, or missing tail fails closed.
+Above that storage layer, a framework-independent closed path catalog asserts required, forbidden,
+and ordered events against exact targets and propagation identities supplied by authoritative
+records. The checker reports audit completeness only: the Evidence Gate, Approval, ActionExecution,
+Health Verifier, and Incident state machine remain the outcome authorities.
 Application roles can read sequence heads for verification but cannot mutate heads or history.
 This is database-enforced integrity within the current owner trust boundary, not a claim of hash
 chaining or external anchoring.

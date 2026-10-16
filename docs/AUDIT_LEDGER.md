@@ -5,6 +5,45 @@ It is evidence of what the platform persisted; it is not an execution authority,
 or an externally anchored tamper-proof log. The current contracts are `audit-integrity/v1` for event
 fingerprints and `audit-export/v1` for export-page manifests.
 
+## Workflow completeness assertions
+
+`audit-completeness/v1` with rules version `1.0.0` defines a closed catalog of 33 core workflow
+boundary outcomes. Each definition declares required and forbidden event types, exact payload
+schema versions, bounded cardinality, typed subject aliases, and predecessor ordering. A caller
+must bind those aliases to targets and propagation identities loaded from authoritative records;
+the checker never chooses a path from event names or model output.
+
+The catalog covers:
+
+- investigation start and cancellation requests;
+- Tool Gateway rejection, direct success/failure, and retried success/failure;
+- pending, successful, failed, timed-out, and refused model calls;
+- Diagnosis pass, bounded replan, and human handoff after report and Evidence Gate persistence;
+- approval pause, approved resume, rejection, expiry, and proposal-change invalidation;
+- in-progress and all terminal execution outcomes, including in-progress and terminal replay;
+- verification pass/closure and failed verification routed to re-diagnosis, human handoff, or
+  safe-boundary cancellation; and
+- postmortem creation and one or more immutable human revisions.
+
+Several outcomes intentionally have the same event shape. For example, `model.call_finished` does
+not encode whether the model succeeded, refused, failed, or timed out; `action.execution_finished`
+does not replace `ActionExecution.status`; and `health.verification_failed` does not choose between
+re-diagnosis, handoff, and a subsequently applied cancellation. The stored typed record and
+deterministic state-machine route select the catalog path. Audit confidence, presence, or event
+text can never substitute for that authority.
+
+Input is a bounded sequence of already fingerprint-verified `StoredAuditEvent` values. The checker
+fails closed on cross-tenant records, non-increasing global or tenant order, duplicate Event IDs,
+wrong target/correlation/causation binding, wrong event or payload-schema version, missing,
+duplicate, forbidden, or out-of-order events. Unrelated same-tenant events and legitimate sequence
+gaps are ignored. A structured result reports every requirement; `require_workflow_audit_complete`
+raises instead of returning partial success.
+
+Tool retries are explicit audit facts. Each retryable intermediate failure appends
+`tool.call_retried` before backoff. Its result hash binds only attempt number, classified error code,
+and configured maximum attempts; adapter exception text and secrets are never included. The
+original `tool.call_started` and one terminal success/failure event remain required.
+
 ## Storage and ordering
 
 Every `audit_events` row has two database-assigned identifiers:
@@ -97,8 +136,11 @@ would intentionally make subsequent export fail closed.
 
 ## Verification
 
-Unit tests cover canonical fingerprints, invalid stored records, tenant isolation, continuity,
-duplicates, manifest construction, replay, bounds, and malformed contracts. PostgreSQL integration
-tests cover clean migration upgrade/downgrade, concurrent assignment, audit-specific non-owner
-permissions, owner-trigger protection, raw hash rejection, deterministic page replay, cursor/head
-checks, fingerprint tampering, sequence gaps, and deleted tails.
+Unit tests exhaustively instantiate every catalog path and cover missing, excess, forbidden,
+misbound, out-of-order, duplicate, cross-tenant, malformed, and unbounded inputs. PostgreSQL
+integration proves a classified retry produces the stored start/retry/terminal sequence and passes
+the same public completeness assertion. Existing tests cover canonical fingerprints, invalid
+stored records, tenant isolation, continuity, duplicates, manifest construction, replay, bounds,
+clean migration upgrade/downgrade, concurrent assignment, audit-specific non-owner permissions,
+owner-trigger protection, raw hash rejection, deterministic page replay, cursor/head checks,
+fingerprint tampering, sequence gaps, and deleted tails.

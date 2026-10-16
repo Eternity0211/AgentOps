@@ -27,6 +27,7 @@ def test_quality_task_has_stable_bounded_order() -> None:
         "build",
     ]
     assert all(command.timeout_seconds > 0 for command in commands)
+    assert commands[6].timeout_seconds == 300
     assert commands[-1].argv == ("uv", "build", "--offline", "--no-sources")
 
 
@@ -69,6 +70,11 @@ def test_format_write_is_explicit() -> None:
 
     assert "--check" in check_command.argv
     assert "--check" not in write_command.argv
+
+
+def test_full_verification_timeouts_remain_bounded_but_cover_the_measured_suite() -> None:
+    assert dev_tasks.command_specs("test")[0].timeout_seconds == 300
+    assert dev_tasks.command_specs("pre-commit")[0].timeout_seconds == 360
 
 
 def test_up_task_has_bounded_preflight_launch_and_health_sequence() -> None:

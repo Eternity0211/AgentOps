@@ -2,7 +2,7 @@
 
 Checkboxes are completion claims. Check an item only when its acceptance criteria and listed verification pass. Record measured results in committed reports; do not invent numbers.
 
-> Implementation status: **approved**. Phase 0 through Phase 10 exit checks pass; Phase 11 is in progress.
+> Implementation status: **approved**. Phase 0 through Phase 11 exit checks pass; Phase 12 is in progress.
 
 ## Execution protocol and dependency order
 
@@ -248,7 +248,7 @@ Exit: an operator can understand and safely control a full incident without the 
 - [x] Create dashboards and actionable alerts for both observability layers.
 - [x] Add structured logging schema, redaction, payload limits, and no-secret telemetry tests.
 - [x] Enforce append-only audit permissions and integrity/sequence checks; document retention/export.
-- [ ] Add audit completeness assertions for every workflow path.
+- [x] Add audit completeness assertions for every workflow path.
 
 Exit: one correlation ID reconstructs the incident and agent-control flow without exposing secrets, and required audit events are complete and immutable to application roles.
 

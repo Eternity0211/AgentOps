@@ -52,6 +52,7 @@ from agentops_incident_commander.application import (
     SimilarIncidentRetriever,
     SuccessfulHealthVerificationRouter,
     ToolAdapterContext,
+    ToolAdapterFailure,
     ToolCallRequest,
     ToolGateway,
     decide_verification_failure_route,
@@ -83,6 +84,7 @@ from agentops_incident_commander.domain import (
     ArtifactStorage,
     AuditEvent,
     AuditEventId,
+    AuditSubjectBinding,
     AuditTarget,
     AuthorizationError,
     CausationId,
@@ -172,6 +174,7 @@ from agentops_incident_commander.domain import (
     RedactionTransformId,
     ResolvedRollbackTarget,
     RetentionClass,
+    RetryableToolError,
     RiskLevel,
     Role,
     RollbackServiceRequest,
@@ -190,9 +193,12 @@ from agentops_incident_commander.domain import (
     ToolSchema,
     TraceId,
     TrustClassification,
+    WorkflowAuditExpectation,
+    WorkflowAuditPath,
     WorkflowRunId,
     audit_event_fingerprint,
     evaluate_health_verification,
+    require_workflow_audit_complete,
 )
 from agentops_incident_commander.infrastructure import (
     ActiveVersionResult,
@@ -1280,7 +1286,7 @@ async def test_evidence_api_resolves_authorized_artifacts_without_tenant_disclos
 
 
 @pytest.mark.anyio
-async def test_tool_gateway_persists_started_and_succeeded_audit_events(
+async def test_tool_gateway_persists_and_asserts_complete_retried_success_path(
     engine: AsyncEngine,
 ) -> None:
     version = SemanticVersion("1.0.0")
@@ -1311,7 +1317,7 @@ async def test_tool_gateway_persists_started_and_succeeded_audit_events(
         risk=ToolRisk.LOW,
         required_permission=Permission.EVIDENCE_READ,
         timeout_ms=1000,
-        retry_policy=ToolRetryPolicy(1, 0, 0, frozenset()),
+        retry_policy=ToolRetryPolicy(2, 0, 0, frozenset({RetryableToolError.CONNECTION})),
         idempotency=ToolIdempotency.NOT_APPLICABLE,
         audit=ToolAuditPolicy("tool.call", version),
         max_input_bytes=1024,
@@ -1319,11 +1325,19 @@ async def test_tool_gateway_persists_started_and_succeeded_audit_events(
     )
 
     class Adapter:
+        attempts = 0
+
         async def invoke(
             self, context: ToolAdapterContext, arguments: Mapping[str, Any]
         ) -> Mapping[str, Any]:
             assert context.incident_id == IncidentId("incident-tool")
             assert arguments == {"service": "orders"}
+            self.attempts += 1
+            if self.attempts == 1:
+                raise ToolAdapterFailure(
+                    RetryableToolError.CONNECTION,
+                    "sensitive dependency detail must not enter audit",
+                )
             return {"count": 2}
 
     actor = principal(tenant="tenant-tool-gateway", roles=frozenset({Role.VIEWER}))
@@ -1349,8 +1363,11 @@ async def test_tool_gateway_persists_started_and_succeeded_audit_events(
             audit_id_factory=lambda: f"audit-tool-{next(audit_ids)}",
         ).invoke(call)
     assert result.result() == {"count": 2}
+    assert result.attempts == 2
 
     async with sessions() as session:
+        repository = AuditRepository(session)
+        stored = await repository.by_correlation(CorrelationId("correlation-tool"))
         rows = (
             await session.scalars(
                 select(AuditEventRow)
@@ -1358,11 +1375,35 @@ async def test_tool_gateway_persists_started_and_succeeded_audit_events(
                 .order_by(AuditEventRow.sequence)
             )
         ).all()
-    assert [row.event_type for row in rows] == ["tool.call_started", "tool.call_succeeded"]
+    assert [row.event_type for row in rows] == [
+        "tool.call_started",
+        "tool.call_retried",
+        "tool.call_succeeded",
+    ]
     assert rows[0].request_hash == call.request_hash.value
     assert rows[0].result_hash is None
-    assert rows[1].result_hash == result.content_hash.value
+    assert rows[1].result_hash is not None
+    assert rows[2].result_hash == result.content_hash.value
     assert {row.tenant_id for row in rows} == {"tenant-tool-gateway"}
+    assert "sensitive dependency detail" not in str(rows)
+    completeness = require_workflow_audit_complete(
+        WorkflowAuditExpectation(
+            actor.tenant_id,
+            WorkflowAuditPath.TOOL_RETRIED_SUCCEEDED,
+            (
+                (
+                    "tool_call",
+                    AuditSubjectBinding(
+                        AuditTarget("tool.call", call.call_id),
+                        call.correlation_id,
+                        call.causation_id,
+                    ),
+                ),
+            ),
+        ),
+        stored,
+    )
+    assert completeness.complete
 
 
 @pytest.mark.anyio

@@ -24,6 +24,7 @@ This is the conceptual model. SQLAlchemy/Alembic implementation must preserve th
 | GroundTruthScenario | evaluator-only scenario/version, root cause, expected evidence, automation eligibility, expected safe outcome/handoff, recovery action, verification, cleanup procedure, and future-tool requirement. |
 | Postmortem | A constrained generated draft binds a closed Incident, exact confirmed facts, resolvable Evidence IDs, active Prompt fingerprint, model-call trace, schema version, and deterministic fingerprint. A mutable optimistic head points to immutable consecutive human revisions with parent/source fingerprints, exact inherited Fact/Evidence IDs, author, time, change summary, content, and audit binding. |
 | AuditEvent | append-only global and contiguous per-tenant sequences, event type/version, actor, correlation/causation IDs, target, request/result hashes, timestamp, and canonical immutable-field fingerprint. |
+| WorkflowAuditExpectation / Completeness | versioned closed path selected by an authoritative typed record; exact subject target/correlation/optional-causation bindings; required/forbidden event cardinality and order; structured completeness result with no execution or outcome authority. |
 | CorrelationStream / CorrelationLink | A tenant/Correlation ID is bound to exactly one Incident. Immutable versioned links join Alert, Incident, graph, tool, model, Approval, execution, and verification resources through strict W3C Trace IDs and same-stream causation, with canonical fingerprints and a bounded single-root timeline. |
 
 ## Platform configuration and memory
@@ -51,6 +52,8 @@ This is the conceptual model. SQLAlchemy/Alembic implementation must preserve th
 - Similarity lookup verifies current-Incident ownership, tenant, freshness, active vector identity,
   dimensions, and a bounded result count; returned references omit vectors and internal lineage.
 - Retention and expiry do not silently delete audit integrity metadata.
+- Workflow completeness consumes fingerprint-verified stored events, rejects cross-tenant or
+  misbound history, and never infers business status from a shared terminal event type.
 - Correlation metadata follows the distinct trace/correlation/causation semantics and durable
   ownership, replay, and causation rules in [Trace, Correlation, and Causation](CORRELATION.md).
 - Artifact locators are server-generated rather than client paths. Retrieval revalidates tenant,

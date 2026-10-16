@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 from collections.abc import Mapping
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -40,6 +42,7 @@ from agentops_incident_commander.domain import (
     RetryableToolError,
     Role,
     SemanticVersion,
+    Sha256Digest,
     TenantId,
     ToolAccessClass,
     ToolAuditPolicy,
@@ -92,6 +95,11 @@ OUTPUT_SCHEMA: dict[str, Any] = {
     "required": ["items"],
     "type": "object",
 }
+
+
+def _digest_for_test(value: object) -> Sha256Digest:
+    canonical = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return Sha256Digest(hashlib.sha256(canonical).hexdigest())
 
 
 def tool_definition(
@@ -425,7 +433,16 @@ async def test_gateway_retries_only_classified_allowed_failures_with_bounded_bac
     )
     assert result.attempts == 3
     assert delays == [0.01, 0.015]
-    assert [event.type for event in audit.events] == ["tool.call_started", "tool.call_succeeded"]
+    assert [event.type for event in audit.events] == [
+        "tool.call_started",
+        "tool.call_retried",
+        "tool.call_retried",
+        "tool.call_succeeded",
+    ]
+    assert [event.result_hash for event in audit.events[1:3]] == [
+        _digest_for_test({"attempt": 1, "error": "ADAPTER_CONNECTION", "max_attempts": 3}),
+        _digest_for_test({"attempt": 2, "error": "ADAPTER_CONNECTION", "max_attempts": 3}),
+    ]
     assert [item.outcome for item in observer.observations] == [
         ControlPlaneOutcome.STARTED,
         ControlPlaneOutcome.RETRYING,
@@ -446,7 +463,11 @@ async def test_gateway_times_out_exhausts_and_does_not_retry_unclassified_failur
         )
     assert timed_out.value.code == "TOOL_TIMEOUT"
     assert timed_out.value.attempts == 2
-    assert [event.type for event in audit.events] == ["tool.call_started", "tool.call_failed"]
+    assert [event.type for event in audit.events] == [
+        "tool.call_started",
+        "tool.call_retried",
+        "tool.call_failed",
+    ]
 
     for failure, expected_code in (
         (ToolAdapterFailure(RetryableToolError.RATE_LIMIT, "no retry"), "ADAPTER_RATE_LIMIT"),

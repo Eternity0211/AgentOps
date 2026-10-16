@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from starlette.middleware.base import RequestResponseEndpoint
 
 from agentops_incident_commander.domain import ArtifactStorage, OpaqueIdentifier, utc_now
+from agentops_incident_commander.infrastructure import create_control_plane_observer
 
 from .api_contracts import install_openapi_contract
 from .api_errors import REQUEST_ID_HEADER, install_error_handlers
@@ -26,6 +27,7 @@ from .api_v1 import (
     new_identifier,
 )
 from .config import ApiSettings
+from .observability import ProcessControlPlaneObserver, shutdown_process_observer
 
 
 def create_app(
@@ -37,23 +39,37 @@ def create_app(
     id_factory: IdFactory | None = None,
     request_id_factory: IdFactory | None = None,
     artifact_storage: ArtifactStorage | None = None,
+    control_plane_observer: ProcessControlPlaneObserver | None = None,
+    telemetry_environment: Mapping[str, str] | None = None,
 ) -> FastAPI:
     """Create the HTTP process without starting worker tasks in its lifespan."""
     engine = None
     if session_factory is None:
         engine = create_async_engine(settings.database_url, pool_pre_ping=True)
         session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    observer = (
+        control_plane_observer
+        if control_plane_observer is not None
+        else create_control_plane_observer(
+            service_name="agentops-api",
+            environment=telemetry_environment,
+        )
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> Any:
-        yield
-        if engine is not None:
-            await engine.dispose()
+        try:
+            yield
+        finally:
+            await shutdown_process_observer(observer, process_role="api")
+            if engine is not None:
+                await engine.dispose()
 
     app = FastAPI(title="AgentOps Incident Commander API", version="1.0.0", lifespan=lifespan)
     app.state.process_role = "api"
     app.state.settings = settings
     app.state.session_factory = session_factory
+    app.state.control_plane_observer = observer
     request_ids = request_id_factory or new_identifier
 
     @app.middleware("http")
@@ -76,6 +92,7 @@ def create_app(
             clock=clock or utc_now,
             id_factory=id_factory or new_identifier,
             artifact_storage=artifact_storage,
+            observer=observer,
         )
     )
     install_openapi_contract(app)
@@ -88,5 +105,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if argv:
         raise SystemExit("agentops-api accepts no arguments")
     settings = ApiSettings.load(os.environ)
-    uvicorn.run(create_app(settings), host=settings.host, port=settings.port)
+    uvicorn.run(
+        create_app(settings, telemetry_environment=os.environ),
+        host=settings.host,
+        port=settings.port,
+    )
     return 0

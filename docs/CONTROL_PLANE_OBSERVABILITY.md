@@ -104,11 +104,20 @@ the resulting Incident state.
 
 ## Composition boundary
 
-All hooks default to no-op so a library test or incomplete process composition cannot create global
-SDK state. A following Phase 11 batch owns one observer in each API/worker process, supplies it to
-runtime compositions, and shuts it down within a bounded deadline. Process ownership and correlated
-end-to-end signal proofs remain open; the recovery, verification, failure-route, and
-future-inverse-guard boundaries themselves are now instrumented.
+All hooks still default to no-op for isolated library use. The API process now creates exactly one
+`agentops-api` observer, stores it on application state, injects it into the API router's Approval
+lifecycle, and closes it from the FastAPI lifespan. The worker process creates exactly one
+`agentops-worker` observer per `serve` lifecycle and passes that same instance explicitly to every
+leased-work handler. Handlers therefore have one source for Diagnosis graph contexts, model traces,
+Tool Gateway calls, Evidence Gate evaluation, PostgreSQL checkpoint wrappers, Job repositories,
+Approval contexts, and other workflow compositions rather than creating SDK providers themselves.
+
+The rollback runtime additionally requires a verifier factory that receives the process observer.
+It supplies the same object to the Executor, persisted verifier, and transaction-owning failed-
+verification router and exposes the binding for composition verification. This prevents a verifier
+from being prebuilt around an unrelated observer. API and worker shutdown use the adapter's bounded
+flush deadline; unexpected shutdown failures are logged with process role only and cannot fail
+request handling, worker completion, or authoritative persistence.
 
 ## Verification
 
@@ -128,3 +137,10 @@ replay, cancellation, deterministic verification PASS/FAIL/timeout/replay, bound
 human handoff, and the explicit known-faulty-version inverse block. Raising observers prove that
 execution persistence, idempotency, verification decisions, and Incident failure routing remain
 authoritative.
+
+Process-composition tests prove a single role-scoped factory call, identity-preserving injection
+into API Approval and worker handlers, one bounded shutdown, and fail-open shutdown behavior. The
+PostgreSQL recovery E2E proves the same observer receives capability refusal, execution success,
+verification PASS, and exact replay. A full adapter export test sends success, refusal, retry,
+pause, resume, and failure records under one Correlation ID and proves every emitted Span/log keeps
+that identity without a payload field.

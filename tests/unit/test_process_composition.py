@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import logging
 import signal
 from collections.abc import Coroutine
 from typing import Any, cast
@@ -12,6 +13,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from agentops_incident_commander.application import ControlPlaneObservation
 from agentops_incident_commander.apps import api, config, worker
 from agentops_incident_commander.apps.correlation import (
     IncidentCorrelationRuntime,
@@ -21,6 +23,21 @@ from agentops_incident_commander.infrastructure.persistence import PostgresCorre
 from agentops_incident_commander.workflows import IncidentCorrelationWorkflow
 
 DATABASE_URL = "postgresql+asyncpg://agentops:local-only@postgres/agentops"
+
+
+class ManagedObserver:
+    def __init__(self, *, shutdown_error: Exception | None = None) -> None:
+        self.values: list[ControlPlaneObservation] = []
+        self.shutdown_calls = 0
+        self.shutdown_error = shutdown_error
+
+    def record(self, value: ControlPlaneObservation) -> None:
+        self.values.append(value)
+
+    async def shutdown(self) -> None:
+        self.shutdown_calls += 1
+        if self.shutdown_error is not None:
+            raise self.shutdown_error
 
 
 def test_worker_composes_transaction_owning_correlation_runtime() -> None:
@@ -182,6 +199,21 @@ def test_api_exposes_health_without_worker_routes_or_tasks() -> None:
     assert all("worker" not in getattr(route, "path", "") for route in app.routes)
 
 
+def test_api_owns_one_observer_for_its_lifespan() -> None:
+    observer = ManagedObserver()
+    app = api.create_app(
+        config.ApiSettings(DATABASE_URL, "127.0.0.1", 8000),
+        session_factory=cast(Any, lambda: None),
+        control_plane_observer=observer,
+    )
+
+    with TestClient(app) as client:
+        assert client.get("/healthz").status_code == 200
+        assert app.state.control_plane_observer is observer
+        assert observer.shutdown_calls == 0
+    assert observer.shutdown_calls == 1
+
+
 def test_api_main_loads_settings_and_runs_uvicorn(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -211,7 +243,7 @@ async def test_worker_polls_and_stops_without_http() -> None:
     async def cancelled() -> bool:
         return False
 
-    async def execute(_: worker.CancellationProbe) -> None:
+    async def execute(_: worker.CancellationProbe, __: object) -> None:
         nonlocal calls
         calls += 1
         if calls == 2:
@@ -232,8 +264,55 @@ async def test_worker_default_poller_and_pre_stopped_service_exit() -> None:
     assert await worker._no_work_yet(1) == ()
     stop = asyncio.Event()
     stop.set()
+    observer = ManagedObserver()
 
-    await worker.serve(settings, stop)
+    await worker.serve(settings, stop, control_plane_observer=observer)
+    assert observer.shutdown_calls == 1
+
+
+@pytest.mark.anyio
+async def test_worker_owns_one_observer_for_handlers_and_fail_open_shutdown(
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = config.WorkerSettings(DATABASE_URL, "worker-1", 0.05)
+    stop = asyncio.Event()
+    observer = ManagedObserver(shutdown_error=RuntimeError("secret exporter shutdown detail"))
+    created: list[tuple[str, object]] = []
+    received: list[object] = []
+
+    def create(*, service_name: str, environment: object) -> ManagedObserver:
+        created.append((service_name, environment))
+        return observer
+
+    monkeypatch.setattr(worker, "create_control_plane_observer", create)
+
+    async def cancelled() -> bool:
+        return False
+
+    async def execute(_: worker.CancellationProbe, selected: object) -> None:
+        received.append(selected)
+        stop.set()
+
+    async def source(_: int) -> tuple[worker.WorkItem, ...]:
+        return (worker.WorkItem(cancelled, execute),)
+
+    caplog.set_level(
+        logging.WARNING,
+        logger="agentops.control_plane.process_observability",
+    )
+    await worker.serve(
+        settings,
+        stop,
+        source=source,
+        telemetry_environment={"OTEL_SDK_ENABLED": "false"},
+    )
+
+    assert created == [("agentops-worker", {"OTEL_SDK_ENABLED": "false"})]
+    assert received == [observer]
+    assert observer.shutdown_calls == 1
+    assert "control_plane_observer_shutdown_failed role=worker" in caplog.text
+    assert "secret exporter shutdown detail" not in caplog.text
 
 
 @pytest.mark.anyio
@@ -251,7 +330,7 @@ async def test_worker_enforces_concurrency_and_checks_cancellation() -> None:
     async def already_cancelled() -> bool:
         return True
 
-    async def execute(_: worker.CancellationProbe) -> None:
+    async def execute(_: worker.CancellationProbe, __: object) -> None:
         nonlocal running, maximum
         running += 1
         maximum = max(maximum, running)
@@ -260,7 +339,7 @@ async def test_worker_enforces_concurrency_and_checks_cancellation() -> None:
         await asyncio.sleep(0)
         running -= 1
 
-    async def must_not_execute(_: worker.CancellationProbe) -> None:
+    async def must_not_execute(_: worker.CancellationProbe, __: object) -> None:
         nonlocal cancelled_handler_calls
         cancelled_handler_calls += 1
 
@@ -290,7 +369,7 @@ async def test_worker_does_not_claim_while_at_capacity() -> None:
     async def cancelled() -> bool:
         return False
 
-    async def execute(_: worker.CancellationProbe) -> None:
+    async def execute(_: worker.CancellationProbe, __: object) -> None:
         await asyncio.sleep(0.12)
         stop.set()
 
@@ -310,7 +389,7 @@ async def test_worker_rejects_source_capacity_violation() -> None:
     async def cancelled() -> bool:
         return False
 
-    async def execute(_: worker.CancellationProbe) -> None:
+    async def execute(_: worker.CancellationProbe, __: object) -> None:
         return None
 
     async def source(_: int) -> tuple[worker.WorkItem, ...]:
@@ -330,7 +409,7 @@ async def test_worker_cancels_overdue_work_after_grace_period() -> None:
     async def cancelled() -> bool:
         return False
 
-    async def execute(_: worker.CancellationProbe) -> None:
+    async def execute(_: worker.CancellationProbe, __: object) -> None:
         try:
             await asyncio.Event().wait()
         finally:
@@ -356,7 +435,7 @@ async def test_work_handler_can_recheck_cancellation_at_safe_boundary() -> None:
         checks += 1
         return checks > 1
 
-    async def execute(probe: worker.CancellationProbe) -> None:
+    async def execute(probe: worker.CancellationProbe, _: object) -> None:
         observed.append(await probe())
         stop.set()
 
@@ -386,7 +465,11 @@ async def test_process_signals_request_cooperative_shutdown(
         else:
             restored.append((item, handler))
 
-    async def fake_serve(_: config.WorkerSettings, stop: asyncio.Event) -> None:
+    async def fake_serve(
+        _: config.WorkerSettings,
+        stop: asyncio.Event,
+        **__: object,
+    ) -> None:
         handler = handlers[signal.SIGTERM]
         assert callable(handler)
         handler(signal.SIGTERM, None)

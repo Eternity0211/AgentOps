@@ -17,8 +17,10 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from agentops_incident_commander.application import (
+    NOOP_CONTROL_PLANE_OBSERVER,
     ApprovalLifecycleManager,
     ApprovalReviewSnapshot,
+    ControlPlaneObserver,
     evidence_gate_decision_fingerprint,
     model_call_trace_fingerprint,
 )
@@ -1444,6 +1446,7 @@ def build_api_v1_router(
     clock: Clock = utc_now,
     id_factory: IdFactory = new_identifier,
     artifact_storage: ArtifactStorage | None = None,
+    observer: ControlPlaneObserver = NOOP_CONTROL_PLANE_OBSERVER,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/v1", responses=common_error_responses())
 
@@ -1681,6 +1684,7 @@ def build_api_v1_router(
                 approval_id_factory=id_factory,
                 audit_id_factory=id_factory,
                 expiry_actor_id=ActorId("approval-expiry-worker"),
+                observer=observer,
             )
             try:
                 method = lifecycle.approve if operation == "approve" else lifecycle.reject

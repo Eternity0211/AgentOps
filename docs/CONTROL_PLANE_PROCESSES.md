@@ -27,6 +27,11 @@ FastAPI or Uvicorn surface. Its default source intentionally yields no work unti
 exist. The worker requests no more jobs than its available concurrency capacity and rejects a
 source that violates that limit. Every work item provides a persisted-cancellation probe: the
 runtime checks it before execution and passes it into the handler for safe-boundary checks.
+Each process owns one role-scoped control-plane observer. The API injects its instance into the
+Approval HTTP composition; the worker passes its instance to every work handler so graph, model,
+tool, gate, checkpoint, job, Approval, and recovery compositions share one exporter lifecycle.
+The rollback runtime requires a verifier factory bound to that same observer and reuses it for
+execution and failed-verification routing. Neither process installs global SDK providers.
 SIGINT/SIGTERM request cooperative shutdown; the worker stops claiming, waits through its bounded
 grace period, then cancels overdue local tasks without acknowledging their database lease.
 PostgreSQL stale-lease recovery can therefore safely reassign them. This does not claim that
@@ -43,4 +48,5 @@ Tests verify independent settings, fail-closed startup, the API health contract,
 routes/tasks, the HTTP-free worker source, concurrency saturation, cancellation before and during
 work, capacity-contract violation, cooperative signal shutdown, grace-period expiry, both CLI
 entry points, keyboard interruption, default-off recovery configuration, malformed/unsafe setting
-rejection, transaction-owned PASS/FAIL routing, and the explicitly enabled full rollback chain.
+rejection, single observer creation/injection/bounded shutdown, fail-open exporter shutdown,
+transaction-owned PASS/FAIL routing, and the explicitly enabled full rollback chain.

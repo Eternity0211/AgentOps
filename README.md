@@ -188,7 +188,14 @@ persisted deterministic verification PASS/FAIL/timeout/replay, bounded failed-ve
 and the explicit block against automatically redeploying the known faulty version. Signals are
 content-free and occur after their authoritative persistence boundary; raising observers cannot
 change recovery, idempotency, verification, or Incident routing. Process-owned observer lifecycle
-and correlated end-to-end signal proofs remain open.
+and correlated end-to-end signal proofs were retained for the next sub-batch.
+
+The fourth control-plane batch gives API and worker exactly one role-scoped observer lifecycle.
+API Approval handling, every worker work item, and the complete rollback runtime receive the same
+process object; the verifier must be built by an observer-bound factory. Bounded fail-open shutdown
+cannot alter process results. Tests preserve one Correlation ID across exported success, refusal,
+retry, pause/resume, and failure signals, and the PostgreSQL recovery E2E proves refusal, success,
+verification, and replay all reach the one worker observer.
 
 ## Why this project exists
 

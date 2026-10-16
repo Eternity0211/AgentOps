@@ -273,6 +273,84 @@ async def test_adapter_exports_linked_spans_logs_and_bounded_metrics() -> None:
 
 
 @pytest.mark.anyio
+async def test_one_process_observer_preserves_a_correlated_end_to_end_signal_set() -> None:
+    spans = InMemorySpanExporter()
+    logs = InMemoryLogRecordExporter()  # type: ignore[no-untyped-call]
+    observer = OpenTelemetryControlPlaneObserver(
+        settings(),
+        span_exporter=spans,
+        metric_exporter=CapturingMetricExporter(),
+        log_exporter=logs,
+    )
+    correlation = CorrelationId("correlation-process-e2e")
+    signals = (
+        (
+            ControlPlaneComponent.DIAGNOSIS_GRAPH,
+            ControlPlaneOperation.GRAPH_PLAN,
+            ControlPlaneOutcome.SUCCEEDED,
+            "SUCCESS",
+        ),
+        (
+            ControlPlaneComponent.RECOVERY_EXECUTION,
+            ControlPlaneOperation.RECOVERY_EXECUTE,
+            ControlPlaneOutcome.REFUSED,
+            "REFUSAL",
+        ),
+        (
+            ControlPlaneComponent.TOOL,
+            ControlPlaneOperation.TOOL_CALL,
+            ControlPlaneOutcome.RETRYING,
+            "RETRY",
+        ),
+        (
+            ControlPlaneComponent.APPROVAL,
+            ControlPlaneOperation.APPROVAL_RESUME,
+            ControlPlaneOutcome.PAUSED,
+            "PAUSE",
+        ),
+        (
+            ControlPlaneComponent.APPROVAL,
+            ControlPlaneOperation.APPROVAL_RESUME,
+            ControlPlaneOutcome.RESUMED,
+            "RESUME",
+        ),
+        (
+            ControlPlaneComponent.VERIFICATION,
+            ControlPlaneOperation.HEALTH_VERIFY,
+            ControlPlaneOutcome.FAILED,
+            "FAILURE",
+        ),
+    )
+    for index, (component, operation, outcome, result_code) in enumerate(signals, 1):
+        observer.record(
+            observation(
+                component=component,
+                operation=operation,
+                outcome=outcome,
+                correlation_id=correlation,
+                causation_id=CausationId(f"cause-process-{index}"),
+                operation_id=OpaqueIdentifier(f"operation-process-{index}"),
+                attempt=1 if outcome is ControlPlaneOutcome.RETRYING else None,
+                max_attempts=2 if outcome is ControlPlaneOutcome.RETRYING else None,
+                result_code=result_code,
+            )
+        )
+    await observer.shutdown()
+
+    finished = spans.get_finished_spans()
+    assert len(finished) == len(signals)
+    assert {
+        item.attributes["agentops.correlation_id"]
+        for item in finished
+        if item.attributes is not None
+    } == {correlation.value}
+    assert {
+        item.attributes["agentops.outcome"] for item in finished if item.attributes is not None
+    } == {signal[2].value for signal in signals}
+    assert len(logs.get_finished_logs()) == len(signals)
+
+
+@pytest.mark.anyio
 async def test_error_and_unavailable_metering_have_safe_signals() -> None:
     spans = InMemorySpanExporter()
     metrics = CapturingMetricExporter()

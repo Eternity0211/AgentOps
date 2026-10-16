@@ -9,7 +9,9 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from agentops_incident_commander.application import (
+    NOOP_CONTROL_PLANE_OBSERVER,
     BoundedRollbackDispatcher,
+    ControlPlaneObserver,
     PersistedRollbackHealthVerifier,
     RecoveryMutationCapability,
     RollbackActionExecutor,
@@ -44,10 +46,13 @@ class RollbackRecoveryRuntime:
 
     coordinator: RollbackRecoveryCoordinator
     capability: RecoveryMutationCapability
+    observer: ControlPlaneObserver = NOOP_CONTROL_PLANE_OBSERVER
 
     def __post_init__(self) -> None:
-        if not isinstance(self.coordinator, RollbackRecoveryCoordinator) or not isinstance(
-            self.capability, RecoveryMutationCapability
+        if (
+            not isinstance(self.coordinator, RollbackRecoveryCoordinator)
+            or not isinstance(self.capability, RecoveryMutationCapability)
+            or not callable(getattr(self.observer, "record", None))
         ):
             raise InvalidDomainValueError("rollback recovery runtime is invalid")
 
@@ -59,14 +64,17 @@ def compose_rollback_recovery_runtime(
     preflight: RollbackPreflight,
     backend: DeploymentRollbackBackend,
     artifact_storage: ArtifactStorage,
-    verifier: PersistedRollbackHealthVerifier,
+    verifier_factory: Callable[[ControlPlaneObserver], PersistedRollbackHealthVerifier],
     execution_id_factory: Callable[[], OpaqueIdentifier],
     audit_event_id_factory: Callable[[], AuditEventId],
     clock: Callable[[], datetime],
+    observer: ControlPlaneObserver = NOOP_CONTROL_PLANE_OBSERVER,
 ) -> RollbackRecoveryRuntime:
     """Wire the only write route; the capability remains false unless explicitly configured."""
     if not isinstance(settings, WorkerSettings):
         raise InvalidDomainValueError("rollback recovery worker settings are invalid")
+    if not callable(verifier_factory) or not callable(getattr(observer, "record", None)):
+        raise InvalidDomainValueError("rollback recovery observer composition is invalid")
     capability = RecoveryMutationCapability(settings.recovery_mutation_enabled)
     snapshots = ImmutableActionSnapshotWriter(backend, artifact_storage)
     dispatcher = BoundedRollbackDispatcher(
@@ -84,6 +92,7 @@ def compose_rollback_recovery_runtime(
         execution_id_factory=execution_id_factory,
         audit_event_id_factory=audit_event_id_factory,
         clock=clock,
+        observer=observer,
     )
     success = PostgresSuccessfulHealthVerificationRouter(
         sessions,
@@ -94,8 +103,13 @@ def compose_rollback_recovery_runtime(
         sessions,
         clock=clock,
         audit_event_id_factory=audit_event_id_factory,
+        observer=observer,
     )
+    verifier = verifier_factory(observer)
+    if not callable(getattr(verifier, "verify", None)):
+        raise InvalidDomainValueError("rollback recovery verifier composition is invalid")
     return RollbackRecoveryRuntime(
         RollbackRecoveryCoordinator(executor, verifier, success, failure),
         capability,
+        observer,
     )

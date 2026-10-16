@@ -2,7 +2,7 @@
 
 Checkboxes are completion claims. Check an item only when its acceptance criteria and listed verification pass. Record measured results in committed reports; do not invent numbers.
 
-> Implementation status: **approved**. Phase 0 through Phase 3 exit checks pass; Phase 4 is in progress.
+> Implementation status: **approved**. Phase 0 through Phase 10 exit checks pass; Phase 11 is in progress.
 
 ## Execution protocol and dependency order
 
@@ -239,12 +239,12 @@ Exit: an operator can understand and safely control a full incident without the 
   - [x] Define the versioned typed identity/link/timeline contract and concurrency-safe, tenant/Incident-scoped immutable PostgreSQL correlation ledger.
   - [x] Wire all eight authoritative runtime boundaries and prove complete reconstruction, propagation, replay, and refusal paths.
 - [x] Instrument diagnosed-system service metrics/logs/traces and deployment markers.
-- [ ] Instrument graph nodes/routes, model latency/errors/tokens/cost, tool calls/retries, evidence gate, checkpoints, jobs/leases, approvals, recovery executions, verification, failure routes, and compensation.
+- [x] Instrument graph nodes/routes, model latency/errors/tokens/cost, tool calls/retries, evidence gate, checkpoints, jobs/leases, approvals, recovery executions, verification, failure routes, and compensation.
   - [x] Define the versioned content-free control-plane observation contract and bounded OpenTelemetry traces, metrics, logs, model-usage, and tool-retry adapter.
   - [x] Add fail-open observation hooks for every Diagnosis graph node/route, model-call lifecycle, Tool Gateway attempt/retry/refusal/timeout, and deterministic Evidence Gate route.
   - [x] Instrument PostgreSQL checkpoints, jobs/leases, and approval lifecycle/resume boundaries.
   - [x] Instrument recovery executions, deterministic verification, failure routes, and explicit compensation-guard outcomes.
-  - [ ] Wire one process-owned observer through API/worker compositions and prove correlated end-to-end success, refusal, retry, pause/resume, and failure signals.
+  - [x] Wire one process-owned observer through API/worker compositions and prove correlated end-to-end success, refusal, retry, pause/resume, and failure signals.
 - [ ] Create dashboards and actionable alerts for both observability layers.
 - [ ] Add structured logging schema, redaction, payload limits, and no-secret telemetry tests.
 - [ ] Enforce append-only audit permissions and integrity/sequence checks; document retention/export.

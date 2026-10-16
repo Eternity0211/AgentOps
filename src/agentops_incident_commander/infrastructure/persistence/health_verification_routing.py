@@ -8,6 +8,8 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from agentops_incident_commander.application import (
+    NOOP_CONTROL_PLANE_OBSERVER,
+    ControlPlaneObserver,
     FailedHealthVerificationRouter,
     SuccessfulHealthVerificationRouter,
 )
@@ -68,10 +70,12 @@ class PostgresFailedHealthVerificationRouter:
         *,
         clock: Callable[[], datetime],
         audit_event_id_factory: Callable[[], AuditEventId],
+        observer: ControlPlaneObserver = NOOP_CONTROL_PLANE_OBSERVER,
     ) -> None:
         self._sessions = sessions
         self._clock = clock
         self._audit_event_id_factory = audit_event_id_factory
+        self._observer = observer
 
     async def route(
         self,
@@ -88,6 +92,7 @@ class PostgresFailedHealthVerificationRouter:
                 HealthVerificationRepository(session),
                 clock=self._clock,
                 audit_event_id_factory=self._audit_event_id_factory,
+                observer=self._observer,
             ).route(
                 decision_id,
                 incident_id,

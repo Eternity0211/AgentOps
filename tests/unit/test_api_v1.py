@@ -13,8 +13,11 @@ from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
 from agentops_incident_commander.application import (
+    NOOP_CONTROL_PLANE_OBSERVER,
     ApprovalLifecycleChange,
     ApprovalReviewSnapshot,
+    ControlPlaneObservation,
+    ControlPlaneOutcome,
     approval_review_snapshot_from_document,
     model_call_trace_fingerprint,
 )
@@ -182,6 +185,14 @@ class FakeSession:
 
     def begin(self) -> Transaction:
         return Transaction()
+
+
+class RecordingObserver:
+    def __init__(self) -> None:
+        self.values: list[ControlPlaneObservation] = []
+
+    def record(self, value: ControlPlaneObservation) -> None:
+        self.values.append(value)
 
 
 def row(
@@ -585,6 +596,7 @@ def endpoint(
     *,
     audit_ids: list[str] | None = None,
     artifact_storage: FakeArtifactStorage | None = None,
+    observer: object = NOOP_CONTROL_PLANE_OBSERVER,
 ) -> Any:
     ids = iter(audit_ids or ["audit-default"])
     router = build_api_v1_router(
@@ -592,6 +604,7 @@ def endpoint(
         clock=lambda: NOW + timedelta(minutes=1),
         id_factory=lambda: next(ids),
         artifact_storage=artifact_storage,
+        observer=cast(Any, observer),
     )
     return next(
         route.endpoint
@@ -1660,10 +1673,12 @@ async def test_approval_decision_routes_cover_success_replay_and_refusals() -> N
         ActorId("approver-api"), TenantId("tenant-api"), frozenset({Role.APPROVER})
     )
     command_value = approval_command()
+    observer = RecordingObserver()
     approve = endpoint(
         "/api/v1/approvals/{approval_id}/approve",
         "POST",
         audit_ids=["audit-approval-api"],
+        observer=observer,
     )
     pending, _ = approval_rows()
     record = approval_idempotency_record("approve", pending.id)
@@ -1681,6 +1696,9 @@ async def test_approval_decision_routes_cover_success_replay_and_refusals() -> N
     assert result.approval.status == "APPROVED"
     assert response.headers["Idempotency-Replayed"] == "false"
     assert record.response_body is not None
+    assert len(observer.values) == 1
+    assert observer.values[0].outcome is ControlPlaneOutcome.SUCCEEDED
+    assert observer.values[0].correlation_id.value == command_value.correlation_id
 
     replay_response = Response()
     replayed = await approve(

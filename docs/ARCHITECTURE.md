@@ -235,9 +235,12 @@ model-call lifecycle/metering, and every Tool Gateway attempt now expose fail-op
 hooks. A payload-blind saver proxy now observes real PostgreSQL checkpoint save/restore calls;
 tenant/Incident/workflow-scoped durable jobs observe enqueue, lease, heartbeat, retry, completion,
 stale recovery, and terminal routing; and Approval lifecycle plus interrupt/resume routes observe
-their persisted or deterministic outcomes. Recovery, verifier, failure-route, and future-inverse
-guard boundaries remain tracked sub-batches, and process composition continues to default to no-op
-until the single-owner lifecycle wiring is verified.
+their persisted or deterministic outcomes. Recovery execution, persisted verification,
+failed-verification routing, and the future-inverse guard use the same contract. API and worker each
+own one role-scoped observer and one bounded shutdown; the API passes it to Approval HTTP handling,
+the worker passes it to every work handler, and the rollback composition uses an observer-bound
+verifier factory so Executor, verifier, and router cannot silently diverge. Isolated library hooks
+continue to default to no-op and no global SDK provider is installed.
 
 After the complete Phase 9 safety gate, the worker composition root may explicitly enable the
 single `rollback_service` route. The setting is false by default and the disabled path exits before

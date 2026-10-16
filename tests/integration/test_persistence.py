@@ -34,6 +34,7 @@ from agentops_incident_commander.application import (
     ApprovalLifecycleManager,
     AuthorizedRollbackExecution,
     ControlPlaneObservation,
+    ControlPlaneObserver,
     ControlPlaneOperation,
     ControlPlaneOutcome,
     EvidenceBoundRemediationProposal,
@@ -6799,22 +6800,27 @@ async def test_authorized_rollback_service_full_chain_closes_once_and_replays(
         return request_value
 
     verifier_audit_ids = count(1)
-    verifier = PostgresPersistedHealthVerifier(
-        LiveHealthVerificationCollector(
-            metrics,
-            VerificationHealthBackend(),
-            LiveDeploymentVersionBackend(),
-            VerificationAlertBackend(),
-        ),
-        artifacts,
-        sessions,
-        request_factory=verification_request,
-        decision_id_factory=lambda _: OpaqueIdentifier("decision-rollback-full-chain"),
-        audit_event_id_factory=lambda: AuditEventId(
-            f"audit-rollback-full-chain-verification-{next(verifier_audit_ids)}"
-        ),
-        clock=lambda: NOW + timedelta(minutes=10, seconds=2),
-    )
+
+    def verifier_factory(observer: ControlPlaneObserver) -> PostgresPersistedHealthVerifier:
+        return PostgresPersistedHealthVerifier(
+            LiveHealthVerificationCollector(
+                metrics,
+                VerificationHealthBackend(),
+                LiveDeploymentVersionBackend(),
+                VerificationAlertBackend(),
+            ),
+            artifacts,
+            sessions,
+            request_factory=verification_request,
+            decision_id_factory=lambda _: OpaqueIdentifier("decision-rollback-full-chain"),
+            audit_event_id_factory=lambda: AuditEventId(
+                f"audit-rollback-full-chain-verification-{next(verifier_audit_ids)}"
+            ),
+            clock=lambda: NOW + timedelta(minutes=10, seconds=2),
+            observer=observer,
+        )
+
+    recovery_observer = RecordingControlPlaneObserver()
     operator = Principal(
         authority.actor_id,
         evaluated_input.tenant_id,
@@ -6830,10 +6836,11 @@ async def test_authorized_rollback_service_full_chain_closes_once_and_replays(
         preflight=preflight,
         backend=backend,
         artifact_storage=artifacts,
-        verifier=verifier,
+        verifier_factory=verifier_factory,
         execution_id_factory=lambda: OpaqueIdentifier("must-not-create-execution"),
         audit_event_id_factory=lambda: AuditEventId("must-not-create-audit"),
         clock=lambda: NOW,
+        observer=recovery_observer,
     )
     with pytest.raises(InvalidDomainValueError, match="capability is disabled"):
         await disabled_runtime.coordinator.recover(
@@ -6859,7 +6866,7 @@ async def test_authorized_rollback_service_full_chain_closes_once_and_replays(
         preflight=preflight,
         backend=backend,
         artifact_storage=artifacts,
-        verifier=verifier,
+        verifier_factory=verifier_factory,
         execution_id_factory=lambda: OpaqueIdentifier(
             f"execution-rollback-full-chain-{next(execution_ids)}"
         ),
@@ -6867,8 +6874,10 @@ async def test_authorized_rollback_service_full_chain_closes_once_and_replays(
             f"audit-rollback-full-chain-runtime-{next(runtime_audit_ids)}"
         ),
         clock=lambda: next(execution_clock),
+        observer=recovery_observer,
     )
     assert runtime.capability.enabled is True
+    assert runtime.observer is recovery_observer
 
     async def recover(*, replay: bool) -> RollbackRecoveryResult:
         suffix = "replay" if replay else "first"
@@ -6896,6 +6905,22 @@ async def test_authorized_rollback_service_full_chain_closes_once_and_replays(
     assert preflight.calls == 2
     assert metrics.calls == 2
     assert len(verification_requests) == 1
+    assert {item.operation for item in recovery_observer.observations} == {
+        ControlPlaneOperation.RECOVERY_EXECUTE,
+        ControlPlaneOperation.HEALTH_VERIFY,
+    }
+    assert {item.correlation_id.value for item in recovery_observer.observations} == {
+        "correlation-rollback-full-chain-disabled",
+        "correlation-rollback-full-chain-first",
+        "correlation-rollback-full-chain-replay",
+    }
+    assert {item.outcome for item in recovery_observer.observations} >= {
+        ControlPlaneOutcome.STARTED,
+        ControlPlaneOutcome.REFUSED,
+        ControlPlaneOutcome.SUCCEEDED,
+        ControlPlaneOutcome.PASSED,
+        ControlPlaneOutcome.REPLAYED,
+    }
     async with sessions() as session:
         assert await session.scalar(select(func.count()).select_from(ActionExecutionRow)) == 1
         assert await session.scalar(select(func.count()).select_from(ActionExecutionEventRow)) == 3

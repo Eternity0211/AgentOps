@@ -50,6 +50,41 @@ QUALITY_COMMANDS = (
     CommandSpec("build", ("uv", "build", "--offline", "--no-sources"), 120),
 )
 
+UNIT_SAFETY_COVERAGE_TARGETS = (
+    "agentops_incident_commander.domain",
+    "agentops_incident_commander.application.evidence_gate",
+    "agentops_incident_commander.application.policy_engine",
+    "agentops_incident_commander.application.action_execution",
+    "agentops_incident_commander.application.action_executor",
+    "agentops_incident_commander.application.tool_gateway",
+    "agentops_incident_commander.workflows.diagnosis",
+    "agentops_incident_commander.workflows.remediation",
+    "agentops_incident_commander.workflows.state",
+)
+
+
+def unit_safety_test_command() -> CommandSpec:
+    """Build the fixed Phase 12 core-unit coverage gate."""
+    coverage_arguments = tuple(f"--cov={target}" for target in UNIT_SAFETY_COVERAGE_TARGETS)
+    return CommandSpec(
+        "unit-safety-tests",
+        (
+            "uv",
+            "run",
+            "--frozen",
+            "pytest",
+            "tests/unit",
+            "-p",
+            "no:cacheprovider",
+            "--cov-reset",
+            *coverage_arguments,
+            "--cov-report=term-missing:skip-covered",
+            "--cov-fail-under=100",
+        ),
+        300,
+    )
+
+
 COMPOSE_PROFILES = (
     "--profile",
     "simulator",
@@ -170,7 +205,7 @@ def command_specs(
         )
     if task == "test":
         if suite == "unit":
-            return (CommandSpec("tests", ("uv", "run", "--frozen", "pytest"), 300),)
+            return (unit_safety_test_command(),)
         if suite == "smoke":
             return (
                 CommandSpec(

@@ -231,6 +231,13 @@ pause/resume/reject/expiry/invalidation, execution and replay, verification clos
 handoff/cancellation, and postmortem history. Deterministic domain records select the path; the
 completeness checker cannot infer an outcome, authorize an action, or declare recovery.
 
+Phase 12 begins with the versioned [core unit safety matrix](docs/PHASE_12_TEST_MATRIX.md). The
+allowlisted `test --suite unit` task now collects only `tests/unit`, disables incidental Pytest
+cache writes, resets inherited coverage selection, and enforces 100% statement and branch coverage
+over the framework-independent domain plus the Evidence Gate, Policy Engine, schema/state,
+idempotency, and Tool Gateway application boundaries. The repository-wide quality task remains a
+separate superset and continues to cover infrastructure and integration-owned paths.
+
 ## Why this project exists
 
 - Shorten time to diagnose microservice failures.
@@ -404,7 +411,7 @@ python scripts/dev.py status
 python scripts/dev.py down
 ```
 
-The runner never forwards arbitrary shell text: every task maps to an immutable argument list, runs without a shell, has a timeout, stops on first failure, and emits start/pass/fail timing lines. The `architecture` task rejects domain imports of FastAPI, SQLAlchemy, LangGraph/LangChain, model-provider SDKs, or higher internal layers. The smoke suite is deliberately in-process; E2E and evaluation tasks remain unavailable until their implementation phases.
+The runner never forwards arbitrary shell text: every task maps to an immutable argument list, runs without a shell, has a timeout, stops on first failure, and emits start/pass/fail timing lines. The `architecture` task rejects domain imports of FastAPI, SQLAlchemy, LangGraph/LangChain, model-provider SDKs, or higher internal layers. The unit suite owns the versioned Phase 12 core-unit coverage scope and requires 100% statement and branch coverage; the quality task still runs the complete repository suite. The smoke suite is deliberately in-process; E2E and evaluation tasks remain unavailable until their implementation phases.
 
 ## Compose foundation
 

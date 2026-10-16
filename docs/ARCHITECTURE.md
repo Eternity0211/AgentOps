@@ -311,6 +311,14 @@ adapters (FastAPI, SQLAlchemy, LangGraph, providers, telemetry)
 
 Infrastructure implements domain ports. Domain code does not import web, ORM, graph, or vendor SDKs. This keeps policy, evidence gates, state transitions, and idempotency directly unit-testable.
 
+The Phase 12 core-unit gate makes that boundary executable. Its fixed source set covers the entire
+domain package plus the Evidence Gate, Policy Engine, action execution/idempotency, Tool Gateway,
+and Diagnosis/Remediation/state schema modules. `tests/unit` must reach 100% statement and branch
+coverage for that set without relying on PostgreSQL or other integration suites. Infrastructure
+coverage remains in the repository-wide quality gate and is not mislabeled as a unit-test failure.
+The mapping and measured verification are maintained in
+[Phase 12 Test Matrix](PHASE_12_TEST_MATRIX.md).
+
 ## Planned package shape
 
 ```text

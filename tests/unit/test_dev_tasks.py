@@ -39,7 +39,7 @@ def test_quality_task_has_stable_bounded_order() -> None:
         ("architecture", "architecture"),
         ("compose", "compose"),
         ("typecheck", "types"),
-        ("test", "tests"),
+        ("test", "unit-safety-tests"),
         ("docs", "planning-docs"),
         ("build", "build"),
         ("pre-commit", "pre-commit"),
@@ -61,6 +61,29 @@ def test_smoke_suite_is_bounded_and_does_not_weaken_the_full_gate() -> None:
     assert command.label == "smoke-tests"
     assert command.argv[-3:] == ("pytest", "--no-cov", "tests/smoke")
     assert dev_tasks.QUALITY_COMMANDS[6].argv == ("uv", "run", "--frozen", "pytest")
+
+
+def test_unit_suite_is_a_fixed_core_safety_coverage_gate() -> None:
+    """Unit verification owns its path, production scope, branch gate, and cache behavior."""
+    command = dev_tasks.command_specs("test", suite="unit")[0]
+
+    assert command.label == "unit-safety-tests"
+    assert command.argv[:5] == ("uv", "run", "--frozen", "pytest", "tests/unit")
+    assert command.argv[5:7] == ("-p", "no:cacheprovider")
+    assert "--cov-reset" in command.argv
+    assert "--cov-fail-under=100" in command.argv
+    assert (
+        tuple(
+            argument.removeprefix("--cov=")
+            for argument in command.argv
+            if argument.startswith("--cov=")
+        )
+        == dev_tasks.UNIT_SAFETY_COVERAGE_TARGETS
+    )
+    assert len(dev_tasks.UNIT_SAFETY_COVERAGE_TARGETS) == len(
+        set(dev_tasks.UNIT_SAFETY_COVERAGE_TARGETS)
+    )
+    assert command.timeout_seconds == 300
 
 
 def test_format_write_is_explicit() -> None:

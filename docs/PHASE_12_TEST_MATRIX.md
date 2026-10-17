@@ -36,10 +36,10 @@ remain the larger repository gates and include PostgreSQL/infrastructure integra
 | Idempotency and replay | execution/tool domain and application modules | `test_action_executions.py`, `test_action_executor.py`, `test_tool_gateway.py`, `test_audit_completeness.py` | first result, exact replay, conflicting reuse, duplicate/concurrent observation, bounded retry |
 | State transitions | Incident, Approval, execution, verification, and postmortem domain types | `test_incident_lifecycle.py`, `test_approvals.py`, `test_health_verification_routing.py`, `test_health_verification_failure_routing.py`, `test_postmortem_revisions.py` | every legal edge, illegal edge refusal, terminal immutability, safe cancellation/failure route |
 
-This matrix does not claim the later Phase 12 LangGraph all-path, Testcontainers, E2E, crash,
-concurrency, timeout/outage, adversarial-security, evaluation, or load items. The Agent-output
-property item is now covered by the separate gate below; all other items keep their own TODO gates
-and must not use the unit result as substitute evidence.
+This matrix does not claim the later Phase 12 Testcontainers, E2E, crash, concurrency,
+timeout/outage, adversarial-security, evaluation, or load items. The Agent-output property and
+LangGraph all-path items are now covered by the separate gates below; all other items keep their
+own TODO gates and must not use the unit result as substitute evidence.
 
 ## Reproducible measured result
 
@@ -80,3 +80,36 @@ The ten properties cover:
 On 2026-10-16, the locked Python 3.12.14 environment collected and passed all ten property tests.
 The generated gate supplements, rather than replaces, the exact boundary examples in the unit
 suite and later workflow, integration, E2E, and security suites.
+
+## Workflow all-path gate
+
+Contract version: `phase12-workflow-paths/v1`
+
+Run the closed path set with:
+
+```text
+python scripts/dev.py test --suite workflow
+```
+
+The allowlisted task binds fourteen product-path names to twelve unique existing test nodes.
+Duplicate node IDs are removed while preserving first-seen order because approval rejection and
+expiry intentionally share one parameterized authority test, as do failed-verification
+re-diagnosis and handoff. A missing or renamed node fails Pytest collection instead of silently
+reducing coverage.
+
+| Path contract | Authoritative exercised boundary |
+| --- | --- |
+| Diagnosis success | compiled read-only graph reaches `COMPLETE` with parallel tool references |
+| Diagnosis replan | one bounded Gate replan accumulates budgets and then passes |
+| Diagnosis refusal | typed model timeout/refusal/malformed outputs stop downstream effects |
+| Diagnosis handoff | explicit handoff and exhausted replan budget terminate and are recorded |
+| Approval success | durable interrupt resumes only after reloading exact persisted `APPROVED` authority |
+| Approval rejected / expired | clock expiry, stored `EXPIRED`, and stored `REJECTED` all reach `NEEDS_HUMAN` |
+| Recovery success | only a bound deterministic verification `PASS` reaches `CLOSED` |
+| Verification re-diagnosis / handoff | `FAIL` routes exclusively to `INVESTIGATING` or `NEEDS_HUMAN` |
+| Safe-boundary cancellation | every Diagnosis node cancels before its effect; paused resume may cancel without an effect |
+| Compensation guards | failed rollback verification records the non-compensable route and executable MVP compensation surfaces are rejected |
+
+On 2026-10-17, the task expanded the selected parameterized nodes into 34 tests; all passed. It
+uses no database, provider, credential, network, coverage mutation, or generated-state cache. The
+full repository suite remains mandatory before commit.

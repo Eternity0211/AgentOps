@@ -128,3 +128,8 @@ persistence. Planning or hypothesis model timeout, refusal, or malformed output 
 as a typed failed node: no downstream tools, Evidence Gate, handoff claim, or invented usage is
 created. Durable checkpoint history records the failed task for worker/operator handling; the graph
 does not silently retry model calls or accept partial evidence.
+
+Phase 12's closed workflow gate selects the compiled pass, bounded-replan, typed model refusal,
+explicit/budget-exhausted handoff, pause-to-cancel, and every pre-effect cancellation route. The
+gate runs the real parameterized node tests rather than a second simulated router, so a renamed,
+removed, or newly unreviewed path makes the allowlisted command fail collection.

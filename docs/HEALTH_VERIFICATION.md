@@ -228,3 +228,8 @@ flag false by default, rejects before any effect while disabled, and can explici
 injected typed deployment backend with the same Executor, verifier, and transaction-owning
 PASS/FAIL routes. It does not add a model-call path, API mutation endpoint, compensation route, or
 production Kubernetes provider.
+
+Phase 12's closed workflow gate executes the recovery continuation as part of the named all-path
+matrix: only persisted `PASS` reaches `CLOSED`; `FAIL` reaches either `INVESTIGATING` or
+`NEEDS_HUMAN`; the failure audit declares `compensation=forbidden`; and the architecture guard
+rejects any executable future compensation surface in the MVP layers.

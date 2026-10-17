@@ -60,3 +60,7 @@ entering `READY_TO_EXECUTE`.
 The node emits `PAUSED` only when LangGraph actually raises its durable interrupt. A `RECHECK`
 resume emits `RESUMED`, another `PAUSED`, or `HANDED_OFF` with the stable deterministic route code.
 The Approval record remains the sole authority, and observation failure cannot change a route.
+
+Phase 12's closed workflow gate selects this graph's approved path and the complete parameterized
+refusal family, including expired-by-clock, persisted `EXPIRED`, and persisted `REJECTED` records.
+Each refusal must terminate at `NEEDS_HUMAN`; none may become execution-ready or trust resume data.

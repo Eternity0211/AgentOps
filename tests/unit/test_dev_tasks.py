@@ -104,6 +104,38 @@ def test_agent_output_property_suite_is_fixed_bounded_and_coverage_neutral() -> 
     assert command.timeout_seconds == 120
 
 
+def test_workflow_suite_is_a_closed_complete_deduplicated_path_gate() -> None:
+    expected_paths = {
+        "diagnosis_success",
+        "diagnosis_replan",
+        "diagnosis_refusal",
+        "diagnosis_handoff",
+        "approval_success",
+        "approval_rejected",
+        "approval_expired",
+        "recovery_success",
+        "verification_rediagnosis",
+        "verification_handoff",
+        "safe_boundary_cancellation",
+        "paused_resume_cancellation",
+        "failed_verification_noncompensable",
+        "future_compensation_guard",
+    }
+    cases = dev_tasks.WORKFLOW_PATH_TEST_CASES
+    command = dev_tasks.command_specs("test", suite="workflow")[0]
+    labels = tuple(label for label, _ in cases)
+    selected_nodes = command.argv[4:-3]
+
+    assert set(labels) == expected_paths
+    assert len(labels) == len(set(labels))
+    assert selected_nodes == tuple(dict.fromkeys(node for _, node in cases))
+    assert len(selected_nodes) < len(cases)
+    assert all(node.startswith("tests/unit/test_") for node in selected_nodes)
+    assert command.argv[-3:] == ("-p", "no:cacheprovider", "--no-cov")
+    assert command.label == "workflow-path-tests"
+    assert command.timeout_seconds == 180
+
+
 def test_format_write_is_explicit() -> None:
     """Formatting defaults to check-only and mutates files only with --write."""
     check_command = dev_tasks.command_specs("format")[0]

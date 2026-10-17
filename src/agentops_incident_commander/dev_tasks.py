@@ -100,6 +100,84 @@ AGENT_OUTPUT_PROPERTY_TESTS = CommandSpec(
     120,
 )
 
+WORKFLOW_PATH_TEST_CASES = (
+    (
+        "diagnosis_success",
+        "tests/unit/test_diagnosis_graph.py::test_graph_pass_path_parallelizes_reads_and_returns_only_references",
+    ),
+    (
+        "diagnosis_replan",
+        "tests/unit/test_diagnosis_graph.py::test_graph_replans_once_then_passes_with_cumulative_budgets",
+    ),
+    (
+        "diagnosis_refusal",
+        "tests/unit/test_diagnosis_graph.py::test_model_timeout_refusal_and_malformed_output_stop_downstream_work",
+    ),
+    (
+        "diagnosis_handoff",
+        "tests/unit/test_diagnosis_graph.py::test_graph_handoff_routes_are_terminal_and_recorded",
+    ),
+    (
+        "approval_success",
+        "tests/unit/test_approval_graph.py::test_interrupt_contains_only_stable_references_and_reloads_approved_record",
+    ),
+    (
+        "approval_rejected",
+        "tests/unit/test_approval_graph.py::test_invalid_or_non_approved_records_route_to_human_without_execution",
+    ),
+    (
+        "approval_expired",
+        "tests/unit/test_approval_graph.py::test_invalid_or_non_approved_records_route_to_human_without_execution",
+    ),
+    (
+        "recovery_success",
+        "tests/unit/test_recovery_orchestration.py::test_passing_verification_is_the_only_route_to_closed",
+    ),
+    (
+        "verification_rediagnosis",
+        "tests/unit/test_recovery_orchestration.py::test_failed_verification_uses_only_non_compensable_route",
+    ),
+    (
+        "verification_handoff",
+        "tests/unit/test_recovery_orchestration.py::test_failed_verification_uses_only_non_compensable_route",
+    ),
+    (
+        "safe_boundary_cancellation",
+        "tests/unit/test_diagnosis_graph.py::test_cancel_stops_at_each_safe_boundary_before_its_effect",
+    ),
+    (
+        "paused_resume_cancellation",
+        "tests/unit/test_diagnosis_graph.py::test_pause_can_resume_as_cancel_without_running_the_node_effect",
+    ),
+    (
+        "failed_verification_noncompensable",
+        "tests/unit/test_health_verification_failure_routing.py::test_failure_router_emits_bound_non_compensable_route",
+    ),
+    (
+        "future_compensation_guard",
+        "tests/unit/test_architecture.py::test_mvp_compensation_surfaces_are_rejected",
+    ),
+)
+
+
+def workflow_path_test_command() -> CommandSpec:
+    """Build the closed Phase 12 workflow path gate without duplicate node selection."""
+    test_nodes = tuple(dict.fromkeys(node for _, node in WORKFLOW_PATH_TEST_CASES))
+    return CommandSpec(
+        "workflow-path-tests",
+        (
+            "uv",
+            "run",
+            "--frozen",
+            "pytest",
+            *test_nodes,
+            "-p",
+            "no:cacheprovider",
+            "--no-cov",
+        ),
+        180,
+    )
+
 
 COMPOSE_PROFILES = (
     "--profile",
@@ -224,6 +302,8 @@ def command_specs(
             return (unit_safety_test_command(),)
         if suite == "agent-output":
             return (AGENT_OUTPUT_PROPERTY_TESTS,)
+        if suite == "workflow":
+            return (workflow_path_test_command(),)
         if suite == "smoke":
             return (
                 CommandSpec(
@@ -234,7 +314,8 @@ def command_specs(
             )
         raise TaskConfigurationError(
             "test suite "
-            f"'{suite}' is not implemented yet; available suites: unit, agent-output, smoke"
+            f"'{suite}' is not implemented yet; available suites: "
+            "unit, agent-output, workflow, smoke"
         )
     if task == "docs":
         return (
@@ -385,7 +466,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--write", action="store_true", help="Apply formatting changes.")
     parser.add_argument(
         "--suite",
-        choices=("unit", "agent-output", "smoke", "e2e"),
+        choices=("unit", "agent-output", "workflow", "smoke", "e2e"),
         default="unit",
         help="Test suite to run; smoke is in-process and e2e remains reserved.",
     )

@@ -326,6 +326,14 @@ policy, evidence-payload, target, or execution fields are rejected at every laye
 text remains an inert scalar, and a syntactically valid fabricated Evidence ID still produces a
 deterministic Evidence Gate `FAIL`, regardless of model confidence.
 
+The Phase 12 workflow-path gate is a closed mapping from named product outcomes to real test node
+IDs. It executes the compiled Diagnosis and Approval LangGraphs for success, replan, refusal,
+handoff, approval success/rejection/expiry, and every safe cancellation boundary. It then follows
+the authoritative deterministic continuation through successful closure, failed-verification
+re-diagnosis or handoff, and the non-compensable/future-compensation source guards. Shared
+parameterized tests are selected once, so aliases such as rejection/expiry or re-diagnosis/handoff
+cannot silently inflate the executed test count.
+
 ## Planned package shape
 
 ```text

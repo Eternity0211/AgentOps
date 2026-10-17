@@ -300,6 +300,12 @@ heartbeat, completion, retry, stale takeover, and exhausted stale routing. These
 typed queue outcomes, never payload references or error text, and do not replace the caller-owned
 transaction or Audit Events. Observer failure cannot alter the lease transition.
 
+The Phase 12 concurrency gate also closes the duplicate-delivery matrix across persistence
+boundaries: concurrent Correlation and Alert ingestion converge on one aggregate result; audit
+sequence allocation remains unique; duplicate aggregate outbox intent is rejected; concurrent
+Outbox and Job claims are disjoint; and a stale publisher cannot acknowledge after takeover.
+These queue guarantees complement, but do not replace, ActionExecution idempotency.
+
 ## Tenant ownership and API idempotency
 
 Revision `20261003_0006` adds non-null Tenant IDs and tenant-first indexes to Incidents and audit

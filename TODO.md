@@ -260,7 +260,7 @@ Exit: one correlation ID reconstructs the incident and agent-control flow withou
 - [x] Complete Testcontainers external integration tests for PostgreSQL/pgvector and applicable observability/tool adapters.
 - [x] Complete six fault-scenario E2E suites from alert through postmortem, asserting the recovery-eligibility matrix and correct handoffs.
 - [x] Test worker crashes at checkpoint/action/verification boundaries and stale-lease recovery.
-- [ ] Test duplicate execution/delivery and concurrent approval races.
+- [x] Test duplicate execution/delivery and concurrent approval races.
 - [ ] Test model/tool timeouts, retry exhaustion, malformed payloads, and dependency outages.
 - [ ] Test prompt injection, secret redaction, evidence forgery, replay, SSRF/target injection, approval and RBAC bypass.
 - [ ] Build versioned evaluation datasets, rules, harness, raw result schema, and reproducible report generator.

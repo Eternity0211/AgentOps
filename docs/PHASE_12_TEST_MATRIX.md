@@ -234,3 +234,40 @@ On 2026-10-17, Python 3.12.14 and Docker Engine 29.8.0 collected and passed all 
 29.02 seconds; the full allowlisted task, including Docker preflight, completed in 38.687 seconds.
 These measurements prove only the fixed local crash/replay contract, not a production availability
 or recovery-time claim.
+
+## Duplicate-delivery and authority-race gate
+
+Contract version: `phase12-concurrency-and-duplicates/v1`
+
+Run the closed concurrency matrix with:
+
+```text
+python scripts/dev.py test --suite concurrency
+```
+
+The allowlisted task checks Docker and binds sixteen named requirements to sixteen real PostgreSQL
+test nodes. One parameterized Approval node expands to four terminal-race combinations, producing
+nineteen cases. Missing or renamed nodes fail collection; coverage remains owned by the complete
+repository gate.
+
+| Boundary | Required concurrent or duplicate behavior |
+| --- | --- |
+| API control commands | Exact key/body replays one response; changed or incomplete reuse fails closed |
+| Correlation and Alert ingestion | Concurrent identical deliveries create one authoritative aggregate history |
+| Audit ledger | Concurrent appends receive unique, tenant-contiguous sequence positions |
+| Outbox | Duplicate aggregate intent is rejected; claims are disjoint; only the live lease owner publishes |
+| Job queue | Concurrent claims are disjoint and no job is assigned twice |
+| Approval API | Exact command replay returns the stored decision; changed command reuse conflicts |
+| Approval lifecycle | approve/approve, approve/reject, approve/expire, reject/expire, and expire/expire each commit one terminal winner and one matching audit |
+| Action lifecycle | Eight duplicate claims create one execution and one Incident execution transition |
+| Action Executor | Eight duplicate deliveries call the rollback adapter exactly once |
+| Action conflict | Changed idempotency content, active-target conflict, and Approval reuse are rejected |
+| Verification closure | Concurrent route delivery creates one resolved/closed route and one success audit |
+
+The tests distinguish a duplicate from a conflict. An exact duplicate may replay only immutable
+stored output. A caller that reuses an identity with changed authority, request content, target, or
+expected version receives a deterministic refusal; it never inherits the first caller's authority.
+
+On 2026-10-17, Python 3.12.14 and Docker Engine 29.8.0 collected and passed all nineteen cases in
+25.38 seconds; the full allowlisted task, including Docker preflight, completed in 32.797 seconds.
+These are bounded local correctness measurements, not throughput or production-scale claims.

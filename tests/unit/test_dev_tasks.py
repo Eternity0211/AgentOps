@@ -209,6 +209,41 @@ def test_resilience_suite_is_closed_deduplicated_and_docker_gated() -> None:
     assert commands[1].timeout_seconds == 240
 
 
+def test_concurrency_suite_is_closed_deduplicated_and_docker_gated() -> None:
+    expected_boundaries = {
+        "control_command_idempotency",
+        "control_command_conflicting_replay",
+        "correlation_duplicate_delivery",
+        "audit_concurrent_sequence",
+        "outbox_duplicate_intent",
+        "outbox_concurrent_claim",
+        "outbox_stale_delivery",
+        "job_concurrent_claim",
+        "alert_concurrent_ingestion",
+        "approval_api_replay",
+        "approval_same_decision_race",
+        "approval_terminal_races",
+        "action_lifecycle_duplicate_claim",
+        "action_duplicate_dispatch",
+        "action_conflicting_reuse",
+        "verification_route_duplicate_delivery",
+    }
+    cases = dev_tasks.CONCURRENCY_TEST_CASES
+    commands = dev_tasks.command_specs("test", suite="concurrency")
+    labels = tuple(label for label, _ in cases)
+    selected_nodes = commands[1].argv[4:-3]
+
+    assert commands[0] == dev_tasks.DOCKER_DAEMON
+    assert commands[1] == dev_tasks.concurrency_test_command()
+    assert set(labels) == expected_boundaries
+    assert len(labels) == len(set(labels))
+    assert selected_nodes == tuple(dict.fromkeys(node for _, node in cases))
+    assert all(node.startswith("tests/integration/") for node in selected_nodes)
+    assert commands[1].argv[-3:] == ("-p", "no:cacheprovider", "--no-cov")
+    assert commands[1].label == "concurrency-and-duplicate-tests"
+    assert commands[1].timeout_seconds == 240
+
+
 def test_format_write_is_explicit() -> None:
     """Formatting defaults to check-only and mutates files only with --write."""
     check_command = dev_tasks.command_specs("format")[0]

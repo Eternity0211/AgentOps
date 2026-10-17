@@ -108,8 +108,9 @@ binding. Revision tests cover malformed schemas, identity/version tricks, versio
 material changes, duplicate invalidation, Gate rejection, Policy denial, and fresh-approval
 routing. PostgreSQL integration tests cover migration round trips, tenant-scoped reads, lifecycle
 history, invalidation markers, state/audit transactionality, rollback on audit conflict, and a
-two-approver race in which row locking permits exactly one terminal decision and one matching
-audit event. API integration additionally covers tenant hiding, permission refusal, strict
+two-approver race plus approve/reject, approve/expire, reject/expire, and expire/expire races. Row
+locking permits exactly one terminal decision and one matching audit event in every combination;
+the other transaction observes stale or terminal state. API integration additionally covers tenant hiding, permission refusal, strict
 snapshot reconstruction, idempotent decision replay, changed-command conflict, invalidation
 refusal, deterministic proposal diff, and tamper detection. Console unit and desktop/mobile
 browser tests cover strict parsing, expiry/separation feedback, read failures, and non-optimistic

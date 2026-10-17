@@ -245,6 +245,135 @@ def resilience_test_command() -> CommandSpec:
     )
 
 
+CONCURRENCY_TEST_CASES = (
+    (
+        "control_command_idempotency",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_control_commands_are_atomic_audited_and_idempotent"
+        ),
+    ),
+    (
+        "control_command_conflicting_replay",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_control_conflicts_invalid_values_and_incomplete_replay_fail_closed"
+        ),
+    ),
+    (
+        "correlation_duplicate_delivery",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_correlation_ledger_serializes_concurrent_exact_replay"
+        ),
+    ),
+    (
+        "audit_concurrent_sequence",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_audit_sequence_is_unique_under_concurrent_appends"
+        ),
+    ),
+    (
+        "outbox_duplicate_intent",
+        ("tests/integration/test_persistence.py::test_outbox_rejects_duplicate_aggregate_intent"),
+    ),
+    (
+        "outbox_concurrent_claim",
+        ("tests/integration/test_persistence.py::test_outbox_concurrent_claims_are_disjoint"),
+    ),
+    (
+        "outbox_stale_delivery",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_outbox_reclaims_stale_lease_and_publishes_once"
+        ),
+    ),
+    (
+        "job_concurrent_claim",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_job_claims_are_priority_ordered_and_concurrently_disjoint"
+        ),
+    ),
+    (
+        "alert_concurrent_ingestion",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_alert_repository_serializes_concurrent_ingestion"
+        ),
+    ),
+    (
+        "approval_api_replay",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_approval_center_is_tenant_scoped_verified_and_idempotent"
+        ),
+    ),
+    (
+        "approval_same_decision_race",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_concurrent_approval_decisions_have_exactly_one_winner"
+        ),
+    ),
+    (
+        "approval_terminal_races",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_concurrent_approval_terminal_races_have_one_winner"
+        ),
+    ),
+    (
+        "action_lifecycle_duplicate_claim",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_lifecycle_action_store_serializes_duplicate_claim_transition"
+        ),
+    ),
+    (
+        "action_duplicate_dispatch",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_executor_concurrent_duplicate_delivery_dispatches_exactly_once"
+        ),
+    ),
+    (
+        "action_conflicting_reuse",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_action_execution_serializes_duplicate_claims_and_rejects_conflicts"
+        ),
+    ),
+    (
+        "verification_route_duplicate_delivery",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_successful_health_verification_closure_serializes_concurrent_replays"
+        ),
+    ),
+)
+
+
+def concurrency_test_command() -> CommandSpec:
+    """Build the closed Phase 12 duplicate-delivery and authority-race gate."""
+    test_nodes = tuple(dict.fromkeys(node for _, node in CONCURRENCY_TEST_CASES))
+    return CommandSpec(
+        "concurrency-and-duplicate-tests",
+        (
+            "uv",
+            "run",
+            "--frozen",
+            "pytest",
+            *test_nodes,
+            "-p",
+            "no:cacheprovider",
+            "--no-cov",
+        ),
+        240,
+    )
+
+
 WORKFLOW_PATH_TEST_CASES = (
     (
         "diagnosis_success",
@@ -455,6 +584,8 @@ def command_specs(
             return (DOCKER_DAEMON, SIX_SCENARIO_E2E_TESTS)
         if suite == "resilience":
             return (DOCKER_DAEMON, resilience_test_command())
+        if suite == "concurrency":
+            return (DOCKER_DAEMON, concurrency_test_command())
         if suite == "smoke":
             return (
                 CommandSpec(
@@ -466,7 +597,7 @@ def command_specs(
         raise TaskConfigurationError(
             "test suite "
             f"'{suite}' is not implemented yet; available suites: "
-            "unit, agent-output, workflow, integration, e2e, resilience, smoke"
+            "unit, agent-output, workflow, integration, e2e, resilience, concurrency, smoke"
         )
     if task == "docs":
         return (
@@ -625,12 +756,14 @@ def build_parser() -> argparse.ArgumentParser:
             "smoke",
             "e2e",
             "resilience",
+            "concurrency",
         ),
         default="unit",
         help=(
             "Test suite to run; integration requires Docker, smoke is in-process, "
             "e2e includes the six-scenario product matrix, and resilience exercises "
-            "worker-crash and stale-lease boundaries."
+            "worker-crash and stale-lease boundaries. Concurrency exercises duplicate delivery "
+            "and Approval races."
         ),
     )
     return parser

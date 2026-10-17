@@ -4084,6 +4084,153 @@ async def test_concurrent_approval_decisions_have_exactly_one_winner(
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("case_id", "left_action", "right_action", "possible_statuses"),
+    [
+        (
+            "approve-reject",
+            "approve",
+            "reject",
+            {ApprovalStatus.APPROVED, ApprovalStatus.REJECTED},
+        ),
+        (
+            "approve-expire",
+            "approve",
+            "expire",
+            {ApprovalStatus.APPROVED, ApprovalStatus.EXPIRED},
+        ),
+        (
+            "reject-expire",
+            "reject",
+            "expire",
+            {ApprovalStatus.REJECTED, ApprovalStatus.EXPIRED},
+        ),
+        ("expire-expire", "expire", "expire", {ApprovalStatus.EXPIRED}),
+    ],
+)
+async def test_concurrent_approval_terminal_races_have_one_winner(
+    engine: AsyncEngine,
+    case_id: str,
+    left_action: str,
+    right_action: str,
+    possible_statuses: set[ApprovalStatus],
+) -> None:
+    """Approve, reject, and expiry races commit one terminal decision and audit."""
+    incident_id = IncidentId(f"incident-approval-terminal-race-{case_id}")
+    await add_incident(
+        engine,
+        incident_id.value,
+        tenant="tenant-1",
+        state=IncidentState.POLICY_REVIEW,
+    )
+    value = replace(
+        approval_policy_input(),
+        incident_id=incident_id,
+        proposal_id=OpaqueIdentifier(f"remediation-approval-terminal-race-{case_id}"),
+    )
+    proposal = approval_review_proposal(value)
+    value = replace(value, proposal_fingerprint=proposal.fingerprint)
+    decision = approval_policy_decision(value)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        requested = await approval_manager(
+            session,
+            at=NOW + timedelta(minutes=5),
+            approval_id=f"approval-terminal-race-{case_id}",
+            audit_id=f"audit-approval-terminal-race-{case_id}-request",
+        ).request(
+            value,
+            decision,
+            proposal=proposal,
+            principal=Principal(
+                value.requester_actor_id,
+                value.tenant_id,
+                value.requester_roles,
+            ),
+            correlation_id=CorrelationId(f"correlation-approval-terminal-race-{case_id}"),
+            causation_id=CausationId(f"request-approval-terminal-race-{case_id}"),
+        )
+
+    async def decide(action: str, index: int) -> Approval:
+        at = NOW + timedelta(minutes=35 if action == "expire" else 6)
+        async with sessions.begin() as session:
+            manager = approval_manager(
+                session,
+                at=at,
+                audit_id=f"audit-approval-terminal-race-{case_id}-{index}",
+            )
+            if action == "expire":
+                return await manager.expire(
+                    requested.id,
+                    tenant_id=requested.tenant_id,
+                    correlation_id=CorrelationId(f"correlation-approval-terminal-race-{case_id}"),
+                    causation_id=CausationId(f"expire-approval-terminal-race-{case_id}-{index}"),
+                )
+            principal = Principal(
+                ActorId(f"approver-approval-terminal-race-{case_id}-{index}"),
+                requested.tenant_id,
+                frozenset({Role.APPROVER}),
+            )
+            if action == "approve":
+                return await manager.approve(
+                    requested.id,
+                    principal=principal,
+                    reason=EventReason("Concurrent terminal Approval decision."),
+                    correlation_id=CorrelationId(f"correlation-approval-terminal-race-{case_id}"),
+                    causation_id=CausationId(f"approve-terminal-race-{case_id}-{index}"),
+                )
+            assert action == "reject"
+            return await manager.reject(
+                requested.id,
+                principal=principal,
+                reason=EventReason("Concurrent terminal Approval rejection."),
+                correlation_id=CorrelationId(f"correlation-approval-terminal-race-{case_id}"),
+                causation_id=CausationId(f"reject-terminal-race-{case_id}-{index}"),
+            )
+
+    outcomes = await asyncio.gather(
+        decide(left_action, 1),
+        decide(right_action, 2),
+        return_exceptions=True,
+    )
+    winners = tuple(item for item in outcomes if isinstance(item, Approval))
+    refusals = tuple(item for item in outcomes if isinstance(item, InvalidDomainValueError))
+    assert len(winners) == 1
+    assert winners[0].status in possible_statuses
+    assert len(refusals) == 1
+    assert str(refusals[0]) in {
+        "stale Approval lifecycle state",
+        "only a pending Approval can be decided",
+    }
+
+    async with sessions() as session:
+        stored = await ApprovalLifecycleRepository(session).get(
+            requested.id,
+            tenant_id=requested.tenant_id,
+        )
+        assert stored == winners[0]
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(ApprovalLifecycleEventRow)
+                .where(ApprovalLifecycleEventRow.approval_id == requested.id.value)
+            )
+            == 2
+        )
+        audit_types = (
+            await session.scalars(
+                select(AuditEventRow.event_type)
+                .where(AuditEventRow.target_id == requested.id.value)
+                .order_by(AuditEventRow.sequence)
+            )
+        ).all()
+        assert audit_types == [
+            "approval.requested",
+            f"approval.{winners[0].status.value.lower()}",
+        ]
+
+
+@pytest.mark.anyio
 async def test_approval_and_audit_rollback_together_on_duplicate_audit(
     engine: AsyncEngine,
 ) -> None:

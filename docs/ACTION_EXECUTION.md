@@ -188,6 +188,10 @@ Lifecycle-store integration additionally proves atomic execution/Incident transi
 completion replay without duplicate transitions, eight-way concurrent claim serialization,
 transaction rollback on invalid Incident state, success-to-verification routing, confirmed-failure
 re-diagnosis, and timeout/uncertainty human handoff.
+The Phase 12 concurrency gate combines these repository and Executor cases with Approval terminal
+races, command/outbox/job delivery, and verification-route replay. Eight identical Executor calls
+produce one ActionExecution identity and one adapter call; changed idempotency content and a second
+active target fail before dispatch.
 The full-chain integration additionally proves one persisted execution and one simulator mutation
 flow through five live Evidence records, one persisted `PASS`, and closure, while exact replay
 cannot recollect, redispatch, reverify, or duplicate an Incident transition.

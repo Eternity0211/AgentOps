@@ -152,6 +152,12 @@ reuses immutable Artifact/Evidence identities across the evidence-to-decision bo
 transactions remain idempotent after a decision or closure commit. Expired Job leases serialize
 replacement claims, reject the former owner, and exhaust through the configured bounded route.
 
+The Phase 12 concurrency contract applies real PostgreSQL contention to every authority-bearing
+write boundary. Command and delivery idempotency, Approval row locks, Action target/idempotency
+locks, and verification route locks remain independent controls. Exact duplicates converge;
+changed reuse is rejected; only one Approval terminal decision wins; and no queue or workflow
+retry can become a second recovery adapter invocation.
+
 LangGraph, rather than a black-box general ReAct agent, is the workflow authority because the graph must expose safety routing, durable pauses, resumption, and compensation. `langchain-core` model/message/tool-schema or retriever components may be used underneath nodes where helpful, but Evidence, Policy, RBAC, Executor, and Verifier remain application/domain responsibilities.
 
 ## Investigation parallelism and bounded loops

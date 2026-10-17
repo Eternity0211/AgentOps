@@ -48,3 +48,10 @@ consistency, and the non-compensable rollback invariant.
 Application and PostgreSQL integration tests additionally prove that a proposal is refused before
 the decision is durably recorded, admitted after the exact passing decision commits, and refused
 under another tenant.
+
+Phase 12 property generators now exercise bounded valid proposals across identifiers, fingerprints,
+verification thresholds, rediagnosis routes, and risk assumptions. Every generated proposal must
+round-trip exactly; changing only its monotonic version changes the complete fingerprint but not
+the material fingerprint. Generated unsupported versions, coercible-looking scalar values,
+invalid identifiers, and command/URL/path/target/approval/policy/execution fields are rejected at
+the relevant top-level or nested strict model boundary.

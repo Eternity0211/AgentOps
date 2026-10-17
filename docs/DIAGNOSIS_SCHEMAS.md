@@ -39,6 +39,14 @@ missing-evidence collections plus one-item overflow; JSON round trips preserve i
 schema versions. Nested coercion, invalid identifiers, unsupported schema versions, and attempted
 authority-bearing fields such as commands or evidence payloads fail closed.
 
+Phase 12 adds locked, deterministic property generators for valid plan DAGs, candidate and
+non-candidate reports, Evidence partitions, confidence bounds, identifiers, and bounded text.
+Generated valid documents must round-trip exactly and retain the same canonical report
+fingerprint. Generated unsupported versions, wrong scalar types, invalid identifiers, and every
+cataloged authority-bearing extra field fail validation. Prompt-like strings remain data rather
+than object keys, while generated syntactically valid but unresolved Evidence references are
+passed to the deterministic Evidence Gate and must produce `FAIL` even at 100% model confidence.
+
 The credential-free [deterministic mock model](MOCK_MODEL.md) exercises both schemas with valid,
 malformed, timeout, refusal, fabricated-reference, and injection-resistant scenarios. A fabricated
 reference can satisfy syntax but remains unable to pass Evidence resolution or the deterministic

@@ -85,6 +85,22 @@ def unit_safety_test_command() -> CommandSpec:
     )
 
 
+AGENT_OUTPUT_PROPERTY_TESTS = CommandSpec(
+    "agent-output-property-tests",
+    (
+        "uv",
+        "run",
+        "--frozen",
+        "pytest",
+        "tests/property",
+        "-p",
+        "no:cacheprovider",
+        "--no-cov",
+    ),
+    120,
+)
+
+
 COMPOSE_PROFILES = (
     "--profile",
     "simulator",
@@ -206,6 +222,8 @@ def command_specs(
     if task == "test":
         if suite == "unit":
             return (unit_safety_test_command(),)
+        if suite == "agent-output":
+            return (AGENT_OUTPUT_PROPERTY_TESTS,)
         if suite == "smoke":
             return (
                 CommandSpec(
@@ -215,7 +233,8 @@ def command_specs(
                 ),
             )
         raise TaskConfigurationError(
-            f"test suite '{suite}' is not implemented yet; available suites: unit, smoke"
+            "test suite "
+            f"'{suite}' is not implemented yet; available suites: unit, agent-output, smoke"
         )
     if task == "docs":
         return (
@@ -366,7 +385,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--write", action="store_true", help="Apply formatting changes.")
     parser.add_argument(
         "--suite",
-        choices=("unit", "smoke", "e2e"),
+        choices=("unit", "agent-output", "smoke", "e2e"),
         default="unit",
         help="Test suite to run; smoke is in-process and e2e remains reserved.",
     )

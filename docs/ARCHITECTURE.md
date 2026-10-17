@@ -319,6 +319,13 @@ coverage remains in the repository-wide quality gate and is not mislabeled as a 
 The mapping and measured verification are maintained in
 [Phase 12 Test Matrix](PHASE_12_TEST_MATRIX.md).
 
+Agent-output properties are a separate deterministic test boundary. Generated Diagnosis plans and
+reports plus Remediation proposals must round-trip through their exact versioned Pydantic models;
+all nested output models remain extra-forbid and strict. Unknown command, transport, approval,
+policy, evidence-payload, target, or execution fields are rejected at every layer. Prompt-like
+text remains an inert scalar, and a syntactically valid fabricated Evidence ID still produces a
+deterministic Evidence Gate `FAIL`, regardless of model confidence.
+
 ## Planned package shape
 
 ```text

@@ -86,6 +86,24 @@ def test_unit_suite_is_a_fixed_core_safety_coverage_gate() -> None:
     assert command.timeout_seconds == 300
 
 
+def test_agent_output_property_suite_is_fixed_bounded_and_coverage_neutral() -> None:
+    command = dev_tasks.command_specs("test", suite="agent-output")[0]
+
+    assert command == dev_tasks.AGENT_OUTPUT_PROPERTY_TESTS
+    assert command.label == "agent-output-property-tests"
+    assert command.argv == (
+        "uv",
+        "run",
+        "--frozen",
+        "pytest",
+        "tests/property",
+        "-p",
+        "no:cacheprovider",
+        "--no-cov",
+    )
+    assert command.timeout_seconds == 120
+
+
 def test_format_write_is_explicit() -> None:
     """Formatting defaults to check-only and mutates files only with --write."""
     check_command = dev_tasks.command_specs("format")[0]

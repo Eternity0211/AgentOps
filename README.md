@@ -237,6 +237,11 @@ cache writes, resets inherited coverage selection, and enforces 100% statement a
 over the framework-independent domain plus the Evidence Gate, Policy Engine, schema/state,
 idempotency, and Tool Gateway application boundaries. The repository-wide quality task remains a
 separate superset and continues to cover infrastructure and integration-owned paths.
+The same matrix now includes a separately allowlisted `agent-output` property suite. Locked
+Hypothesis generators exercise both decision agents' strict outputs without a provider: valid
+plans, reports, and remediation proposals round-trip with stable fingerprints, while unsupported
+versions, type coercion, invalid IDs, authority-bearing fields, prompt-like text, and fabricated
+Evidence references fail at the schema or deterministic Evidence Gate boundary.
 
 ## Why this project exists
 
@@ -402,6 +407,7 @@ python scripts/dev.py architecture
 python scripts/dev.py compose
 python scripts/dev.py typecheck
 python scripts/dev.py test --suite unit
+python scripts/dev.py test --suite agent-output
 python scripts/dev.py test --suite smoke
 python scripts/dev.py docs
 python scripts/dev.py build
@@ -411,7 +417,7 @@ python scripts/dev.py status
 python scripts/dev.py down
 ```
 
-The runner never forwards arbitrary shell text: every task maps to an immutable argument list, runs without a shell, has a timeout, stops on first failure, and emits start/pass/fail timing lines. The `architecture` task rejects domain imports of FastAPI, SQLAlchemy, LangGraph/LangChain, model-provider SDKs, or higher internal layers. The unit suite owns the versioned Phase 12 core-unit coverage scope and requires 100% statement and branch coverage; the quality task still runs the complete repository suite. The smoke suite is deliberately in-process; E2E and evaluation tasks remain unavailable until their implementation phases.
+The runner never forwards arbitrary shell text: every task maps to an immutable argument list, runs without a shell, has a timeout, stops on first failure, and emits start/pass/fail timing lines. The `architecture` task rejects domain imports of FastAPI, SQLAlchemy, LangGraph/LangChain, model-provider SDKs, or higher internal layers. The unit suite owns the versioned Phase 12 core-unit coverage scope and requires 100% statement and branch coverage; `agent-output` runs the deterministic generated schema/adversarial contract, and the quality task still runs the complete repository suite. The smoke suite is deliberately in-process; E2E and evaluation tasks remain unavailable until their implementation phases.
 
 ## Compose foundation
 
@@ -464,6 +470,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Control-plane observability contract](docs/CONTROL_PLANE_OBSERVABILITY.md)
 - [Structured logging safety contract](docs/STRUCTURED_LOGGING.md)
 - [Audit ledger integrity, export, and retention](docs/AUDIT_LEDGER.md)
+- [Phase 12 unit and Agent-output test matrix](docs/PHASE_12_TEST_MATRIX.md)
 - [Observability alert runbooks](docs/OBSERVABILITY_RUNBOOKS.md)
 - [Deterministic fault control](docs/FAULT_INJECTION.md)
 - [Evaluation-only Ground Truth](docs/GROUND_TRUTH.md)

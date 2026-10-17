@@ -36,9 +36,10 @@ remain the larger repository gates and include PostgreSQL/infrastructure integra
 | Idempotency and replay | execution/tool domain and application modules | `test_action_executions.py`, `test_action_executor.py`, `test_tool_gateway.py`, `test_audit_completeness.py` | first result, exact replay, conflicting reuse, duplicate/concurrent observation, bounded retry |
 | State transitions | Incident, Approval, execution, verification, and postmortem domain types | `test_incident_lifecycle.py`, `test_approvals.py`, `test_health_verification_routing.py`, `test_health_verification_failure_routing.py`, `test_postmortem_revisions.py` | every legal edge, illegal edge refusal, terminal immutability, safe cancellation/failure route |
 
-This matrix does not claim the later Phase 12 Agent-property, LangGraph all-path, Testcontainers,
-E2E, crash, concurrency, timeout/outage, adversarial-security, evaluation, or load items. Those keep
-their separate TODO gates and must not use this unit result as substitute evidence.
+This matrix does not claim the later Phase 12 LangGraph all-path, Testcontainers, E2E, crash,
+concurrency, timeout/outage, adversarial-security, evaluation, or load items. The Agent-output
+property item is now covered by the separate gate below; all other items keep their own TODO gates
+and must not use the unit result as substitute evidence.
 
 ## Reproducible measured result
 
@@ -46,3 +47,36 @@ On 2026-10-16, Python 3.12.14 and the locked dependency set collected and passed
 The fixed production scope contained 5,149 statements and 1,570 branches, with no misses or partial
 branches (100.00%). The repository-wide suite is still required before commit because integration
 tests own database and other adapter behavior.
+
+## Agent output and property gate
+
+Contract version: `phase12-agent-output-properties/v1`
+
+Run the independent generated contract with:
+
+```text
+python scripts/dev.py test --suite agent-output
+```
+
+Hypothesis `6.170.0` is locked as a development dependency. Every property uses a disabled example
+database, deterministic derivation, no deadline, and at most 75 examples, so it has no hidden local
+corpus, provider, credential, network, or wall-clock dependency. The gate disables coverage
+collection because behavior generation is its purpose; the complete repository suite still owns
+the 100% coverage requirement.
+
+The ten properties cover:
+
+- generated valid Diagnosis plans, candidate/non-candidate reports, and Remediation proposals with
+  exact JSON round trips and stable canonical fingerprints;
+- proposal material-fingerprint invariance only for monotonic version changes;
+- generated unsupported schema versions, invalid identifiers, and coercible-looking numeric types;
+- arbitrary adversarial values in extra fields plus an exhaustive 9-model-by-16-field rejection
+  matrix for command, transport, target, credential, approval, policy, prompt, evidence-payload,
+  and execution authority;
+- prompt-like and JSON-shaped strings remaining inert scalar data rather than executable fields;
+- generated syntactically valid fabricated Evidence IDs producing deterministic Evidence Gate
+  `FAIL` decisions even with 10,000 confidence basis points.
+
+On 2026-10-16, the locked Python 3.12.14 environment collected and passed all ten property tests.
+The generated gate supplements, rather than replaces, the exact boundary examples in the unit
+suite and later workflow, integration, E2E, and security suites.

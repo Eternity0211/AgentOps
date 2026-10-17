@@ -82,3 +82,9 @@ Run `python scripts/dev.py test --suite smoke` for the fast, Docker-independent 
 Unit tests cover state corruption, command construction, subprocess refusal/timeout, injection replay, conflicting runs, failed apply, repeatable cleanup, failed cleanup retry, run matching, Windows/POSIX lock acquisition and contention, and CLI validation. They also drive every scenario through setup, typed state/overlay generation, target-specific Compose arguments, and cleanup.
 
 The smoke suite itself still uses in-memory dependency boundaries and makes no container claim. Separately, the 2026-10-02 Phase 1 verification run exercised all six controller paths against the live local Compose stack, confirmed their bounded externally visible symptoms, cleaned every run, queried telemetry, and restored the healthy baseline. See `docs/PHASE_1_VERIFICATION.md`; it records one local functional run, not a reliability or performance benchmark.
+
+Phase 12 adds `python scripts/dev.py test --suite e2e`. It reuses the same validated
+`FaultBehavior` allowlist and exercises the six product terminal routes: two approval-required
+rollbacks and four exact zero-write human handoffs. The included PostgreSQL recovery case proves
+the real mutation/verification/replay boundary. Fault cleanup remains evaluator maintenance and is
+not invoked or counted as recovery by the runtime path.

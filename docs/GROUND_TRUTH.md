@@ -20,3 +20,9 @@ docker compose -f compose.evaluation.yaml --profile evaluation run --rm ground-t
 ```
 
 Repository tests seed the committed synthetic canary and assert that neither its value nor hash appears in runtime source, runtime Compose configuration, simulator image instructions, or model-context-capable paths. They also exercise fail-closed missing, empty, oversized, malformed, and incomplete evaluator inputs. This is isolation evidence, not a claim that a live evaluator container ran when Docker Engine is unavailable.
+
+The Phase 12 six-scenario E2E keeps the same direction of trust: it finishes each runtime workflow
+before loading the corresponding manifest for assertions. Runtime observations and decisions never
+receive `automation_eligible`, `expected_safe_outcome`, cleanup, or future-tool labels. A guard
+inspects the runtime half of the test source for those evaluator-only outcome fields. The evaluator
+then proves the two eligible closures and four exact zero-write handoffs match the manifests.

@@ -159,6 +159,24 @@ def test_external_integration_suite_checks_docker_then_runs_only_owned_tests() -
     assert dev_tasks.QUALITY_COMMANDS[6].argv == ("uv", "run", "--frozen", "pytest")
 
 
+def test_e2e_suite_binds_six_scenarios_to_the_real_recovery_chain() -> None:
+    commands = dev_tasks.command_specs("test", suite="e2e")
+
+    assert commands == (dev_tasks.DOCKER_DAEMON, dev_tasks.SIX_SCENARIO_E2E_TESTS)
+    assert [command.label for command in commands] == [
+        "docker-daemon",
+        "six-scenario-e2e-tests",
+    ]
+    assert commands[1].argv[:5] == ("uv", "run", "--frozen", "pytest", "tests/e2e")
+    assert (
+        commands[1]
+        .argv[5]
+        .endswith("test_authorized_rollback_service_full_chain_closes_once_and_replays")
+    )
+    assert commands[1].argv[-3:] == ("-p", "no:cacheprovider", "--no-cov")
+    assert commands[1].timeout_seconds == 300
+
+
 def test_format_write_is_explicit() -> None:
     """Formatting defaults to check-only and mutates files only with --write."""
     check_command = dev_tasks.command_specs("format")[0]
@@ -212,7 +230,7 @@ def test_down_checks_daemon_and_preserves_volumes() -> None:
     ("task", "write", "suite", "message"),
     [
         ("lint", True, "unit", "--write is valid only"),
-        ("test", False, "e2e", "not implemented yet"),
+        ("test", False, "future", "not implemented yet"),
         ("unknown", False, "unit", "unknown task"),
     ],
 )
@@ -376,8 +394,8 @@ def test_run_commands_handles_process_errors(
 
 
 def test_main_reports_configuration_error(capsys: pytest.CaptureFixture[str]) -> None:
-    """Reserved suites fail before any subprocess can run."""
-    result = dev_tasks.main(("test", "--suite", "e2e"))
+    """Task configuration failures are reported before a subprocess can run."""
+    result = dev_tasks.main(("test", "--write"))
 
     output = capsys.readouterr()
     assert result == 2

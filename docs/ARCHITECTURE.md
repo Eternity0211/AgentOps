@@ -343,6 +343,16 @@ OTLP transport are composition or isolated telemetry-adapter boundaries, not Pyt
 adapters, so they remain in their accurate Compose and adapter test gates rather than being
 misrepresented as Testcontainers integrations.
 
+The Phase 12 product E2E gate is evaluation-blind during runtime execution. It sends all six
+validated simulator fault behaviors through typed Alert grouping, Incident transitions, strict
+Diagnosis output, immutable Evidence, and the deterministic Gate. Only the two deployment-linked
+cases may proceed to Policy/Approval and one bounded rollback; the other four terminate at their
+explicit durable human-handoff reason without constructing a proposal or executing a write.
+Eligible closures alone enter the constrained postmortem node. Evaluation-only manifests are read
+after each result to score the matrix, never supplied to runtime objects. The same gate selects a
+PostgreSQL-backed authorized recovery case to prove the Executor/Verifier/replay chain rather than
+using the lifecycle composition as a substitute for real mutation controls.
+
 ## Planned package shape
 
 ```text

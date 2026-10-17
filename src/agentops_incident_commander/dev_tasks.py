@@ -115,6 +115,25 @@ EXTERNAL_INTEGRATION_TESTS = CommandSpec(
     300,
 )
 
+SIX_SCENARIO_E2E_TESTS = CommandSpec(
+    "six-scenario-e2e-tests",
+    (
+        "uv",
+        "run",
+        "--frozen",
+        "pytest",
+        "tests/e2e",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_authorized_rollback_service_full_chain_closes_once_and_replays"
+        ),
+        "-p",
+        "no:cacheprovider",
+        "--no-cov",
+    ),
+    300,
+)
+
 WORKFLOW_PATH_TEST_CASES = (
     (
         "diagnosis_success",
@@ -321,6 +340,8 @@ def command_specs(
             return (workflow_path_test_command(),)
         if suite == "integration":
             return (DOCKER_DAEMON, EXTERNAL_INTEGRATION_TESTS)
+        if suite == "e2e":
+            return (DOCKER_DAEMON, SIX_SCENARIO_E2E_TESTS)
         if suite == "smoke":
             return (
                 CommandSpec(
@@ -487,7 +508,7 @@ def build_parser() -> argparse.ArgumentParser:
         default="unit",
         help=(
             "Test suite to run; integration requires Docker, smoke is in-process, "
-            "and e2e remains reserved."
+            "and e2e includes the six-scenario product matrix."
         ),
     )
     return parser

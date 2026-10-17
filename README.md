@@ -253,6 +253,12 @@ the persisted Tool Gateway retry/audit route, and the complete deterministic rec
 chain. Prometheus/Loki/Tempo topology remains a Compose contract and their telemetry adapters
 remain isolated adapter tests; the repository does not claim those external stores are covered by
 Testcontainers.
+The `e2e` gate now executes all six fault scenarios from typed Alert triage through evidence-bound
+Diagnosis and the terminal safety route. HTTP 500 and deployment-linked memory leak alone reach
+approval-required rollback, deterministic closure, and constrained postmortem drafting; pool
+exhaustion, Redis timeout, downstream latency, and configuration drift each produce their exact
+human-handoff reason with zero write execution. An included PostgreSQL full-chain case proves the
+eligible route uses the real Executor, five-signal Verifier, audit, and exact replay boundaries.
 
 ## Why this project exists
 
@@ -364,7 +370,7 @@ python scripts/dev.py down
 
 `up` validates the static Compose contract and Docker daemon, builds/starts with Compose `--wait`, then checks Gateway readiness/version, Prometheus/Loki/Tempo/Grafana readiness, and the Collector's Prometheus target. A post-start failure automatically stops partial containers without deleting named volumes. `status` repeats the observable health contract. `down` removes containers and orphans but deliberately does not remove persistent volumes. Grafana is available at `http://127.0.0.1:3000` by default and loads the two AgentOps dashboards without manual import.
 
-The fault controller syntax and safe state/cleanup framework are available for all six scenarios. The focused in-process smoke suite verifies the four-service baseline, each fault symptom, and restoration to a fresh baseline without requiring Docker. Container E2E and evaluation commands remain reserved:
+The fault controller syntax and safe state/cleanup framework are available for all six scenarios. The focused in-process smoke suite verifies the four-service baseline, each fault symptom, and restoration to a fresh baseline without requiring Docker. The six-scenario product E2E is available; evaluation commands remain reserved:
 
 ```text
 python scripts/dev.py fault inject --scenario http-500
@@ -430,7 +436,7 @@ python scripts/dev.py status
 python scripts/dev.py down
 ```
 
-The runner never forwards arbitrary shell text: every task maps to an immutable argument list, runs without a shell, has a timeout, stops on first failure, and emits start/pass/fail timing lines. The `architecture` task rejects domain imports of FastAPI, SQLAlchemy, LangGraph/LangChain, model-provider SDKs, or higher internal layers. The unit suite owns the versioned Phase 12 core-unit coverage scope and requires 100% statement and branch coverage; `agent-output` runs the deterministic generated schema/adversarial contract, `workflow` runs the closed all-path gate, `integration` checks Docker and runs only the Testcontainers adapter boundary, and the quality task still runs the complete repository suite. The smoke suite is deliberately in-process; E2E and evaluation tasks remain unavailable until their implementation phases.
+The runner never forwards arbitrary shell text: every task maps to an immutable argument list, runs without a shell, has a timeout, stops on first failure, and emits start/pass/fail timing lines. The `architecture` task rejects domain imports of FastAPI, SQLAlchemy, LangGraph/LangChain, model-provider SDKs, or higher internal layers. The unit suite owns the versioned Phase 12 core-unit coverage scope and requires 100% statement and branch coverage; `agent-output` runs the deterministic generated schema/adversarial contract, `workflow` runs the closed all-path gate, `integration` checks Docker and runs only the Testcontainers adapter boundary, `e2e` runs the six-scenario eligibility/handoff matrix plus a real recovery chain, and the quality task still runs the complete repository suite. The smoke suite is deliberately in-process; evaluation tasks remain unavailable until their implementation phase.
 
 ## Compose foundation
 

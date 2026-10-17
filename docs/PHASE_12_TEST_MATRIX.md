@@ -154,3 +154,44 @@ and passed 100 integration cases in 55.01 seconds. Eleven cases exercise Postgre
 durability and 89 exercise migrations and operational repositories. The task-level elapsed time,
 including the frozen-environment invocation, was 59.500 seconds. These local measurements prove
 the bounded test contract only; they are not production throughput or reliability claims.
+
+## Six-scenario product E2E gate
+
+Contract version: `phase12-six-scenario-e2e/v1`
+
+Run the closed fault matrix and its real recovery-chain proof with:
+
+```text
+python scripts/dev.py test --suite e2e
+```
+
+The fixed task checks Docker and then runs seven scenario-matrix cases plus the existing PostgreSQL
+authorized rollback full-chain case. Runtime setup derives observations only from validated
+`FaultBehavior`, typed alerts, immutable Artifacts/Evidence, and deterministic components. The six
+Ground Truth manifests are loaded only after each runtime result exists, on the evaluator side, to
+score target service, automation eligibility, action, and exact handoff reason. A source-level
+guard also rejects evaluation outcome labels from the runtime half of the test.
+
+Each scenario opens and groups an Alert, advances the real Incident state machine, constructs a
+strict Diagnosis Report, and passes five independent current-Incident references through the
+deterministic Evidence Gate. The recovery matrix is closed:
+
+| Scenario | Required terminal route | Write count | Postmortem |
+| --- | --- | ---: | --- |
+| release-induced HTTP 500 | Policy `APPROVAL_REQUIRED`, approved rollback, deterministic verification, `CLOSED` | 1 | constrained, confirmed-fact-only draft |
+| deployment-linked memory leak | Policy `APPROVAL_REQUIRED`, approved rollback with 300-second criterion, `CLOSED` | 1 | constrained, confirmed-fact-only draft |
+| database pool exhaustion | `NEEDS_HUMAN / POOL_CAPACITY_ACTION_UNAVAILABLE` | 0 | prohibited before closure |
+| Redis timeout | `NEEDS_HUMAN / DEPENDENCY_RECOVERY_ACTION_UNAVAILABLE` | 0 | prohibited before closure |
+| downstream latency | `NEEDS_HUMAN / DOWNSTREAM_LATENCY_ACTION_UNAVAILABLE` | 0 | prohibited before closure |
+| bad configuration | `NEEDS_HUMAN / CONFIGURATION_ACTION_UNAVAILABLE` | 0 | prohibited before closure |
+
+The selected PostgreSQL case separately proves that an eligible path traverses human Approval,
+the default-off mutation capability, preflight, immutable before/after snapshots, one local
+simulator mutation, durable ActionExecution, five-signal verification, closure, audit, and exact
+replay without a second mutation. Handoff-only incidents deliberately do not receive a postmortem:
+the production generator requires `CLOSED`, so the path ends at its durable human wait until an
+authorized external resolution is recorded and verified.
+
+On 2026-10-17, the gate collected and passed all eight cases in 12.60 seconds; the task-level time
+including Docker preflight and frozen invocation was 15.985 seconds. This is a reproducible local
+functional result, not a production reliability or throughput claim.

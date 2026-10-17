@@ -85,3 +85,8 @@ classification; deterministic mock scenarios; domain/schema invariants; unauthor
 cross-tenant edits; stale versions; immutable source references; and forged parent/fingerprint
 input. Testcontainers covers migration round trips, history reads, author retention, optimistic
 conflicts, audit rollback, append-only database protection, and corruption detection.
+
+The Phase 12 six-scenario E2E generates constrained drafts for the two eligible workflows only
+after deterministic verification has closed their Incidents. The four correct human-handoff paths
+remain in `NEEDS_HUMAN` and assert that no draft is produced, preserving the closed-Incident
+precondition instead of fabricating a postmortem for unresolved work.

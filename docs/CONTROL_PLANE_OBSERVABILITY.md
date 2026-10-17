@@ -152,6 +152,12 @@ verification PASS, and exact replay. A full adapter export test sends success, r
 pause, resume, and failure records under one Correlation ID and proves every emitted Span/log keeps
 that identity without a payload field.
 
+The Phase 12 external-integration gate includes the PostgreSQL-owned correlation, audit, job,
+checkpoint, Approval, execution, verification, and observer-failure paths. Prometheus, Loki,
+Tempo, and OTLP exporters are not persistence adapters in the Python control plane; their external
+process wiring remains verified by the Compose contract and their export semantics by isolated
+adapter tests, so no Testcontainers claim is made for those stores.
+
 ## Dashboard and alert contract
 
 The immutable **AgentOps / Agent platform** Grafana dashboard uses the same process-owned export

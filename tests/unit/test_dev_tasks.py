@@ -136,6 +136,29 @@ def test_workflow_suite_is_a_closed_complete_deduplicated_path_gate() -> None:
     assert command.timeout_seconds == 180
 
 
+def test_external_integration_suite_checks_docker_then_runs_only_owned_tests() -> None:
+    commands = dev_tasks.command_specs("test", suite="integration")
+
+    assert commands == (dev_tasks.DOCKER_DAEMON, dev_tasks.EXTERNAL_INTEGRATION_TESTS)
+    assert [command.label for command in commands] == [
+        "docker-daemon",
+        "external-integration-tests",
+    ]
+    assert commands[1].argv == (
+        "uv",
+        "run",
+        "--frozen",
+        "pytest",
+        "tests/integration",
+        "-p",
+        "no:cacheprovider",
+        "--no-cov",
+    )
+    assert commands[0].timeout_seconds == 15
+    assert commands[1].timeout_seconds == 300
+    assert dev_tasks.QUALITY_COMMANDS[6].argv == ("uv", "run", "--frozen", "pytest")
+
+
 def test_format_write_is_explicit() -> None:
     """Formatting defaults to check-only and mutates files only with --write."""
     check_command = dev_tasks.command_specs("format")[0]

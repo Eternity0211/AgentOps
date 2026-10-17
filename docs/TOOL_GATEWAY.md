@@ -155,6 +155,10 @@ constraint, authorization/rejection, dispatch, timeout, classified retry/backoff
 unexpected failure, output validation, result limits, and audit failure. A PostgreSQL integration
 test proves a classified retry persists the complete started/retried/succeeded sequence through the
 append-only `AuditRepository` and satisfies the public workflow completeness assertion.
+That real PostgreSQL route is included in the fixed Phase 12
+`python scripts/dev.py test --suite integration` gate; all transport/schema adapter behavior that
+does not own an external store remains in the unit/contract boundary rather than being mislabeled
+as a container integration.
 The metrics adapter suite additionally covers its exact registry metadata, backend result bounds,
 canonical success response, invalid/oversized windows, metric substitution, out-of-window samples,
 and missing or additional scope labels.

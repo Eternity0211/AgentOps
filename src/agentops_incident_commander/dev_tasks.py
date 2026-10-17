@@ -100,6 +100,21 @@ AGENT_OUTPUT_PROPERTY_TESTS = CommandSpec(
     120,
 )
 
+EXTERNAL_INTEGRATION_TESTS = CommandSpec(
+    "external-integration-tests",
+    (
+        "uv",
+        "run",
+        "--frozen",
+        "pytest",
+        "tests/integration",
+        "-p",
+        "no:cacheprovider",
+        "--no-cov",
+    ),
+    300,
+)
+
 WORKFLOW_PATH_TEST_CASES = (
     (
         "diagnosis_success",
@@ -304,6 +319,8 @@ def command_specs(
             return (AGENT_OUTPUT_PROPERTY_TESTS,)
         if suite == "workflow":
             return (workflow_path_test_command(),)
+        if suite == "integration":
+            return (DOCKER_DAEMON, EXTERNAL_INTEGRATION_TESTS)
         if suite == "smoke":
             return (
                 CommandSpec(
@@ -315,7 +332,7 @@ def command_specs(
         raise TaskConfigurationError(
             "test suite "
             f"'{suite}' is not implemented yet; available suites: "
-            "unit, agent-output, workflow, smoke"
+            "unit, agent-output, workflow, integration, smoke"
         )
     if task == "docs":
         return (
@@ -466,9 +483,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--write", action="store_true", help="Apply formatting changes.")
     parser.add_argument(
         "--suite",
-        choices=("unit", "agent-output", "workflow", "smoke", "e2e"),
+        choices=("unit", "agent-output", "workflow", "integration", "smoke", "e2e"),
         default="unit",
-        help="Test suite to run; smoke is in-process and e2e remains reserved.",
+        help=(
+            "Test suite to run; integration requires Docker, smoke is in-process, "
+            "and e2e remains reserved."
+        ),
     )
     return parser
 

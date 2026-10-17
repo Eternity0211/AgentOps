@@ -334,6 +334,15 @@ re-diagnosis or handoff, and the non-compensable/future-compensation source guar
 parameterized tests are selected once, so aliases such as rejection/expiry or re-diagnosis/handoff
 cannot silently inflate the executed test count.
 
+The Phase 12 external-integration gate starts from a Docker-daemon preflight and runs the fixed
+`tests/integration` boundary against the same PostgreSQL 18/pgvector image used by the control
+plane. Real database constraints, transactions, vector operations, concurrency, append-only audit,
+Tool Gateway audit persistence, deterministic recovery persistence, and official LangGraph saver
+restore/replay are therefore proven outside in-memory substitutes. Prometheus, Loki, Tempo, and
+OTLP transport are composition or isolated telemetry-adapter boundaries, not Python persistence
+adapters, so they remain in their accurate Compose and adapter test gates rather than being
+misrepresented as Testcontainers integrations.
+
 ## Planned package shape
 
 ```text

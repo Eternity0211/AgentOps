@@ -113,3 +113,44 @@ reducing coverage.
 On 2026-10-17, the task expanded the selected parameterized nodes into 34 tests; all passed. It
 uses no database, provider, credential, network, coverage mutation, or generated-state cache. The
 full repository suite remains mandatory before commit.
+
+## External integration gate
+
+Contract version: `phase12-external-integration/v1`
+
+Run the complete container-owned adapter boundary with:
+
+```text
+python scripts/dev.py test --suite integration
+```
+
+The allowlisted task first checks the Docker daemon, then collects only `tests/integration`,
+disables incidental Pytest cache writes, and disables coverage collection so this focused run
+cannot replace or distort the repository-wide coverage gate. It uses the locked
+`pgvector/pgvector:0.8.6-pg18` image through Testcontainers and a bounded 300-second test timeout.
+The suite owns these external boundaries:
+
+- Alembic upgrade, downgrade, re-upgrade, PostgreSQL constraints, transactions, tenant scoping,
+  optimistic concurrency, advisory/row locks, append-only audit permissions, outbox and JobLease
+  claims, stale-lease takeover, Approval races, action idempotency, and recovery routing;
+- the installed pgvector extension, dimension checks, authoritative memory projection binding,
+  and tenant/freshness/version-scoped similarity retrieval against real vector columns;
+- the official PostgreSQL LangGraph saver, strict serialization, thread isolation, durable
+  interrupts, every Diagnosis-node worker replacement boundary, committed-effect replay, and
+  Approval resume with authoritative record reload;
+- immutable Artifact/Evidence, Gate, model-call, execution, five-signal verification, postmortem,
+  correlation, audit, and API persistence paths, including the complete authorized rollback and
+  exact-replay chain;
+- the Tool Gateway's classified retry persisted as the required started/retried/succeeded audit
+  path, plus persistence-owned control-plane observer failure isolation.
+
+Prometheus, Loki, Tempo, and OTLP exporters are external processes rather than Python persistence
+or Tool Gateway adapters in this repository. Their topology and data-source wiring remain covered
+by the Compose contract, while their telemetry adapters and export behavior remain covered by
+isolated adapter tests. They are deliberately not mislabeled as Testcontainers coverage.
+
+On 2026-10-17, Python 3.12.14, Docker Engine 29.8.0, and the locked dependency/image set collected
+and passed 100 integration cases in 55.01 seconds. Eleven cases exercise PostgreSQL checkpoint
+durability and 89 exercise migrations and operational repositories. The task-level elapsed time,
+including the frozen-environment invocation, was 59.500 seconds. These local measurements prove
+the bounded test contract only; they are not production throughput or reliability claims.

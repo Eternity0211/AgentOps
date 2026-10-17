@@ -152,6 +152,12 @@ Unit tests retain
 fail-closed coverage for defensive paths that valid
 foreign keys and locks should make unreachable.
 
+The fixed Phase 12 entry point is `python scripts/dev.py test --suite integration`. It verifies the
+Docker daemon before collecting only `tests/integration`, disables cache and focused-run coverage
+side effects, and leaves the complete repository quality gate unchanged. On 2026-10-17 it passed
+all 100 collected PostgreSQL/pgvector cases against Docker Engine 29.8.0; see
+[Phase 12 Test Matrix](PHASE_12_TEST_MATRIX.md) for the exact boundary and measured result.
+
 The test suite uses an ignored repository-local `.pytest-runtime-*` directory because elevated
 Docker access on Windows cannot reliably access the normal per-user pytest temporary root. This is
 test isolation only; no runtime data is committed.

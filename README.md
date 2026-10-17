@@ -246,6 +246,13 @@ Its closed `workflow` gate binds every required Phase 12 path to the actual Diag
 LangGraphs plus their deterministic recovery continuation. It exercises success, replan, refusal,
 handoff, approval rejection/expiry, verification re-diagnosis/handoff, every pre-effect cancel
 boundary, pause-to-cancel resume, and both runtime and source-level compensation guards.
+The allowlisted `integration` gate now checks Docker before running 100 Testcontainers cases
+against the same PostgreSQL 18/pgvector image as the control plane. It proves migrations, real
+vector behavior, transaction and concurrency controls, PostgreSQL LangGraph checkpoint recovery,
+the persisted Tool Gateway retry/audit route, and the complete deterministic recovery persistence
+chain. Prometheus/Loki/Tempo topology remains a Compose contract and their telemetry adapters
+remain isolated adapter tests; the repository does not claim those external stores are covered by
+Testcontainers.
 
 ## Why this project exists
 
@@ -413,6 +420,7 @@ python scripts/dev.py typecheck
 python scripts/dev.py test --suite unit
 python scripts/dev.py test --suite agent-output
 python scripts/dev.py test --suite workflow
+python scripts/dev.py test --suite integration
 python scripts/dev.py test --suite smoke
 python scripts/dev.py docs
 python scripts/dev.py build
@@ -422,7 +430,7 @@ python scripts/dev.py status
 python scripts/dev.py down
 ```
 
-The runner never forwards arbitrary shell text: every task maps to an immutable argument list, runs without a shell, has a timeout, stops on first failure, and emits start/pass/fail timing lines. The `architecture` task rejects domain imports of FastAPI, SQLAlchemy, LangGraph/LangChain, model-provider SDKs, or higher internal layers. The unit suite owns the versioned Phase 12 core-unit coverage scope and requires 100% statement and branch coverage; `agent-output` runs the deterministic generated schema/adversarial contract, `workflow` runs the closed all-path gate, and the quality task still runs the complete repository suite. The smoke suite is deliberately in-process; E2E and evaluation tasks remain unavailable until their implementation phases.
+The runner never forwards arbitrary shell text: every task maps to an immutable argument list, runs without a shell, has a timeout, stops on first failure, and emits start/pass/fail timing lines. The `architecture` task rejects domain imports of FastAPI, SQLAlchemy, LangGraph/LangChain, model-provider SDKs, or higher internal layers. The unit suite owns the versioned Phase 12 core-unit coverage scope and requires 100% statement and branch coverage; `agent-output` runs the deterministic generated schema/adversarial contract, `workflow` runs the closed all-path gate, `integration` checks Docker and runs only the Testcontainers adapter boundary, and the quality task still runs the complete repository suite. The smoke suite is deliberately in-process; E2E and evaluation tasks remain unavailable until their implementation phases.
 
 ## Compose foundation
 

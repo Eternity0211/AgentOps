@@ -184,6 +184,46 @@ class Store:
         return completed
 
 
+class CrashAfterClaimCommitStore(Store):
+    """Simulate process loss after the durable claim commit returned internally."""
+
+    def __init__(self, events: list[str]) -> None:
+        super().__init__(events)
+        self.crashed = False
+
+    async def claim(
+        self,
+        execution: ActionExecution,
+        audit_event: AuditEvent,
+        replay_audit_factory: Callable[[ActionExecution], AuditEvent],
+    ) -> tuple[ActionExecution, bool]:
+        result = await super().claim(execution, audit_event, replay_audit_factory)
+        if not self.crashed:
+            self.crashed = True
+            raise asyncio.CancelledError()
+        return result
+
+
+class CrashAfterFinishCommitStore(Store):
+    """Simulate process loss after the terminal result became durable."""
+
+    def __init__(self, events: list[str]) -> None:
+        super().__init__(events)
+        self.crashed = False
+
+    async def finish(
+        self,
+        expected: ActionExecution,
+        completed: ActionExecution,
+        audit_event: AuditEvent,
+    ) -> ActionExecution:
+        result = await super().finish(expected, completed, audit_event)
+        if not self.crashed:
+            self.crashed = True
+            raise asyncio.CancelledError()
+        return result
+
+
 class Dispatcher:
     def __init__(
         self,
@@ -383,6 +423,26 @@ async def test_terminal_retry_records_replay_without_second_dispatch() -> None:
 
 
 @pytest.mark.anyio
+async def test_claim_commit_then_worker_exit_replays_without_dispatch() -> None:
+    events: list[str] = []
+    store = CrashAfterClaimCommitStore(events)
+    service, _, _, _, dispatcher, _ = executor(events=events, store=store)
+
+    with pytest.raises(asyncio.CancelledError):
+        await run(service)
+    assert store.stored is not None
+    assert store.stored.status is ActionExecutionStatus.STARTED
+    assert dispatcher.calls == 0
+
+    replayed = await run(service)
+    assert replayed == store.stored
+    assert replayed.status is ActionExecutionStatus.STARTED
+    assert dispatcher.calls == 0
+    assert len(store.claim_audits) == 2
+    assert len(store.replay_audits) == 1
+
+
+@pytest.mark.anyio
 async def test_cancellation_leaves_durable_started_claim_and_retry_only_observes_replay() -> None:
     events: list[str] = []
     dispatcher = Dispatcher(events, dispatch_error=asyncio.CancelledError())
@@ -396,6 +456,26 @@ async def test_cancellation_leaves_durable_started_claim_and_retry_only_observes
     replayed = await run(service)
     assert replayed.status is ActionExecutionStatus.STARTED
     assert dispatcher.calls == 1
+    assert len(store.replay_audits) == 1
+
+
+@pytest.mark.anyio
+async def test_terminal_commit_then_worker_exit_replays_without_redispatch() -> None:
+    events: list[str] = []
+    store = CrashAfterFinishCommitStore(events)
+    service, _, _, _, dispatcher, _ = executor(events=events, store=store)
+
+    with pytest.raises(asyncio.CancelledError):
+        await run(service)
+    assert store.stored is not None
+    assert store.stored.status is ActionExecutionStatus.SUCCEEDED
+    assert dispatcher.calls == 1
+
+    replayed = await run(service)
+    assert replayed == store.stored
+    assert replayed.status is ActionExecutionStatus.SUCCEEDED
+    assert dispatcher.calls == 1
+    assert len(store.finish_audits) == 1
     assert len(store.replay_audits) == 1
 
 

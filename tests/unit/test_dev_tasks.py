@@ -177,6 +177,38 @@ def test_e2e_suite_binds_six_scenarios_to_the_real_recovery_chain() -> None:
     assert commands[1].timeout_seconds == 300
 
 
+def test_resilience_suite_is_closed_deduplicated_and_docker_gated() -> None:
+    expected_boundaries = {
+        "diagnosis_checkpoint_boundaries",
+        "diagnosis_committed_effect_boundary",
+        "approval_interrupt_boundary",
+        "action_claim_commit_boundary",
+        "action_dispatch_boundary",
+        "action_terminal_commit_boundary",
+        "action_terminal_persist_failure",
+        "verification_evidence_decision_boundary",
+        "verification_decision_route_boundary",
+        "verification_route_ack_boundary",
+        "stale_lease_recovery",
+        "stale_lease_single_takeover",
+        "stale_final_lease_route",
+    }
+    cases = dev_tasks.RESILIENCE_TEST_CASES
+    commands = dev_tasks.command_specs("test", suite="resilience")
+    labels = tuple(label for label, _ in cases)
+    selected_nodes = commands[1].argv[4:-3]
+
+    assert commands[0] == dev_tasks.DOCKER_DAEMON
+    assert commands[1] == dev_tasks.resilience_test_command()
+    assert set(labels) == expected_boundaries
+    assert len(labels) == len(set(labels))
+    assert selected_nodes == tuple(dict.fromkeys(node for _, node in cases))
+    assert all(node.startswith("tests/") and "::test_" in node for node in selected_nodes)
+    assert commands[1].argv[-3:] == ("-p", "no:cacheprovider", "--no-cov")
+    assert commands[1].label == "worker-resilience-tests"
+    assert commands[1].timeout_seconds == 240
+
+
 def test_format_write_is_explicit() -> None:
     """Formatting defaults to check-only and mutates files only with --write."""
     check_command = dev_tasks.command_specs("format")[0]

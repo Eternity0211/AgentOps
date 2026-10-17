@@ -173,7 +173,10 @@ substitution refusal.
 Executor tests prove fixed preflight/claim/dispatch/finish ordering, disabled and rejected
 pre-effect refusal, terminal classification persistence, cancellation and finish-failure replay
 safety, atomic replay auditing, and eight-way PostgreSQL duplicate delivery with exactly one
-adapter dispatch. They also prove content-free observations for every terminal classification,
+adapter dispatch. Explicit process-loss injections cover claim committed before the caller receives
+it, dispatch cancellation after the durable claim, failure before terminal persistence, and exit
+after terminal persistence; every replacement delivery observes the stored record and the adapter
+call count never increases. They also prove content-free observations for every terminal classification,
 capability refusal, timeout, replay, and cancellation, including fail-open observer behavior.
 Together with Approval lifecycle/graph tests, the Phase 8 exit matrix covers
 concurrent approval, rejection and lazy expiry routing, successful mutation classification,

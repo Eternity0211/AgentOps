@@ -289,7 +289,9 @@ foreign, or expired leases. Retry releases a job until its attempt budget is exh
 worker's expired lease is reclaimed when budget remains; a final expired attempt is deterministically
 routed to its configured terminal state so no job remains stranded. Tests cover concurrent disjoint
 claims, duplicate enqueue, heartbeat renewal, foreign-worker refusal, delayed retry, explicit human
-handoff, both stale-final routes, and stale-worker takeover. The worker runtime applies bounded
+handoff, both stale-final routes, and stale-worker takeover. The takeover test races eight replacement
+workers after one lease expires, proves exactly one receives attempt two, rejects completion by the
+crashed owner, and permits only the new live owner to commit completion. The worker runtime applies bounded
 concurrency, cooperative shutdown, and persisted cancellation probes as documented in
 `CONTROL_PLANE_PROCESSES.md`.
 

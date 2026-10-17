@@ -259,7 +259,7 @@ Exit: one correlation ID reconstructs the incident and agent-control flow withou
 - [x] Complete LangGraph all-path tests including replans, refusal, human handoff, approval rejection/expiry, success, re-diagnosis, safe-boundary cancellation, and future compensation guards.
 - [x] Complete Testcontainers external integration tests for PostgreSQL/pgvector and applicable observability/tool adapters.
 - [x] Complete six fault-scenario E2E suites from alert through postmortem, asserting the recovery-eligibility matrix and correct handoffs.
-- [ ] Test worker crashes at checkpoint/action/verification boundaries and stale-lease recovery.
+- [x] Test worker crashes at checkpoint/action/verification boundaries and stale-lease recovery.
 - [ ] Test duplicate execution/delivery and concurrent approval races.
 - [ ] Test model/tool timeouts, retry exhaustion, malformed payloads, and dependency outages.
 - [ ] Test prompt injection, secret redaction, evidence forgery, replay, SSRF/target injection, approval and RBAC bypass.

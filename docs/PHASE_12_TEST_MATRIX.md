@@ -195,3 +195,42 @@ authorized external resolution is recorded and verified.
 On 2026-10-17, the gate collected and passed all eight cases in 12.60 seconds; the task-level time
 including Docker preflight and frozen invocation was 15.985 seconds. This is a reproducible local
 functional result, not a production reliability or throughput claim.
+
+## Worker-crash and stale-lease resilience gate
+
+Contract version: `phase12-worker-resilience/v1`
+
+Run the fixed crash-boundary matrix with:
+
+```text
+python scripts/dev.py test --suite resilience
+```
+
+The allowlisted task checks Docker and then resolves thirteen named resilience requirements to
+thirteen unique test nodes. Parameter expansion produces twenty cases. Missing or renamed nodes
+fail collection, coverage is disabled for the focused run, and the complete repository suite
+remains the release gate.
+
+| Boundary | Required durable behavior |
+| --- | --- |
+| Every Diagnosis node checkpoint | A new saver and worker resume the same thread; each operation occurs once |
+| Effect committed before node checkpoint | The stable operation identity replays the committed result instead of repeating the effect |
+| Approval interrupt | A new worker restores the interrupt and reloads the authoritative Approval before continuing |
+| Action claim commit | Process loss after claim leaves one `STARTED` record; replacement delivery records replay and never dispatches |
+| Action dispatch | Cancellation or unknown dispatch completion leaves the durable claim and never automatically redispatches |
+| Action terminal persistence | Failure before commit preserves the claim; loss after commit replays the exact terminal result with one adapter call |
+| Verification Evidence to decision | Five committed Evidence records are reused exactly after process loss; one decision is persisted |
+| Verification decision to route | A durable decision can be routed by a replacement worker; exact replay adds no transition or audit |
+| Verification route to acknowledgement | Concurrent replacement deliveries return one atomically committed closure |
+| Expired Job lease | Sequential recovery emits the stale-recovery record; eight replacement workers produce one attempt-two owner and the crashed owner is rejected |
+| Final expired Job lease | No replacement claim is issued; the configured `DEAD_LETTER` or `NEEDS_HUMAN` route is persisted |
+
+The action contract is deliberately conservative. A replayed in-progress execution is observable
+as `STARTED` and is not treated as successful or automatically repeated because the system cannot
+infer whether the external mutation happened. The stale-work policy can therefore route it for
+deterministic recovery or human handling without redeploying the known faulty version.
+
+On 2026-10-17, Python 3.12.14 and Docker Engine 29.8.0 collected and passed all twenty cases in
+29.02 seconds; the full allowlisted task, including Docker preflight, completed in 38.687 seconds.
+These measurements prove only the fixed local crash/replay contract, not a production availability
+or recovery-time claim.

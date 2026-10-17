@@ -134,6 +134,117 @@ SIX_SCENARIO_E2E_TESTS = CommandSpec(
     300,
 )
 
+RESILIENCE_TEST_CASES = (
+    (
+        "diagnosis_checkpoint_boundaries",
+        (
+            "tests/integration/test_graph_checkpoints.py::"
+            "test_new_worker_continues_from_every_durable_boundary_without_duplicate_effects"
+        ),
+    ),
+    (
+        "diagnosis_committed_effect_boundary",
+        (
+            "tests/integration/test_graph_checkpoints.py::"
+            "test_retried_failed_node_replays_committed_operation_instead_of_effect"
+        ),
+    ),
+    (
+        "approval_interrupt_boundary",
+        (
+            "tests/integration/test_graph_checkpoints.py::"
+            "test_new_worker_restores_approval_interrupt_and_reloads_authoritative_record"
+        ),
+    ),
+    (
+        "action_claim_commit_boundary",
+        (
+            "tests/unit/test_action_executor.py::"
+            "test_claim_commit_then_worker_exit_replays_without_dispatch"
+        ),
+    ),
+    (
+        "action_dispatch_boundary",
+        (
+            "tests/unit/test_action_executor.py::"
+            "test_cancellation_leaves_durable_started_claim_and_retry_only_observes_replay"
+        ),
+    ),
+    (
+        "action_terminal_commit_boundary",
+        (
+            "tests/unit/test_action_executor.py::"
+            "test_terminal_commit_then_worker_exit_replays_without_redispatch"
+        ),
+    ),
+    (
+        "action_terminal_persist_failure",
+        (
+            "tests/unit/test_action_executor.py::"
+            "test_finish_failure_never_redispatches_after_durable_claim"
+        ),
+    ),
+    (
+        "verification_evidence_decision_boundary",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_health_verifier_recovers_after_evidence_commit_before_decision"
+        ),
+    ),
+    (
+        "verification_decision_route_boundary",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_successful_health_verification_closes_once_and_replays"
+        ),
+    ),
+    (
+        "verification_route_ack_boundary",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_successful_health_verification_closure_serializes_concurrent_replays"
+        ),
+    ),
+    (
+        "stale_lease_recovery",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_job_duplicate_id_is_rejected_and_stale_lease_is_reclaimed"
+        ),
+    ),
+    (
+        "stale_lease_single_takeover",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_job_stale_lease_has_one_concurrent_recovery_owner"
+        ),
+    ),
+    (
+        "stale_final_lease_route",
+        ("tests/integration/test_persistence.py::test_job_expired_final_lease_routes_terminally"),
+    ),
+)
+
+
+def resilience_test_command() -> CommandSpec:
+    """Build the closed Phase 12 worker-crash and stale-lease recovery gate."""
+    test_nodes = tuple(dict.fromkeys(node for _, node in RESILIENCE_TEST_CASES))
+    return CommandSpec(
+        "worker-resilience-tests",
+        (
+            "uv",
+            "run",
+            "--frozen",
+            "pytest",
+            *test_nodes,
+            "-p",
+            "no:cacheprovider",
+            "--no-cov",
+        ),
+        240,
+    )
+
+
 WORKFLOW_PATH_TEST_CASES = (
     (
         "diagnosis_success",
@@ -342,6 +453,8 @@ def command_specs(
             return (DOCKER_DAEMON, EXTERNAL_INTEGRATION_TESTS)
         if suite == "e2e":
             return (DOCKER_DAEMON, SIX_SCENARIO_E2E_TESTS)
+        if suite == "resilience":
+            return (DOCKER_DAEMON, resilience_test_command())
         if suite == "smoke":
             return (
                 CommandSpec(
@@ -353,7 +466,7 @@ def command_specs(
         raise TaskConfigurationError(
             "test suite "
             f"'{suite}' is not implemented yet; available suites: "
-            "unit, agent-output, workflow, integration, smoke"
+            "unit, agent-output, workflow, integration, e2e, resilience, smoke"
         )
     if task == "docs":
         return (
@@ -504,11 +617,20 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--write", action="store_true", help="Apply formatting changes.")
     parser.add_argument(
         "--suite",
-        choices=("unit", "agent-output", "workflow", "integration", "smoke", "e2e"),
+        choices=(
+            "unit",
+            "agent-output",
+            "workflow",
+            "integration",
+            "smoke",
+            "e2e",
+            "resilience",
+        ),
         default="unit",
         help=(
             "Test suite to run; integration requires Docker, smoke is in-process, "
-            "and e2e includes the six-scenario product matrix."
+            "e2e includes the six-scenario product matrix, and resilience exercises "
+            "worker-crash and stale-lease boundaries."
         ),
     )
     return parser

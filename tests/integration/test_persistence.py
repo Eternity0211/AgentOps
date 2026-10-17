@@ -127,6 +127,7 @@ from agentops_incident_commander.domain import (
     Job,
     JobFailureRoute,
     JobId,
+    JobLease,
     JobLeaseError,
     JobStatus,
     MaintenanceWindowStatus,
@@ -2258,19 +2259,93 @@ async def test_job_duplicate_id_is_rejected_and_stale_lease_is_reclaimed(
 
     observer = RecordingControlPlaneObserver()
     async with sessions.begin() as session:
-        reclaimed = await JobRepository(session, observer=observer).claim(
-            OpaqueIdentifier("worker-recovery"),
-            now=NOW + timedelta(minutes=2),
-            lease_duration=timedelta(minutes=1),
-            limit=1,
-        )
-        assert reclaimed[0].attempt == 2
-        assert reclaimed[0].worker_id == OpaqueIdentifier("worker-recovery")
+        reclaimed = (
+            await JobRepository(session, observer=observer).claim(
+                OpaqueIdentifier("worker-recovery"),
+                now=NOW + timedelta(minutes=2),
+                lease_duration=timedelta(minutes=1),
+                limit=1,
+            )
+        )[0]
+    assert reclaimed.attempt == 2
+    assert reclaimed.worker_id == OpaqueIdentifier("worker-recovery")
     assert [item.operation for item in observer.observations] == [
         ControlPlaneOperation.JOB_STALE_RECOVERY,
         ControlPlaneOperation.JOB_CLAIM,
     ]
     assert observer.observations[0].outcome is ControlPlaneOutcome.RESUMED
+
+    async with sessions.begin() as session:
+        repository = JobRepository(session)
+        with pytest.raises(JobLeaseError, match="no active lease"):
+            await repository.complete(
+                item.id,
+                OpaqueIdentifier("worker-crashed"),
+                completed_at=NOW + timedelta(minutes=2, seconds=1),
+            )
+        await repository.complete(
+            item.id,
+            reclaimed.worker_id,
+            completed_at=NOW + timedelta(minutes=2, seconds=1),
+        )
+
+    async with sessions() as session:
+        row = await session.scalar(select(JobRow).where(JobRow.id == item.id.value))
+        assert row is not None
+        assert row.status == JobStatus.COMPLETED.value
+        assert row.attempt_count == 2
+
+
+@pytest.mark.anyio
+async def test_job_stale_lease_has_one_concurrent_recovery_owner(engine: AsyncEngine) -> None:
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    item = job("job-concurrent-reclaim", max_attempts=2)
+    async with sessions.begin() as session:
+        await add_job_incident(session)
+        repository = JobRepository(session)
+        await repository.enqueue(item)
+        await repository.claim(
+            OpaqueIdentifier("worker-concurrent-crashed"),
+            now=NOW,
+            lease_duration=timedelta(minutes=1),
+            limit=1,
+        )
+
+    async def reclaim(index: int) -> tuple[JobLease, ...]:
+        async with sessions.begin() as session:
+            return await JobRepository(session).claim(
+                OpaqueIdentifier(f"worker-concurrent-recovery-{index}"),
+                now=NOW + timedelta(minutes=2),
+                lease_duration=timedelta(minutes=1),
+                limit=1,
+            )
+
+    attempts = await asyncio.gather(*(reclaim(index) for index in range(8)))
+    winners = [leases[0] for leases in attempts if leases]
+    assert len(winners) == 1
+    reclaimed = winners[0]
+    assert reclaimed.attempt == 2
+    assert reclaimed.worker_id.value.startswith("worker-concurrent-recovery-")
+
+    async with sessions.begin() as session:
+        repository = JobRepository(session)
+        with pytest.raises(JobLeaseError, match="no active lease"):
+            await repository.complete(
+                item.id,
+                OpaqueIdentifier("worker-concurrent-crashed"),
+                completed_at=NOW + timedelta(minutes=2, seconds=1),
+            )
+        await repository.complete(
+            item.id,
+            reclaimed.worker_id,
+            completed_at=NOW + timedelta(minutes=2, seconds=1),
+        )
+
+    async with sessions() as session:
+        row = await session.scalar(select(JobRow).where(JobRow.id == item.id.value))
+        assert row is not None
+        assert row.status == JobStatus.COMPLETED.value
+        assert row.attempt_count == 2
 
 
 @pytest.mark.anyio
@@ -6938,6 +7013,106 @@ async def test_live_health_verifier_persists_evidence_decision_and_replays(
     assert replay == first
     assert metrics.calls == 2
     sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions() as session:
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(EvidenceRow)
+                .where(EvidenceRow.incident_id == completed.incident_id.value)
+            )
+            == 5
+        )
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(HealthVerificationRunRow)
+                .where(HealthVerificationRunRow.incident_id == completed.incident_id.value)
+            )
+            == 1
+        )
+
+
+@pytest.mark.anyio
+async def test_health_verifier_recovers_after_evidence_commit_before_decision(
+    engine: AsyncEngine,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A replacement worker reuses exact evidence and creates one bound decision."""
+    suffix = "crash-after-evidence"
+    completed = await persisted_successful_execution(engine, suffix=suffix)
+    metrics = VerificationMetricsBackend(failed=False)
+    request = live_verification_request(completed, suffix=suffix)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    artifacts = LocalArtifactStorage(tmp_path / suffix)
+
+    def build_verifier() -> PostgresPersistedHealthVerifier:
+        return PostgresPersistedHealthVerifier(
+            LiveHealthVerificationCollector(
+                metrics,
+                VerificationHealthBackend(),
+                VerificationVersionBackend(),
+                VerificationAlertBackend(),
+            ),
+            artifacts,
+            sessions,
+            request_factory=lambda _: request,
+            decision_id_factory=lambda _: OpaqueIdentifier(f"decision-live-{suffix}"),
+            audit_event_id_factory=lambda: AuditEventId(f"audit-live-{suffix}"),
+            clock=lambda: request.window_started_at + timedelta(seconds=62),
+        )
+
+    original_record = HealthVerificationRepository.record
+
+    async def crash_before_decision_commit(*_: object, **__: object) -> object:
+        raise RuntimeError("simulated worker exit before decision commit")
+
+    monkeypatch.setattr(
+        HealthVerificationRepository,
+        "record",
+        crash_before_decision_commit,
+    )
+    with pytest.raises(RuntimeError, match="before decision commit"):
+        await build_verifier().verify(
+            completed,
+            principal=closure_principal(),
+            correlation_id=CorrelationId(f"correlation-live-{suffix}-crashed"),
+        )
+
+    async with sessions() as session:
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(EvidenceRow)
+                .where(EvidenceRow.incident_id == completed.incident_id.value)
+            )
+            == 5
+        )
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(HealthVerificationRunRow)
+                .where(HealthVerificationRunRow.incident_id == completed.incident_id.value)
+            )
+            == 0
+        )
+
+    monkeypatch.setattr(HealthVerificationRepository, "record", original_record)
+    recovered = await build_verifier().verify(
+        completed,
+        principal=closure_principal(),
+        correlation_id=CorrelationId(f"correlation-live-{suffix}-recovered"),
+    )
+    assert recovered.outcome is HealthVerificationOutcome.PASS
+    assert metrics.calls == 4
+
+    replayed = await build_verifier().verify(
+        completed,
+        principal=closure_principal(),
+        correlation_id=CorrelationId(f"correlation-live-{suffix}-replay"),
+    )
+    assert replayed == recovered
+    assert metrics.calls == 4
     async with sessions() as session:
         assert (
             await session.scalar(

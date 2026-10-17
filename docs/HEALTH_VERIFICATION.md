@@ -217,7 +217,11 @@ repositories for both outcomes; exact replay returns the stored route without a 
 Persisted-verifier tests additionally cover live PASS/FAIL collection, durable five-Evidence
 records, exact decision replay, invalid execution/principal/plan identities, collection scope
 substitution, Artifact and Evidence conflicts, incomplete re-resolution, and audit identity
-rejection.
+rejection. A real PostgreSQL crash-boundary test stops after the Artifact and five Evidence records
+are durable but before the verification decision transaction. A replacement worker recollects the
+same deterministic IDs, verifies exact Artifact/Evidence equality, writes one decision, and later
+replays it without recollection. Separate route tests treat a durable decision and an atomically
+committed closure as worker boundaries and prove exact and concurrent replay cannot add a route.
 The authorized local rollback E2E composes that verifier with the lifecycle-aware executor,
 server-bound simulator mutation, immutable action snapshots, and success router. It reaches
 `CLOSED` only after five live Evidence records produce one persisted `PASS`; exact replay returns

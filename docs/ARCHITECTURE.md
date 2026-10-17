@@ -145,6 +145,13 @@ counts, timestamps, and a state fingerprint without exposing state or task paylo
 
 Each externally visible transition writes domain state, outbox/audit event, and next job intent transactionally where possible. PostgreSQL checkpointing supports pauses, interrupts, safe-boundary cancellation, and worker recovery. Jobs use `SELECT ... FOR UPDATE SKIP LOCKED` (or an equivalently documented strategy), owner/lease timestamps, heartbeat, attempts, and stale-lease reclamation. Execution idempotency is independent of workflow retry semantics.
 
+The Phase 12 resilience contract replaces the worker at every durable Diagnosis boundary and
+injects loss around action and verification commits. In-progress ActionExecution replay never
+redispatches an uncertain mutation; terminal replay returns the exact durable result. Verification
+reuses immutable Artifact/Evidence identities across the evidence-to-decision boundary, and route
+transactions remain idempotent after a decision or closure commit. Expired Job leases serialize
+replacement claims, reject the former owner, and exhaust through the configured bounded route.
+
 LangGraph, rather than a black-box general ReAct agent, is the workflow authority because the graph must expose safety routing, durable pauses, resumption, and compensation. `langchain-core` model/message/tool-schema or retriever components may be used underneath nodes where helpful, but Evidence, Policy, RBAC, Executor, and Verifier remain application/domain responsibilities.
 
 ## Investigation parallelism and bounded loops

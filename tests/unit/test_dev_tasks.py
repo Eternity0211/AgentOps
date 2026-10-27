@@ -289,6 +289,59 @@ def test_failure_suite_is_closed_deduplicated_and_docker_gated() -> None:
     assert commands[1].timeout_seconds == 240
 
 
+def test_security_suite_is_closed_complete_deduplicated_and_docker_gated() -> None:
+    expected_boundaries = {
+        "prompt_injection_model_context",
+        "prompt_injection_collector_data",
+        "prompt_injection_quarantine",
+        "prompt_like_authority_property",
+        "secret_field_redaction",
+        "inline_secret_redaction",
+        "structured_log_secret_redaction",
+        "control_plane_signal_secret_redaction",
+        "simulator_signal_secret_redaction",
+        "evidence_forgery_gate",
+        "fabricated_reference_property",
+        "evidence_hash_and_size_tamper",
+        "postmortem_evidence_tamper",
+        "action_terminal_replay",
+        "diagnosis_conflicting_replay",
+        "postgres_control_replay_conflict",
+        "gateway_ssrf_path_command_rejection",
+        "logs_query_target_injection",
+        "deployment_query_target_injection",
+        "trace_query_target_injection",
+        "topology_query_target_injection",
+        "memory_query_target_injection",
+        "remediation_target_injection",
+        "rollback_catalog_injected_lookup",
+        "approval_resume_claim_bypass",
+        "approval_cross_tenant_bypass",
+        "approval_role_bypass",
+        "approval_mutation_invalidation",
+        "policy_approval_bypass",
+        "execution_preflight_rbac_bypass",
+        "api_write_role_bypass",
+    }
+    cases = dev_tasks.SECURITY_TEST_CASES
+    commands = dev_tasks.command_specs("test", suite="security")
+    labels = tuple(label for label, _ in cases)
+    selected_nodes = commands[1].argv[4:-3]
+
+    assert commands[0] == dev_tasks.DOCKER_DAEMON
+    assert commands[1] == dev_tasks.security_test_command()
+    assert set(labels) == expected_boundaries
+    assert len(labels) == len(set(labels))
+    assert selected_nodes == tuple(dict.fromkeys(node for _, node in cases))
+    assert len(selected_nodes) == len(cases)
+    assert all(node.startswith("tests/") and "::test_" in node for node in selected_nodes)
+    assert any(node.startswith("tests/property/") for node in selected_nodes)
+    assert any(node.startswith("tests/integration/") for node in selected_nodes)
+    assert commands[1].argv[-3:] == ("-p", "no:cacheprovider", "--no-cov")
+    assert commands[1].label == "adversarial-security-tests"
+    assert commands[1].timeout_seconds == 300
+
+
 def test_format_write_is_explicit() -> None:
     """Formatting defaults to check-only and mutates files only with --write."""
     check_command = dev_tasks.command_specs("format")[0]

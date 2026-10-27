@@ -33,3 +33,11 @@ Protected assets include infrastructure control, approvals, incident/evidence in
 7. No runtime component can read evaluation Ground Truth.
 
 Threat review is repeated when adding a write tool, external integration, authentication method, new trust boundary, or deployment target.
+
+## Adversarial regression gate
+
+Phase 12's fixed `python scripts/dev.py test --suite security` gate binds prompt injection,
+secret leakage, Evidence forgery/tampering, replay, SSRF/path/command/target injection, Approval
+bypass, and RBAC/cross-tenant bypass to exact unit, property, and PostgreSQL tests. The gate fails
+collection if a selected boundary disappears and supplements rather than replaces the complete
+repository suite or an external penetration test.

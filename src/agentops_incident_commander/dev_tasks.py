@@ -538,6 +538,201 @@ def failure_mode_test_command() -> CommandSpec:
     )
 
 
+SECURITY_TEST_CASES = (
+    (
+        "prompt_injection_model_context",
+        "tests/unit/test_mock_model.py::test_prompt_injection_context_cannot_change_or_leak_into_output",
+    ),
+    (
+        "prompt_injection_collector_data",
+        "tests/unit/test_collectors.py::test_logs_collector_preserves_untrusted_data_and_injection_state",
+    ),
+    (
+        "prompt_injection_quarantine",
+        "tests/unit/test_evidence_processing.py::test_normalizer_requires_suspected_injection_to_be_quarantined",
+    ),
+    (
+        "prompt_like_authority_property",
+        (
+            "tests/property/test_agent_output_properties.py::"
+            "test_prompt_like_text_remains_data_and_cannot_create_authority_fields"
+        ),
+    ),
+    (
+        "secret_field_redaction",
+        "tests/unit/test_redaction.py::test_sensitive_fields_are_replaced_with_secret_free_lineage",
+    ),
+    (
+        "inline_secret_redaction",
+        "tests/unit/test_redaction.py::test_inline_secret_patterns_are_redacted_and_paths_are_escaped",
+    ),
+    (
+        "structured_log_secret_redaction",
+        "tests/unit/test_structured_logs.py::test_secret_patterns_are_redacted_without_line_breaks",
+    ),
+    (
+        "control_plane_signal_secret_redaction",
+        (
+            "tests/unit/test_control_plane_observability.py::"
+            "test_seeded_secret_never_crosses_control_plane_signal_boundaries"
+        ),
+    ),
+    (
+        "simulator_signal_secret_redaction",
+        (
+            "tests/unit/test_simulator_telemetry.py::"
+            "test_seeded_secret_never_crosses_simulator_signal_boundaries"
+        ),
+    ),
+    (
+        "evidence_forgery_gate",
+        (
+            "tests/unit/test_evidence_gate_resolution.py::"
+            "test_fabricated_or_altered_evidence_cannot_pass_with_maximum_confidence"
+        ),
+    ),
+    (
+        "fabricated_reference_property",
+        (
+            "tests/property/test_agent_output_properties.py::"
+            "test_syntactically_valid_fabricated_references_always_fail_the_evidence_gate"
+        ),
+    ),
+    (
+        "evidence_hash_and_size_tamper",
+        "tests/unit/test_evidence_processing.py::test_validation_rejects_hash_and_size_tampering",
+    ),
+    (
+        "postmortem_evidence_tamper",
+        "tests/unit/test_postmortem.py::test_generation_rejects_tampered_evidence_artifact",
+    ),
+    (
+        "action_terminal_replay",
+        "tests/unit/test_action_executor.py::test_terminal_retry_records_replay_without_second_dispatch",
+    ),
+    (
+        "diagnosis_conflicting_replay",
+        (
+            "tests/unit/test_persistence_repositories.py::"
+            "test_diagnosis_repository_rejects_conflicting_replay"
+        ),
+    ),
+    (
+        "postgres_control_replay_conflict",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_control_conflicts_invalid_values_and_incomplete_replay_fail_closed"
+        ),
+    ),
+    (
+        "gateway_ssrf_path_command_rejection",
+        (
+            "tests/unit/test_tool_gateway.py::"
+            "test_diagnosis_invocation_rejects_nested_urls_paths_commands_and_controls"
+        ),
+    ),
+    (
+        "logs_query_target_injection",
+        (
+            "tests/unit/test_query_logs_tool.py::"
+            "test_query_logs_schema_rejects_raw_query_target_and_control_injection"
+        ),
+    ),
+    (
+        "deployment_query_target_injection",
+        (
+            "tests/unit/test_query_deployments_tool.py::"
+            "test_query_deployments_schema_rejects_raw_queries_and_targets"
+        ),
+    ),
+    (
+        "trace_query_target_injection",
+        (
+            "tests/unit/test_query_traces_tool.py::"
+            "test_query_traces_schema_rejects_raw_queries_and_targets"
+        ),
+    ),
+    (
+        "topology_query_target_injection",
+        (
+            "tests/unit/test_service_topology_tool.py::"
+            "test_topology_schema_rejects_raw_queries_and_targets"
+        ),
+    ),
+    (
+        "memory_query_target_injection",
+        (
+            "tests/unit/test_similar_incidents_tool.py::"
+            "test_v2_schema_rejects_queries_targets_and_invalid_limits"
+        ),
+    ),
+    (
+        "remediation_target_injection",
+        (
+            "tests/unit/test_remediation_schemas.py::"
+            "test_rollback_parameters_reject_model_supplied_targets_and_execution_fields"
+        ),
+    ),
+    (
+        "rollback_catalog_injected_lookup",
+        "tests/unit/test_rollback_service_tool.py::test_catalog_rejects_untyped_or_injected_lookup",
+    ),
+    (
+        "approval_resume_claim_bypass",
+        "tests/unit/test_approval_graph.py::test_pending_approval_reinterrupts_and_never_trusts_resume_claims",
+    ),
+    (
+        "approval_cross_tenant_bypass",
+        "tests/unit/test_approval_graph.py::test_cross_tenant_lookup_cannot_resolve_approval",
+    ),
+    (
+        "approval_role_bypass",
+        "tests/unit/test_approvals.py::test_requester_and_approver_authorization_fail_closed",
+    ),
+    (
+        "approval_mutation_invalidation",
+        "tests/unit/test_remediation_revision.py::test_material_revision_invalidates_and_requires_fresh_approval",
+    ),
+    (
+        "policy_approval_bypass",
+        "tests/unit/test_policy_engine.py::test_valid_rollback_requires_approval_and_never_directly_allows_execution",
+    ),
+    (
+        "execution_preflight_rbac_bypass",
+        (
+            "tests/unit/test_action_execution_preflight.py::"
+            "test_preflight_rejects_missing_permission_or_cross_tenant_actor"
+        ),
+    ),
+    (
+        "api_write_role_bypass",
+        (
+            "tests/unit/test_api_contracts.py::"
+            "test_write_and_approval_routes_reject_roles_without_permission_before_storage"
+        ),
+    ),
+)
+
+
+def security_test_command() -> CommandSpec:
+    """Build the closed Phase 12 adversarial-security gate."""
+    test_nodes = tuple(dict.fromkeys(node for _, node in SECURITY_TEST_CASES))
+    return CommandSpec(
+        "adversarial-security-tests",
+        (
+            "uv",
+            "run",
+            "--frozen",
+            "pytest",
+            *test_nodes,
+            "-p",
+            "no:cacheprovider",
+            "--no-cov",
+        ),
+        300,
+    )
+
+
 WORKFLOW_PATH_TEST_CASES = (
     (
         "diagnosis_success",
@@ -752,6 +947,8 @@ def command_specs(
             return (DOCKER_DAEMON, concurrency_test_command())
         if suite == "failure":
             return (DOCKER_DAEMON, failure_mode_test_command())
+        if suite == "security":
+            return (DOCKER_DAEMON, security_test_command())
         if suite == "smoke":
             return (
                 CommandSpec(
@@ -764,7 +961,7 @@ def command_specs(
             "test suite "
             f"'{suite}' is not implemented yet; available suites: "
             "unit, agent-output, workflow, integration, e2e, resilience, concurrency, failure, "
-            "smoke"
+            "security, smoke"
         )
     if task == "docs":
         return (
@@ -925,6 +1122,7 @@ def build_parser() -> argparse.ArgumentParser:
             "resilience",
             "concurrency",
             "failure",
+            "security",
         ),
         default="unit",
         help=(
@@ -932,7 +1130,8 @@ def build_parser() -> argparse.ArgumentParser:
             "e2e includes the six-scenario product matrix, and resilience exercises "
             "worker-crash and stale-lease boundaries. Concurrency exercises duplicate delivery "
             "and Approval races. Failure exercises timeout, retry, malformed-payload, and outage "
-            "boundaries."
+            "boundaries. Security exercises injection, redaction, forgery, replay, Approval, and "
+            "RBAC boundaries."
         ),
     )
     return parser

@@ -311,3 +311,40 @@ into and passed all forty-two cases in 28.30 seconds. The focused Pytest task co
 seconds, and the full allowlisted command including Docker preflight completed in approximately
 56.234 seconds. These are bounded local correctness measurements, not availability or production
 reliability claims.
+
+## Adversarial security gate
+
+Contract version: `phase12-adversarial-security/v1`
+
+Run the closed security matrix with:
+
+```text
+python scripts/dev.py test --suite security
+```
+
+The allowlisted task checks Docker and binds thirty-one named requirements to exact unit, property,
+and PostgreSQL integration nodes. Parameterized tests expand payload classes, secret patterns,
+unsafe targets, actor roles, and tenant/approval states. Missing or renamed nodes fail collection,
+the focused run does not alter coverage state, and the complete repository suite remains required.
+
+| Adversarial boundary | Required behavior |
+| --- | --- |
+| Prompt injection | Logs and model context remain untrusted scalar data; suspected injection is quarantined and cannot add authority fields |
+| Secret redaction | Typed secret fields and inline patterns cannot cross structured log, control-plane telemetry, simulator telemetry, or model boundaries |
+| Evidence forgery and tampering | Fabricated IDs, altered metadata, hash/size changes, and tampered Artifacts cannot pass the deterministic Gate or postmortem resolver |
+| Replay | Exact action replay cannot redispatch; changed diagnosis/control content cannot inherit the original identity or authority |
+| SSRF, path, command, and query injection | Nested URLs, filesystem paths, commands, raw queries, and caller-selected backend targets fail before adapter access |
+| Recovery target injection | Model-supplied deployment/approval/execution fields and untyped catalog lookups cannot influence the server-owned target |
+| Approval bypass | Resume claims are ignored, cross-tenant records do not resolve, roles are separated, and material mutation requires fresh approval |
+| RBAC and policy bypass | Policy never directly authorizes rollback; API and preflight deny missing permissions before storage or execution |
+
+One real PostgreSQL case proves conflicting or incomplete control-command replay fails closed at the
+durable idempotency boundary. The gate introduces no attack executor, raw network target, arbitrary
+shell surface, or LLM authority; it exercises only typed public boundaries and deterministic
+stores.
+
+On 2026-10-27, Python 3.12.14 and Docker Engine 29.8.0 expanded the thirty-one named requirements
+into and passed all seventy cases in 19.47 seconds. The focused Pytest task completed in 23.640
+seconds, and the full allowlisted command including Docker preflight completed in approximately
+25.078 seconds. These bounded local results are security regression evidence, not a penetration
+test or production security certification.

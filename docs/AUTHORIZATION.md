@@ -39,3 +39,9 @@ trusting a UI or transport. Requester identity and complete role assignment must
 hash-bound Policy input. Medium, high, and critical risk always require an independent Approver;
 low risk can disable separation only through the server-owned Policy input and still requires the
 explicit Approver permission. Approval at or after expiry becomes an audited `EXPIRED` result.
+
+The fixed Phase 12 `security` gate selects API write/Approval permission denial, action-preflight
+permission and tenant denial, Approval role separation, cross-tenant Approval lookup, untrusted
+resume claims, material-revision invalidation, and the policy rule that rollback is never directly
+allowed. Together these nodes prove a caller cannot convert identity, role, tenant, or stale
+approval data into execution authority.

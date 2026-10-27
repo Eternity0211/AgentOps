@@ -40,7 +40,11 @@ QUALITY_COMMANDS = (
         ("uv", "run", "--frozen", "python", "scripts/check_compose.py"),
         60,
     ),
-    CommandSpec("types", ("uv", "run", "--frozen", "mypy", "src", "scripts", "tests"), 120),
+    CommandSpec(
+        "types",
+        ("uv", "run", "--frozen", "mypy", "src", "scripts", "evaluation", "tests"),
+        120,
+    ),
     CommandSpec("tests", ("uv", "run", "--frozen", "pytest"), 300),
     CommandSpec(
         "planning-docs",
@@ -926,7 +930,7 @@ def command_specs(
         return (
             CommandSpec(
                 "types",
-                ("uv", "run", "--frozen", "mypy", "src", "scripts", "tests"),
+                ("uv", "run", "--frozen", "mypy", "src", "scripts", "evaluation", "tests"),
                 120,
             ),
         )

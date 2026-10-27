@@ -1,5 +1,43 @@
 # AgentOps Incident Commander Evaluation Plan
 
+## Implemented foundation
+
+Contract versions: dataset `phase12-eval-v1`, rules `phase12-rules-v1`, Harness `1.0.0`, and raw
+result Schema `1.0`.
+
+The committed `evaluation/datasets/v1/dataset.json` contains six strictly ordered, label-free cases
+covering the same public scenario IDs as the evaluator-only manifests. Each case exposes only a
+bounded alert summary, time window, typed observation summaries, and the fixed read-tool catalog.
+The rules in `evaluation/rules/v1/rules.json` bind that dataset version, Harness version, allowed
+terminal statuses, mandatory Ground Truth field exclusions, and case/observation/Top-K/tool/token/
+cost/duration bounds. Closed JSON Schemas for the dataset, rules, and raw result live under
+`evaluation/schemas/`.
+
+`evaluation.harness` loads and hash-binds the dataset/rules pair, rejects nested evaluator-only
+fields, calls a typed candidate one case at a time, validates every returned field, records adapter
+failure under a stable content-free code, and emits one canonical create-only raw artifact. It does
+not import, mount, or load `evaluation/ground_truth/`; scoring joins Ground Truth only in a later
+isolated evaluator phase after candidate output exists. Raw artifacts record the exact code
+revision, scenario and baseline versions, Ground Truth manifest-set hash (never its labels), model
+and settings hash, prompt, policy, tool Schema versions, Python, platform, hardware summary,
+concurrency, seed, dataset/rules hashes, run window, per-case rank/evidence/action/verification
+status, calls, tokens, cost, duration, and stable error code. This metadata is persisted around the
+candidate call and is never passed into candidate input.
+
+`evaluation.report` reloads a raw artifact only with the exact dataset and rules, verifies hashes
+and the complete case set, and creates (never overwrites) deterministic Markdown. The current
+foundation report contains only raw status and resource distributions plus a prominent no-claims
+notice. It intentionally does not calculate the later Top-K, safety, recovery, or comparative
+metrics before their versioned scoring contracts and denominators exist. A bound raw artifact can
+be rendered directly with:
+
+```text
+python -m evaluation.report --raw <raw.json> --dataset evaluation/datasets/v1/dataset.json --rules evaluation/rules/v1/rules.json --output <report.md>
+```
+
+The cross-platform task-runner evaluation command remains a Phase 13 delivery item, and no baseline
+result is claimed by this foundation.
+
 ## Versioned inputs
 
 Every run records dataset and scenario versions, Ground Truth manifest hashes, evaluator/rule version, code SHA, prompt and model settings, tool schema versions, policy version, random seed, environment/hardware, concurrency, start/end time, and raw per-incident results. Reports are generated artifacts, never hand-edited claims.

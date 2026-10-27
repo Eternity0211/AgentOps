@@ -40,6 +40,13 @@ flowchart LR
 | Evaluation | datasets, Ground Truth, baselines, scoring, reports | leak labels to runtime/model context |
 | Console | explain state/evidence and collect authorized intent | become system of record |
 
+The top-level `evaluation/` package is outside the runtime `src/` package. Its v1 Harness consumes
+only the label-free dataset and validation rules, while Ground Truth remains a separate evaluator-
+only input. Candidate output is written as a create-only canonical raw artifact before any future
+scoring join. The report generator requires exact dataset/rules hashes and cannot infer or invent
+missing scoring metrics. Runtime API/worker images and model-context paths do not import this
+package or receive its evaluator-only mounts.
+
 ## Workflow graph
 
 ```mermaid

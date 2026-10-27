@@ -15,7 +15,7 @@ repos:
 
       - id: mypy
         name: mypy strict
-        entry: uv run --frozen mypy src scripts tests
+        entry: uv run --frozen mypy src scripts evaluation tests
         language: system
         pass_filenames: false
 

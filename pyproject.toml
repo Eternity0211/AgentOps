@@ -54,7 +54,7 @@ packages = ["src/agentops_incident_commander"]
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-src = ["src", "scripts", "tests"]
+src = ["src", "scripts", "evaluation", "tests"]
 extend-exclude = [".python", ".uv-cache"]
 
 [tool.ruff.lint]
@@ -67,7 +67,7 @@ line-ending = "lf"
 
 [tool.mypy]
 python_version = "3.12"
-files = ["src", "scripts", "tests"]
+files = ["src", "scripts", "evaluation", "tests"]
 strict = true
 show_error_codes = true
 pretty = true
@@ -75,6 +75,7 @@ warn_unreachable = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = [
     "--strict-config",
     "--strict-markers",

@@ -356,6 +356,18 @@ def test_full_verification_timeouts_remain_bounded_but_cover_the_measured_suite(
     assert dev_tasks.command_specs("pre-commit")[0].timeout_seconds == 360
 
 
+def test_typecheck_includes_the_isolated_evaluation_package() -> None:
+    expected = ("src", "scripts", "evaluation", "tests")
+
+    assert dev_tasks.command_specs("typecheck")[0].argv[-4:] == expected
+    assert (
+        next(command for command in dev_tasks.QUALITY_COMMANDS if command.label == "types").argv[
+            -4:
+        ]
+        == expected
+    )
+
+
 def test_up_task_has_bounded_preflight_launch_and_health_sequence() -> None:
     """Runtime startup cannot bypass static validation, daemon checks, or readiness."""
     commands = dev_tasks.command_specs("up")

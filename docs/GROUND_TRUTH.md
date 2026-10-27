@@ -26,3 +26,10 @@ before loading the corresponding manifest for assertions. Runtime observations a
 receive `automation_eligible`, `expected_safe_outcome`, cleanup, or future-tool labels. A guard
 inspects the runtime half of the test source for those evaluator-only outcome fields. The evaluator
 then proves the two eligible closures and four exact zero-write handoffs match the manifests.
+
+The versioned evaluation foundation adds a separate label-free dataset under
+`evaluation/datasets/v1/`. Candidate baselines receive only its bounded observations; the Harness
+rejects every nested Ground Truth-only field named by the versioned rules and never imports or
+loads this manifest directory. Raw candidate output is persisted first and bound to dataset/rules
+hashes. A later evaluator-only scoring phase may join that immutable output to these manifests; it
+must not reverse the dependency or expose labels through a candidate adapter.

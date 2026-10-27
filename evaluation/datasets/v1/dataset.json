@@ -1,0 +1,102 @@
+{
+  "schema_version": "1.0",
+  "dataset_version": "phase12-eval-v1",
+  "cases": [
+    {
+      "case_id": "bad-configuration-001",
+      "scenario_id": "bad-configuration",
+      "split": "evaluation",
+      "observation": {
+        "alert_summary": "Payment authorization is unavailable while the process remains live.",
+        "time_window_minutes": 15,
+        "signals": [
+          {"source": "metrics", "summary": "Payment readiness and authorization failures increased after a configuration change."},
+          {"source": "logs", "summary": "Payment returns a bounded configuration-unavailable error without credential content."},
+          {"source": "traces", "summary": "Order requests fail at the Payment dependency span."},
+          {"source": "deployments", "summary": "No service version transition accompanies the failure."}
+        ],
+        "available_tools": ["query_metrics", "query_logs", "query_traces", "query_deployments", "get_service_topology"]
+      }
+    },
+    {
+      "case_id": "db-pool-exhaustion-001",
+      "scenario_id": "db-pool-exhaustion",
+      "split": "evaluation",
+      "observation": {
+        "alert_summary": "Order requests time out while waiting for PostgreSQL connections.",
+        "time_window_minutes": 15,
+        "signals": [
+          {"source": "metrics", "summary": "Order database acquisition duration and HTTP failures increased together."},
+          {"source": "logs", "summary": "Order reports a bounded database-unavailable classification."},
+          {"source": "traces", "summary": "Order spans end before a PostgreSQL command is issued."},
+          {"source": "deployments", "summary": "No new Order service version is active."}
+        ],
+        "available_tools": ["query_metrics", "query_logs", "query_traces", "query_deployments", "get_service_topology"]
+      }
+    },
+    {
+      "case_id": "downstream-latency-001",
+      "scenario_id": "downstream-latency",
+      "split": "evaluation",
+      "observation": {
+        "alert_summary": "Checkout latency rises while Payment authorization is slow.",
+        "time_window_minutes": 15,
+        "signals": [
+          {"source": "metrics", "summary": "Payment client duration and Order P95 latency rise in the same window."},
+          {"source": "logs", "summary": "Order reports a bounded downstream timeout."},
+          {"source": "traces", "summary": "The Payment client span dominates the checkout critical path."},
+          {"source": "deployments", "summary": "No deployment transition correlates with the onset."}
+        ],
+        "available_tools": ["query_metrics", "query_logs", "query_traces", "query_deployments", "get_service_topology"]
+      }
+    },
+    {
+      "case_id": "http-500-001",
+      "scenario_id": "http-500",
+      "split": "evaluation",
+      "observation": {
+        "alert_summary": "Order POST requests return internal errors after a release.",
+        "time_window_minutes": 15,
+        "signals": [
+          {"source": "metrics", "summary": "Order HTTP 500 responses increased immediately after the release."},
+          {"source": "logs", "summary": "Order request logs contain bounded internal-error outcomes."},
+          {"source": "traces", "summary": "Order server spans fail before any dependency child span."},
+          {"source": "deployments", "summary": "Order transitioned from version 1.0.0 to version 2.0.0 in the incident window."}
+        ],
+        "available_tools": ["query_metrics", "query_logs", "query_traces", "query_deployments", "get_service_topology"]
+      }
+    },
+    {
+      "case_id": "memory-leak-001",
+      "scenario_id": "memory-leak",
+      "split": "evaluation",
+      "observation": {
+        "alert_summary": "Order memory grows with traffic after a release.",
+        "time_window_minutes": 15,
+        "signals": [
+          {"source": "metrics", "summary": "Order retained memory rises monotonically with request count."},
+          {"source": "logs", "summary": "Order request outcomes remain bounded while memory pressure grows."},
+          {"source": "traces", "summary": "Request traces complete but latency begins to drift upward."},
+          {"source": "deployments", "summary": "Order transitioned from version 1.0.0 to version 2.0.0 before growth began."}
+        ],
+        "available_tools": ["query_metrics", "query_logs", "query_traces", "query_deployments", "get_service_topology"]
+      }
+    },
+    {
+      "case_id": "redis-timeout-001",
+      "scenario_id": "redis-timeout",
+      "split": "evaluation",
+      "observation": {
+        "alert_summary": "Inventory reservations fail while Redis calls time out.",
+        "time_window_minutes": 15,
+        "signals": [
+          {"source": "metrics", "summary": "Inventory Redis timeout and HTTP 503 outcomes increase together."},
+          {"source": "logs", "summary": "Inventory reports a bounded dependency-timeout classification."},
+          {"source": "traces", "summary": "Inventory spans end at the Redis dependency boundary."},
+          {"source": "deployments", "summary": "No Inventory service version transition accompanies the failure."}
+        ],
+        "available_tools": ["query_metrics", "query_logs", "query_traces", "query_deployments", "get_service_topology"]
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "rules_version": "phase12-rules-v1",
+  "dataset_version": "phase12-eval-v1",
+  "harness_version": "1.0.0",
+  "allowed_statuses": ["completed", "failed", "handoff", "refused"],
+  "forbidden_observation_fields": [
+    "automation_eligible",
+    "cause",
+    "evaluator_cleanup",
+    "expected_safe_outcome",
+    "future_tool_requirement",
+    "handoff_reason_code",
+    "recovery_action"
+  ],
+  "limits": {
+    "max_cases": 100,
+    "max_observation_bytes": 65536,
+    "max_top_k": 3,
+    "max_tool_calls": 100,
+    "max_tokens": 1000000,
+    "max_cost_microusd": 100000000,
+    "max_duration_ms": 3600000
+  }
+}

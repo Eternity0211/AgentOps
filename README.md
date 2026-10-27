@@ -279,6 +279,15 @@ exact/conflicting replay, SSRF/path/command/target injection, Approval bypass, a
 bypass to their real unit, property, and PostgreSQL nodes. It proves untrusted content remains data,
 authority stays server-owned, and adversarial inputs cannot create Evidence, approval, or execution
 authority.
+The Phase 12 [evaluation foundation](docs/EVALUATION_PLAN.md) now provides a versioned, label-free
+six-scenario dataset, immutable validation rules, closed dataset/rules/raw-result JSON Schemas, a
+Ground-Truth-blind candidate Harness, create-only canonical raw artifacts, and a deterministic
+Markdown report generator. Every raw run binds dataset and rules by version and SHA-256 and records
+code/scenario/baseline versions, the Ground Truth manifest-set and model-settings hashes, prompt,
+policy, tool Schemas, environment, concurrency, seed, and run-window metadata without passing any
+of it into candidate input. The foundation report deliberately exposes only raw counts and
+distributions; fairness, scoring tracks, measured baselines, and comparative claims remain separate
+unfinished items.
 
 ## Why this project exists
 

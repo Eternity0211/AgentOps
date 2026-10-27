@@ -374,6 +374,170 @@ def concurrency_test_command() -> CommandSpec:
     )
 
 
+FAILURE_MODE_TEST_CASES = (
+    (
+        "diagnosis_tool_timeout",
+        (
+            "tests/unit/test_diagnosis_graph.py::"
+            "test_parallel_tool_timeout_cancels_peers_and_cannot_persist_partial_evidence"
+        ),
+    ),
+    (
+        "diagnosis_model_failure",
+        (
+            "tests/unit/test_diagnosis_graph.py::"
+            "test_model_timeout_refusal_and_malformed_output_stop_downstream_work"
+        ),
+    ),
+    (
+        "mock_model_malformed",
+        "tests/unit/test_mock_model.py::test_malformed_scenario_fails_strict_schema_validation",
+    ),
+    (
+        "mock_model_timeout",
+        "tests/unit/test_mock_model.py::test_timeout_scenario_is_immediate_and_typed",
+    ),
+    (
+        "mock_model_refusal",
+        "tests/unit/test_mock_model.py::test_refusal_is_valid_report_but_cannot_become_a_plan",
+    ),
+    (
+        "tool_invalid_input",
+        (
+            "tests/unit/test_tool_gateway.py::"
+            "test_gateway_audits_unknown_disabled_permission_and_invalid_input"
+        ),
+    ),
+    (
+        "tool_classified_retry",
+        (
+            "tests/unit/test_tool_gateway.py::"
+            "test_gateway_retries_only_classified_allowed_failures_with_bounded_backoff"
+        ),
+    ),
+    (
+        "tool_retry_exhaustion",
+        (
+            "tests/unit/test_tool_gateway.py::"
+            "test_gateway_times_out_exhausts_and_does_not_retry_unclassified_failures"
+        ),
+    ),
+    (
+        "tool_invalid_output",
+        (
+            "tests/unit/test_tool_gateway.py::"
+            "test_gateway_rejects_invalid_or_oversized_results_without_retry"
+        ),
+    ),
+    (
+        "tool_cancellation_and_audit_outage",
+        (
+            "tests/unit/test_tool_gateway.py::"
+            "test_gateway_audits_cancellation_and_fails_closed_when_audit_is_unavailable"
+        ),
+    ),
+    (
+        "action_dispatch_timeout_and_failure",
+        "tests/unit/test_action_dispatch.py::test_dispatch_classifies_failure_without_retry",
+    ),
+    (
+        "verification_collection_timeout",
+        (
+            "tests/unit/test_live_health_verification_collection.py::"
+            "test_collection_timeout_cancels_partial_bundle"
+        ),
+    ),
+    (
+        "verification_persisted_timeout",
+        (
+            "tests/unit/test_persisted_health_verification.py::"
+            "test_fail_timeout_and_observer_failure_remain_non_authoritative"
+        ),
+    ),
+    (
+        "postmortem_malformed_output",
+        (
+            "tests/unit/test_postmortem.py::"
+            "test_false_fact_reference_omission_wrong_section_and_malformed_output_fail_closed"
+        ),
+    ),
+    (
+        "postmortem_timeout_and_refusal",
+        (
+            "tests/unit/test_postmortem.py::"
+            "test_timeout_and_refusal_are_traced_with_distinct_terminal_status"
+        ),
+    ),
+    (
+        "postgres_pool_creation_outage",
+        "tests/unit/test_simulator_dependencies.py::test_postgres_maps_pool_creation_failures",
+    ),
+    (
+        "postgres_operation_timeout",
+        "tests/unit/test_simulator_dependencies.py::test_postgres_maps_timeout_and_operation_failure",
+    ),
+    (
+        "postgres_pool_exhaustion",
+        (
+            "tests/unit/test_simulator_dependencies.py::"
+            "test_postgres_pool_exhaustion_is_bounded_observable_and_released"
+        ),
+    ),
+    (
+        "redis_client_outage",
+        "tests/unit/test_simulator_dependencies.py::test_redis_maps_client_failures_and_logs_error",
+    ),
+    (
+        "redis_operation_timeout",
+        "tests/unit/test_simulator_dependencies.py::test_redis_maps_timeout",
+    ),
+    (
+        "redis_forced_timeout",
+        (
+            "tests/unit/test_simulator_dependencies.py::"
+            "test_forced_redis_timeout_is_repeatable_observable_and_side_effect_free"
+        ),
+    ),
+    (
+        "simulator_redis_outage_response",
+        (
+            "tests/unit/test_simulator_services.py::"
+            "test_redis_timeout_fault_composes_inventory_store_and_returns_503"
+        ),
+    ),
+    (
+        "simulator_dependency_readiness",
+        "tests/unit/test_simulator_services.py::test_dependency_unavailability_fails_readiness",
+    ),
+    (
+        "tool_retry_audit_persistence",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_tool_gateway_persists_and_asserts_complete_retried_success_path"
+        ),
+    ),
+)
+
+
+def failure_mode_test_command() -> CommandSpec:
+    """Build the closed Phase 12 timeout, malformed-payload, and outage gate."""
+    test_nodes = tuple(dict.fromkeys(node for _, node in FAILURE_MODE_TEST_CASES))
+    return CommandSpec(
+        "failure-mode-tests",
+        (
+            "uv",
+            "run",
+            "--frozen",
+            "pytest",
+            *test_nodes,
+            "-p",
+            "no:cacheprovider",
+            "--no-cov",
+        ),
+        240,
+    )
+
+
 WORKFLOW_PATH_TEST_CASES = (
     (
         "diagnosis_success",
@@ -586,6 +750,8 @@ def command_specs(
             return (DOCKER_DAEMON, resilience_test_command())
         if suite == "concurrency":
             return (DOCKER_DAEMON, concurrency_test_command())
+        if suite == "failure":
+            return (DOCKER_DAEMON, failure_mode_test_command())
         if suite == "smoke":
             return (
                 CommandSpec(
@@ -597,7 +763,8 @@ def command_specs(
         raise TaskConfigurationError(
             "test suite "
             f"'{suite}' is not implemented yet; available suites: "
-            "unit, agent-output, workflow, integration, e2e, resilience, concurrency, smoke"
+            "unit, agent-output, workflow, integration, e2e, resilience, concurrency, failure, "
+            "smoke"
         )
     if task == "docs":
         return (
@@ -757,13 +924,15 @@ def build_parser() -> argparse.ArgumentParser:
             "e2e",
             "resilience",
             "concurrency",
+            "failure",
         ),
         default="unit",
         help=(
             "Test suite to run; integration requires Docker, smoke is in-process, "
             "e2e includes the six-scenario product matrix, and resilience exercises "
             "worker-crash and stale-lease boundaries. Concurrency exercises duplicate delivery "
-            "and Approval races."
+            "and Approval races. Failure exercises timeout, retry, malformed-payload, and outage "
+            "boundaries."
         ),
     )
     return parser

@@ -197,6 +197,9 @@ sample-value mismatch. The verifier contract and evidence-binding modules mainta
 statement and branch coverage. Live-collection tests additionally cover exact backend requests,
 unit conversion, end-to-end Artifact re-resolution, incomplete/dropped/substituted series,
 misaligned timestamps, invalid values, strict identities/time bounds, and whole-bundle timeout.
+The fixed Phase 12 `failure` gate selects both that whole-bundle cancellation case and the
+persisted verifier's timeout/observer-failure case, proving that neither partial collection nor an
+observer can create an authoritative decision.
 PostgreSQL integration tests additionally prove migration upgrade/full downgrade/re-upgrade,
 round-trip retrieval, exact replay, tenant/Incident isolation, missing Evidence refusal,
 non-reproducible decisions, audit substitution, durable ActionExecution substitution, identity

@@ -159,6 +159,10 @@ That real PostgreSQL route is included in the fixed Phase 12
 `python scripts/dev.py test --suite integration` gate; all transport/schema adapter behavior that
 does not own an external store remains in the unit/contract boundary rather than being mislabeled
 as a container integration.
+The same route and the exact input/output, timeout, classified-retry, exhaustion, cancellation, and
+audit-outage nodes are also bound into the closed Phase 12
+`python scripts/dev.py test --suite failure` gate. This focused matrix cannot replace the complete
+integration or coverage gates; it prevents any failure class from disappearing silently.
 The metrics adapter suite additionally covers its exact registry metadata, backend result bounds,
 canonical success response, invalid/oversized windows, metric substitution, out-of-window samples,
 and missing or additional scope labels.

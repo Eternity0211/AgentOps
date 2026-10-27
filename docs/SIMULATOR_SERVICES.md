@@ -31,6 +31,11 @@ The bad-configuration fixture leaves Payment live but makes readiness and author
 
 Credentials are read only from mounted secret files. Connection strings, passwords, request payloads, and stock values are not logged. Each dependency operation emits a bounded client Span, low-cardinality count/duration metrics, and one OTLP log with only service, dependency, operation, result, duration, and the validated correlation ID; the local structured record uses the same content boundary. Adapter timeouts and connection failures map to stable HTTP 503 responses; insufficient inventory maps to HTTP 409. Internal exception text is not returned to clients or telemetry.
 
+Phase 12's fixed `failure` gate binds PostgreSQL pool creation, operation timeout, pool exhaustion,
+Redis client failure, normal and forced timeout, Inventory 503, and both dependency-readiness cases
+to their exact tests. The matrix requires bounded attempts, resource release, side-effect-free
+forced timeouts, stable public errors, and no false-ready or false-success state.
+
 ## Correlation contract
 
 `X-Correlation-ID` is the sole request-correlation header. Gateway creates a UUID when it is absent. A supplied value must be 1–128 characters from the conservative `[A-Za-z0-9._:-]` set and cannot start with punctuation. The same validated value is returned in every response and forwarded on every internal HTTP request. Invalid values fail with HTTP 400 before a handler or downstream call runs.

@@ -129,6 +129,10 @@ as a typed failed node: no downstream tools, Evidence Gate, handoff claim, or in
 created. Durable checkpoint history records the failed task for worker/operator handling; the graph
 does not silently retry model calls or accept partial evidence.
 
+Phase 12's fixed `failure` gate selects these exact parallel-tool and parameterized model-failure
+nodes together with the deterministic mock-model timeout/refusal/malformed cases. A renamed node
+therefore fails collection instead of reducing failure coverage without review.
+
 Phase 12's closed workflow gate selects the compiled pass, bounded-replan, typed model refusal,
 explicit/budget-exhausted handoff, pause-to-cancel, and every pre-effect cancellation route. The
 gate runs the real parameterized node tests rather than a second simulated router, so a renamed,

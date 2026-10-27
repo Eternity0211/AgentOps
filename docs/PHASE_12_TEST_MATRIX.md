@@ -271,3 +271,43 @@ expected version receives a deterministic refusal; it never inherits the first c
 On 2026-10-17, Python 3.12.14 and Docker Engine 29.8.0 collected and passed all nineteen cases in
 25.38 seconds; the full allowlisted task, including Docker preflight, completed in 32.797 seconds.
 These are bounded local correctness measurements, not throughput or production-scale claims.
+
+## Timeout, malformed-payload, and dependency-outage gate
+
+Contract version: `phase12-failure-modes/v1`
+
+Run the closed failure matrix with:
+
+```text
+python scripts/dev.py test --suite failure
+```
+
+The allowlisted task checks Docker and binds twenty-four named requirements to exact existing unit
+and PostgreSQL integration nodes. Parameterized nodes expand the individual model scenarios,
+adapter outcomes, malformed outputs, postmortem failures, database connection failures, and
+dependency readiness cases. A missing or renamed node fails collection, coverage is disabled for
+the focused run, and the complete repository suite remains the release gate.
+
+| Failure boundary | Required behavior |
+| --- | --- |
+| Diagnosis tool timeout | Exhaust only the declared attempts, cancel unfinished peers, and persist no partial Evidence |
+| Diagnosis and mock-model timeout/refusal/malformed output | Produce typed terminal failure without downstream tools, Gate calls, handoff claims, or invented usage |
+| Tool input and output validation | Reject malformed or oversized payloads without adapter retry or raw payload audit |
+| Tool retry policy | Retry only allowlisted classified errors with bounded backoff; exhaustion and unclassified failures stop deterministically |
+| Tool cancellation or audit outage | Record bounded failure for cancellation; prevent dispatch when the audit writer is unavailable |
+| Action dispatch timeout/failure | Classify the one attempted dispatch as timed out, failed, or uncertain; never infer success or retry the write |
+| Health verification timeout | Cancel the all-or-nothing five-signal bundle and never persist a partial or authoritative PASS |
+| Postmortem timeout/refusal/malformed output | Record the exact terminal model status and emit no unconstrained draft |
+| PostgreSQL and Redis outage | Bound connection, command, pool, and forced-timeout paths; release held resources and expose no secret exception text |
+| Simulator service dependency outage | Return stable 503/readiness failure and never convert unavailable storage into business success |
+| Persisted Tool Gateway retry | Commit the hash-only started/retried/succeeded sequence through the real PostgreSQL AuditRepository |
+
+The gate deliberately combines isolated failure injection with one external persistence proof. It
+does not call unavailable providers, accept caller-selected backends, or weaken the separate full
+integration and repository-wide verification gates.
+
+On 2026-10-27, Python 3.12.14 and Docker Engine 29.8.0 expanded the twenty-four named requirements
+into and passed all forty-two cases in 28.30 seconds. The focused Pytest task completed in 51.797
+seconds, and the full allowlisted command including Docker preflight completed in approximately
+56.234 seconds. These are bounded local correctness measurements, not availability or production
+reliability claims.

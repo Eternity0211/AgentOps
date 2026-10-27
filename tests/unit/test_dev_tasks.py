@@ -244,6 +244,51 @@ def test_concurrency_suite_is_closed_deduplicated_and_docker_gated() -> None:
     assert commands[1].timeout_seconds == 240
 
 
+def test_failure_suite_is_closed_deduplicated_and_docker_gated() -> None:
+    expected_failures = {
+        "diagnosis_tool_timeout",
+        "diagnosis_model_failure",
+        "mock_model_malformed",
+        "mock_model_timeout",
+        "mock_model_refusal",
+        "tool_invalid_input",
+        "tool_classified_retry",
+        "tool_retry_exhaustion",
+        "tool_invalid_output",
+        "tool_cancellation_and_audit_outage",
+        "action_dispatch_timeout_and_failure",
+        "verification_collection_timeout",
+        "verification_persisted_timeout",
+        "postmortem_malformed_output",
+        "postmortem_timeout_and_refusal",
+        "postgres_pool_creation_outage",
+        "postgres_operation_timeout",
+        "postgres_pool_exhaustion",
+        "redis_client_outage",
+        "redis_operation_timeout",
+        "redis_forced_timeout",
+        "simulator_redis_outage_response",
+        "simulator_dependency_readiness",
+        "tool_retry_audit_persistence",
+    }
+    cases = dev_tasks.FAILURE_MODE_TEST_CASES
+    commands = dev_tasks.command_specs("test", suite="failure")
+    labels = tuple(label for label, _ in cases)
+    selected_nodes = commands[1].argv[4:-3]
+
+    assert commands[0] == dev_tasks.DOCKER_DAEMON
+    assert commands[1] == dev_tasks.failure_mode_test_command()
+    assert set(labels) == expected_failures
+    assert len(labels) == len(set(labels))
+    assert selected_nodes == tuple(dict.fromkeys(node for _, node in cases))
+    assert len(selected_nodes) == len(cases)
+    assert all(node.startswith("tests/") and "::test_" in node for node in selected_nodes)
+    assert any(node.startswith("tests/integration/") for node in selected_nodes)
+    assert commands[1].argv[-3:] == ("-p", "no:cacheprovider", "--no-cov")
+    assert commands[1].label == "failure-mode-tests"
+    assert commands[1].timeout_seconds == 240
+
+
 def test_format_write_is_explicit() -> None:
     """Formatting defaults to check-only and mutates files only with --write."""
     check_command = dev_tasks.command_specs("format")[0]

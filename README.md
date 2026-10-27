@@ -269,6 +269,11 @@ Outbox and Job claims, Approval terminal decisions, Action claims/dispatch, and 
 closure. Exact duplicates converge on one authoritative result; conflicting key reuse fails
 closed; approve/reject/expire races commit one terminal Approval and one matching audit; and eight
 identical rollback deliveries invoke the adapter once.
+The fixed `failure` gate binds model and tool timeout/refusal/malformed-output handling, classified
+retry and exhaustion, action and verification timeouts, constrained postmortem failures, simulator
+PostgreSQL/Redis outages, readiness failures, and the real persisted Tool Gateway retry/audit path
+into one closed matrix. It proves these failures remain bounded, typed, non-authoritative, and free
+of partial Evidence or write success.
 
 ## Why this project exists
 
@@ -440,6 +445,7 @@ python scripts/dev.py test --suite integration
 python scripts/dev.py test --suite e2e
 python scripts/dev.py test --suite resilience
 python scripts/dev.py test --suite concurrency
+python scripts/dev.py test --suite failure
 python scripts/dev.py test --suite smoke
 python scripts/dev.py docs
 python scripts/dev.py build
@@ -449,7 +455,7 @@ python scripts/dev.py status
 python scripts/dev.py down
 ```
 
-The runner never forwards arbitrary shell text: every task maps to an immutable argument list, runs without a shell, has a timeout, stops on first failure, and emits start/pass/fail timing lines. The `architecture` task rejects domain imports of FastAPI, SQLAlchemy, LangGraph/LangChain, model-provider SDKs, or higher internal layers. The unit suite owns the versioned Phase 12 core-unit coverage scope and requires 100% statement and branch coverage; `agent-output` runs the deterministic generated schema/adversarial contract, `workflow` runs the closed all-path gate, `integration` checks Docker and runs only the Testcontainers adapter boundary, `e2e` runs the six-scenario eligibility/handoff matrix plus a real recovery chain, `resilience` runs the fixed worker-crash and stale-lease matrix, `concurrency` runs duplicate-delivery and authority-race cases, and the quality task still runs the complete repository suite. The smoke suite is deliberately in-process; evaluation tasks remain unavailable until their implementation phase.
+The runner never forwards arbitrary shell text: every task maps to an immutable argument list, runs without a shell, has a timeout, stops on first failure, and emits start/pass/fail timing lines. The `architecture` task rejects domain imports of FastAPI, SQLAlchemy, LangGraph/LangChain, model-provider SDKs, or higher internal layers. The unit suite owns the versioned Phase 12 core-unit coverage scope and requires 100% statement and branch coverage; `agent-output` runs the deterministic generated schema/adversarial contract, `workflow` runs the closed all-path gate, `integration` checks Docker and runs only the Testcontainers adapter boundary, `e2e` runs the six-scenario eligibility/handoff matrix plus a real recovery chain, `resilience` runs the fixed worker-crash and stale-lease matrix, `concurrency` runs duplicate-delivery and authority-race cases, `failure` runs the closed timeout/retry/malformed-payload/dependency-outage matrix, and the quality task still runs the complete repository suite. The smoke suite is deliberately in-process; evaluation tasks remain unavailable until their implementation phase.
 
 ## Compose foundation
 

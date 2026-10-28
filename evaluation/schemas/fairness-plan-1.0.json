@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentops.local/schemas/evaluation-fairness-plan-1.0.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "plan_version",
+    "fairness_policy_version",
+    "fairness_policy_sha256",
+    "dataset_version",
+    "dataset_sha256",
+    "rules_version",
+    "rules_sha256",
+    "split",
+    "tool_schema_versions",
+    "safety_chain",
+    "baselines",
+    "comparisons"
+  ],
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_context_tokens",
+        "max_model_tokens",
+        "max_tool_calls",
+        "max_retries",
+        "max_duration_ms",
+        "max_cost_microusd"
+      ],
+      "properties": {
+        "max_context_tokens": {"type": "integer", "minimum": 0, "maximum": 10000000},
+        "max_model_tokens": {"type": "integer", "minimum": 0, "maximum": 10000000},
+        "max_tool_calls": {"type": "integer", "minimum": 1, "maximum": 1000000},
+        "max_retries": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "max_duration_ms": {"type": "integer", "minimum": 1, "maximum": 604800000},
+        "max_cost_microusd": {"type": "integer", "minimum": 0, "maximum": 1000000000000}
+      }
+    }
+  },
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "plan_version": {"$ref": "#/$defs/identifier"},
+    "fairness_policy_version": {"$ref": "#/$defs/identifier"},
+    "fairness_policy_sha256": {"$ref": "#/$defs/sha256"},
+    "dataset_version": {"$ref": "#/$defs/identifier"},
+    "dataset_sha256": {"$ref": "#/$defs/sha256"},
+    "rules_version": {"$ref": "#/$defs/identifier"},
+    "rules_sha256": {"$ref": "#/$defs/sha256"},
+    "split": {"enum": ["evaluation", "regression"]},
+    "tool_schema_versions": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 50,
+      "propertyNames": {"$ref": "#/$defs/identifier"},
+      "additionalProperties": {"$ref": "#/$defs/identifier"}
+    },
+    "safety_chain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_validation_version",
+        "evidence_schema_version",
+        "evidence_gate_version",
+        "policy_version",
+        "approval_version",
+        "executor_version",
+        "verifier_version"
+      ],
+      "properties": {
+        "schema_validation_version": {"$ref": "#/$defs/identifier"},
+        "evidence_schema_version": {"$ref": "#/$defs/identifier"},
+        "evidence_gate_version": {"$ref": "#/$defs/identifier"},
+        "policy_version": {"$ref": "#/$defs/identifier"},
+        "approval_version": {"$ref": "#/$defs/identifier"},
+        "executor_version": {"$ref": "#/$defs/identifier"},
+        "verifier_version": {"$ref": "#/$defs/identifier"}
+      }
+    },
+    "baselines": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "baseline_id",
+          "baseline_version",
+          "kind",
+          "orchestration",
+          "memory_access",
+          "model_id",
+          "model_settings_sha256",
+          "prompt_version",
+          "aggregate_budget"
+        ],
+        "properties": {
+          "baseline_id": {"$ref": "#/$defs/identifier"},
+          "baseline_version": {"$ref": "#/$defs/identifier"},
+          "kind": {
+            "enum": ["controlled-langgraph", "controlled-langgraph-memory", "rules", "single-agent"]
+          },
+          "orchestration": {"enum": ["deterministic", "langgraph", "single-pass"]},
+          "memory_access": {"type": "boolean"},
+          "model_id": {"oneOf": [{"$ref": "#/$defs/identifier"}, {"type": "null"}]},
+          "model_settings_sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+          "prompt_version": {"$ref": "#/$defs/identifier"},
+          "aggregate_budget": {"$ref": "#/$defs/budget"}
+        }
+      }
+    },
+    "comparisons": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "comparison_id",
+          "left_baseline_id",
+          "right_baseline_id",
+          "independent_variable",
+          "interface_prompt_change"
+        ],
+        "properties": {
+          "comparison_id": {"$ref": "#/$defs/identifier"},
+          "left_baseline_id": {"$ref": "#/$defs/identifier"},
+          "right_baseline_id": {"$ref": "#/$defs/identifier"},
+          "independent_variable": {
+            "enum": ["diagnostic-strategy", "historical-memory", "orchestration"]
+          },
+          "interface_prompt_change": {
+            "type": ["string", "null"],
+            "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+          }
+        }
+      }
+    }
+  }
+}

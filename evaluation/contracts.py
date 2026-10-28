@@ -11,8 +11,10 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = "1.0"
-HARNESS_VERSION = "1.0.0"
+DATASET_SCHEMA_VERSION = "1.0"
+RULES_SCHEMA_VERSION = "1.1"
+RAW_RESULT_SCHEMA_VERSION = "1.1"
+HARNESS_VERSION = "1.1.0"
 ALLOWED_STATUSES = frozenset({"completed", "failed", "handoff", "refused"})
 ALLOWED_VERIFICATION_OUTCOMES = frozenset({"fail", "not_run", "pass"})
 ALLOWED_SIGNAL_SOURCES = frozenset({"deployments", "logs", "metrics", "topology", "traces"})
@@ -245,7 +247,7 @@ class EvaluationDataset:
         _exact_keys(
             value, frozenset({"cases", "dataset_version", "schema_version"}), name="dataset"
         )
-        if value["schema_version"] != SCHEMA_VERSION:
+        if value["schema_version"] != DATASET_SCHEMA_VERSION:
             raise EvaluationContractError("unsupported evaluation dataset schema version")
         dataset_version = _identifier(value["dataset_version"], name="dataset version")
         cases_value = value["cases"]
@@ -333,7 +335,7 @@ class EvaluationRules:
             ),
             name="evaluation rules",
         )
-        if value["schema_version"] != SCHEMA_VERSION:
+        if value["schema_version"] != RULES_SCHEMA_VERSION:
             raise EvaluationContractError("unsupported evaluation rules schema version")
         if value["harness_version"] != HARNESS_VERSION:
             raise EvaluationContractError("evaluation rules require a different harness version")
@@ -577,8 +579,8 @@ class EvaluationRunMetadata:
     code_revision: str
     scenario_version: str
     ground_truth_manifest_set_sha256: str
-    model_id: str
-    model_settings_sha256: str
+    model_id: str | None
+    model_settings_sha256: str | None
     prompt_version: str
     policy_version: str
     tool_schema_versions: tuple[tuple[str, str], ...]
@@ -595,7 +597,6 @@ class EvaluationRunMetadata:
             _identifier(getattr(self, name), name=name.replace("_", " "))
         for name in (
             "scenario_version",
-            "model_id",
             "prompt_version",
             "policy_version",
             "python_version",
@@ -603,12 +604,20 @@ class EvaluationRunMetadata:
             "hardware_summary",
         ):
             _bounded_string(getattr(self, name), name=name.replace("_", " "), maximum=256)
+        if (self.model_id is None) != (self.model_settings_sha256 is None):
+            raise EvaluationContractError("model ID and settings must both be present or absent")
+        if self.model_id is not None:
+            _bounded_string(self.model_id, name="model ID", maximum=256)
         for value, name in (
             (self.ground_truth_manifest_set_sha256, "Ground Truth manifest-set SHA-256"),
-            (self.model_settings_sha256, "model settings SHA-256"),
         ):
             if re.fullmatch(r"[0-9a-f]{64}", value) is None:
                 raise EvaluationContractError(f"{name} must be canonical lowercase hex")
+        if (
+            self.model_settings_sha256 is not None
+            and re.fullmatch(r"[0-9a-f]{64}", self.model_settings_sha256) is None
+        ):
+            raise EvaluationContractError("model settings SHA-256 must be canonical lowercase hex")
         if not self.tool_schema_versions or len(self.tool_schema_versions) > 50:
             raise EvaluationContractError("tool schema versions must be a bounded non-empty set")
         names: list[str] = []
@@ -720,6 +729,10 @@ class RawEvaluationResult:
     dataset_sha256: str
     rules_version: str
     rules_sha256: str
+    fairness_policy_version: str
+    fairness_policy_sha256: str
+    fairness_plan_version: str
+    fairness_plan_sha256: str
     created_at: datetime
     cases: tuple[CandidateCaseResult, ...]
 
@@ -733,11 +746,15 @@ class RawEvaluationResult:
         for value, name in (
             (self.dataset_version, "dataset version"),
             (self.rules_version, "rules version"),
+            (self.fairness_policy_version, "fairness policy version"),
+            (self.fairness_plan_version, "fairness plan version"),
         ):
             _identifier(value, name=name)
         for value, name in (
             (self.dataset_sha256, "dataset SHA-256"),
             (self.rules_sha256, "rules SHA-256"),
+            (self.fairness_policy_sha256, "fairness policy SHA-256"),
+            (self.fairness_plan_sha256, "fairness plan SHA-256"),
         ):
             if re.fullmatch(r"[0-9a-f]{64}", value) is None:
                 raise EvaluationContractError(f"{name} must be canonical lowercase hex")
@@ -751,16 +768,27 @@ class RawEvaluationResult:
             "created_at": self.created_at.isoformat().replace("+00:00", "Z"),
             "dataset_sha256": self.dataset_sha256,
             "dataset_version": self.dataset_version,
+            "fairness_plan_sha256": self.fairness_plan_sha256,
+            "fairness_plan_version": self.fairness_plan_version,
+            "fairness_policy_sha256": self.fairness_policy_sha256,
+            "fairness_policy_version": self.fairness_policy_version,
             "harness_version": HARNESS_VERSION,
             "metadata": self.metadata.to_mapping(),
             "rules_sha256": self.rules_sha256,
             "rules_version": self.rules_version,
-            "schema_version": SCHEMA_VERSION,
+            "schema_version": RAW_RESULT_SCHEMA_VERSION,
         }
 
     @classmethod
     def from_mapping(
-        cls, value: Mapping[str, Any], *, rules: EvaluationRules
+        cls,
+        value: Mapping[str, Any],
+        *,
+        rules: EvaluationRules,
+        fairness_policy_version: str,
+        fairness_policy_sha256: str,
+        fairness_plan_version: str,
+        fairness_plan_sha256: str,
     ) -> RawEvaluationResult:
         _exact_keys(
             value,
@@ -770,6 +798,10 @@ class RawEvaluationResult:
                     "created_at",
                     "dataset_sha256",
                     "dataset_version",
+                    "fairness_plan_sha256",
+                    "fairness_plan_version",
+                    "fairness_policy_sha256",
+                    "fairness_policy_version",
                     "harness_version",
                     "metadata",
                     "rules_sha256",
@@ -779,7 +811,7 @@ class RawEvaluationResult:
             ),
             name="raw evaluation result",
         )
-        if value["schema_version"] != SCHEMA_VERSION:
+        if value["schema_version"] != RAW_RESULT_SCHEMA_VERSION:
             raise EvaluationContractError("unsupported raw-result schema version")
         if value["harness_version"] != HARNESS_VERSION:
             raise EvaluationContractError("raw result uses a different harness version")
@@ -788,6 +820,16 @@ class RawEvaluationResult:
             or value["rules_sha256"] != rules.fingerprint
         ):
             raise EvaluationContractError("raw result is not bound to the supplied rules")
+        if (
+            value["fairness_policy_version"] != fairness_policy_version
+            or value["fairness_policy_sha256"] != fairness_policy_sha256
+        ):
+            raise EvaluationContractError("raw result is not bound to the supplied fairness policy")
+        if (
+            value["fairness_plan_version"] != fairness_plan_version
+            or value["fairness_plan_sha256"] != fairness_plan_sha256
+        ):
+            raise EvaluationContractError("raw result is not bound to the supplied fairness plan")
         created = value["created_at"]
         if not isinstance(created, str):
             raise EvaluationContractError("raw result timestamp must be a string")
@@ -815,6 +857,10 @@ class RawEvaluationResult:
             value["dataset_sha256"],
             value["rules_version"],
             value["rules_sha256"],
+            value["fairness_policy_version"],
+            value["fairness_policy_sha256"],
+            value["fairness_plan_version"],
+            value["fairness_plan_sha256"],
             created_at,
             tuple(cases),
         )

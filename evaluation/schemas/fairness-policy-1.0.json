@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentops.local/schemas/evaluation-fairness-policy-1.0.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "policy_version",
+    "required_baseline_kinds",
+    "required_comparisons",
+    "shared_dimensions",
+    "model_shared_dimensions",
+    "rules_budget_exemptions"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "policy_version": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"},
+    "required_baseline_kinds": {
+      "const": ["controlled-langgraph", "controlled-langgraph-memory", "rules", "single-agent"]
+    },
+    "required_comparisons": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["left_kind", "right_kind", "independent_variable"],
+        "properties": {
+          "left_kind": {"type": "string"},
+          "right_kind": {"type": "string"},
+          "independent_variable": {"type": "string"}
+        }
+      }
+    },
+    "shared_dimensions": {
+      "const": ["dataset", "observations", "safety-chain", "split", "tool-schemas"]
+    },
+    "model_shared_dimensions": {
+      "const": ["aggregate-budget", "model-id", "model-settings"]
+    },
+    "rules_budget_exemptions": {
+      "const": ["max-context-tokens", "max-cost-microusd", "max-model-tokens"]
+    }
+  }
+}

@@ -20,12 +20,14 @@ from evaluation.contracts import (
     canonical_json,
     load_json_object,
 )
-from evaluation.harness import load_suite, run_evaluation, write_raw_result
+from evaluation.fairness import FairnessPlan, FairnessPolicy
+from evaluation.harness import load_fair_suite, load_suite, run_evaluation, write_raw_result
 from evaluation.report import generate_report, load_bound_result, main, render_markdown
 
 ROOT = Path(__file__).resolve().parents[2]
 DATASET_PATH = ROOT / "evaluation" / "datasets" / "v1" / "dataset.json"
-RULES_PATH = ROOT / "evaluation" / "rules" / "v1" / "rules.json"
+RULES_PATH = ROOT / "evaluation" / "rules" / "v2" / "rules.json"
+FAIRNESS_POLICY_PATH = ROOT / "evaluation" / "fairness" / "v1" / "policy.json"
 SCHEMA_ROOT = ROOT / "evaluation" / "schemas"
 NOW = datetime(2026, 10, 27, 12, 0, tzinfo=UTC)
 
@@ -33,15 +35,15 @@ NOW = datetime(2026, 10, 27, 12, 0, tzinfo=UTC)
 def metadata_values() -> dict[str, Any]:
     return {
         "run_id": "run-foundation-001",
-        "baseline_id": "contract-fixture",
+        "baseline_id": "baseline-b-single",
         "baseline_version": "1.0.0",
         "code_revision": "8bf6fec6844741ef77015e40f954ae44cccea398",
         "scenario_version": "fault-behavior/1.0.0",
         "ground_truth_manifest_set_sha256": "0" * 64,
         "model_id": "deterministic-fixture",
         "model_settings_sha256": "1" * 64,
-        "prompt_version": "diagnosis-plan/1.0.0",
-        "policy_version": "recovery-policy/1.0.0",
+        "prompt_version": "diagnosis-plan-v1.0.0",
+        "policy_version": "recovery-policy-v1.0.0",
         "tool_schema_versions": (
             ("get_service_topology", "1.0.0"),
             ("query_deployments", "1.0.0"),
@@ -61,6 +63,142 @@ def metadata_values() -> dict[str, Any]:
 
 def metadata() -> EvaluationRunMetadata:
     return EvaluationRunMetadata(**metadata_values())
+
+
+def fairness_plan_document(
+    dataset: EvaluationDataset, rules: EvaluationRules, policy: FairnessPolicy
+) -> dict[str, Any]:
+    model_budget = {
+        "max_context_tokens": 1000,
+        "max_model_tokens": 1000,
+        "max_tool_calls": 30,
+        "max_retries": 2,
+        "max_duration_ms": 1000,
+        "max_cost_microusd": 1000,
+    }
+    rules_budget = deepcopy(model_budget)
+    rules_budget.update({"max_context_tokens": 0, "max_model_tokens": 0, "max_cost_microusd": 0})
+    tools = dict(metadata_values()["tool_schema_versions"])
+    return {
+        "schema_version": "1.0",
+        "plan_version": "comparison-fixture-v1",
+        "fairness_policy_version": policy.policy_version,
+        "fairness_policy_sha256": policy.fingerprint,
+        "dataset_version": dataset.dataset_version,
+        "dataset_sha256": dataset.fingerprint,
+        "rules_version": rules.rules_version,
+        "rules_sha256": rules.fingerprint,
+        "split": "evaluation",
+        "tool_schema_versions": tools,
+        "safety_chain": {
+            "schema_validation_version": "candidate-result-v1",
+            "evidence_schema_version": "evidence-v1",
+            "evidence_gate_version": "evidence-gate-v1.1.0",
+            "policy_version": "recovery-policy-v1.0.0",
+            "approval_version": "approval-v1",
+            "executor_version": "rollback-service-v1",
+            "verifier_version": "health-verification-v1",
+        },
+        "baselines": [
+            {
+                "baseline_id": "baseline-a-rules",
+                "baseline_version": "1.0.0",
+                "kind": "rules",
+                "orchestration": "deterministic",
+                "memory_access": False,
+                "model_id": None,
+                "model_settings_sha256": None,
+                "prompt_version": "rules-diagnosis-v1.0.0",
+                "aggregate_budget": rules_budget,
+            },
+            {
+                "baseline_id": "baseline-b-single",
+                "baseline_version": "1.0.0",
+                "kind": "single-agent",
+                "orchestration": "single-pass",
+                "memory_access": False,
+                "model_id": "deterministic-fixture",
+                "model_settings_sha256": "1" * 64,
+                "prompt_version": "diagnosis-plan-v1.0.0",
+                "aggregate_budget": deepcopy(model_budget),
+            },
+            {
+                "baseline_id": "baseline-c-graph",
+                "baseline_version": "1.0.0",
+                "kind": "controlled-langgraph",
+                "orchestration": "langgraph",
+                "memory_access": False,
+                "model_id": "deterministic-fixture",
+                "model_settings_sha256": "1" * 64,
+                "prompt_version": "diagnosis-graph-v1.0.0",
+                "aggregate_budget": deepcopy(model_budget),
+            },
+            {
+                "baseline_id": "baseline-d-memory",
+                "baseline_version": "1.0.0",
+                "kind": "controlled-langgraph-memory",
+                "orchestration": "langgraph",
+                "memory_access": True,
+                "model_id": "deterministic-fixture",
+                "model_settings_sha256": "1" * 64,
+                "prompt_version": "diagnosis-memory-v1.0.0",
+                "aggregate_budget": deepcopy(model_budget),
+            },
+        ],
+        "comparisons": [
+            {
+                "comparison_id": "comparison-a-strategy",
+                "left_baseline_id": "baseline-a-rules",
+                "right_baseline_id": "baseline-b-single",
+                "independent_variable": "diagnostic-strategy",
+                "interface_prompt_change": "diagnostic-strategy-interface",
+            },
+            {
+                "comparison_id": "comparison-b-orchestration",
+                "left_baseline_id": "baseline-b-single",
+                "right_baseline_id": "baseline-c-graph",
+                "independent_variable": "orchestration",
+                "interface_prompt_change": "orchestration-interface",
+            },
+            {
+                "comparison_id": "comparison-c-memory",
+                "left_baseline_id": "baseline-c-graph",
+                "right_baseline_id": "baseline-d-memory",
+                "independent_variable": "historical-memory",
+                "interface_prompt_change": "historical-memory-interface",
+            },
+        ],
+    }
+
+
+def fair_suite() -> tuple[EvaluationDataset, EvaluationRules, FairnessPolicy, FairnessPlan]:
+    dataset, rules = load_suite(DATASET_PATH, RULES_PATH)
+    policy = FairnessPolicy.from_mapping(load_json_object(FAIRNESS_POLICY_PATH))
+    plan = FairnessPlan.from_mapping(
+        fairness_plan_document(dataset, rules, policy),
+        policy=policy,
+        dataset=dataset,
+        rules=rules,
+    )
+    return dataset, rules, policy, plan
+
+
+def run_fixture(
+    candidate: Any,
+    *,
+    run_metadata: EvaluationRunMetadata | None = None,
+    clock: Any = lambda: NOW,
+) -> RawEvaluationResult:
+    dataset, rules, policy, plan = fair_suite()
+    return run_evaluation(
+        dataset,
+        rules,
+        policy,
+        plan,
+        candidate,
+        run_metadata or metadata(),
+        clock=clock,
+    )
 
 
 def candidate_result(case_id: str, **changes: Any) -> dict[str, Any]:
@@ -86,10 +224,12 @@ def candidate_result(case_id: str, **changes: Any) -> dict[str, Any]:
 class RecordingCandidate:
     def __init__(self, *, failure: Exception | None = None) -> None:
         self.inputs: list[dict[str, Any]] = []
+        self.configurations: list[Any] = []
         self.failure = failure
 
-    def evaluate(self, case: Any) -> dict[str, Any]:
+    def evaluate(self, case: Any, configuration: Any) -> dict[str, Any]:
         self.inputs.append(case.to_mapping())
+        self.configurations.append(configuration)
         if self.failure is not None:
             raise self.failure
         return candidate_result(case.case_id)
@@ -99,7 +239,8 @@ class StaticCandidate:
     def __init__(self, value: dict[str, Any]) -> None:
         self.value = value
 
-    def evaluate(self, case: Any) -> dict[str, Any]:
+    def evaluate(self, case: Any, configuration: Any) -> dict[str, Any]:
+        del configuration
         value = deepcopy(self.value)
         if value.get("case_id") == "CURRENT":
             value["case_id"] = case.case_id
@@ -120,7 +261,7 @@ def test_committed_dataset_rules_and_schemas_are_closed_versioned_and_label_free
     dataset, rules = load_suite(DATASET_PATH, RULES_PATH)
 
     assert dataset.dataset_version == "phase12-eval-v1"
-    assert rules.rules_version == "phase12-rules-v1"
+    assert rules.rules_version == "phase12-rules-v2"
     assert [case.scenario_id for case in dataset.cases] == [
         "bad-configuration",
         "db-pool-exhaustion",
@@ -134,16 +275,24 @@ def test_committed_dataset_rules_and_schemas_are_closed_versioned_and_label_free
     assert not contains_key(dataset.document, rules.forbidden_observation_fields)
     assert "ground_truth" not in canonical_json(dataset.document)
 
-    for name in ("dataset-1.0.json", "rules-1.0.json", "raw-result-1.0.json"):
+    for name in (
+        "dataset-1.0.json",
+        "rules-1.0.json",
+        "rules-1.1.json",
+        "raw-result-1.0.json",
+        "raw-result-1.1.json",
+        "fairness-policy-1.0.json",
+        "fairness-plan-1.0.json",
+    ):
         schema = load_json_object(SCHEMA_ROOT / name)
         assert schema["additionalProperties"] is False
         assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
 
 
 def test_harness_exposes_only_label_free_cases_and_emits_hash_bound_raw_result() -> None:
-    dataset, rules = load_suite(DATASET_PATH, RULES_PATH)
+    dataset, rules, policy, plan = fair_suite()
     candidate = RecordingCandidate()
-    result = run_evaluation(dataset, rules, candidate, metadata(), clock=lambda: NOW)
+    result = run_evaluation(dataset, rules, policy, plan, candidate, metadata(), clock=lambda: NOW)
 
     assert len(candidate.inputs) == len(result.cases) == 6
     assert [item["case_id"] for item in candidate.inputs] == sorted(
@@ -157,20 +306,15 @@ def test_harness_exposes_only_label_free_cases_and_emits_hash_bound_raw_result()
     )
     assert result.dataset_sha256 == dataset.fingerprint
     assert result.rules_sha256 == rules.fingerprint
+    assert result.fairness_policy_sha256 == policy.fingerprint
+    assert result.fairness_plan_sha256 == plan.fingerprint
     assert result.created_at == NOW
     assert result.to_mapping()["harness_version"] == HARNESS_VERSION
     assert len(result.fingerprint) == 64
 
 
 def test_adapter_exception_is_content_free_failure_and_does_not_stop_other_cases() -> None:
-    dataset, rules = load_suite(DATASET_PATH, RULES_PATH)
-    result = run_evaluation(
-        dataset,
-        rules,
-        RecordingCandidate(failure=RuntimeError("credential=must-not-leak")),
-        metadata(),
-        clock=lambda: NOW,
-    )
+    result = run_fixture(RecordingCandidate(failure=RuntimeError("credential=must-not-leak")))
 
     assert {case.status for case in result.cases} == {"failed"}
     assert {case.error_code for case in result.cases} == {"ADAPTER_FAILURE"}
@@ -194,12 +338,11 @@ def test_adapter_exception_is_content_free_failure_and_does_not_stop_other_cases
 def test_malformed_unbounded_or_substituted_candidate_result_fails_closed(
     change: dict[str, Any],
 ) -> None:
-    dataset, rules = load_suite(DATASET_PATH, RULES_PATH)
     value = candidate_result("CURRENT")
     value.update(change)
 
     with pytest.raises(EvaluationContractError, match="candidate result violates"):
-        run_evaluation(dataset, rules, StaticCandidate(value), metadata(), clock=lambda: NOW)
+        run_fixture(StaticCandidate(value))
 
 
 def test_unknown_dataset_fields_duplicates_order_labels_and_version_mismatch_fail() -> None:
@@ -238,8 +381,15 @@ def test_unknown_dataset_fields_duplicates_order_labels_and_version_mismatch_fai
         dataset_document, forbidden_fields=mismatched_rules.forbidden_observation_fields
     )
     with pytest.raises(EvaluationContractError, match="versions"):
+        _, _, policy, plan = fair_suite()
         run_evaluation(
-            dataset, mismatched_rules, RecordingCandidate(), metadata(), clock=lambda: NOW
+            dataset,
+            mismatched_rules,
+            policy,
+            plan,
+            RecordingCandidate(),
+            metadata(),
+            clock=lambda: NOW,
         )
 
 
@@ -267,10 +417,173 @@ def test_rules_cannot_weaken_status_ground_truth_exclusions_or_resource_bounds()
         EvaluationRules.from_mapping(wrong_harness)
 
 
+def test_committed_fairness_policy_and_concrete_plan_bind_all_shared_inputs(
+    tmp_path: Path,
+) -> None:
+    dataset, rules, policy, plan = fair_suite()
+    plan_path = tmp_path / "plan.json"
+    plan_path.write_text(plan.document_json, encoding="utf-8")
+
+    loaded = load_fair_suite(DATASET_PATH, RULES_PATH, FAIRNESS_POLICY_PATH, plan_path)
+
+    assert loaded == (dataset, rules, policy, plan)
+    assert len(policy.fingerprint) == len(plan.fingerprint) == 64
+    assert {profile.kind for profile in plan.baselines} == {
+        "rules",
+        "single-agent",
+        "controlled-langgraph",
+        "controlled-langgraph-memory",
+    }
+    assert {comparison.independent_variable for comparison in plan.comparisons} == {
+        "diagnostic-strategy",
+        "orchestration",
+        "historical-memory",
+    }
+    assert {case.split for case in dataset.cases} == {plan.split}
+    assert plan.safety_chain.policy_version == metadata().policy_version
+
+
+def test_fairness_policy_cannot_be_weakened_or_extended() -> None:
+    document = load_json_object(FAIRNESS_POLICY_PATH)
+
+    weakened = deepcopy(document)
+    weakened["shared_dimensions"].remove("safety-chain")
+    with pytest.raises(EvaluationContractError, match="shared dimensions"):
+        FairnessPolicy.from_mapping(weakened)
+
+    changed_comparison = deepcopy(document)
+    changed_comparison["required_comparisons"][0]["independent_variable"] = "model"
+    with pytest.raises(EvaluationContractError, match="comparisons"):
+        FairnessPolicy.from_mapping(changed_comparison)
+
+    extended = deepcopy(document)
+    extended["unknown"] = True
+    with pytest.raises(EvaluationContractError, match="fields"):
+        FairnessPolicy.from_mapping(extended)
+
+
+def test_fairness_plan_rejects_split_tool_model_budget_safety_and_variable_drift() -> None:
+    dataset, rules, policy, _ = fair_suite()
+    source = fairness_plan_document(dataset, rules, policy)
+    mutations: list[dict[str, Any]] = []
+
+    wrong_split = deepcopy(source)
+    wrong_split["split"] = "regression"
+    mutations.append(wrong_split)
+
+    missing_tool = deepcopy(source)
+    del missing_tool["tool_schema_versions"]["query_logs"]
+    mutations.append(missing_tool)
+
+    model_drift = deepcopy(source)
+    model_drift["baselines"][2]["model_settings_sha256"] = "2" * 64
+    mutations.append(model_drift)
+
+    model_budget_drift = deepcopy(source)
+    model_budget_drift["baselines"][3]["aggregate_budget"]["max_model_tokens"] += 1
+    mutations.append(model_budget_drift)
+
+    rules_query_budget_drift = deepcopy(source)
+    rules_query_budget_drift["baselines"][0]["aggregate_budget"]["max_tool_calls"] -= 1
+    mutations.append(rules_query_budget_drift)
+
+    safety_unknown = deepcopy(source)
+    safety_unknown["safety_chain"]["write_bypass"] = "enabled"
+    mutations.append(safety_unknown)
+
+    memory_drift = deepcopy(source)
+    memory_drift["baselines"][2]["memory_access"] = True
+    mutations.append(memory_drift)
+
+    second_variable = deepcopy(source)
+    second_variable["comparisons"][1]["independent_variable"] = "model"
+    mutations.append(second_variable)
+
+    undeclared_prompt_change = deepcopy(source)
+    undeclared_prompt_change["comparisons"][1]["interface_prompt_change"] = None
+    mutations.append(undeclared_prompt_change)
+
+    duplicate_baseline = deepcopy(source)
+    duplicate_baseline["baselines"][1]["baseline_id"] = "baseline-a-rules"
+    mutations.append(duplicate_baseline)
+
+    for changed in mutations:
+        with pytest.raises(EvaluationContractError):
+            FairnessPlan.from_mapping(changed, policy=policy, dataset=dataset, rules=rules)
+
+
+@pytest.mark.parametrize(
+    "change",
+    (
+        {"baseline_id": "unknown-baseline"},
+        {"model_id": "different-model"},
+        {"model_settings_sha256": "2" * 64},
+        {"prompt_version": "different-prompt-v1"},
+        {"policy_version": "different-policy-v1"},
+        {"tool_schema_versions": (("query_logs", "1.0.0"),)},
+    ),
+)
+def test_harness_rejects_run_metadata_outside_fairness_plan(change: dict[str, Any]) -> None:
+    values = metadata_values()
+    values.update(change)
+    with pytest.raises(EvaluationContractError, match=r"fairness profile|fairness plan"):
+        run_fixture(RecordingCandidate(), run_metadata=EvaluationRunMetadata(**values))
+
+
+def test_harness_passes_one_immutable_budget_and_enforces_aggregate_totals() -> None:
+    candidate = RecordingCandidate()
+    result = run_fixture(candidate)
+
+    assert len(candidate.configurations) == len(result.cases)
+    assert len({id(item) for item in candidate.configurations}) == 1
+    configuration = candidate.configurations[0]
+    assert configuration.profile.kind == "single-agent"
+    assert configuration.profile.budget.max_tool_calls == 30
+    assert configuration.tool_schema_versions == metadata().tool_schema_versions
+    assert not contains_key(
+        configuration.profile.to_mapping(), REQUIRED_FORBIDDEN_OBSERVATION_FIELDS
+    )
+
+    over_budget = candidate_result("CURRENT", tool_calls=6)
+    with pytest.raises(EvaluationContractError, match="aggregate tool-call"):
+        run_fixture(StaticCandidate(over_budget))
+
+
+def test_rules_baseline_has_explicit_model_exemption_and_zero_model_usage() -> None:
+    dataset, rules, policy, plan = fair_suite()
+    values = metadata_values()
+    values.update(
+        {
+            "baseline_id": "baseline-a-rules",
+            "model_id": None,
+            "model_settings_sha256": None,
+            "prompt_version": "rules-diagnosis-v1.0.0",
+        }
+    )
+    raw = candidate_result("CURRENT", input_tokens=0, output_tokens=0, cost_microusd=0)
+
+    result = run_evaluation(
+        dataset,
+        rules,
+        policy,
+        plan,
+        StaticCandidate(raw),
+        EvaluationRunMetadata(**values),
+        clock=lambda: NOW,
+    )
+
+    assert result.metadata.model_id is None
+    assert "deterministic baseline" in render_markdown(result)
+
+
 def test_raw_result_is_create_only_canonical_and_report_is_deterministic(tmp_path: Path) -> None:
-    dataset, rules = load_suite(DATASET_PATH, RULES_PATH)
-    result = run_evaluation(dataset, rules, RecordingCandidate(), metadata(), clock=lambda: NOW)
+    dataset, rules, policy, plan = fair_suite()
+    result = run_evaluation(
+        dataset, rules, policy, plan, RecordingCandidate(), metadata(), clock=lambda: NOW
+    )
     raw_path = tmp_path / "raw.json"
+    plan_path = tmp_path / "fairness-plan.json"
+    plan_path.write_text(plan.document_json, encoding="utf-8")
 
     assert write_raw_result(result, raw_path) == result.fingerprint
     stored = raw_path.read_text(encoding="utf-8")
@@ -288,11 +601,31 @@ def test_raw_result_is_create_only_canonical_and_report_is_deterministic(tmp_pat
     assert "Top-1" not in first
 
     report_path = tmp_path / "report.md"
-    assert generate_report(raw_path, DATASET_PATH, RULES_PATH, report_path) == first
+    assert (
+        generate_report(
+            raw_path,
+            DATASET_PATH,
+            RULES_PATH,
+            FAIRNESS_POLICY_PATH,
+            plan_path,
+            report_path,
+        )
+        == first
+    )
     assert report_path.read_text(encoding="utf-8") == first
-    assert load_bound_result(raw_path, DATASET_PATH, RULES_PATH) == result
+    assert (
+        load_bound_result(raw_path, DATASET_PATH, RULES_PATH, FAIRNESS_POLICY_PATH, plan_path)
+        == result
+    )
     with pytest.raises(EvaluationContractError, match="already exists"):
-        generate_report(raw_path, DATASET_PATH, RULES_PATH, report_path)
+        generate_report(
+            raw_path,
+            DATASET_PATH,
+            RULES_PATH,
+            FAIRNESS_POLICY_PATH,
+            plan_path,
+            report_path,
+        )
 
     cli_path = tmp_path / "cli-report.md"
     cli_arguments = [
@@ -302,6 +635,10 @@ def test_raw_result_is_create_only_canonical_and_report_is_deterministic(tmp_pat
         str(DATASET_PATH),
         "--rules",
         str(RULES_PATH),
+        "--fairness-policy",
+        str(FAIRNESS_POLICY_PATH),
+        "--fairness-plan",
+        str(plan_path),
         "--output",
         str(cli_path),
     ]
@@ -311,8 +648,12 @@ def test_raw_result_is_create_only_canonical_and_report_is_deterministic(tmp_pat
 
 
 def test_report_loader_rejects_changed_raw_dataset_rules_or_case_set(tmp_path: Path) -> None:
-    dataset, rules = load_suite(DATASET_PATH, RULES_PATH)
-    result = run_evaluation(dataset, rules, RecordingCandidate(), metadata(), clock=lambda: NOW)
+    dataset, rules, policy, plan = fair_suite()
+    result = run_evaluation(
+        dataset, rules, policy, plan, RecordingCandidate(), metadata(), clock=lambda: NOW
+    )
+    plan_path = tmp_path / "fairness-plan.json"
+    plan_path.write_text(plan.document_json, encoding="utf-8")
     document = result.to_mapping()
 
     changed_documents: list[tuple[str, dict[str, Any], str]] = []
@@ -322,6 +663,12 @@ def test_report_loader_rejects_changed_raw_dataset_rules_or_case_set(tmp_path: P
     wrong_rules = deepcopy(document)
     wrong_rules["rules_sha256"] = "0" * 64
     changed_documents.append(("rules", wrong_rules, "rules"))
+    wrong_policy = deepcopy(document)
+    wrong_policy["fairness_policy_sha256"] = "0" * 64
+    changed_documents.append(("fairness-policy", wrong_policy, "fairness policy"))
+    wrong_plan = deepcopy(document)
+    wrong_plan["fairness_plan_sha256"] = "0" * 64
+    changed_documents.append(("fairness-plan", wrong_plan, "fairness plan"))
     missing_case = deepcopy(document)
     cases = missing_case["cases"]
     assert isinstance(cases, list)
@@ -329,10 +676,10 @@ def test_report_loader_rejects_changed_raw_dataset_rules_or_case_set(tmp_path: P
     changed_documents.append(("cases", missing_case, "case set"))
 
     for name, changed, message in changed_documents:
-        path = tmp_path / f"{name}.json"
+        path = tmp_path / f"raw-{name}.json"
         path.write_text(json.dumps(changed), encoding="utf-8")
         with pytest.raises(EvaluationContractError, match=message):
-            load_bound_result(path, DATASET_PATH, RULES_PATH)
+            load_bound_result(path, DATASET_PATH, RULES_PATH, FAIRNESS_POLICY_PATH, plan_path)
 
 
 @pytest.mark.parametrize(
@@ -356,8 +703,7 @@ def test_run_metadata_rejects_unsafe_or_ambiguous_values(change: dict[str, Any])
 
 
 def test_raw_result_requires_utc_hashes_and_stable_case_order() -> None:
-    dataset, rules = load_suite(DATASET_PATH, RULES_PATH)
-    valid = run_evaluation(dataset, rules, RecordingCandidate(), metadata(), clock=lambda: NOW)
+    valid = run_fixture(RecordingCandidate())
 
     with pytest.raises(EvaluationContractError, match="UTC"):
         RawEvaluationResult(
@@ -366,6 +712,10 @@ def test_raw_result_requires_utc_hashes_and_stable_case_order() -> None:
             valid.dataset_sha256,
             valid.rules_version,
             valid.rules_sha256,
+            valid.fairness_policy_version,
+            valid.fairness_policy_sha256,
+            valid.fairness_plan_version,
+            valid.fairness_plan_sha256,
             NOW.astimezone(timezone(timedelta(hours=8))),
             valid.cases,
         )
@@ -376,6 +726,10 @@ def test_raw_result_requires_utc_hashes_and_stable_case_order() -> None:
             "invalid",
             valid.rules_version,
             valid.rules_sha256,
+            valid.fairness_policy_version,
+            valid.fairness_policy_sha256,
+            valid.fairness_plan_version,
+            valid.fairness_plan_sha256,
             NOW,
             valid.cases,
         )
@@ -386,6 +740,10 @@ def test_raw_result_requires_utc_hashes_and_stable_case_order() -> None:
             valid.dataset_sha256,
             valid.rules_version,
             valid.rules_sha256,
+            valid.fairness_policy_version,
+            valid.fairness_policy_sha256,
+            valid.fairness_plan_version,
+            valid.fairness_plan_sha256,
             NOW,
             tuple(reversed(valid.cases)),
         )

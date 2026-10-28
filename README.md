@@ -286,8 +286,14 @@ Markdown report generator. Every raw run binds dataset and rules by version and 
 code/scenario/baseline versions, the Ground Truth manifest-set and model-settings hashes, prompt,
 policy, tool Schemas, environment, concurrency, seed, and run-window metadata without passing any
 of it into candidate input. The foundation report deliberately exposes only raw counts and
-distributions; fairness, scoring tracks, measured baselines, and comparative claims remain separate
-unfinished items.
+distributions; scoring tracks, measured baselines, and comparative claims remain separate unfinished
+items. The Harness now also enforces a closed, versioned baseline-fairness policy and a hash-bound
+concrete comparison plan. All four required profiles share the exact dataset/split/observations,
+read-tool Schemas, and deterministic recovery safety chain; model profiles share model/settings and
+complete aggregate budgets, while the rules profile has only the explicit zero-model-budget
+exemption. Each required pair declares one independent variable, aggregate reported usage is
+bounded, and raw results bind the policy and plan hashes. No baseline has been run and no
+comparative result is claimed by this contract-only batch.
 
 ## Why this project exists
 

@@ -264,7 +264,7 @@ Exit: one correlation ID reconstructs the incident and agent-control flow withou
 - [x] Test model/tool timeouts, retry exhaustion, malformed payloads, and dependency outages.
 - [x] Test prompt injection, secret redaction, evidence forgery, replay, SSRF/target injection, approval and RBAC bypass.
 - [x] Build versioned evaluation datasets, rules, harness, raw result schema, and reproducible report generator.
-- [ ] Enforce baseline fairness in the harness: shared splits/observations/tool schemas/safety chain; equal model and aggregate budgets where applicable; one declared independent variable per comparison.
+- [x] Enforce baseline fairness in the harness: shared splits/observations/tool schemas/safety chain; equal model and aggregate budgets where applicable; one declared independent variable per comparison.
 - [ ] Implement separate diagnosis and recovery-safety tracks so diagnosis errors do not confound Executor/Verifier safety results.
 - [ ] Score correct refusal/handoff as a safe outcome and restrict automated-recovery denominators to Ground Truth cases marked automation-eligible.
 - [ ] Run rules-only baseline.

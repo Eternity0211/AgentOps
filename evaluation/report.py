@@ -15,7 +15,8 @@ from evaluation.contracts import (
     RawEvaluationResult,
     load_json_object,
 )
-from evaluation.harness import load_suite
+from evaluation.fairness import FairnessPlan, FairnessPolicy
+from evaluation.harness import load_fair_suite
 
 
 def render_markdown(result: RawEvaluationResult) -> str:
@@ -32,10 +33,7 @@ def render_markdown(result: RawEvaluationResult) -> str:
             "- Ground Truth manifest-set SHA-256: "
             f"`{result.metadata.ground_truth_manifest_set_sha256}`"
         ),
-        (
-            f"- Model/settings: `{result.metadata.model_id}` "
-            f"(`{result.metadata.model_settings_sha256}`)"
-        ),
+        _model_line(result),
         f"- Prompt/policy: `{result.metadata.prompt_version}` / `{result.metadata.policy_version}`",
         f"- Concurrency/seed: {result.metadata.concurrency} / {result.metadata.seed}",
         (
@@ -44,6 +42,11 @@ def render_markdown(result: RawEvaluationResult) -> str:
         ),
         f"- Dataset: `{result.dataset_version}` (`{result.dataset_sha256}`)",
         f"- Rules: `{result.rules_version}` (`{result.rules_sha256}`)",
+        (
+            f"- Fairness policy: `{result.fairness_policy_version}` "
+            f"(`{result.fairness_policy_sha256}`)"
+        ),
+        (f"- Fairness plan: `{result.fairness_plan_version}` (`{result.fairness_plan_sha256}`)"),
         f"- Raw result SHA-256: `{result.fingerprint}`",
         f"- Cases: {len(result.cases)}",
         "",
@@ -81,16 +84,44 @@ def render_markdown(result: RawEvaluationResult) -> str:
     return "\n".join(lines)
 
 
-def load_bound_result(raw_path: Path, dataset_path: Path, rules_path: Path) -> RawEvaluationResult:
-    """Load a raw result only when its exact dataset and rules are supplied."""
-    dataset, rules = load_suite(dataset_path, rules_path)
-    result = RawEvaluationResult.from_mapping(load_json_object(raw_path), rules=rules)
-    _verify_dataset_binding(result, dataset, rules)
+def _model_line(result: RawEvaluationResult) -> str:
+    if result.metadata.model_id is None:
+        return "- Model/settings: not applicable (deterministic baseline)"
+    return (
+        f"- Model/settings: `{result.metadata.model_id}` "
+        f"(`{result.metadata.model_settings_sha256}`)"
+    )
+
+
+def load_bound_result(
+    raw_path: Path,
+    dataset_path: Path,
+    rules_path: Path,
+    fairness_policy_path: Path,
+    fairness_plan_path: Path,
+) -> RawEvaluationResult:
+    """Load a raw result only with its exact dataset, rules, policy, and plan."""
+    dataset, rules, policy, plan = load_fair_suite(
+        dataset_path, rules_path, fairness_policy_path, fairness_plan_path
+    )
+    result = RawEvaluationResult.from_mapping(
+        load_json_object(raw_path),
+        rules=rules,
+        fairness_policy_version=policy.policy_version,
+        fairness_policy_sha256=policy.fingerprint,
+        fairness_plan_version=plan.plan_version,
+        fairness_plan_sha256=plan.fingerprint,
+    )
+    _verify_bindings(result, dataset, rules, policy, plan)
     return result
 
 
-def _verify_dataset_binding(
-    result: RawEvaluationResult, dataset: EvaluationDataset, rules: EvaluationRules
+def _verify_bindings(
+    result: RawEvaluationResult,
+    dataset: EvaluationDataset,
+    rules: EvaluationRules,
+    policy: FairnessPolicy,
+    plan: FairnessPlan,
 ) -> None:
     if (
         result.dataset_version != dataset.dataset_version
@@ -99,15 +130,40 @@ def _verify_dataset_binding(
         raise EvaluationContractError("raw result is not bound to the supplied dataset")
     if result.rules_version != rules.rules_version or result.rules_sha256 != rules.fingerprint:
         raise EvaluationContractError("raw result is not bound to the supplied rules")
+    if (
+        result.fairness_policy_version != policy.policy_version
+        or result.fairness_policy_sha256 != policy.fingerprint
+    ):
+        raise EvaluationContractError("raw result is not bound to the supplied fairness policy")
+    if (
+        result.fairness_plan_version != plan.plan_version
+        or result.fairness_plan_sha256 != plan.fingerprint
+    ):
+        raise EvaluationContractError("raw result is not bound to the supplied fairness plan")
     if tuple(case.case_id for case in result.cases) != tuple(
         case.case_id for case in dataset.cases
     ):
         raise EvaluationContractError("raw result case set does not match the supplied dataset")
 
 
-def generate_report(raw_path: Path, dataset_path: Path, rules_path: Path, output_path: Path) -> str:
+def generate_report(
+    raw_path: Path,
+    dataset_path: Path,
+    rules_path: Path,
+    fairness_policy_path: Path,
+    fairness_plan_path: Path,
+    output_path: Path,
+) -> str:
     """Create, never overwrite, a deterministic Markdown report from a bound raw artifact."""
-    report = render_markdown(load_bound_result(raw_path, dataset_path, rules_path))
+    report = render_markdown(
+        load_bound_result(
+            raw_path,
+            dataset_path,
+            rules_path,
+            fairness_policy_path,
+            fairness_plan_path,
+        )
+    )
     try:
         with output_path.open("x", encoding="utf-8", newline="\n") as stream:
             stream.write(report)
@@ -124,6 +180,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--raw", required=True, type=Path)
     parser.add_argument("--dataset", required=True, type=Path)
     parser.add_argument("--rules", required=True, type=Path)
+    parser.add_argument("--fairness-policy", required=True, type=Path)
+    parser.add_argument("--fairness-plan", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     return parser
 
@@ -132,7 +190,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Generate one report without echoing raw or Ground Truth content."""
     arguments = build_parser().parse_args(argv)
     try:
-        generate_report(arguments.raw, arguments.dataset, arguments.rules, arguments.output)
+        generate_report(
+            arguments.raw,
+            arguments.dataset,
+            arguments.rules,
+            arguments.fairness_policy,
+            arguments.fairness_plan,
+            arguments.output,
+        )
     except EvaluationContractError as error:
         print(f"[evaluation] report failed: {error}", file=sys.stderr)
         return 1

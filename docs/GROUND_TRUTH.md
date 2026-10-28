@@ -31,5 +31,8 @@ The versioned evaluation foundation adds a separate label-free dataset under
 `evaluation/datasets/v1/`. Candidate baselines receive only its bounded observations; the Harness
 rejects every nested Ground Truth-only field named by the versioned rules and never imports or
 loads this manifest directory. Raw candidate output is persisted first and bound to dataset/rules
-hashes. A later evaluator-only scoring phase may join that immutable output to these manifests; it
-must not reverse the dependency or expose labels through a candidate adapter.
+hashes plus the exact fairness policy and comparison-plan hashes. The plan contains only candidate
+configuration, shared observation/tool boundaries, budgets, and deterministic safety-chain
+versions; it contains no labels. A later evaluator-only scoring phase may join that immutable
+output to these manifests; it must not reverse the dependency or expose labels through a candidate
+adapter.

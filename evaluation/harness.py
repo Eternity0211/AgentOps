@@ -19,12 +19,19 @@ from evaluation.contracts import (
     ensure_dataset_rules_compatible,
     load_json_object,
 )
+from evaluation.fairness import (
+    CandidateExecutionConfig,
+    FairnessPlan,
+    FairnessPolicy,
+)
 
 
 class EvaluationCandidate(Protocol):
     """One explicitly versioned baseline implementation under evaluation."""
 
-    def evaluate(self, case: EvaluationCase) -> Mapping[str, Any]:
+    def evaluate(
+        self, case: EvaluationCase, configuration: CandidateExecutionConfig
+    ) -> Mapping[str, Any]:
         """Evaluate one label-free case and return the strict candidate result."""
         ...
 
@@ -39,9 +46,26 @@ def load_suite(dataset_path: Path, rules_path: Path) -> tuple[EvaluationDataset,
     return dataset, rules
 
 
+def load_fair_suite(
+    dataset_path: Path,
+    rules_path: Path,
+    fairness_policy_path: Path,
+    fairness_plan_path: Path,
+) -> tuple[EvaluationDataset, EvaluationRules, FairnessPolicy, FairnessPlan]:
+    """Load and cross-bind one dataset, rules, fairness policy, and concrete plan."""
+    dataset, rules = load_suite(dataset_path, rules_path)
+    policy = FairnessPolicy.from_mapping(load_json_object(fairness_policy_path))
+    plan = FairnessPlan.from_mapping(
+        load_json_object(fairness_plan_path), policy=policy, dataset=dataset, rules=rules
+    )
+    return dataset, rules, policy, plan
+
+
 def run_evaluation(
     dataset: EvaluationDataset,
     rules: EvaluationRules,
+    fairness_policy: FairnessPolicy,
+    fairness_plan: FairnessPlan,
     candidate: EvaluationCandidate,
     metadata: EvaluationRunMetadata,
     *,
@@ -49,11 +73,19 @@ def run_evaluation(
 ) -> RawEvaluationResult:
     """Run every case in stable order without loading evaluator-only Ground Truth."""
     ensure_dataset_rules_compatible(dataset, rules)
+    if (
+        fairness_plan.fairness_policy_version != fairness_policy.policy_version
+        or fairness_plan.fairness_policy_sha256 != fairness_policy.fingerprint
+        or fairness_plan.dataset_sha256 != dataset.fingerprint
+        or fairness_plan.rules_sha256 != rules.fingerprint
+    ):
+        raise EvaluationContractError("evaluation inputs differ from the fairness plan")
+    configuration = fairness_plan.execution_config(metadata)
     now = (clock or (lambda: datetime.now(UTC)))()
     results: list[CandidateCaseResult] = []
     for case in dataset.cases:
         try:
-            raw = candidate.evaluate(case)
+            raw = candidate.evaluate(case, configuration)
         except Exception:
             results.append(CandidateCaseResult.adapter_failure(case.case_id))
             continue
@@ -65,14 +97,20 @@ def run_evaluation(
             raise EvaluationContractError(
                 f"candidate result violates the contract for case {case.case_id}"
             ) from error
+    result_tuple = tuple(results)
+    fairness_plan.enforce_aggregate_budget(configuration.profile, result_tuple)
     return RawEvaluationResult(
         metadata,
         dataset.dataset_version,
         dataset.fingerprint,
         rules.rules_version,
         rules.fingerprint,
+        fairness_policy.policy_version,
+        fairness_policy.fingerprint,
+        fairness_plan.plan_version,
+        fairness_plan.fingerprint,
         now,
-        tuple(results),
+        result_tuple,
     )
 
 

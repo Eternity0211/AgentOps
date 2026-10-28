@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "policy_version": "phase12-fairness-v1",
+  "required_baseline_kinds": [
+    "controlled-langgraph",
+    "controlled-langgraph-memory",
+    "rules",
+    "single-agent"
+  ],
+  "required_comparisons": [
+    {
+      "left_kind": "controlled-langgraph",
+      "right_kind": "controlled-langgraph-memory",
+      "independent_variable": "historical-memory"
+    },
+    {
+      "left_kind": "rules",
+      "right_kind": "single-agent",
+      "independent_variable": "diagnostic-strategy"
+    },
+    {
+      "left_kind": "single-agent",
+      "right_kind": "controlled-langgraph",
+      "independent_variable": "orchestration"
+    }
+  ],
+  "shared_dimensions": [
+    "dataset",
+    "observations",
+    "safety-chain",
+    "split",
+    "tool-schemas"
+  ],
+  "model_shared_dimensions": [
+    "aggregate-budget",
+    "model-id",
+    "model-settings"
+  ],
+  "rules_budget_exemptions": [
+    "max-context-tokens",
+    "max-cost-microusd",
+    "max-model-tokens"
+  ]
+}

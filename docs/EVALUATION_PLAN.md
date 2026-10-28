@@ -2,8 +2,10 @@
 
 ## Implemented foundation
 
-Contract versions: dataset `phase12-eval-v1`, rules `phase12-rules-v2`, Harness `1.1.0`, raw
-result Schema `1.1`, and fairness policy `phase12-fairness-v1`.
+Contract versions: dataset `phase12-eval-v1`, recovery fixtures
+`phase12-recovery-safety-v1`, rules `phase12-rules-v2`, diagnosis raw Schema `1.0`,
+recovery-safety raw Schema `1.0`, and fairness policy `phase12-fairness-v1`. The combined raw
+Schema `1.1` is retained only as version history and is not a current Harness output.
 
 The committed `evaluation/datasets/v1/dataset.json` contains six strictly ordered, label-free cases
 covering the same public scenario IDs as the evaluator-only manifests. Each case exposes only a
@@ -13,28 +15,36 @@ terminal statuses, mandatory Ground Truth field exclusions, and case/observation
 cost/duration bounds. Closed JSON Schemas for the dataset, rules, and raw result live under
 `evaluation/schemas/`.
 
-`evaluation.harness` loads and hash-binds the dataset/rules/fairness-policy/comparison-plan set,
-rejects nested evaluator-only fields, calls a typed candidate one case at a time with the immutable
-predeclared execution budget, validates every returned field and aggregate resource total, records
-adapter failure under a stable content-free code, and emits one canonical create-only raw artifact.
+`evaluation.harness` exposes two non-interchangeable entry points. `run_diagnosis_track` loads and
+hash-binds the label-free dataset/rules/fairness-policy/comparison-plan set and accepts only root-
+cause ranks, resolvable Evidence IDs, Evidence Gate outcome, and resource use.
+`run_recovery_safety_track` accepts only the fixed, versioned inputs in
+`evaluation/recovery/v1/fixtures.json`; it never accepts a diagnosis result, candidate ranking,
+candidate Evidence ID, scenario identity, or Ground Truth label. Both paths receive the same
+immutable fairness profile, reject cross-track fields, validate aggregate resource totals, record
+adapter failure under a stable content-free code, and emit distinct canonical create-only raw
+artifacts.
 It does not import, mount, or load `evaluation/ground_truth/`; scoring joins Ground Truth only in a
 later isolated evaluator phase after candidate output exists. Raw artifacts record the exact code
 revision, scenario and baseline versions, Ground Truth manifest-set hash (never its labels), model
 and settings hash, prompt, policy, tool Schema versions, Python, platform, hardware summary,
-concurrency, seed, dataset/rules hashes, run window, per-case rank/evidence/action/verification
-status, calls, tokens, cost, duration, and stable error code. This metadata is persisted around the
-candidate call and is never passed into candidate input.
+concurrency, seed, rules/fairness hashes, run window, per-case track output, calls, tokens, cost,
+duration, and stable error code. Diagnosis artifacts bind the dataset hash; recovery-safety
+artifacts bind the independent fixture hash. Metadata is persisted around each call and is never
+passed into system input.
 
-`evaluation.report` reloads a raw artifact only with the exact dataset, rules, fairness policy, and
-comparison plan, verifies every hash and the complete case set, and creates (never overwrites)
-deterministic Markdown. The current
-foundation report contains only raw status and resource distributions plus a prominent no-claims
+`evaluation.report` dispatches on the closed track discriminator, reloads an artifact only with its
+exact dataset or recovery fixtures plus rules, fairness policy, and comparison plan, verifies every
+hash and the complete track-specific case set, and creates (never overwrites) deterministic
+Markdown. Diagnosis and recovery columns cannot appear in the other track's report. The current
+reports contain only raw status and resource distributions plus a prominent no-claims
 notice. It intentionally does not calculate the later Top-K, safety, recovery, or comparative
 metrics before their versioned scoring contracts and denominators exist. A bound raw artifact can
 be rendered directly with:
 
 ```text
-python -m evaluation.report --raw <raw.json> --dataset evaluation/datasets/v1/dataset.json --rules evaluation/rules/v2/rules.json --fairness-policy evaluation/fairness/v1/policy.json --fairness-plan <plan.json> --output <report.md>
+python -m evaluation.report --raw <diagnosis-raw.json> --dataset evaluation/datasets/v1/dataset.json --rules evaluation/rules/v2/rules.json --fairness-policy evaluation/fairness/v1/policy.json --fairness-plan <plan.json> --output <diagnosis-report.md>
+python -m evaluation.report --raw <recovery-raw.json> --dataset evaluation/datasets/v1/dataset.json --recovery-fixtures evaluation/recovery/v1/fixtures.json --rules evaluation/rules/v2/rules.json --fairness-policy evaluation/fairness/v1/policy.json --fairness-plan <plan.json> --output <recovery-report.md>
 ```
 
 The cross-platform task-runner evaluation command remains a Phase 13 delivery item, and no baseline
@@ -93,9 +103,17 @@ created by this fairness-contract batch.
 
 ## Layered evaluation
 
-The **diagnosis track** ends at a gate decision or correct human handoff and compares root-cause ranking, evidence integrity, refusal, time, calls, and cost. It performs no write action.
+The **diagnosis track** ends at a gate decision, refusal, or human handoff and records root-cause
+ranking, Evidence references, time, calls, and cost. Its closed output has no proposal, execution,
+verification, or recovery-route field, so it cannot report or perform a write action.
 
-The **recovery-safety track** supplies every baseline with the same evidence-gate-approved remediation input (or the same deliberately ineligible/unsafe input). Proposals from rules or model baselines all pass through the identical schema validator, Policy Engine, approval rules, deterministic Executor, and Health Verifier. The single-agent baseline cannot execute directly or bypass any safety component. End-to-end results are reported separately so diagnostic errors do not silently confound executor/verifier safety measurements.
+The **recovery-safety track** supplies every baseline with the same hash-bound remediation fixtures,
+including eligible, ineligible, gate-failed, malformed, duplicate-delivery, stable-verification, and
+unstable-verification inputs. The fixture wrapper's scenario ID remains evaluator-owned and is not
+sent to the system. Results record schema, Policy, Approval, Executor, Verifier, and final-route
+outcomes but have no diagnosis rank or candidate Evidence fields. Thus changing a diagnosis output
+cannot change recovery input, raw output, or report. Scoring and eligibility denominators remain the
+next versioned phase.
 
 ## Metrics
 

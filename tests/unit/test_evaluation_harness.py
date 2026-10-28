@@ -10,24 +10,31 @@ from typing import Any
 
 import pytest
 from evaluation.contracts import (
-    HARNESS_VERSION,
     REQUIRED_FORBIDDEN_OBSERVATION_FIELDS,
     EvaluationContractError,
     EvaluationDataset,
     EvaluationRules,
     EvaluationRunMetadata,
-    RawEvaluationResult,
     canonical_json,
     load_json_object,
 )
 from evaluation.fairness import FairnessPlan, FairnessPolicy
-from evaluation.harness import load_fair_suite, load_suite, run_evaluation, write_raw_result
+from evaluation.harness import (
+    load_fair_suite,
+    load_recovery_fixtures,
+    load_suite,
+    run_diagnosis_track,
+    run_recovery_safety_track,
+    write_raw_result,
+)
 from evaluation.report import generate_report, load_bound_result, main, render_markdown
+from evaluation.tracks import DiagnosisRawResult, RecoverySafetyInput, RecoverySafetyRawResult
 
 ROOT = Path(__file__).resolve().parents[2]
 DATASET_PATH = ROOT / "evaluation" / "datasets" / "v1" / "dataset.json"
 RULES_PATH = ROOT / "evaluation" / "rules" / "v2" / "rules.json"
 FAIRNESS_POLICY_PATH = ROOT / "evaluation" / "fairness" / "v1" / "policy.json"
+RECOVERY_FIXTURES_PATH = ROOT / "evaluation" / "recovery" / "v1" / "fixtures.json"
 SCHEMA_ROOT = ROOT / "evaluation" / "schemas"
 NOW = datetime(2026, 10, 27, 12, 0, tzinfo=UTC)
 
@@ -188,9 +195,9 @@ def run_fixture(
     *,
     run_metadata: EvaluationRunMetadata | None = None,
     clock: Any = lambda: NOW,
-) -> RawEvaluationResult:
+) -> DiagnosisRawResult:
     dataset, rules, policy, plan = fair_suite()
-    return run_evaluation(
+    return run_diagnosis_track(
         dataset,
         rules,
         policy,
@@ -207,9 +214,7 @@ def candidate_result(case_id: str, **changes: Any) -> dict[str, Any]:
         "status": "completed",
         "diagnosis_top3": ["candidate-a", "candidate-b"],
         "cited_evidence_ids": ["evidence-1"],
-        "proposed_action": None,
-        "executed_actions": 0,
-        "verification_outcome": "not_run",
+        "evidence_gate_outcome": "pass",
         "tool_calls": 5,
         "input_tokens": 100,
         "output_tokens": 25,
@@ -283,6 +288,9 @@ def test_committed_dataset_rules_and_schemas_are_closed_versioned_and_label_free
         "raw-result-1.1.json",
         "fairness-policy-1.0.json",
         "fairness-plan-1.0.json",
+        "diagnosis-raw-1.0.json",
+        "recovery-fixtures-1.0.json",
+        "recovery-safety-raw-1.0.json",
     ):
         schema = load_json_object(SCHEMA_ROOT / name)
         assert schema["additionalProperties"] is False
@@ -292,7 +300,9 @@ def test_committed_dataset_rules_and_schemas_are_closed_versioned_and_label_free
 def test_harness_exposes_only_label_free_cases_and_emits_hash_bound_raw_result() -> None:
     dataset, rules, policy, plan = fair_suite()
     candidate = RecordingCandidate()
-    result = run_evaluation(dataset, rules, policy, plan, candidate, metadata(), clock=lambda: NOW)
+    result = run_diagnosis_track(
+        dataset, rules, policy, plan, candidate, metadata(), clock=lambda: NOW
+    )
 
     assert len(candidate.inputs) == len(result.cases) == 6
     assert [item["case_id"] for item in candidate.inputs] == sorted(
@@ -305,11 +315,11 @@ def test_harness_exposes_only_label_free_cases_and_emits_hash_bound_raw_result()
         "ground_truth_manifest_set_sha256" not in canonical_json(item) for item in candidate.inputs
     )
     assert result.dataset_sha256 == dataset.fingerprint
-    assert result.rules_sha256 == rules.fingerprint
-    assert result.fairness_policy_sha256 == policy.fingerprint
-    assert result.fairness_plan_sha256 == plan.fingerprint
+    assert result.binding.rules_sha256 == rules.fingerprint
+    assert result.binding.fairness_policy_sha256 == policy.fingerprint
+    assert result.binding.fairness_plan_sha256 == plan.fingerprint
     assert result.created_at == NOW
-    assert result.to_mapping()["harness_version"] == HARNESS_VERSION
+    assert result.to_mapping()["track"] == "diagnosis"
     assert len(result.fingerprint) == 64
 
 
@@ -341,7 +351,7 @@ def test_malformed_unbounded_or_substituted_candidate_result_fails_closed(
     value = candidate_result("CURRENT")
     value.update(change)
 
-    with pytest.raises(EvaluationContractError, match="candidate result violates"):
+    with pytest.raises(EvaluationContractError, match="diagnosis result violates"):
         run_fixture(StaticCandidate(value))
 
 
@@ -382,7 +392,7 @@ def test_unknown_dataset_fields_duplicates_order_labels_and_version_mismatch_fai
     )
     with pytest.raises(EvaluationContractError, match="versions"):
         _, _, policy, plan = fair_suite()
-        run_evaluation(
+        run_diagnosis_track(
             dataset,
             mismatched_rules,
             policy,
@@ -562,7 +572,7 @@ def test_rules_baseline_has_explicit_model_exemption_and_zero_model_usage() -> N
     )
     raw = candidate_result("CURRENT", input_tokens=0, output_tokens=0, cost_microusd=0)
 
-    result = run_evaluation(
+    result = run_diagnosis_track(
         dataset,
         rules,
         policy,
@@ -578,7 +588,7 @@ def test_rules_baseline_has_explicit_model_exemption_and_zero_model_usage() -> N
 
 def test_raw_result_is_create_only_canonical_and_report_is_deterministic(tmp_path: Path) -> None:
     dataset, rules, policy, plan = fair_suite()
-    result = run_evaluation(
+    result = run_diagnosis_track(
         dataset, rules, policy, plan, RecordingCandidate(), metadata(), clock=lambda: NOW
     )
     raw_path = tmp_path / "raw.json"
@@ -649,7 +659,7 @@ def test_raw_result_is_create_only_canonical_and_report_is_deterministic(tmp_pat
 
 def test_report_loader_rejects_changed_raw_dataset_rules_or_case_set(tmp_path: Path) -> None:
     dataset, rules, policy, plan = fair_suite()
-    result = run_evaluation(
+    result = run_diagnosis_track(
         dataset, rules, policy, plan, RecordingCandidate(), metadata(), clock=lambda: NOW
     )
     plan_path = tmp_path / "fairness-plan.json"
@@ -661,13 +671,13 @@ def test_report_loader_rejects_changed_raw_dataset_rules_or_case_set(tmp_path: P
     wrong_dataset["dataset_sha256"] = "0" * 64
     changed_documents.append(("dataset", wrong_dataset, "dataset"))
     wrong_rules = deepcopy(document)
-    wrong_rules["rules_sha256"] = "0" * 64
+    wrong_rules["binding"]["rules_sha256"] = "0" * 64
     changed_documents.append(("rules", wrong_rules, "rules"))
     wrong_policy = deepcopy(document)
-    wrong_policy["fairness_policy_sha256"] = "0" * 64
+    wrong_policy["binding"]["fairness_policy_sha256"] = "0" * 64
     changed_documents.append(("fairness-policy", wrong_policy, "fairness policy"))
     wrong_plan = deepcopy(document)
-    wrong_plan["fairness_plan_sha256"] = "0" * 64
+    wrong_plan["binding"]["fairness_plan_sha256"] = "0" * 64
     changed_documents.append(("fairness-plan", wrong_plan, "fairness plan"))
     missing_case = deepcopy(document)
     cases = missing_case["cases"]
@@ -706,44 +716,220 @@ def test_raw_result_requires_utc_hashes_and_stable_case_order() -> None:
     valid = run_fixture(RecordingCandidate())
 
     with pytest.raises(EvaluationContractError, match="UTC"):
-        RawEvaluationResult(
+        DiagnosisRawResult(
             valid.metadata,
             valid.dataset_version,
             valid.dataset_sha256,
-            valid.rules_version,
-            valid.rules_sha256,
-            valid.fairness_policy_version,
-            valid.fairness_policy_sha256,
-            valid.fairness_plan_version,
-            valid.fairness_plan_sha256,
+            valid.binding,
             NOW.astimezone(timezone(timedelta(hours=8))),
             valid.cases,
         )
     with pytest.raises(EvaluationContractError, match="SHA-256"):
-        RawEvaluationResult(
+        DiagnosisRawResult(
             valid.metadata,
             valid.dataset_version,
             "invalid",
-            valid.rules_version,
-            valid.rules_sha256,
-            valid.fairness_policy_version,
-            valid.fairness_policy_sha256,
-            valid.fairness_plan_version,
-            valid.fairness_plan_sha256,
+            valid.binding,
             NOW,
             valid.cases,
         )
     with pytest.raises(EvaluationContractError, match="stably ordered"):
-        RawEvaluationResult(
+        DiagnosisRawResult(
             valid.metadata,
             valid.dataset_version,
             valid.dataset_sha256,
-            valid.rules_version,
-            valid.rules_sha256,
-            valid.fairness_policy_version,
-            valid.fairness_policy_sha256,
-            valid.fairness_plan_version,
-            valid.fairness_plan_sha256,
+            valid.binding,
             NOW,
             tuple(reversed(valid.cases)),
+        )
+
+
+def recovery_result(case_id: str, **changes: Any) -> dict[str, Any]:
+    value: dict[str, Any] = {
+        "case_id": case_id,
+        "status": "handoff",
+        "schema_validation_outcome": "pass",
+        "policy_outcome": "denied",
+        "approval_outcome": "not_requested",
+        "executor_outcome": "not_run",
+        "executed_actions": 0,
+        "duplicate_executions": 0,
+        "verification_outcome": "not_run",
+        "final_route": "human_handoff",
+        "tool_calls": 1,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cost_microusd": 0,
+        "duration_ms": 5,
+        "error_code": None,
+    }
+    value.update(changes)
+    return value
+
+
+class RecordingRecoverySystem:
+    def __init__(self, *, failure: Exception | None = None) -> None:
+        self.inputs: list[dict[str, Any]] = []
+        self.configurations: list[Any] = []
+        self.failure = failure
+
+    def evaluate(self, case: RecoverySafetyInput, configuration: Any) -> dict[str, Any]:
+        self.inputs.append(case.to_mapping())
+        self.configurations.append(configuration)
+        if self.failure is not None:
+            raise self.failure
+        return recovery_result(case.case_id)
+
+
+class StaticRecoverySystem:
+    def __init__(self, value: dict[str, Any]) -> None:
+        self.value = value
+
+    def evaluate(self, case: RecoverySafetyInput, configuration: Any) -> dict[str, Any]:
+        del configuration
+        value = deepcopy(self.value)
+        if value.get("case_id") == "CURRENT":
+            value["case_id"] = case.case_id
+        return value
+
+
+def run_recovery_fixture(system: Any, *, clock: Any = lambda: NOW) -> RecoverySafetyRawResult:
+    _, rules, policy, plan = fair_suite()
+    return run_recovery_safety_track(
+        load_recovery_fixtures(RECOVERY_FIXTURES_PATH),
+        rules,
+        policy,
+        plan,
+        system,
+        metadata(),
+        clock=clock,
+    )
+
+
+def test_recovery_fixtures_are_versioned_stable_and_system_input_is_diagnosis_free() -> None:
+    fixtures = load_recovery_fixtures(RECOVERY_FIXTURES_PATH)
+    system = RecordingRecoverySystem()
+    result = run_recovery_fixture(system)
+
+    assert fixtures.fixture_version == "phase12-recovery-safety-v1"
+    assert [case.case_id for case in fixtures.cases] == sorted(
+        case.case_id for case in fixtures.cases
+    )
+    assert result.fixture_sha256 == fixtures.fingerprint
+    assert result.to_mapping()["track"] == "recovery-safety"
+    assert len(system.inputs) == len(fixtures.cases) == 6
+    forbidden = frozenset(
+        {"scenario_id", "diagnosis_top3", "cited_evidence_ids", "ground_truth", "cause"}
+    )
+    assert all(not contains_key(item, forbidden) for item in system.inputs)
+
+
+def test_track_contracts_reject_cross_track_fields() -> None:
+    diagnosis = candidate_result("CURRENT", executor_outcome="succeeded")
+    with pytest.raises(EvaluationContractError, match="diagnosis result violates"):
+        run_fixture(StaticCandidate(diagnosis))
+
+    recovery = recovery_result("CURRENT", diagnosis_top3=["injected"])
+    with pytest.raises(EvaluationContractError, match="recovery-safety result violates"):
+        run_recovery_fixture(StaticRecoverySystem(recovery))
+
+
+def test_diagnosis_output_cannot_change_recovery_input_or_result() -> None:
+    first_system = RecordingRecoverySystem()
+    first = run_recovery_fixture(first_system)
+
+    changed_diagnosis = candidate_result(
+        "CURRENT",
+        diagnosis_top3=["entirely-different"],
+        cited_evidence_ids=["different-evidence"],
+        evidence_gate_outcome="fail",
+    )
+    run_fixture(StaticCandidate(changed_diagnosis))
+
+    second_system = RecordingRecoverySystem()
+    second = run_recovery_fixture(second_system)
+    assert first_system.inputs == second_system.inputs
+    assert first.to_mapping() == second.to_mapping()
+    assert first.fingerprint == second.fingerprint
+
+
+def test_recovery_fixture_substitution_version_and_order_fail_closed(tmp_path: Path) -> None:
+    document = load_json_object(RECOVERY_FIXTURES_PATH)
+
+    unknown = deepcopy(document)
+    unknown["cases"][0]["input"]["diagnosis_top3"] = ["forbidden"]
+    wrong_version = deepcopy(document)
+    wrong_version["schema_version"] = "2.0"
+    unordered = deepcopy(document)
+    unordered["cases"].reverse()
+    wrong_action = deepcopy(document)
+    wrong_action["cases"][0]["input"]["proposal_action"] = "arbitrary_write"
+
+    for changed in (unknown, wrong_version, unordered, wrong_action):
+        path = tmp_path / f"fixture-{len(list(tmp_path.iterdir()))}.json"
+        path.write_text(json.dumps(changed), encoding="utf-8")
+        with pytest.raises(EvaluationContractError):
+            load_recovery_fixtures(path)
+
+
+def test_recovery_adapter_failure_is_content_free_and_budget_is_enforced() -> None:
+    failed = run_recovery_fixture(
+        RecordingRecoverySystem(failure=RuntimeError("token=must-not-leak"))
+    )
+    assert {case.error_code for case in failed.cases} == {"ADAPTER_FAILURE"}
+    assert "must-not-leak" not in canonical_json(failed.to_mapping())
+
+    over_budget = recovery_result("CURRENT", tool_calls=6)
+    with pytest.raises(EvaluationContractError, match="aggregate tool-call"):
+        run_recovery_fixture(StaticRecoverySystem(over_budget))
+
+
+def test_recovery_raw_and_report_are_fixture_bound_and_deterministic(tmp_path: Path) -> None:
+    _, _, _, plan = fair_suite()
+    result = run_recovery_fixture(RecordingRecoverySystem())
+    raw_path = tmp_path / "recovery-raw.json"
+    plan_path = tmp_path / "fairness-plan.json"
+    plan_path.write_text(plan.document_json, encoding="utf-8")
+    write_raw_result(result, raw_path)
+
+    first = render_markdown(result)
+    assert "Recovery-safety case inventory" in first
+    assert "Diagnosis case inventory" not in first
+    assert (
+        load_bound_result(
+            raw_path,
+            DATASET_PATH,
+            RULES_PATH,
+            FAIRNESS_POLICY_PATH,
+            plan_path,
+            RECOVERY_FIXTURES_PATH,
+        )
+        == result
+    )
+    report_path = tmp_path / "recovery-report.md"
+    assert (
+        generate_report(
+            raw_path,
+            DATASET_PATH,
+            RULES_PATH,
+            FAIRNESS_POLICY_PATH,
+            plan_path,
+            report_path,
+            RECOVERY_FIXTURES_PATH,
+        )
+        == first
+    )
+
+    changed = load_json_object(RECOVERY_FIXTURES_PATH)
+    changed["cases"][0]["input"]["duplicate_deliveries"] = 3
+    changed_path = tmp_path / "changed-fixtures.json"
+    changed_path.write_text(json.dumps(changed), encoding="utf-8")
+    with pytest.raises(EvaluationContractError, match="fixtures"):
+        load_bound_result(
+            raw_path,
+            DATASET_PATH,
+            RULES_PATH,
+            FAIRNESS_POLICY_PATH,
+            plan_path,
+            changed_path,
         )

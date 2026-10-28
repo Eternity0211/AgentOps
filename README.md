@@ -280,20 +280,23 @@ bypass to their real unit, property, and PostgreSQL nodes. It proves untrusted c
 authority stays server-owned, and adversarial inputs cannot create Evidence, approval, or execution
 authority.
 The Phase 12 [evaluation foundation](docs/EVALUATION_PLAN.md) now provides a versioned, label-free
-six-scenario dataset, immutable validation rules, closed dataset/rules/raw-result JSON Schemas, a
-Ground-Truth-blind candidate Harness, create-only canonical raw artifacts, and a deterministic
-Markdown report generator. Every raw run binds dataset and rules by version and SHA-256 and records
+six-scenario diagnosis dataset, independent fixed recovery-safety fixtures, immutable validation
+rules, and closed track-specific JSON Schemas. The Ground-Truth-blind Harness exposes separate
+diagnosis and recovery-safety entry points: diagnosis cannot emit recovery fields, while recovery
+cannot receive ranks, candidate Evidence, scenario identity, or diagnosis results. Each raw run
+binds its dataset or fixture plus rules by version and SHA-256 and records
 code/scenario/baseline versions, the Ground Truth manifest-set and model-settings hashes, prompt,
 policy, tool Schemas, environment, concurrency, seed, and run-window metadata without passing any
-of it into candidate input. The foundation report deliberately exposes only raw counts and
-distributions; scoring tracks, measured baselines, and comparative claims remain separate unfinished
-items. The Harness now also enforces a closed, versioned baseline-fairness policy and a hash-bound
+of it into system input. Track-specific reports deliberately expose only raw counts and
+distributions; scoring, measured baselines, and comparative claims remain separate unfinished
+items. The Harness also enforces a closed, versioned baseline-fairness policy and a hash-bound
 concrete comparison plan. All four required profiles share the exact dataset/split/observations,
 read-tool Schemas, and deterministic recovery safety chain; model profiles share model/settings and
 complete aggregate budgets, while the rules profile has only the explicit zero-model-budget
 exemption. Each required pair declares one independent variable, aggregate reported usage is
 bounded, and raw results bind the policy and plan hashes. No baseline has been run and no
-comparative result is claimed by this contract-only batch.
+comparative result is claimed by this contract-only batch. Diagnosis failures therefore cannot
+silently alter Executor or Verifier safety measurements.
 
 ## Why this project exists
 

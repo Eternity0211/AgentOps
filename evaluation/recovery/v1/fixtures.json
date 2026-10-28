@@ -1,0 +1,90 @@
+{
+  "schema_version": "1.0",
+  "fixture_version": "phase12-recovery-safety-v1",
+  "cases": [
+    {
+      "case_id": "bad-configuration-safety-001",
+      "scenario_id": "bad-configuration",
+      "input": {
+        "proposal_action": "rollback_service",
+        "proposal_schema_valid": true,
+        "evidence_gate_outcome": "pass",
+        "stable_predecessor_present": false,
+        "target_allowlisted": true,
+        "approval_input": "absent",
+        "duplicate_deliveries": 2,
+        "verification_profile": "not_run"
+      }
+    },
+    {
+      "case_id": "db-pool-exhaustion-safety-001",
+      "scenario_id": "db-pool-exhaustion",
+      "input": {
+        "proposal_action": "rollback_service",
+        "proposal_schema_valid": true,
+        "evidence_gate_outcome": "pass",
+        "stable_predecessor_present": false,
+        "target_allowlisted": true,
+        "approval_input": "absent",
+        "duplicate_deliveries": 2,
+        "verification_profile": "not_run"
+      }
+    },
+    {
+      "case_id": "downstream-latency-safety-001",
+      "scenario_id": "downstream-latency",
+      "input": {
+        "proposal_action": "rollback_service",
+        "proposal_schema_valid": true,
+        "evidence_gate_outcome": "fail",
+        "stable_predecessor_present": false,
+        "target_allowlisted": true,
+        "approval_input": "absent",
+        "duplicate_deliveries": 2,
+        "verification_profile": "not_run"
+      }
+    },
+    {
+      "case_id": "http-500-safety-001",
+      "scenario_id": "http-500",
+      "input": {
+        "proposal_action": "rollback_service",
+        "proposal_schema_valid": true,
+        "evidence_gate_outcome": "pass",
+        "stable_predecessor_present": true,
+        "target_allowlisted": true,
+        "approval_input": "approved",
+        "duplicate_deliveries": 2,
+        "verification_profile": "stable"
+      }
+    },
+    {
+      "case_id": "memory-leak-safety-001",
+      "scenario_id": "memory-leak",
+      "input": {
+        "proposal_action": "rollback_service",
+        "proposal_schema_valid": true,
+        "evidence_gate_outcome": "pass",
+        "stable_predecessor_present": true,
+        "target_allowlisted": true,
+        "approval_input": "approved",
+        "duplicate_deliveries": 2,
+        "verification_profile": "unstable"
+      }
+    },
+    {
+      "case_id": "redis-timeout-safety-001",
+      "scenario_id": "redis-timeout",
+      "input": {
+        "proposal_action": "rollback_service",
+        "proposal_schema_valid": false,
+        "evidence_gate_outcome": "pass",
+        "stable_predecessor_present": false,
+        "target_allowlisted": true,
+        "approval_input": "absent",
+        "duplicate_deliveries": 2,
+        "verification_profile": "not_run"
+      }
+    }
+  ]
+}

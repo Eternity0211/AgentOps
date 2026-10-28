@@ -36,3 +36,9 @@ configuration, shared observation/tool boundaries, budgets, and deterministic sa
 versions; it contains no labels. A later evaluator-only scoring phase may join that immutable
 output to these manifests; it must not reverse the dependency or expose labels through a candidate
 adapter.
+
+Recovery-safety measurement is also isolated from diagnosis quality. The fixed inputs under
+`evaluation/recovery/v1/` contain only typed safety-chain conditions; their evaluator-owned
+scenario IDs are stripped before invocation. The recovery adapter cannot receive a diagnosis
+ranking, candidate Evidence IDs, or these Ground Truth manifests. Its raw artifact binds the exact
+fixture version and SHA-256 independently of the diagnosis dataset artifact.

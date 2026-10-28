@@ -1,4 +1,4 @@
-"""Reproducible report rendering from a validated raw evaluation result."""
+"""Reproducible, track-specific reports from validated raw evaluation results."""
 
 from __future__ import annotations
 
@@ -8,25 +8,28 @@ from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path
 
-from evaluation.contracts import (
-    EvaluationContractError,
-    EvaluationDataset,
-    EvaluationRules,
-    RawEvaluationResult,
-    load_json_object,
-)
+from evaluation.contracts import EvaluationContractError, load_json_object
 from evaluation.fairness import FairnessPlan, FairnessPolicy
-from evaluation.harness import load_fair_suite
+from evaluation.harness import load_fair_suite, load_recovery_fixtures
+from evaluation.tracks import (
+    DIAGNOSIS_TRACK,
+    RECOVERY_SAFETY_TRACK,
+    DiagnosisRawResult,
+    RecoverySafetyFixtureSet,
+    RecoverySafetyRawResult,
+    TrackRawResult,
+    raw_track,
+)
 
 
-def render_markdown(result: RawEvaluationResult) -> str:
-    """Render only raw inventory and distributions; scoring is a later versioned phase."""
+def render_markdown(result: TrackRawResult) -> str:
+    """Render raw inventory only; versioned scoring remains a later phase."""
     statuses = Counter(case.status for case in result.cases)
     lines = [
-        "# AgentOps raw evaluation run",
+        f"# AgentOps {result.to_mapping()['track']} raw evaluation run",
         "",
         f"- Run: `{result.metadata.run_id}`",
-        (f"- Baseline: `{result.metadata.baseline_id}` (`{result.metadata.baseline_version}`)"),
+        f"- Baseline: `{result.metadata.baseline_id}` (`{result.metadata.baseline_version}`)",
         f"- Code revision: `{result.metadata.code_revision}`",
         f"- Scenario version: `{result.metadata.scenario_version}`",
         (
@@ -40,51 +43,87 @@ def render_markdown(result: RawEvaluationResult) -> str:
             f"- Run window: {result.metadata.started_at.isoformat()} to "
             f"{result.metadata.finished_at.isoformat()}"
         ),
-        f"- Dataset: `{result.dataset_version}` (`{result.dataset_sha256}`)",
-        f"- Rules: `{result.rules_version}` (`{result.rules_sha256}`)",
-        (
-            f"- Fairness policy: `{result.fairness_policy_version}` "
-            f"(`{result.fairness_policy_sha256}`)"
-        ),
-        (f"- Fairness plan: `{result.fairness_plan_version}` (`{result.fairness_plan_sha256}`)"),
-        f"- Raw result SHA-256: `{result.fingerprint}`",
-        f"- Cases: {len(result.cases)}",
-        "",
-        "## Raw status distribution",
-        "",
-        "| Status | Count |",
-        "| --- | ---: |",
     ]
-    for status in ("completed", "handoff", "refused", "failed"):
-        lines.append(f"| {status} | {statuses[status]} |")
+    if isinstance(result, DiagnosisRawResult):
+        lines.append(f"- Diagnosis dataset: `{result.dataset_version}` (`{result.dataset_sha256}`)")
+    else:
+        lines.append(f"- Recovery fixtures: `{result.fixture_version}` (`{result.fixture_sha256}`)")
     lines.extend(
         [
+            f"- Rules: `{result.binding.rules_version}` (`{result.binding.rules_sha256}`)",
+            (
+                f"- Fairness policy: `{result.binding.fairness_policy_version}` "
+                f"(`{result.binding.fairness_policy_sha256}`)"
+            ),
+            (
+                f"- Fairness plan: `{result.binding.fairness_plan_version}` "
+                f"(`{result.binding.fairness_plan_sha256}`)"
+            ),
+            f"- Raw result SHA-256: `{result.fingerprint}`",
+            f"- Cases: {len(result.cases)}",
             "",
-            "## Case inventory",
+            "## Raw status distribution",
             "",
-            "| Case | Status | Tool calls | Tokens | Cost (micro-USD) | Duration (ms) |",
-            "| --- | --- | ---: | ---: | ---: | ---: |",
+            "| Status | Count |",
+            "| --- | ---: |",
         ]
     )
-    for case in result.cases:
-        lines.append(
-            f"| `{case.case_id}` | {case.status} | {case.tool_calls} | "
-            f"{case.input_tokens + case.output_tokens} | {case.cost_microusd} | "
-            f"{case.duration_ms} |"
-        )
+    for status in ("completed", "handoff", "refused", "failed"):
+        lines.append(f"| {status} | {statuses[status]} |")
+    if isinstance(result, DiagnosisRawResult):
+        lines.extend(_diagnosis_inventory(result))
+    else:
+        lines.extend(_recovery_inventory(result))
     lines.extend(
         [
             "",
-            "> This foundation report contains raw counts only. It does not claim diagnosis "
-            "quality, recovery safety, latency improvement, or baseline superiority until the "
-            "versioned scoring tracks and denominators are applied.",
+            "> This track report contains raw counts only. It does not claim diagnosis quality, "
+            "recovery safety, latency improvement, or baseline superiority until the versioned "
+            "scoring rules and denominators are applied.",
             "",
         ]
     )
     return "\n".join(lines)
 
 
-def _model_line(result: RawEvaluationResult) -> str:
+def _diagnosis_inventory(result: DiagnosisRawResult) -> list[str]:
+    lines = [
+        "",
+        "## Diagnosis case inventory",
+        "",
+        "| Case | Status | Evidence Gate | Tool calls | Tokens | Cost (micro-USD) | "
+        "Duration (ms) |",
+        "| --- | --- | --- | ---: | ---: | ---: | ---: |",
+    ]
+    for case in result.cases:
+        lines.append(
+            f"| `{case.case_id}` | {case.status} | {case.evidence_gate_outcome} | "
+            f"{case.tool_calls} | {case.input_tokens + case.output_tokens} | "
+            f"{case.cost_microusd} | {case.duration_ms} |"
+        )
+    return lines
+
+
+def _recovery_inventory(result: RecoverySafetyRawResult) -> list[str]:
+    lines = [
+        "",
+        "## Recovery-safety case inventory",
+        "",
+        "| Case | Status | Schema | Policy | Approval | Executor | Verifier | Route | "
+        "Executions/duplicates |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | ---: |",
+    ]
+    for case in result.cases:
+        lines.append(
+            f"| `{case.case_id}` | {case.status} | {case.schema_validation_outcome} | "
+            f"{case.policy_outcome} | {case.approval_outcome} | {case.executor_outcome} | "
+            f"{case.verification_outcome} | {case.final_route} | "
+            f"{case.executed_actions}/{case.duplicate_executions} |"
+        )
+    return lines
+
+
+def _model_line(result: TrackRawResult) -> str:
     if result.metadata.model_id is None:
         return "- Model/settings: not applicable (deterministic baseline)"
     return (
@@ -99,51 +138,63 @@ def load_bound_result(
     rules_path: Path,
     fairness_policy_path: Path,
     fairness_plan_path: Path,
-) -> RawEvaluationResult:
-    """Load a raw result only with its exact dataset, rules, policy, and plan."""
+    recovery_fixtures_path: Path | None = None,
+) -> TrackRawResult:
+    """Load a track result only with every exact source binding."""
     dataset, rules, policy, plan = load_fair_suite(
         dataset_path, rules_path, fairness_policy_path, fairness_plan_path
     )
-    result = RawEvaluationResult.from_mapping(
-        load_json_object(raw_path),
-        rules=rules,
-        fairness_policy_version=policy.policy_version,
-        fairness_policy_sha256=policy.fingerprint,
-        fairness_plan_version=plan.plan_version,
-        fairness_plan_sha256=plan.fingerprint,
-    )
-    _verify_bindings(result, dataset, rules, policy, plan)
+    document = load_json_object(raw_path)
+    track = raw_track(document)
+    result: TrackRawResult
+    if track == DIAGNOSIS_TRACK:
+        if recovery_fixtures_path is not None:
+            raise EvaluationContractError("diagnosis reports do not accept recovery fixtures")
+        result = DiagnosisRawResult.from_mapping(document, rules=rules)
+        if (
+            result.dataset_version != dataset.dataset_version
+            or result.dataset_sha256 != dataset.fingerprint
+        ):
+            raise EvaluationContractError("diagnosis raw result is not bound to the dataset")
+        expected_case_ids = tuple(case.case_id for case in dataset.cases)
+    elif track == RECOVERY_SAFETY_TRACK:
+        if recovery_fixtures_path is None:
+            raise EvaluationContractError("recovery-safety reports require recovery fixtures")
+        fixtures = load_recovery_fixtures(recovery_fixtures_path)
+        result = RecoverySafetyRawResult.from_mapping(document, rules=rules)
+        _verify_fixture_binding(result, fixtures)
+        expected_case_ids = tuple(case.case_id for case in fixtures.cases)
+    else:  # pragma: no cover - raw_track is closed
+        raise EvaluationContractError("unsupported evaluation track")
+    _verify_shared_bindings(result, policy, plan)
+    if tuple(case.case_id for case in result.cases) != expected_case_ids:
+        raise EvaluationContractError("raw result case set does not match its track input")
     return result
 
 
-def _verify_bindings(
-    result: RawEvaluationResult,
-    dataset: EvaluationDataset,
-    rules: EvaluationRules,
-    policy: FairnessPolicy,
-    plan: FairnessPlan,
+def _verify_fixture_binding(
+    result: RecoverySafetyRawResult, fixtures: RecoverySafetyFixtureSet
 ) -> None:
     if (
-        result.dataset_version != dataset.dataset_version
-        or result.dataset_sha256 != dataset.fingerprint
+        result.fixture_version != fixtures.fixture_version
+        or result.fixture_sha256 != fixtures.fingerprint
     ):
-        raise EvaluationContractError("raw result is not bound to the supplied dataset")
-    if result.rules_version != rules.rules_version or result.rules_sha256 != rules.fingerprint:
-        raise EvaluationContractError("raw result is not bound to the supplied rules")
+        raise EvaluationContractError("recovery raw result is not bound to the supplied fixtures")
+
+
+def _verify_shared_bindings(
+    result: TrackRawResult, policy: FairnessPolicy, plan: FairnessPlan
+) -> None:
     if (
-        result.fairness_policy_version != policy.policy_version
-        or result.fairness_policy_sha256 != policy.fingerprint
+        result.binding.fairness_policy_version != policy.policy_version
+        or result.binding.fairness_policy_sha256 != policy.fingerprint
     ):
         raise EvaluationContractError("raw result is not bound to the supplied fairness policy")
     if (
-        result.fairness_plan_version != plan.plan_version
-        or result.fairness_plan_sha256 != plan.fingerprint
+        result.binding.fairness_plan_version != plan.plan_version
+        or result.binding.fairness_plan_sha256 != plan.fingerprint
     ):
         raise EvaluationContractError("raw result is not bound to the supplied fairness plan")
-    if tuple(case.case_id for case in result.cases) != tuple(
-        case.case_id for case in dataset.cases
-    ):
-        raise EvaluationContractError("raw result case set does not match the supplied dataset")
 
 
 def generate_report(
@@ -153,8 +204,9 @@ def generate_report(
     fairness_policy_path: Path,
     fairness_plan_path: Path,
     output_path: Path,
+    recovery_fixtures_path: Path | None = None,
 ) -> str:
-    """Create, never overwrite, a deterministic Markdown report from a bound raw artifact."""
+    """Create, never overwrite, one deterministic track-specific report."""
     report = render_markdown(
         load_bound_result(
             raw_path,
@@ -162,6 +214,7 @@ def generate_report(
             rules_path,
             fairness_policy_path,
             fairness_plan_path,
+            recovery_fixtures_path,
         )
     )
     try:
@@ -179,6 +232,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--raw", required=True, type=Path)
     parser.add_argument("--dataset", required=True, type=Path)
+    parser.add_argument("--recovery-fixtures", type=Path)
     parser.add_argument("--rules", required=True, type=Path)
     parser.add_argument("--fairness-policy", required=True, type=Path)
     parser.add_argument("--fairness-plan", required=True, type=Path)
@@ -197,6 +251,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             arguments.fairness_policy,
             arguments.fairness_plan,
             arguments.output,
+            arguments.recovery_fixtures,
         )
     except EvaluationContractError as error:
         print(f"[evaluation] report failed: {error}", file=sys.stderr)

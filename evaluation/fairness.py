@@ -5,18 +5,37 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 from evaluation.contracts import (
-    CandidateCaseResult,
     EvaluationContractError,
     EvaluationDataset,
     EvaluationRules,
     EvaluationRunMetadata,
     canonical_json,
 )
+
+
+class ResourceUsage(Protocol):
+    """Minimum resource surface accepted by the shared aggregate-budget gate."""
+
+    @property
+    def tool_calls(self) -> int: ...
+
+    @property
+    def input_tokens(self) -> int: ...
+
+    @property
+    def output_tokens(self) -> int: ...
+
+    @property
+    def cost_microusd(self) -> int: ...
+
+    @property
+    def duration_ms(self) -> int: ...
+
 
 FAIRNESS_SCHEMA_VERSION = "1.0"
 REQUIRED_BASELINE_KINDS = (
@@ -654,7 +673,7 @@ class FairnessPlan:
         return CandidateExecutionConfig(profile, self.tool_schema_versions)
 
     def enforce_aggregate_budget(
-        self, profile: BaselineProfile, results: tuple[CandidateCaseResult, ...]
+        self, profile: BaselineProfile, results: Sequence[ResourceUsage]
     ) -> None:
         """Fail closed when reported run totals exceed the predeclared ceiling."""
         total_tool_calls = sum(item.tool_calls for item in results)

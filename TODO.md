@@ -271,7 +271,7 @@ Exit: one correlation ID reconstructs the incident and agent-control flow withou
   - [x] Predeclare the four-way comparison plan and implement the isolated, create-only rules runner.
 - [x] Run single-Agent baseline.
   - [x] Bind the versioned prompt/model settings and implement the isolated single-pass runner.
-- [ ] Run controlled LangGraph baseline.
+- [x] Run controlled LangGraph baseline.
   - [x] Bind the graph prompt and implement the real bounded-graph evaluation adapter and runner.
 - [ ] Run controlled LangGraph plus incident-memory baseline.
 - [ ] Report Top-1/Top-3 root cause, unsupported conclusions, fabricated references, correct refusal/handoff, diagnosis time, tool calls, tokens/cost, proposal correctness, dangerous-action blocks, unapproved/duplicate executions, eligible recovery, safe outcomes, future compensation, and worker recovery with explicit denominators.

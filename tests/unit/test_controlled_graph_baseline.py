@@ -13,8 +13,9 @@ from evaluation.baselines.controlled_graph import ControlledGraphDiagnosisSystem
 from evaluation.contracts import EvaluationContractError, content_sha256, load_json_object
 from evaluation.fairness import CandidateExecutionConfig
 from evaluation.harness import load_fair_suite
+from evaluation.report import load_bound_result, render_markdown
 from evaluation.run_controlled_graph_baseline import execute_controlled_graph_baseline
-from evaluation.scoring import load_score_result
+from evaluation.scoring import load_score_result, render_safe_outcome_markdown
 from evaluation.tracks import DiagnosisRawResult, RecoverySafetyRawResult
 
 from agentops_incident_commander.workflows import DIAGNOSIS_NODE_NAMES, GraphPhase
@@ -26,6 +27,8 @@ FAIRNESS_POLICY_PATH = ROOT / "evaluation" / "fairness" / "v1" / "policy.json"
 FAIRNESS_PLAN_PATH = ROOT / "evaluation" / "plans" / "v1" / "comparison.json"
 MODEL_SETTINGS_PATH = ROOT / "evaluation" / "models" / "v1" / "diagnosis-mock.json"
 PROMPT_PATH = ROOT / "evaluation" / "prompts" / "v1" / "controlled-graph.json"
+RECOVERY_FIXTURES_PATH = ROOT / "evaluation" / "recovery" / "v1" / "fixtures.json"
+RESULT_ROOT = ROOT / "evaluation" / "results" / "controlled-graph" / "v1" / "run-001"
 
 
 def suite() -> tuple[Any, Any, Any, Any, CandidateExecutionConfig]:
@@ -145,3 +148,49 @@ def test_controlled_graph_runner_is_create_only_and_resource_bound(tmp_path: Pat
             code_revision="c" * 40,
             run_id="controlled-graph-test-002",
         )
+
+
+def test_committed_controlled_graph_result_is_bound_reproducible_and_exact() -> None:
+    diagnosis = load_bound_result(
+        RESULT_ROOT / "diagnosis-raw.json",
+        DATASET_PATH,
+        RULES_PATH,
+        FAIRNESS_POLICY_PATH,
+        FAIRNESS_PLAN_PATH,
+    )
+    recovery = load_bound_result(
+        RESULT_ROOT / "recovery-safety-raw.json",
+        DATASET_PATH,
+        RULES_PATH,
+        FAIRNESS_POLICY_PATH,
+        FAIRNESS_PLAN_PATH,
+        RECOVERY_FIXTURES_PATH,
+    )
+    score = load_score_result(RESULT_ROOT / "safe-outcomes.json")
+
+    assert isinstance(diagnosis, DiagnosisRawResult)
+    assert isinstance(recovery, RecoverySafetyRawResult)
+    assert diagnosis.metadata.code_revision == "0fab551974a3d6e10adc7e84d1566a3045d60887"
+    assert diagnosis.metadata.run_id == "controlled-graph-baseline-20261029-001"
+    assert diagnosis.fingerprint == score.diagnosis_raw_sha256
+    assert recovery.fingerprint == score.recovery_raw_sha256
+    assert sum(case.tool_calls for case in diagnosis.cases) == 12
+    assert sum(case.input_tokens for case in diagnosis.cases) == 912
+    assert sum(case.output_tokens for case in diagnosis.cases) == 1484
+    assert sum(case.cost_microusd for case in diagnosis.cases) == 0
+    assert sum(case.duration_ms for case in diagnosis.cases) == 338
+    assert score.summary.correct_handoff_numerator == 0
+    assert score.summary.handoff_attempt_denominator == 6
+    assert score.summary.recovery_safe_outcome_numerator == 5
+    assert score.summary.recovery_safe_outcome_denominator == 6
+    assert score.summary.automated_recovery_numerator == 1
+    assert score.summary.automated_recovery_denominator == 2
+    assert render_markdown(diagnosis) == (RESULT_ROOT / "diagnosis-report.md").read_text(
+        encoding="utf-8"
+    )
+    assert render_markdown(recovery) == (RESULT_ROOT / "recovery-safety-report.md").read_text(
+        encoding="utf-8"
+    )
+    assert render_safe_outcome_markdown(score) == (RESULT_ROOT / "safe-outcomes.md").read_text(
+        encoding="utf-8"
+    )

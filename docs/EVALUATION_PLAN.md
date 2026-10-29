@@ -178,6 +178,18 @@ uses the allowlisted checkpoint serializer with an in-memory evaluation saver so
 boundary is checkpointed without adding an external durability variable. It has no historical
 memory and shares the exact deterministic recovery-safety implementation with earlier baselines.
 
+The measured controlled-LangGraph run is committed under
+`evaluation/results/controlled-graph/v1/run-001/`, with run ID
+`controlled-graph-baseline-20261029-001` and evaluated revision
+`0fab551974a3d6e10adc7e84d1566a3045d60887`. Diagnosis, recovery, and score fingerprints are
+`57e9102b90d5b61b85649da26455c67695a985dd07e93a234f8bec1365382924`,
+`e4b5c046b6204c2f1238c3c9980c655ea24105f7d693a66884ea9beecd14995a`, and
+`8576934c614041804d6f245d867a0836a6ad6b86721ad34fb98dc4ac65906667`. The run records 12
+read-only tool calls, 912 input tokens, 1484 output tokens, zero microusd, and 338ms total local
+case duration. Its exact score remains 0/6 correct handoffs, 5/6 recovery safe outcomes, and 1/2
+eligible automated recoveries. The unchanged diagnosis result is an observed null effect for graph
+orchestration with this deterministic model, not an inferred quality improvement.
+
 ## Layered evaluation
 
 The **diagnosis track** ends at a gate decision, refusal, or human handoff and records root-cause

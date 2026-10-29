@@ -109,6 +109,23 @@ The plan is an experiment input rather than a committed pretend run: future base
 populate it with the model and settings actually used. No baseline result or comparative claim is
 created by this fairness-contract batch.
 
+The concrete pre-run plan now lives at `evaluation/plans/v1/comparison.json`. It declares the
+credential-free `diagnosis-mock/1.0.0` configuration for all three model-based profiles and a
+zero-model-budget rules profile before any result exists. The rules implementation is deliberately
+conservative: it matches only bounded public observation patterns and emits an evidence-insufficient
+human handoff with no diagnosis claim or Evidence reference. Its recovery-safety implementation
+evaluates the fixed schema, gate, allowlist, approval, idempotent execution, and verifier inputs in
+that order. Stable verification alone closes; unstable verification enters bounded re-diagnosis
+and never redeploys the known faulty version.
+
+`python -m evaluation.run_rules_baseline --output-dir <new-directory> --code-revision <full-sha>
+--run-id <safe-id>` runs both Ground-Truth-blind systems first. Only after both have returned does
+the isolated scorer load evaluator manifests. The command creates, never overwrites, both raw
+artifacts, their raw inventory reports, the safe-outcome score JSON, and its exact-count Markdown.
+Per-case duration is measured with a monotonic clock; run timestamps, Python/platform, bounded
+hardware summary, plan/rules/data hashes, and the supplied committed code revision are persisted.
+The command must be run from a clean checkout of that exact revision before results are committed.
+
 ## Layered evaluation
 
 The **diagnosis track** ends at a gate decision, refusal, or human handoff and records root-cause

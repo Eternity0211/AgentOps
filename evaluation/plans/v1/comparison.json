@@ -1,0 +1,124 @@
+{
+  "schema_version": "1.0",
+  "plan_version": "phase12-comparison-v1",
+  "fairness_policy_version": "phase12-fairness-v1",
+  "fairness_policy_sha256": "70ace66c28c677418d7bdff7813c3eb940f2fddde43e7ae446b53ff0eb51567c",
+  "dataset_version": "phase12-eval-v1",
+  "dataset_sha256": "7371cab69c0df7c56a47da9bae493d8c28bcd22198e20ad69b8e446d0cdc0ad3",
+  "rules_version": "phase12-rules-v2",
+  "rules_sha256": "a2c16107d8ccf4baf24605e7178fce269f0da63c237b24e7692273b39077075a",
+  "split": "evaluation",
+  "tool_schema_versions": {
+    "get_service_topology": "1.0.0",
+    "query_deployments": "1.0.0",
+    "query_logs": "1.0.0",
+    "query_metrics": "1.0.0",
+    "query_traces": "1.0.0"
+  },
+  "safety_chain": {
+    "schema_validation_version": "candidate-result-v1",
+    "evidence_schema_version": "evidence-v1",
+    "evidence_gate_version": "evidence-gate-v1.1.0",
+    "policy_version": "recovery-policy-v1.0.0",
+    "approval_version": "approval-v1",
+    "executor_version": "rollback-service-v1",
+    "verifier_version": "health-verification-v1"
+  },
+  "baselines": [
+    {
+      "baseline_id": "baseline-a-rules",
+      "baseline_version": "1.0.0",
+      "kind": "rules",
+      "orchestration": "deterministic",
+      "memory_access": false,
+      "model_id": null,
+      "model_settings_sha256": null,
+      "prompt_version": "rules-diagnosis-v1.0.0",
+      "aggregate_budget": {
+        "max_context_tokens": 0,
+        "max_model_tokens": 0,
+        "max_tool_calls": 30,
+        "max_retries": 2,
+        "max_duration_ms": 3600000,
+        "max_cost_microusd": 0
+      }
+    },
+    {
+      "baseline_id": "baseline-b-single",
+      "baseline_version": "1.0.0",
+      "kind": "single-agent",
+      "orchestration": "single-pass",
+      "memory_access": false,
+      "model_id": "diagnosis-mock",
+      "model_settings_sha256": "dc56a196ee7485c84b3f68f054805336795f8204e91a18d8cf1034ca47557b15",
+      "prompt_version": "diagnosis-plan-v1.0.0",
+      "aggregate_budget": {
+        "max_context_tokens": 10000,
+        "max_model_tokens": 10000,
+        "max_tool_calls": 30,
+        "max_retries": 2,
+        "max_duration_ms": 3600000,
+        "max_cost_microusd": 0
+      }
+    },
+    {
+      "baseline_id": "baseline-c-graph",
+      "baseline_version": "1.0.0",
+      "kind": "controlled-langgraph",
+      "orchestration": "langgraph",
+      "memory_access": false,
+      "model_id": "diagnosis-mock",
+      "model_settings_sha256": "dc56a196ee7485c84b3f68f054805336795f8204e91a18d8cf1034ca47557b15",
+      "prompt_version": "diagnosis-graph-v1.0.0",
+      "aggregate_budget": {
+        "max_context_tokens": 10000,
+        "max_model_tokens": 10000,
+        "max_tool_calls": 30,
+        "max_retries": 2,
+        "max_duration_ms": 3600000,
+        "max_cost_microusd": 0
+      }
+    },
+    {
+      "baseline_id": "baseline-d-memory",
+      "baseline_version": "1.0.0",
+      "kind": "controlled-langgraph-memory",
+      "orchestration": "langgraph",
+      "memory_access": true,
+      "model_id": "diagnosis-mock",
+      "model_settings_sha256": "dc56a196ee7485c84b3f68f054805336795f8204e91a18d8cf1034ca47557b15",
+      "prompt_version": "diagnosis-memory-v1.0.0",
+      "aggregate_budget": {
+        "max_context_tokens": 10000,
+        "max_model_tokens": 10000,
+        "max_tool_calls": 30,
+        "max_retries": 2,
+        "max_duration_ms": 3600000,
+        "max_cost_microusd": 0
+      }
+    }
+  ],
+  "comparisons": [
+    {
+      "comparison_id": "comparison-a-strategy",
+      "left_baseline_id": "baseline-a-rules",
+      "right_baseline_id": "baseline-b-single",
+      "independent_variable": "diagnostic-strategy",
+      "interface_prompt_change": "diagnostic-strategy-interface"
+    },
+    {
+      "comparison_id": "comparison-b-orchestration",
+      "left_baseline_id": "baseline-b-single",
+      "right_baseline_id": "baseline-c-graph",
+      "independent_variable": "orchestration",
+      "interface_prompt_change": "orchestration-interface"
+    },
+    {
+      "comparison_id": "comparison-c-memory",
+      "left_baseline_id": "baseline-c-graph",
+      "right_baseline_id": "baseline-d-memory",
+      "independent_variable": "historical-memory",
+      "interface_prompt_change": "historical-memory-interface"
+    }
+  ]
+}

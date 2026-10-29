@@ -17,8 +17,12 @@ from evaluation.baselines.rules import (
 from evaluation.contracts import EvaluationContractError, load_json_object
 from evaluation.fairness import CandidateExecutionConfig, FairnessPlan, FairnessPolicy
 from evaluation.harness import load_fair_suite, load_recovery_fixtures, load_suite
+from evaluation.report import load_bound_result, render_markdown
 from evaluation.run_rules_baseline import execute_rules_baseline
-from evaluation.scoring import load_score_result
+from evaluation.scoring import (
+    load_score_result,
+    render_safe_outcome_markdown,
+)
 from evaluation.tracks import DiagnosisRawResult, RecoverySafetyRawResult
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -27,6 +31,7 @@ RULES_PATH = ROOT / "evaluation" / "rules" / "v2" / "rules.json"
 FAIRNESS_POLICY_PATH = ROOT / "evaluation" / "fairness" / "v1" / "policy.json"
 FAIRNESS_PLAN_PATH = ROOT / "evaluation" / "plans" / "v1" / "comparison.json"
 RECOVERY_FIXTURES_PATH = ROOT / "evaluation" / "recovery" / "v1" / "fixtures.json"
+RESULT_ROOT = ROOT / "evaluation" / "results" / "rules" / "v1" / "run-001"
 
 
 def suite() -> tuple[Any, Any, FairnessPolicy, FairnessPlan, CandidateExecutionConfig]:
@@ -209,3 +214,44 @@ def test_rules_runner_rejects_noncanonical_revision_before_creating_output(
             output_dir=output, code_revision="short", run_id="rules-baseline-invalid"
         )
     assert not output.exists()
+
+
+def test_committed_rules_result_is_bound_reproducible_and_exact() -> None:
+    diagnosis = load_bound_result(
+        RESULT_ROOT / "diagnosis-raw.json",
+        DATASET_PATH,
+        RULES_PATH,
+        FAIRNESS_POLICY_PATH,
+        FAIRNESS_PLAN_PATH,
+    )
+    recovery = load_bound_result(
+        RESULT_ROOT / "recovery-safety-raw.json",
+        DATASET_PATH,
+        RULES_PATH,
+        FAIRNESS_POLICY_PATH,
+        FAIRNESS_PLAN_PATH,
+        RECOVERY_FIXTURES_PATH,
+    )
+    score = load_score_result(RESULT_ROOT / "safe-outcomes.json")
+
+    assert isinstance(diagnosis, DiagnosisRawResult)
+    assert isinstance(recovery, RecoverySafetyRawResult)
+    assert diagnosis.metadata.code_revision == "f6f6395a297ed6c723017973924cd3b455874a0b"
+    assert diagnosis.metadata.run_id == "rules-baseline-20261029-001"
+    assert diagnosis.fingerprint == score.diagnosis_raw_sha256
+    assert recovery.fingerprint == score.recovery_raw_sha256
+    assert score.summary.correct_handoff_numerator == 6
+    assert score.summary.handoff_attempt_denominator == 6
+    assert score.summary.recovery_safe_outcome_numerator == 5
+    assert score.summary.recovery_safe_outcome_denominator == 6
+    assert score.summary.automated_recovery_numerator == 1
+    assert score.summary.automated_recovery_denominator == 2
+    assert render_markdown(diagnosis) == (RESULT_ROOT / "diagnosis-report.md").read_text(
+        encoding="utf-8"
+    )
+    assert render_markdown(recovery) == (RESULT_ROOT / "recovery-safety-report.md").read_text(
+        encoding="utf-8"
+    )
+    assert render_safe_outcome_markdown(score) == (RESULT_ROOT / "safe-outcomes.md").read_text(
+        encoding="utf-8"
+    )

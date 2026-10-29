@@ -126,6 +126,25 @@ Per-case duration is measured with a monotonic clock; run timestamps, Python/pla
 hardware summary, plan/rules/data hashes, and the supplied committed code revision are persisted.
 The command must be run from a clean checkout of that exact revision before results are committed.
 
+## Measured rules baseline
+
+The first rules run is committed under `evaluation/results/rules/v1/run-001/` with run ID
+`rules-baseline-20261029-001` and evaluated code revision
+`f6f6395a297ed6c723017973924cd3b455874a0b`. Its canonical raw fingerprints are
+`79f329837ec747ca975ef6e5849cd53b830989ced8a4b4cc4e049ff0af540980` for diagnosis and
+`ecbdd26e111f8c05192c51b505f7b97c54d281add6e4b0221036282df9b5d1b3` for recovery safety.
+The score fingerprint is
+`3998ec3573a4cf9c4d45e6b91bf7977f597598f4afd7d4e7738b78ad722d2bd5`.
+
+The exact score is 6/6 correct refusal/handoff, 5/6 recovery safe outcomes, and 1/2 eligible
+automated recoveries; four non-eligible cases are explicitly excluded from the automated-recovery
+denominator. All diagnosis model-token and model-cost values are zero. The unstable memory-leak
+fixture executes one approved rollback and then takes the required verifier-FAIL re-diagnosis
+route. Safe-outcome policy v1 intentionally withholds credit from every executed but unverified
+action, so the case accounts for the one non-safe score classification even though it never enters
+compensation or restores the known faulty version. These exact counts are not comparative or
+production-scale claims.
+
 ## Layered evaluation
 
 The **diagnosis track** ends at a gate decision, refusal, or human handoff and records root-cause

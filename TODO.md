@@ -267,7 +267,7 @@ Exit: one correlation ID reconstructs the incident and agent-control flow withou
 - [x] Enforce baseline fairness in the harness: shared splits/observations/tool schemas/safety chain; equal model and aggregate budgets where applicable; one declared independent variable per comparison.
 - [x] Implement separate diagnosis and recovery-safety tracks so diagnosis errors do not confound Executor/Verifier safety results.
 - [x] Score correct refusal/handoff as a safe outcome and restrict automated-recovery denominators to Ground Truth cases marked automation-eligible.
-- [ ] Run rules-only baseline.
+- [x] Run rules-only baseline.
   - [x] Predeclare the four-way comparison plan and implement the isolated, create-only rules runner.
 - [ ] Run single-Agent baseline.
 - [ ] Run controlled LangGraph baseline.

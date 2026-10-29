@@ -9,6 +9,10 @@ AgentOps Incident Commander is an evidence-driven platform for diagnosing micros
 > the earlier pending-execution sentence above: it records the same 0/6 correct handoffs, 5/6
 > recovery-safe outcomes, and 1/2 eligible automated recoveries as the controlled graph, while its
 > only measured resource change is 192 additional input tokens for historical-reference context.
+> The generated [four-baseline comprehensive report](evaluation/results/comprehensive/v1/run-001/README.md)
+> now records exact diagnostic, safety, recovery, resource, and worker-resilience denominators;
+> duplicate execution is explicitly reported as unmeasured (`0/0`) because the baseline adapter
+> did not dispatch the fixture's declared duplicate deliveries.
 
 Phase 6 now includes the versioned [Prompt Registry](docs/PROMPT_REGISTRY.md),
 [content-free model-call tracing](docs/MODEL_CALL_TRACING.md), strict

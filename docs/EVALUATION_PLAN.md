@@ -239,8 +239,16 @@ root-cause labels and metric meanings before report execution. The create-only c
 generator reloads and hash-verifies all four diagnosis, recovery, and score artifacts; it derives
 every numerator and denominator from those committed artifacts plus the isolated Ground Truth
 join. A separate create-only worker-resilience runner executes the fixed crash, replay,
-verification, and stale-lease controls and supplies a hash-bound denominator. The final measured
-report remains pending execution from the committed generator revision.
+verification, and stale-lease controls and supplies a hash-bound denominator.
+
+The measured report is committed under `evaluation/results/comprehensive/v1/run-001/` from
+generator revision `5d036744fbe1ce430b4b59e48f54bfc10373baea`. Its metrics fingerprint is
+`a83ddda5ae2fc934805ef0cfadda228c6e44a194e4ad4261a642a68927ed6223`; the worker result fingerprint
+is `dd5f103e53fe62d05b6b8e67c83abd0de4d51be885c31f3e632d88f9d52cf122`. The fixed resilience run
+passed 13/13 declared controls across 20 collected tests. Exact four-baseline diagnosis and
+recovery counts, resource totals, source hashes, and interpretation limits are in the generated
+report. Duplicate execution remains explicitly unmeasured at `0/0` for these baseline artifacts
+rather than being inferred from separate replay tests.
 
 The existing recovery baseline adapter does not dispatch its declared duplicate deliveries.
 Therefore the comprehensive contract reports duplicate execution as explicitly not measured

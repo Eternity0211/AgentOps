@@ -20,6 +20,7 @@ from evaluation.run_worker_resilience_evaluation import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
+RESULT_ROOT = ROOT / "evaluation" / "results" / "comprehensive" / "v1" / "run-001"
 
 
 def _worker_result(path: Path) -> Path:
@@ -166,3 +167,19 @@ def test_worker_resilience_rejects_backwards_clock(tmp_path: Path) -> None:
             executor=lambda _: SuiteExecution(17, 1),
             clock=lambda: next(times),
         )
+
+
+def test_committed_comprehensive_result_reloads_exactly() -> None:
+    worker_path = RESULT_ROOT / "worker-resilience-raw.json"
+    worker = load_worker_resilience_result(worker_path)
+    assert worker["code_revision"] == "5d036744fbe1ce430b4b59e48f54bfc10373baea"
+    assert worker["run_id"] == "worker-resilience-20261029-001"
+    assert worker["summary"] == {"passed_controls": 13, "total_controls": 13}
+    assert worker["collected_tests"] == 20
+
+    rebuilt = build_comprehensive_metrics(root=ROOT, worker_result_path=worker_path)
+    committed = load_json_object(RESULT_ROOT / "metrics.json")
+    assert rebuilt == committed
+    assert render_comprehensive_markdown(rebuilt) == (RESULT_ROOT / "README.md").read_text(
+        encoding="utf-8"
+    )

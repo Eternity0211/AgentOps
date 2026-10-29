@@ -198,6 +198,20 @@ Ground Truth, and supplies at most two explicitly advisory summaries. Historical
 not admitted to the candidate Evidence list. The memory-aware Prompt repeats that historical
 context cannot satisfy current Evidence.
 
+The measured controlled-LangGraph-plus-memory run is committed under
+`evaluation/results/controlled-graph-memory/v1/run-001/`, with run ID
+`controlled-graph-memory-baseline-20261029-001` and evaluated revision
+`70f53d64f1f3a3fe681f1c18473f6d1c4ca61c65`. Diagnosis, recovery, and score fingerprints are
+`494603a0898127d459433775266d1baf30210316317a353dce6fc1530ef0270b`,
+`532eeed6973cee8838af508526e46bc17682ddcfda1112245f4d99bb3d1d741f`, and
+`40ae10715b9b4e2f61488d38358238e26a0e6d14d6ae9e3accacc1e55cab47e7`. The run records 12
+read-only tool calls, 1104 input tokens, 1484 output tokens, zero microusd, and 365ms total local
+case duration. Its exact score remains 0/6 correct handoffs, 5/6 recovery safe outcomes, and 1/2
+eligible automated recoveries. Compared with the otherwise-identical graph run, the 192 additional
+input tokens are the declared historical-reference context; model output and all scored outcomes
+remain unchanged. This is a measured null result for this deterministic model and three-record
+reference set, not evidence that incident memory is generally ineffective.
+
 ## Layered evaluation
 
 The **diagnosis track** ends at a gate decision, refusal, or human handoff and records root-cause

@@ -10,10 +10,8 @@ from typing import Any
 
 import pytest
 from evaluation.baselines import rules as rules_module
-from evaluation.baselines.rules import (
-    DeterministicRecoverySafetySystem,
-    RulesDiagnosisSystem,
-)
+from evaluation.baselines.recovery import DeterministicRecoverySafetySystem
+from evaluation.baselines.rules import RulesDiagnosisSystem
 from evaluation.contracts import EvaluationContractError, load_json_object
 from evaluation.fairness import CandidateExecutionConfig, FairnessPlan, FairnessPolicy
 from evaluation.harness import load_fair_suite, load_recovery_fixtures, load_suite

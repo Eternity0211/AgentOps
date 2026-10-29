@@ -1,0 +1,6 @@
+{
+  "model_version": "diagnosis-mock/1.0.0",
+  "scenario": "VALID",
+  "seed": 7,
+  "temperature_millidegrees": 0
+}

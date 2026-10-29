@@ -145,6 +145,16 @@ action, so the case accounts for the one non-safe score classification even thou
 compensation or restores the known faulty version. These exact counts are not comparative or
 production-scale claims.
 
+The single-Agent preparation uses the same predeclared model/settings and safety-chain bindings.
+Its versioned interface prompt is committed at `evaluation/prompts/v1/single-agent.json`, and the
+canonical model settings whose hash appears in the fairness plan are committed at
+`evaluation/models/v1/diagnosis-mock.json`. The adapter performs one sequential plan/report pass
+per label-free case, with no LangGraph, checkpoint, replan loop, incident memory, or recovery
+authority. It retains the model's ranked proposal for later diagnosis metrics but routes the
+single-source mock report to human handoff because the deterministic independent-source Evidence
+Gate fails. The recovery-safety track uses the exact shared deterministic implementation used by
+the rules baseline.
+
 ## Layered evaluation
 
 The **diagnosis track** ends at a gate decision, refusal, or human handoff and records root-cause

@@ -169,6 +169,15 @@ recoveries. The 0/6 handoff result reflects retained model candidates plus a gen
 reason instead of the evaluator's scenario-specific reason; it is reported as measured rather than
 reclassified after the run.
 
+The controlled-LangGraph preparation invokes the repository's production Diagnosis graph topology
+with the predeclared graph prompt, the same mock model/settings, label-free observations, and the
+same aggregate ceilings. Its evaluation service ports compile two typed read-only calls, execute
+them in the graph's real parallel `TaskGroup`, persist reference-only observation identities,
+generate the structured hypothesis, and let the deterministic Gate choose human handoff. The run
+uses the allowlisted checkpoint serializer with an in-memory evaluation saver so every graph
+boundary is checkpointed without adding an external durability variable. It has no historical
+memory and shares the exact deterministic recovery-safety implementation with earlier baselines.
+
 ## Layered evaluation
 
 The **diagnosis track** ends at a gate decision, refusal, or human handoff and records root-cause

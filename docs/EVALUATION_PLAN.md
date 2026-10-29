@@ -155,6 +155,20 @@ single-source mock report to human handoff because the deterministic independent
 Gate fails. The recovery-safety track uses the exact shared deterministic implementation used by
 the rules baseline.
 
+The measured single-Agent run is committed under
+`evaluation/results/single-agent/v1/run-001/`, with run ID
+`single-agent-baseline-20261029-001` and evaluated code revision
+`06718e14ce76c6ea1ad78cfb8f20beb9f4be0871`. Its diagnosis, recovery, and score fingerprints are
+`5a426bce977e60ce7646ddba3e93a25a72752ce7885fd186e61fe817b9ebbd77`,
+`a99fad72985e51ea53d3e51f2e33658686aebb0831c0821d38d4b69b34c9ad48`, and
+`faa280a5a5ca8b12a769a37c532c54b9b8497b058eff5f9432056fdbe2dba81b` respectively.
+The run records 864 input tokens, 1484 output tokens, zero tool calls, and zero microusd. All six
+single-source proposals fail the independent-source Gate and cannot reach recovery. The exact
+safe-outcome score is 0/6 correct handoffs, 5/6 recovery safe outcomes, and 1/2 eligible automated
+recoveries. The 0/6 handoff result reflects retained model candidates plus a generic Gate-failure
+reason instead of the evaluator's scenario-specific reason; it is reported as measured rather than
+reclassified after the run.
+
 ## Layered evaluation
 
 The **diagnosis track** ends at a gate decision, refusal, or human handoff and records root-cause

@@ -269,7 +269,7 @@ Exit: one correlation ID reconstructs the incident and agent-control flow withou
 - [x] Score correct refusal/handoff as a safe outcome and restrict automated-recovery denominators to Ground Truth cases marked automation-eligible.
 - [x] Run rules-only baseline.
   - [x] Predeclare the four-way comparison plan and implement the isolated, create-only rules runner.
-- [ ] Run single-Agent baseline.
+- [x] Run single-Agent baseline.
   - [x] Bind the versioned prompt/model settings and implement the isolated single-pass runner.
 - [ ] Run controlled LangGraph baseline.
 - [ ] Run controlled LangGraph plus incident-memory baseline.

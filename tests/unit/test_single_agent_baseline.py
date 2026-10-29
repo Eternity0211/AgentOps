@@ -15,8 +15,9 @@ from evaluation.baselines.single_agent import SingleAgentDiagnosisSystem
 from evaluation.contracts import EvaluationContractError, content_sha256, load_json_object
 from evaluation.fairness import CandidateExecutionConfig
 from evaluation.harness import load_fair_suite, load_recovery_fixtures
+from evaluation.report import load_bound_result, render_markdown
 from evaluation.run_single_agent_baseline import execute_single_agent_baseline
-from evaluation.scoring import load_score_result
+from evaluation.scoring import load_score_result, render_safe_outcome_markdown
 from evaluation.tracks import DiagnosisRawResult, RecoverySafetyRawResult
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -27,6 +28,7 @@ FAIRNESS_PLAN_PATH = ROOT / "evaluation" / "plans" / "v1" / "comparison.json"
 RECOVERY_FIXTURES_PATH = ROOT / "evaluation" / "recovery" / "v1" / "fixtures.json"
 MODEL_SETTINGS_PATH = ROOT / "evaluation" / "models" / "v1" / "diagnosis-mock.json"
 PROMPT_PATH = ROOT / "evaluation" / "prompts" / "v1" / "single-agent.json"
+RESULT_ROOT = ROOT / "evaluation" / "results" / "single-agent" / "v1" / "run-001"
 
 
 def suite() -> tuple[Any, Any, Any, Any, CandidateExecutionConfig]:
@@ -191,3 +193,48 @@ def test_single_agent_runner_is_create_only_deterministic_and_hash_bound(tmp_pat
             code_revision="b" * 40,
             run_id="single-agent-test-002",
         )
+
+
+def test_committed_single_agent_result_is_bound_reproducible_and_exact() -> None:
+    diagnosis = load_bound_result(
+        RESULT_ROOT / "diagnosis-raw.json",
+        DATASET_PATH,
+        RULES_PATH,
+        FAIRNESS_POLICY_PATH,
+        FAIRNESS_PLAN_PATH,
+    )
+    recovery = load_bound_result(
+        RESULT_ROOT / "recovery-safety-raw.json",
+        DATASET_PATH,
+        RULES_PATH,
+        FAIRNESS_POLICY_PATH,
+        FAIRNESS_PLAN_PATH,
+        RECOVERY_FIXTURES_PATH,
+    )
+    score = load_score_result(RESULT_ROOT / "safe-outcomes.json")
+
+    assert isinstance(diagnosis, DiagnosisRawResult)
+    assert isinstance(recovery, RecoverySafetyRawResult)
+    assert diagnosis.metadata.code_revision == "06718e14ce76c6ea1ad78cfb8f20beb9f4be0871"
+    assert diagnosis.metadata.run_id == "single-agent-baseline-20261029-001"
+    assert diagnosis.fingerprint == score.diagnosis_raw_sha256
+    assert recovery.fingerprint == score.recovery_raw_sha256
+    assert sum(case.input_tokens for case in diagnosis.cases) == 864
+    assert sum(case.output_tokens for case in diagnosis.cases) == 1484
+    assert sum(case.tool_calls for case in diagnosis.cases) == 0
+    assert sum(case.cost_microusd for case in diagnosis.cases) == 0
+    assert score.summary.correct_handoff_numerator == 0
+    assert score.summary.handoff_attempt_denominator == 6
+    assert score.summary.recovery_safe_outcome_numerator == 5
+    assert score.summary.recovery_safe_outcome_denominator == 6
+    assert score.summary.automated_recovery_numerator == 1
+    assert score.summary.automated_recovery_denominator == 2
+    assert render_markdown(diagnosis) == (RESULT_ROOT / "diagnosis-report.md").read_text(
+        encoding="utf-8"
+    )
+    assert render_markdown(recovery) == (RESULT_ROOT / "recovery-safety-report.md").read_text(
+        encoding="utf-8"
+    )
+    assert render_safe_outcome_markdown(score) == (RESULT_ROOT / "safe-outcomes.md").read_text(
+        encoding="utf-8"
+    )

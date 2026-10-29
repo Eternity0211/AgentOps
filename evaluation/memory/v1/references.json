@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "memory_version": "phase12-historical-memory-v1",
+  "records": [
+    {
+      "reference_id": "ref-inventory-cache-timeout",
+      "source_incident_id": "historical-inventory-20260914",
+      "service": "inventory",
+      "closed_at": "2026-09-14T08:00:00Z",
+      "root_cause_summary": "A cache dependency exceeded its bounded request deadline.",
+      "outcome_summary": "An operator restored dependency health and confirmed recovery.",
+      "trust": "HISTORICAL_REFERENCE"
+    },
+    {
+      "reference_id": "ref-order-release-regression",
+      "source_incident_id": "historical-order-20260921",
+      "service": "order",
+      "closed_at": "2026-09-21T08:00:00Z",
+      "root_cause_summary": "A prior Order release caused internal request failures.",
+      "outcome_summary": "An approved version rollback passed deterministic verification.",
+      "trust": "HISTORICAL_REFERENCE"
+    },
+    {
+      "reference_id": "ref-payment-configuration-drift",
+      "source_incident_id": "historical-payment-20260928",
+      "service": "payment",
+      "closed_at": "2026-09-28T08:00:00Z",
+      "root_cause_summary": "A Payment configuration change made authorization unavailable.",
+      "outcome_summary": "A human corrected the configuration and confirmed readiness.",
+      "trust": "HISTORICAL_REFERENCE"
+    }
+  ]
+}

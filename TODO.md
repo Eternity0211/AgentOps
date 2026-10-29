@@ -274,6 +274,7 @@ Exit: one correlation ID reconstructs the incident and agent-control flow withou
 - [x] Run controlled LangGraph baseline.
   - [x] Bind the graph prompt and implement the real bounded-graph evaluation adapter and runner.
 - [ ] Run controlled LangGraph plus incident-memory baseline.
+  - [x] Bind historical-only memory and implement the otherwise-identical graph runner.
 - [ ] Report Top-1/Top-3 root cause, unsupported conclusions, fabricated references, correct refusal/handoff, diagnosis time, tool calls, tokens/cost, proposal correctness, dangerous-action blocks, unapproved/duplicate executions, eligible recovery, safe outcomes, future compensation, and worker recovery with explicit denominators.
 - [ ] Add configured evaluation regression gates for prompt/model/policy promotion based on measured baselines.
 - [ ] Add bounded concurrency/load tests for API, job leasing, evidence queries, and workers; report observed limits without production-scale claims.

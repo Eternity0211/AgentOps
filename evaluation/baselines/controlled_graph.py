@@ -83,6 +83,7 @@ class ControlledGraphTrace:
     maximum_parallel_tools: int
     checkpoint_count: int
     final_phase: GraphPhase
+    memory_reference_ids: tuple[str, ...]
 
 
 class _Clock:
@@ -160,6 +161,7 @@ class _Services:
         configuration: CandidateExecutionConfig,
         model: DeterministicDiagnosisMockModel,
         seed: int,
+        historical_context: tuple[tuple[str, str], ...] = (),
     ) -> None:
         self._case = case
         self._configuration = configuration
@@ -168,7 +170,9 @@ class _Services:
         self._context = (
             case.observation.alert_summary,
             *(signal.summary for signal in case.observation.signals),
+            *(content for _, content in historical_context),
         )
+        self.memory_reference_ids = tuple(reference_id for reference_id, _ in historical_context)
         self._observation_ids = tuple(
             f"observation-{case.case_id}-{index}-{signal.source}"
             for index, signal in enumerate(case.observation.signals, start=1)
@@ -303,6 +307,10 @@ class ControlledGraphDiagnosisSystem:
         *,
         model_settings_path: Path = DEFAULT_MODEL_SETTINGS,
         prompt_path: Path = DEFAULT_PROMPT,
+        _profile_kind: str = "controlled-langgraph",
+        _prompt_version: str = CONTROLLED_GRAPH_PROMPT_VERSION,
+        _prompt_interface: str = "langgraph",
+        _memory_access: bool = False,
     ) -> None:
         settings = load_json_object(model_settings_path)
         prompt = load_json_object(prompt_path)
@@ -315,22 +323,38 @@ class ControlledGraphDiagnosisSystem:
             raise EvaluationContractError("controlled graph model settings are not predeclared")
         if frozenset(prompt) != _PROMPT_FIELDS or (
             prompt["schema_version"] != "1.0"
-            or prompt["prompt_version"] != CONTROLLED_GRAPH_PROMPT_VERSION
+            or prompt["prompt_version"] != _prompt_version
             or prompt["purpose"] != "DIAGNOSIS"
-            or prompt["interface"] != "langgraph"
+            or prompt["interface"] != _prompt_interface
             or prompt["plan_schema_version"] != "1.0.0"
             or prompt["report_schema_version"] != "1.0.0"
+            or not isinstance(prompt["instructions"], list)
+            or not prompt["instructions"]
+            or any(not isinstance(item, str) or not item for item in prompt["instructions"])
         ):
             raise EvaluationContractError("controlled graph prompt is not the approved version")
         self._settings_sha256 = content_sha256(settings)
         self._prompt_fingerprint = content_sha256(prompt)
         self._model = DeterministicDiagnosisMockModel(MockModelScenario.VALID)
+        self._profile_kind = _profile_kind
+        self._prompt_version = _prompt_version
+        self._memory_access = _memory_access
         self.traces: dict[str, ControlledGraphTrace] = {}
+
+    def _historical_context(self, case: EvaluationCase) -> tuple[tuple[str, str], ...]:
+        del case
+        return ()
 
     async def _evaluate(
         self, case: EvaluationCase, configuration: CandidateExecutionConfig
     ) -> tuple[DiagnosisGraphState, _Services, _PromptAuthorization, int]:
-        services = _Services(case, configuration, self._model, 7)
+        services = _Services(
+            case,
+            configuration,
+            self._model,
+            7,
+            historical_context=self._historical_context(case),
+        )
         prompts = _PromptAuthorization(self._prompt_fingerprint)
         saver = InMemorySaver(serde=diagnosis_checkpoint_serializer())
         graph = build_diagnosis_graph(checkpointer=saver)
@@ -383,13 +407,13 @@ class ControlledGraphDiagnosisSystem:
     ) -> Mapping[str, Any]:
         profile = configuration.profile
         if (
-            profile.kind != "controlled-langgraph"
+            profile.kind != self._profile_kind
             or profile.baseline_version != CONTROLLED_GRAPH_BASELINE_VERSION
             or profile.orchestration != "langgraph"
-            or profile.memory_access
+            or profile.memory_access is not self._memory_access
             or profile.model_id != "diagnosis-mock"
             or profile.model_settings_sha256 != self._settings_sha256
-            or profile.prompt_version != CONTROLLED_GRAPH_PROMPT_VERSION
+            or profile.prompt_version != self._prompt_version
         ):
             raise EvaluationContractError(
                 "controlled graph baseline requires its exact predeclared profile"
@@ -412,6 +436,7 @@ class ControlledGraphDiagnosisSystem:
             services.maximum_parallel_tools,
             checkpoint_count,
             result.phase,
+            services.memory_reference_ids,
         )
         if services.input_tokens + services.output_tokens != result.budgets.used_tokens:
             raise EvaluationContractError("controlled graph model usage does not match its budget")

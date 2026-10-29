@@ -190,6 +190,14 @@ case duration. Its exact score remains 0/6 correct handoffs, 5/6 recovery safe o
 eligible automated recoveries. The unchanged diagnosis result is an observed null effect for graph
 orchestration with this deterministic model, not an inferred quality improvement.
 
+The controlled-LangGraph-plus-memory preparation keeps that exact graph, model/settings, budgets,
+tool schemas, Gate, checkpoints, and recovery chain. Its sole independent variable is a versioned
+set of closed `HISTORICAL_REFERENCE` records under `evaluation/memory/v1/`. Retrieval ranks only
+bounded observation text, excludes zero-overlap records, never reads current scenario identity or
+Ground Truth, and supplies at most two explicitly advisory summaries. Historical reference IDs are
+not admitted to the candidate Evidence list. The memory-aware Prompt repeats that historical
+context cannot satisfy current Evidence.
+
 ## Layered evaluation
 
 The **diagnosis track** ends at a gate decision, refusal, or human handoff and records root-cause

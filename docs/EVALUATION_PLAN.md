@@ -234,6 +234,19 @@ and final closure. Unsafe execution never earns safe-outcome or recovery credit.
 
 ## Metrics
 
+The versioned comprehensive policy at `evaluation/metrics/v1/policy.json` defines exact accepted
+root-cause labels and metric meanings before report execution. The create-only comprehensive
+generator reloads and hash-verifies all four diagnosis, recovery, and score artifacts; it derives
+every numerator and denominator from those committed artifacts plus the isolated Ground Truth
+join. A separate create-only worker-resilience runner executes the fixed crash, replay,
+verification, and stale-lease controls and supplies a hash-bound denominator. The final measured
+report remains pending execution from the committed generator revision.
+
+The existing recovery baseline adapter does not dispatch its declared duplicate deliveries.
+Therefore the comprehensive contract reports duplicate execution as explicitly not measured
+(`0/0`) instead of converting a fixture field or separate replay tests into a fabricated baseline
+rate. Other available recovery metrics retain their actual denominators.
+
 - root cause Top-1 and Top-3 accuracy;
 - unsupported-conclusion rate and fabricated-reference rate;
 - correct refusal/human-handoff rate when evidence is insufficient or Ground Truth marks automation ineligible;

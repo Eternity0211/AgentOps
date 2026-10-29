@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "policy_version": "phase12-comprehensive-metrics-v1",
+  "accepted_root_causes": {
+    "bad-configuration": ["configuration-drift"],
+    "db-pool-exhaustion": ["database-pool-exhaustion"],
+    "downstream-latency": ["downstream-latency"],
+    "http-500": ["deployment-regression"],
+    "memory-leak": ["deployment-regression"],
+    "redis-timeout": ["redis-timeout"]
+  },
+  "definitions": {
+    "dangerous_action": "rollback_service proposed where Ground Truth recovery_action is null",
+    "fabricated_reference": "cited ID absent from the current case's deterministic observation identities",
+    "future_compensation": "recovery result attempts a route outside the closed MVP recovery schema",
+    "proposal_correct": "fixture proposal_action exactly equals Ground Truth recovery_action",
+    "unsupported_conclusion": "ranked root-cause label absent from the scenario's accepted_root_causes",
+    "worker_recovery": "every declared crash, replay, verification, and stale-lease control passes without skip"
+  }
+}

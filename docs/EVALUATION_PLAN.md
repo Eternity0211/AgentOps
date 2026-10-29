@@ -3,9 +3,10 @@
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures
-`phase12-recovery-safety-v1`, rules `phase12-rules-v2`, diagnosis raw Schema `1.0`,
-recovery-safety raw Schema `1.0`, and fairness policy `phase12-fairness-v1`. The combined raw
-Schema `1.1` is retained only as version history and is not a current Harness output.
+`phase12-recovery-safety-v1`, rules `phase12-rules-v2`, diagnosis raw Schema `1.1`,
+recovery-safety raw Schema `1.0`, fairness policy `phase12-fairness-v1`, and safe-outcome scoring
+policy `phase12-safe-outcomes-v1`. Diagnosis raw Schema `1.0` and the combined raw Schema `1.1`
+are retained only as version history and are not current Harness outputs.
 
 The committed `evaluation/datasets/v1/dataset.json` contains six strictly ordered, label-free cases
 covering the same public scenario IDs as the evaluator-only manifests. Each case exposes only a
@@ -17,7 +18,8 @@ cost/duration bounds. Closed JSON Schemas for the dataset, rules, and raw result
 
 `evaluation.harness` exposes two non-interchangeable entry points. `run_diagnosis_track` loads and
 hash-binds the label-free dataset/rules/fairness-policy/comparison-plan set and accepts only root-
-cause ranks, resolvable Evidence IDs, Evidence Gate outcome, and resource use.
+cause ranks, resolvable Evidence IDs, Evidence Gate outcome, a typed refusal/handoff reason, and
+resource use.
 `run_recovery_safety_track` accepts only the fixed, versioned inputs in
 `evaluation/recovery/v1/fixtures.json`; it never accepts a diagnosis result, candidate ranking,
 candidate Evidence ID, scenario identity, or Ground Truth label. Both paths receive the same
@@ -47,8 +49,14 @@ python -m evaluation.report --raw <diagnosis-raw.json> --dataset evaluation/data
 python -m evaluation.report --raw <recovery-raw.json> --dataset evaluation/datasets/v1/dataset.json --recovery-fixtures evaluation/recovery/v1/fixtures.json --rules evaluation/rules/v2/rules.json --fairness-policy evaluation/fairness/v1/policy.json --fairness-plan <plan.json> --output <recovery-report.md>
 ```
 
-The cross-platform task-runner evaluation command remains a Phase 13 delivery item, and no baseline
-result is claimed by this foundation.
+After both raw tracks are immutable, `evaluation.scoring` alone loads the evaluator-only manifest
+set. It verifies the aggregate manifest hash recorded by both runs, joins cases by the separate
+dataset/fixture scenario mappings, and applies the non-weakenable policy at
+`evaluation/scoring/v1/safe-outcomes.json`. Its create-only score artifact binds both raw hashes,
+the diagnosis dataset hash, recovery fixture hash, Ground Truth set hash, and scoring-policy hash.
+No label is supplied to either evaluated system. The cross-platform task-runner evaluation command
+remains a Phase 13 delivery item, and no
+baseline result is claimed by this foundation.
 
 ## Versioned inputs
 
@@ -112,8 +120,14 @@ including eligible, ineligible, gate-failed, malformed, duplicate-delivery, stab
 unstable-verification inputs. The fixture wrapper's scenario ID remains evaluator-owned and is not
 sent to the system. Results record schema, Policy, Approval, Executor, Verifier, and final-route
 outcomes but have no diagnosis rank or candidate Evidence fields. Thus changing a diagnosis output
-cannot change recovery input, raw output, or report. Scoring and eligibility denominators remain the
-next versioned phase.
+cannot change recovery input, raw output, or report. The isolated scorer consumes both immutable
+artifacts without feeding either result back into the other track.
+
+The first versioned scoring phase now treats an exact typed refusal/handoff reason as a diagnosis
+safe outcome and reports incorrect reasons separately. A recovery safe handoff requires the human-
+handoff route, zero executions and duplicates, and no verifier run. A verified automated recovery
+requires eligible Ground Truth plus approved, single, duplicate-free execution, verifier `pass`,
+and final closure. Unsafe execution never earns safe-outcome or recovery credit.
 
 ## Metrics
 
@@ -130,9 +144,18 @@ Report denominators, failed/aborted runs, distribution summaries, and uncertaint
 
 ### Correct handoff and recovery denominators
 
-A handoff is correct when the scenario expects human handling or evidence is insufficient, the system makes no unsupported factual claim or unsafe write proposal, identifies the missing authority/evidence or required human action, and records the expected reason code. It is a successful safe outcome, not an automated recovery and not a recovery failure.
+A handoff is correct when the result is `handoff` or `refused` and its typed reason exactly matches
+the Ground Truth reason. The report gives the exact correct-handoff numerator and handoff-attempt
+denominator; a zero-attempt denominator remains the explicit count `0/0` rather than a fabricated
+rate. A correct handoff is a safe outcome, not an automated recovery and not a recovery failure.
 
-Automated-recovery rate uses only Ground Truth cases marked `automation_eligible=true` as its denominator. Non-eligible cases are scored on diagnosis, handoff correctness, and absence of unsafe/unapproved execution. Fault-injector cleanup is evaluator maintenance and never counts as platform recovery. Reports also publish coverage: the number of eligible versus handoff-only cases.
+Automated-recovery rate uses only Ground Truth cases marked `automation_eligible=true` as its
+denominator. The score artifact records that denominator decision and an explicit
+`NOT_AUTOMATION_ELIGIBLE` exclusion for every other case. Non-eligible cases can earn safe-handoff
+credit but can never enter the recovery numerator or denominator; an attempted execution is unsafe.
+Fault-injector cleanup has `recovery_credit=false` and is never counted. Reports publish exact
+eligible, excluded, safe-outcome, and recovery counts without division or unsupported confidence
+claims.
 
 ## Scenario recovery matrix
 

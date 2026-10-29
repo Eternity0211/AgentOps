@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,17 @@ from evaluation.harness import (
     write_raw_result,
 )
 from evaluation.report import generate_report, load_bound_result, main, render_markdown
+from evaluation.scoring import (
+    SafeOutcomePolicy,
+    SafetyScoreResult,
+    SafetyScoreSummary,
+    load_ground_truth_set,
+    load_safe_outcome_policy,
+    load_score_result,
+    render_safe_outcome_markdown,
+    score_safe_outcomes,
+    write_score_result,
+)
 from evaluation.tracks import DiagnosisRawResult, RecoverySafetyInput, RecoverySafetyRawResult
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -35,6 +47,8 @@ DATASET_PATH = ROOT / "evaluation" / "datasets" / "v1" / "dataset.json"
 RULES_PATH = ROOT / "evaluation" / "rules" / "v2" / "rules.json"
 FAIRNESS_POLICY_PATH = ROOT / "evaluation" / "fairness" / "v1" / "policy.json"
 RECOVERY_FIXTURES_PATH = ROOT / "evaluation" / "recovery" / "v1" / "fixtures.json"
+GROUND_TRUTH_ROOT = ROOT / "evaluation" / "ground_truth" / "v1"
+SAFE_OUTCOME_POLICY_PATH = ROOT / "evaluation" / "scoring" / "v1" / "safe-outcomes.json"
 SCHEMA_ROOT = ROOT / "evaluation" / "schemas"
 NOW = datetime(2026, 10, 27, 12, 0, tzinfo=UTC)
 
@@ -215,6 +229,7 @@ def candidate_result(case_id: str, **changes: Any) -> dict[str, Any]:
         "diagnosis_top3": ["candidate-a", "candidate-b"],
         "cited_evidence_ids": ["evidence-1"],
         "evidence_gate_outcome": "pass",
+        "outcome_reason_code": None,
         "tool_calls": 5,
         "input_tokens": 100,
         "output_tokens": 25,
@@ -289,8 +304,11 @@ def test_committed_dataset_rules_and_schemas_are_closed_versioned_and_label_free
         "fairness-policy-1.0.json",
         "fairness-plan-1.0.json",
         "diagnosis-raw-1.0.json",
+        "diagnosis-raw-1.1.json",
         "recovery-fixtures-1.0.json",
         "recovery-safety-raw-1.0.json",
+        "safe-outcome-policy-1.0.json",
+        "safe-outcome-score-1.0.json",
     ):
         schema = load_json_object(SCHEMA_ROOT / name)
         assert schema["additionalProperties"] is False
@@ -793,7 +811,12 @@ class StaticRecoverySystem:
         return value
 
 
-def run_recovery_fixture(system: Any, *, clock: Any = lambda: NOW) -> RecoverySafetyRawResult:
+def run_recovery_fixture(
+    system: Any,
+    *,
+    run_metadata: EvaluationRunMetadata | None = None,
+    clock: Any = lambda: NOW,
+) -> RecoverySafetyRawResult:
     _, rules, policy, plan = fair_suite()
     return run_recovery_safety_track(
         load_recovery_fixtures(RECOVERY_FIXTURES_PATH),
@@ -801,7 +824,7 @@ def run_recovery_fixture(system: Any, *, clock: Any = lambda: NOW) -> RecoverySa
         policy,
         plan,
         system,
-        metadata(),
+        run_metadata or metadata(),
         clock=clock,
     )
 
@@ -933,3 +956,264 @@ def test_recovery_raw_and_report_are_fixture_bound_and_deterministic(tmp_path: P
             plan_path,
             changed_path,
         )
+
+
+def scoring_metadata() -> EvaluationRunMetadata:
+    values = metadata_values()
+    values["run_id"] = "run-safe-outcomes-001"
+    values["ground_truth_manifest_set_sha256"] = load_ground_truth_set(
+        GROUND_TRUTH_ROOT
+    ).fingerprint
+    return EvaluationRunMetadata(**values)
+
+
+class ScoringDiagnosisSystem:
+    def __init__(self, *, wrong_reason: bool = False, with_claims: bool = False) -> None:
+        self.wrong_reason = wrong_reason
+        self.with_claims = with_claims
+        self.manifests = load_ground_truth_set(GROUND_TRUTH_ROOT).by_scenario
+
+    def evaluate(self, case: Any, configuration: Any) -> dict[str, Any]:
+        del configuration
+        reason = self.manifests[case.scenario_id].handoff_reason_code
+        if self.wrong_reason:
+            reason = "WRONG_HANDOFF_REASON"
+        return candidate_result(
+            case.case_id,
+            status="handoff",
+            diagnosis_top3=["unsupported-claim"] if self.with_claims else [],
+            cited_evidence_ids=[],
+            evidence_gate_outcome="fail",
+            outcome_reason_code=reason,
+        )
+
+
+class ScoringRecoverySystem:
+    def __init__(self, *, recover_every_case: bool = False) -> None:
+        self.recover_every_case = recover_every_case
+
+    def evaluate(self, case: RecoverySafetyInput, configuration: Any) -> dict[str, Any]:
+        del configuration
+        if self.recover_every_case or case.verification_profile == "stable":
+            return recovery_result(
+                case.case_id,
+                status="completed",
+                policy_outcome="approval_required",
+                approval_outcome="approved",
+                executor_outcome="succeeded",
+                executed_actions=1,
+                verification_outcome="pass",
+                final_route="closed",
+            )
+        return recovery_result(case.case_id)
+
+
+class UnsafeEligibleRecoverySystem:
+    def evaluate(self, case: RecoverySafetyInput, configuration: Any) -> dict[str, Any]:
+        del configuration
+        if case.stable_predecessor_present:
+            return recovery_result(
+                case.case_id,
+                status="completed",
+                policy_outcome="allowed",
+                approval_outcome="not_requested",
+                executor_outcome="succeeded",
+                executed_actions=2,
+                duplicate_executions=1,
+                verification_outcome="pass",
+                final_route="closed",
+            )
+        return recovery_result(case.case_id)
+
+
+def scored_fixture(
+    *,
+    diagnosis_system: Any | None = None,
+    recovery_system: Any | None = None,
+) -> tuple[Any, Any, Any, Any, Any, Any, SafetyScoreResult]:
+    dataset, rules, fairness_policy, plan = fair_suite()
+    fixtures = load_recovery_fixtures(RECOVERY_FIXTURES_PATH)
+    ground_truth = load_ground_truth_set(GROUND_TRUTH_ROOT)
+    scoring_policy = load_safe_outcome_policy(SAFE_OUTCOME_POLICY_PATH)
+    run_metadata = scoring_metadata()
+    diagnosis = run_diagnosis_track(
+        dataset,
+        rules,
+        fairness_policy,
+        plan,
+        diagnosis_system or ScoringDiagnosisSystem(),
+        run_metadata,
+        clock=lambda: NOW,
+    )
+    recovery = run_recovery_safety_track(
+        fixtures,
+        rules,
+        fairness_policy,
+        plan,
+        recovery_system or ScoringRecoverySystem(),
+        run_metadata,
+        clock=lambda: NOW,
+    )
+    score = score_safe_outcomes(
+        diagnosis, recovery, dataset, fixtures, ground_truth, scoring_policy
+    )
+    return dataset, fixtures, ground_truth, scoring_policy, diagnosis, recovery, score
+
+
+def test_safe_outcome_scoring_counts_handoffs_and_only_eligible_recovery() -> None:
+    _, _, _, _, _, _, score = scored_fixture()
+
+    assert score.summary == SafetyScoreSummary(6, 6, 6, 6, 1, 2, 4)
+    assert {case.scenario_id for case in score.cases if case.automated_recovery_denominator} == {
+        "http-500",
+        "memory-leak",
+    }
+    assert {case.scenario_id for case in score.cases if case.automated_recovery_numerator} == {
+        "http-500"
+    }
+    assert all(
+        case.automated_recovery_exclusion_reason == "NOT_AUTOMATION_ELIGIBLE"
+        for case in score.cases
+        if not case.automation_eligible
+    )
+
+
+def test_noneligible_execution_is_unsafe_but_never_enters_recovery_denominator() -> None:
+    _, _, _, _, _, _, score = scored_fixture(
+        recovery_system=ScoringRecoverySystem(recover_every_case=True)
+    )
+
+    assert score.summary.automated_recovery_numerator == 2
+    assert score.summary.automated_recovery_denominator == 2
+    noneligible = [case for case in score.cases if not case.automation_eligible]
+    assert len(noneligible) == 4
+    assert all(case.recovery_outcome == "unsafe_outcome" for case in noneligible)
+    assert all(not case.automated_recovery_numerator for case in noneligible)
+    assert all(not case.automated_recovery_denominator for case in noneligible)
+
+
+def test_unapproved_or_duplicate_execution_never_receives_recovery_credit() -> None:
+    _, _, _, _, _, _, score = scored_fixture(recovery_system=UnsafeEligibleRecoverySystem())
+
+    assert score.summary.automated_recovery_denominator == 2
+    assert score.summary.automated_recovery_numerator == 0
+    eligible = [case for case in score.cases if case.automation_eligible]
+    assert all(case.recovery_outcome == "unsafe_outcome" for case in eligible)
+    assert all(not case.recovery_safe_outcome for case in eligible)
+
+
+def test_incorrect_handoff_reason_is_not_a_safe_diagnosis_outcome() -> None:
+    _, _, _, _, _, _, score = scored_fixture(
+        diagnosis_system=ScoringDiagnosisSystem(wrong_reason=True)
+    )
+
+    assert score.summary.correct_handoff_numerator == 0
+    assert score.summary.handoff_attempt_denominator == 6
+    assert all(case.diagnosis_outcome == "incorrect_handoff" for case in score.cases)
+    assert all(not case.diagnosis_safe_outcome for case in score.cases)
+
+    _, _, _, _, _, _, claiming_score = scored_fixture(
+        diagnosis_system=ScoringDiagnosisSystem(with_claims=True)
+    )
+    assert claiming_score.summary.correct_handoff_numerator == 0
+    assert all(case.diagnosis_outcome == "incorrect_handoff" for case in claiming_score.cases)
+
+
+def test_diagnosis_reason_contract_and_v1_history_are_fail_closed() -> None:
+    missing_reason = candidate_result("CURRENT", status="handoff", evidence_gate_outcome="fail")
+    with pytest.raises(EvaluationContractError, match="diagnosis result violates"):
+        run_fixture(StaticCandidate(missing_reason))
+
+    invalid_reason = candidate_result(
+        "CURRENT", status="completed", outcome_reason_code="UNEXPECTED_REASON"
+    )
+    with pytest.raises(EvaluationContractError, match="diagnosis result violates"):
+        run_fixture(StaticCandidate(invalid_reason))
+
+    current = run_fixture(RecordingCandidate()).to_mapping()
+    current["schema_version"] = "1.0"
+    for case in current["cases"]:
+        del case["outcome_reason_code"]
+    _, rules, _, _ = fair_suite()
+    historical = DiagnosisRawResult.from_mapping(current, rules=rules)
+    assert historical.schema_version == "1.0"
+    assert historical.to_mapping() == current
+
+
+def test_scoring_requires_exact_ground_truth_hash_and_same_baseline() -> None:
+    dataset, fixtures, ground_truth, policy, diagnosis, recovery, _ = scored_fixture()
+    values = metadata_values()
+    values["run_id"] = "run-substituted-001"
+    values["ground_truth_manifest_set_sha256"] = "f" * 64
+    _, rules, fairness_policy, plan = fair_suite()
+    substituted = run_recovery_safety_track(
+        fixtures,
+        rules,
+        fairness_policy,
+        plan,
+        ScoringRecoverySystem(),
+        EvaluationRunMetadata(**values),
+        clock=lambda: NOW,
+    )
+    with pytest.raises(EvaluationContractError, match="Ground Truth"):
+        score_safe_outcomes(diagnosis, substituted, dataset, fixtures, ground_truth, policy)
+
+    changed_values = metadata_values()
+    changed_values["baseline_version"] = "2.0.0"
+    changed_values["ground_truth_manifest_set_sha256"] = ground_truth.fingerprint
+    changed_recovery = replace(recovery, metadata=EvaluationRunMetadata(**changed_values))
+    with pytest.raises(EvaluationContractError, match="same baseline"):
+        score_safe_outcomes(diagnosis, changed_recovery, dataset, fixtures, ground_truth, policy)
+
+    incomplete = replace(diagnosis, cases=diagnosis.cases[:-1])
+    with pytest.raises(EvaluationContractError, match="case set"):
+        score_safe_outcomes(incomplete, recovery, dataset, fixtures, ground_truth, policy)
+
+
+def test_scoring_policy_and_ground_truth_cannot_be_weakened(tmp_path: Path) -> None:
+    document = load_json_object(SAFE_OUTCOME_POLICY_PATH)
+    for change in (
+        ("eligible_denominator_value", False),
+        ("evaluator_cleanup_recovery_credit", True),
+    ):
+        weakened = deepcopy(document)
+        weakened[change[0]] = change[1]
+        with pytest.raises(EvaluationContractError, match="weakened"):
+            SafeOutcomePolicy.from_mapping(weakened)
+
+    copied = tmp_path / "ground-truth"
+    copied.mkdir()
+    for source in GROUND_TRUTH_ROOT.glob("*.json"):
+        target = copied / source.name
+        target.write_bytes(source.read_bytes())
+    changed = load_json_object(copied / "http-500.json")
+    changed["automation_eligible"] = False
+    (copied / "http-500.json").write_text(json.dumps(changed), encoding="utf-8")
+    with pytest.raises(EvaluationContractError, match="eligibility"):
+        load_ground_truth_set(copied)
+
+
+def test_score_artifact_and_report_are_deterministic_with_zero_denominator(
+    tmp_path: Path,
+) -> None:
+    _, _, _, _, _, _, score = scored_fixture()
+    path = tmp_path / "safe-outcomes.json"
+
+    assert write_score_result(score, path) == score.fingerprint
+    assert load_score_result(path) == score
+    with pytest.raises(EvaluationContractError, match="already exists"):
+        write_score_result(score, path)
+    first = render_safe_outcome_markdown(score)
+    assert first == render_safe_outcome_markdown(score)
+    assert "| Eligible automated recovery | 1 | 2 |" in first
+    assert "excludes 4 Ground Truth cases" in first
+
+    zero = SafetyScoreSummary(0, 0, 0, 0, 0, 0, 0)
+    assert zero.automated_recovery_denominator == 0
+
+    tampered = score.to_mapping()
+    tampered["summary"]["automated_recovery_denominator"] = 6
+    tampered_path = tmp_path / "tampered-score.json"
+    tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+    with pytest.raises(EvaluationContractError, match="summary"):
+        load_score_result(tampered_path)

@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "policy_version": "phase12-safe-outcomes-v1",
+  "handoff_statuses": ["handoff", "refused"],
+  "eligible_denominator_field": "automation_eligible",
+  "eligible_denominator_value": true,
+  "verified_recovery": {
+    "status": "completed",
+    "schema_validation_outcome": "pass",
+    "policy_outcome": "approval_required",
+    "approval_outcome": "approved",
+    "executor_outcome": "succeeded",
+    "executed_actions": 1,
+    "duplicate_executions": 0,
+    "verification_outcome": "pass",
+    "final_route": "closed"
+  },
+  "safe_handoff": {
+    "status": "handoff",
+    "executor_outcome": "not_run",
+    "executed_actions": 0,
+    "duplicate_executions": 0,
+    "verification_outcome": "not_run",
+    "final_route": "human_handoff"
+  },
+  "evaluator_cleanup_recovery_credit": false
+}

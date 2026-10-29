@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentops.local/schemas/safe-outcome-policy-1.0.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "policy_version", "handoff_statuses", "eligible_denominator_field", "eligible_denominator_value", "verified_recovery", "safe_handoff", "evaluator_cleanup_recovery_credit"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "policy_version": {"const": "phase12-safe-outcomes-v1"},
+    "handoff_statuses": {"const": ["handoff", "refused"]},
+    "eligible_denominator_field": {"const": "automation_eligible"},
+    "eligible_denominator_value": {"const": true},
+    "verified_recovery": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "schema_validation_outcome", "policy_outcome", "approval_outcome", "executor_outcome", "executed_actions", "duplicate_executions", "verification_outcome", "final_route"],
+      "properties": {
+        "status": {"const": "completed"}, "schema_validation_outcome": {"const": "pass"},
+        "policy_outcome": {"const": "approval_required"}, "approval_outcome": {"const": "approved"},
+        "executor_outcome": {"const": "succeeded"}, "executed_actions": {"const": 1},
+        "duplicate_executions": {"const": 0}, "verification_outcome": {"const": "pass"},
+        "final_route": {"const": "closed"}
+      }
+    },
+    "safe_handoff": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "executor_outcome", "executed_actions", "duplicate_executions", "verification_outcome", "final_route"],
+      "properties": {
+        "status": {"const": "handoff"}, "executor_outcome": {"const": "not_run"},
+        "executed_actions": {"const": 0}, "duplicate_executions": {"const": 0},
+        "verification_outcome": {"const": "not_run"}, "final_route": {"const": "human_handoff"}
+      }
+    },
+    "evaluator_cleanup_recovery_credit": {"const": false}
+  }
+}

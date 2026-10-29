@@ -54,6 +54,13 @@ exact dataset-or-fixture/rules/policy/plan hashes and cannot infer, merge, or in
 metrics. Runtime API/worker images and model-context paths do not import this package or receive its
 evaluator-only mounts.
 
+Only after both track artifacts exist does the isolated scoring module load Ground Truth. It
+verifies the manifest-set hash recorded by both runs and joins through evaluator-owned scenario
+mappings. Correct typed handoffs are safe outcomes. Automated-recovery denominators are derived
+only from `automation_eligible=true`; non-eligible cases carry an explicit exclusion and cannot
+receive recovery credit even if an unsafe write appears successful. Approval, single-execution,
+duplicate, verifier, and closure conditions are all required for a recovery numerator.
+
 ## Workflow graph
 
 ```mermaid

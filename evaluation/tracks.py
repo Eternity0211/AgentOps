@@ -22,7 +22,8 @@ from evaluation.contracts import (
 
 DIAGNOSIS_TRACK = "diagnosis"
 RECOVERY_SAFETY_TRACK = "recovery-safety"
-DIAGNOSIS_RAW_SCHEMA_VERSION = "1.0"
+DIAGNOSIS_RAW_SCHEMA_VERSION = "1.1"
+SUPPORTED_DIAGNOSIS_RAW_SCHEMA_VERSIONS = frozenset({"1.0", "1.1"})
 RECOVERY_RAW_SCHEMA_VERSION = "1.0"
 RECOVERY_FIXTURE_SCHEMA_VERSION = "1.0"
 ALLOWED_GATE_OUTCOMES = frozenset({"fail", "not_run", "pass"})
@@ -128,6 +129,7 @@ class DiagnosisCaseResult:
     diagnosis_top3: tuple[str, ...]
     cited_evidence_ids: tuple[str, ...]
     evidence_gate_outcome: str
+    outcome_reason_code: str | None
     tool_calls: int
     input_tokens: int
     output_tokens: int
@@ -137,27 +139,35 @@ class DiagnosisCaseResult:
 
     @classmethod
     def from_mapping(
-        cls, value: object, *, case_id: str, limits: EvaluationLimits
+        cls,
+        value: object,
+        *,
+        case_id: str,
+        limits: EvaluationLimits,
+        schema_version: str = DIAGNOSIS_RAW_SCHEMA_VERSION,
     ) -> DiagnosisCaseResult:
         if not isinstance(value, dict):
             raise EvaluationContractError("diagnosis result must be an object")
+        expected = {
+            "case_id",
+            "cited_evidence_ids",
+            "cost_microusd",
+            "diagnosis_top3",
+            "duration_ms",
+            "error_code",
+            "evidence_gate_outcome",
+            "input_tokens",
+            "output_tokens",
+            "status",
+            "tool_calls",
+        }
+        if schema_version == "1.1":
+            expected.add("outcome_reason_code")
+        elif schema_version != "1.0":
+            raise EvaluationContractError("unsupported diagnosis result schema")
         _exact_keys(
             value,
-            frozenset(
-                {
-                    "case_id",
-                    "cited_evidence_ids",
-                    "cost_microusd",
-                    "diagnosis_top3",
-                    "duration_ms",
-                    "error_code",
-                    "evidence_gate_outcome",
-                    "input_tokens",
-                    "output_tokens",
-                    "status",
-                    "tool_calls",
-                }
-            ),
+            frozenset(expected),
             name="diagnosis result",
         )
         if value["case_id"] != case_id:
@@ -170,6 +180,13 @@ class DiagnosisCaseResult:
         )
         if gate not in ALLOWED_GATE_OUTCOMES:
             raise EvaluationContractError("Evidence Gate outcome is not allowlisted")
+        outcome_reason = (
+            _stable_error_code(value["outcome_reason_code"]) if schema_version == "1.1" else None
+        )
+        if status in {"handoff", "refused"} and outcome_reason is None:
+            raise EvaluationContractError("handoff or refusal requires an outcome reason code")
+        if status not in {"handoff", "refused"} and outcome_reason is not None:
+            raise EvaluationContractError("outcome reason code is limited to handoff or refusal")
         result = cls(
             case_id,
             status,
@@ -186,6 +203,7 @@ class DiagnosisCaseResult:
                 item_maximum=128,
             ),
             gate,
+            outcome_reason,
             _integer(
                 value["tool_calls"],
                 name="tool calls",
@@ -224,10 +242,23 @@ class DiagnosisCaseResult:
 
     @classmethod
     def adapter_failure(cls, case_id: str) -> DiagnosisCaseResult:
-        return cls(case_id, "failed", (), (), "not_run", 0, 0, 0, 0, 0, "ADAPTER_FAILURE")
+        return cls(
+            case_id,
+            "failed",
+            (),
+            (),
+            "not_run",
+            None,
+            0,
+            0,
+            0,
+            0,
+            0,
+            "ADAPTER_FAILURE",
+        )
 
-    def to_mapping(self) -> dict[str, Any]:
-        return {
+    def to_mapping(self, *, schema_version: str = DIAGNOSIS_RAW_SCHEMA_VERSION) -> dict[str, Any]:
+        value: dict[str, Any] = {
             "case_id": self.case_id,
             "cited_evidence_ids": list(self.cited_evidence_ids),
             "cost_microusd": self.cost_microusd,
@@ -240,6 +271,11 @@ class DiagnosisCaseResult:
             "status": self.status,
             "tool_calls": self.tool_calls,
         }
+        if schema_version == "1.1":
+            value["outcome_reason_code"] = self.outcome_reason_code
+        elif schema_version != "1.0":
+            raise EvaluationContractError("unsupported diagnosis result schema")
+        return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -638,22 +674,25 @@ class DiagnosisRawResult:
     binding: TrackBinding
     created_at: datetime
     cases: tuple[DiagnosisCaseResult, ...]
+    schema_version: str = DIAGNOSIS_RAW_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
         _identifier(self.dataset_version, name="diagnosis dataset version")
         _sha256(self.dataset_sha256, name="diagnosis dataset SHA-256")
+        if self.schema_version not in SUPPORTED_DIAGNOSIS_RAW_SCHEMA_VERSIONS:
+            raise EvaluationContractError("unsupported diagnosis raw-result contract")
         _validate_created_at(self.created_at, self.metadata)
         _validate_case_order([case.case_id for case in self.cases])
 
     def to_mapping(self) -> dict[str, Any]:
         return {
             "binding": self.binding.to_mapping(),
-            "cases": [case.to_mapping() for case in self.cases],
+            "cases": [case.to_mapping(schema_version=self.schema_version) for case in self.cases],
             "created_at": self.created_at.isoformat().replace("+00:00", "Z"),
             "dataset_sha256": self.dataset_sha256,
             "dataset_version": self.dataset_version,
             "metadata": self.metadata.to_mapping(),
-            "schema_version": DIAGNOSIS_RAW_SCHEMA_VERSION,
+            "schema_version": self.schema_version,
             "track": DIAGNOSIS_TRACK,
         }
 
@@ -678,7 +717,7 @@ class DiagnosisRawResult:
             name="diagnosis raw result",
         )
         if (
-            value["schema_version"] != DIAGNOSIS_RAW_SCHEMA_VERSION
+            value["schema_version"] not in SUPPORTED_DIAGNOSIS_RAW_SCHEMA_VERSIONS
             or value["track"] != DIAGNOSIS_TRACK
         ):
             raise EvaluationContractError("unsupported diagnosis raw-result contract")
@@ -693,7 +732,12 @@ class DiagnosisRawResult:
             if not isinstance(item, dict) or not isinstance(item.get("case_id"), str):
                 raise EvaluationContractError("diagnosis raw case is malformed")
             cases.append(
-                DiagnosisCaseResult.from_mapping(item, case_id=item["case_id"], limits=rules.limits)
+                DiagnosisCaseResult.from_mapping(
+                    item,
+                    case_id=item["case_id"],
+                    limits=rules.limits,
+                    schema_version=value["schema_version"],
+                )
             )
         return cls(
             EvaluationRunMetadata.from_mapping(value["metadata"]),
@@ -702,6 +746,7 @@ class DiagnosisRawResult:
             TrackBinding.from_mapping(binding_value, rules=rules),
             _utc_datetime(value["created_at"], name="diagnosis raw timestamp"),
             tuple(cases),
+            value["schema_version"],
         )
 
     @property

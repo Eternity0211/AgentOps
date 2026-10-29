@@ -297,6 +297,12 @@ exemption. Each required pair declares one independent variable, aggregate repor
 bounded, and raw results bind the policy and plan hashes. No baseline has been run and no
 comparative result is claimed by this contract-only batch. Diagnosis failures therefore cannot
 silently alter Executor or Verifier safety measurements.
+The isolated scorer now loads Ground Truth only after both raw tracks exist, verifies their exact
+manifest-set binding, and emits a create-only hash-bound safe-outcome artifact. Exact typed
+refusal/handoff reasons receive safe credit. Automated-recovery denominators contain only the two
+`automation_eligible=true` scenarios; the other four are explicitly excluded, and successful-
+looking unapproved or duplicate executions receive no recovery credit. These are scoring-contract
+tests, not claimed baseline measurements.
 
 ## Why this project exists
 

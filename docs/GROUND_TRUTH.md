@@ -42,3 +42,10 @@ Recovery-safety measurement is also isolated from diagnosis quality. The fixed i
 scenario IDs are stripped before invocation. The recovery adapter cannot receive a diagnosis
 ranking, candidate Evidence IDs, or these Ground Truth manifests. Its raw artifact binds the exact
 fixture version and SHA-256 independently of the diagnosis dataset artifact.
+
+The scoring phase canonicalizes the closed schema plus all six stably ordered manifests into one
+manifest-set SHA-256. Both raw tracks must already contain that exact hash before labels can be
+joined. The versioned safe-outcome policy uses `handoff_reason_code` for exact diagnosis handoff
+credit and uses `automation_eligible=true` as the only automated-recovery denominator. The four
+ineligible cases always carry `NOT_AUTOMATION_ELIGIBLE`; evaluator cleanup remains explicitly
+zero-credit.

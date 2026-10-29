@@ -277,7 +277,7 @@ Exit: one correlation ID reconstructs the incident and agent-control flow withou
   - [x] Bind historical-only memory and implement the otherwise-identical graph runner.
 - [x] Report Top-1/Top-3 root cause, unsupported conclusions, fabricated references, correct refusal/handoff, diagnosis time, tool calls, tokens/cost, proposal correctness, dangerous-action blocks, unapproved/duplicate executions, eligible recovery, safe outcomes, future compensation, and worker recovery with explicit denominators.
   - [x] Define the versioned four-baseline metrics policy, create-only report generator, and measured worker-resilience runner.
-- [ ] Add configured evaluation regression gates for prompt/model/policy promotion based on measured baselines.
+- [x] Add configured evaluation regression gates for prompt/model/policy promotion based on measured baselines.
 - [ ] Add bounded concurrency/load tests for API, job leasing, evidence queries, and workers; report observed limits without production-scale claims.
 
 Exit: versioned raw results reproduce every published claim and all required safety/resilience suites pass.

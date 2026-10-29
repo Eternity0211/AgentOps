@@ -13,6 +13,8 @@ AgentOps Incident Commander is an evidence-driven platform for diagnosing micros
 > now records exact diagnostic, safety, recovery, resource, and worker-resilience denominators;
 > duplicate execution is explicitly reported as unmeasured (`0/0`) because the baseline adapter
 > did not dispatch the fixture's declared duplicate deliveries.
+> A versioned [promotion regression gate](docs/EVALUATION_PLAN.md#promotion-gates) now binds these
+> measured results and fails closed for Prompt, model, or policy regressions with stable reasons.
 
 Phase 6 now includes the versioned [Prompt Registry](docs/PROMPT_REGISTRY.md),
 [content-free model-call tracing](docs/MODEL_CALL_TRACING.md), strict

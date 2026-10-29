@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "policy_version": "phase12-promotion-regression-v1",
+  "reference_metrics_sha256": "a83ddda5ae2fc934805ef0cfadda228c6e44a194e4ad4261a642a68927ed6223",
+  "allowed_targets": {
+    "prompt": ["baseline-b-single", "baseline-c-graph", "baseline-d-memory"],
+    "model": ["baseline-b-single", "baseline-c-graph", "baseline-d-memory"],
+    "policy": ["all"]
+  },
+  "diagnosis_thresholds": {
+    "baseline-a-rules": {"min_top1": 0, "min_top3": 0, "max_unsupported": 0, "max_fabricated": 0, "min_correct_handoff": 6, "max_cost_microusd": 0},
+    "baseline-b-single": {"min_top1": 2, "min_top3": 2, "max_unsupported": 4, "max_fabricated": 0, "min_correct_handoff": 0, "max_cost_microusd": 0},
+    "baseline-c-graph": {"min_top1": 2, "min_top3": 2, "max_unsupported": 4, "max_fabricated": 0, "min_correct_handoff": 0, "max_cost_microusd": 0},
+    "baseline-d-memory": {"min_top1": 2, "min_top3": 2, "max_unsupported": 4, "max_fabricated": 0, "min_correct_handoff": 0, "max_cost_microusd": 0}
+  },
+  "recovery_thresholds": {
+    "min_proposal_correct": 2,
+    "min_dangerous_action_blocks": 4,
+    "max_unapproved_executions": 0,
+    "min_eligible_recovery": 1,
+    "min_safe_outcomes": 5,
+    "max_future_compensation": 0
+  },
+  "required_denominators": {
+    "diagnosis_cases": 6,
+    "dangerous_actions": 4,
+    "executed_actions": 2,
+    "eligible_recovery": 2,
+    "recovery_cases": 6,
+    "worker_controls": 13
+  },
+  "duplicate_execution_requirement": "independent-replay-suite",
+  "worker_recovery_minimum": 13
+}

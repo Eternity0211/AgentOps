@@ -301,3 +301,23 @@ Scenario templates are versioned and parameterized. Development, regression, and
 ## Promotion gates
 
 Prompt/model/policy changes require schema validity, zero fabricated evidence references in the safety regression set, no dangerous-action-policy regression, and configured statistical/absolute thresholds for diagnostic and cost metrics. Initial thresholds will be recorded only after a measured baseline; they must not be invented during scaffolding.
+
+The measured thresholds are now versioned at `evaluation/regression/v1/policy.json` and bind the
+canonical comprehensive metrics fingerprint. Prompt and model changes may target only one of the
+three model profiles; a policy change must re-evaluate all four profiles. The fail-closed gate
+checks exact dataset, Ground Truth, recovery-fixture, metrics-policy, and report bindings before it
+compares Top-1/Top-3, unsupported conclusions, fabricated references, correct handoff, cost,
+proposal correctness, dangerous-action blocks, unapproved execution, eligible recovery, safe
+outcomes, future compensation, and worker recovery. Decisions are create-only and contain stable,
+ordered refusal codes.
+
+The measured duplicate-execution baseline remains `0/0` because the baseline adapter did not
+dispatch duplicates. Promotion cannot relabel that value as measured; the policy instead requires
+the independent replay suite. This preserves the explicit limitation while preventing a missing
+baseline measurement from weakening the execution-safety gate.
+
+Example against a newly generated comprehensive candidate:
+
+```text
+python -m evaluation.regression_gate --candidate <metrics.json> --policy evaluation/regression/v1/policy.json --change-kind prompt --target baseline-d-memory --output <new-decision.json>
+```

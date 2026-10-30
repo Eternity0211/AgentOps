@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "plan_version": "phase12-bounded-load-v1",
+  "workloads": [
+    {"workload_id": "api-health", "operations": 128, "concurrency": 8, "test_node": "tests/load/test_bounded_load.py::test_bounded_api_health_load"},
+    {"workload_id": "evidence-query", "operations": 64, "concurrency": 8, "test_node": "tests/integration/test_persistence.py::test_bounded_evidence_query_load"},
+    {"workload_id": "job-leasing", "operations": 64, "concurrency": 8, "test_node": "tests/integration/test_persistence.py::test_bounded_job_lease_load"},
+    {"workload_id": "worker-processing", "operations": 64, "concurrency": 4, "test_node": "tests/load/test_bounded_load.py::test_bounded_worker_processing_load"}
+  ]
+}

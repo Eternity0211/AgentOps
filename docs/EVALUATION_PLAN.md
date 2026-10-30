@@ -321,3 +321,18 @@ Example against a newly generated comprehensive candidate:
 ```text
 python -m evaluation.regression_gate --candidate <metrics.json> --policy evaluation/regression/v1/policy.json --change-kind prompt --target baseline-d-memory --output <new-decision.json>
 ```
+
+## Bounded local load plan
+
+The fixed `evaluation/load/v1/plan.json` covers 128 in-process API health requests at concurrency
+8, 64 PostgreSQL Job leases across eight claimers, 64 owned PostgreSQL Evidence reads at
+concurrency 8, and 64 in-process worker items at the configured limit of 4. The database workloads
+run against the same temporary PostgreSQL/pgvector image as the integration suite. Each workload
+must complete every configured operation without duplicate Job ownership, missing Evidence,
+failed HTTP responses, or worker concurrency overflow.
+
+The create-only runner records the exact committed revision, plan hash, Python/platform/hardware,
+operation counts, concurrency, per-workload JUnit duration, and derived local operations per
+second. The measured result remains pending execution from the committed runner revision. These
+small component-level samples are explicitly not production throughput, capacity, availability,
+or reliability claims and cannot by themselves justify Kafka, NATS, or another broker.

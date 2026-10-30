@@ -18,6 +18,7 @@ from uuid import uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
+from evaluation.contracts import load_json_object
 from fastapi import FastAPI, Request
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete, func, select, text
@@ -310,6 +311,10 @@ from agentops_incident_commander.workflows import (
 )
 
 NOW = datetime(2026, 10, 3, 8, 0, tzinfo=UTC)
+LOAD_PLAN = load_json_object(
+    Path(__file__).resolve().parents[2] / "evaluation" / "load" / "v1" / "plan.json"
+)
+LOAD_WORKLOADS = {item["workload_id"]: item for item in LOAD_PLAN["workloads"]}
 
 
 class RecordingControlPlaneObserver:
@@ -7868,3 +7873,83 @@ async def test_postmortem_revision_rows_are_append_only_and_audit_binding_is_req
             await PostmortemRevisionRepository(session).latest(
                 initial.tenant_id, initial.incident_id
             )
+
+
+@pytest.mark.anyio
+async def test_bounded_job_lease_load(engine: AsyncEngine) -> None:
+    """Measure a fixed 64-job, eight-claimer PostgreSQL leasing wave."""
+    config = LOAD_WORKLOADS["job-leasing"]
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        await add_job_incident(session)
+        repository = JobRepository(session)
+        for index in range(config["operations"]):
+            await repository.enqueue(job(f"job-load-{index}", priority=index % 100))
+
+    async def claim(index: int) -> tuple[str, ...]:
+        async with sessions.begin() as session:
+            leases = await JobRepository(session).claim(
+                OpaqueIdentifier(f"worker-load-{index}"),
+                now=NOW,
+                lease_duration=timedelta(minutes=1),
+                limit=config["operations"] // config["concurrency"],
+            )
+            return tuple(lease.job.id.value for lease in leases)
+
+    waves = await asyncio.gather(*(claim(index) for index in range(config["concurrency"])))
+    claimed = [job_id for wave in waves for job_id in wave]
+    assert len(claimed) == config["operations"]
+    assert len(set(claimed)) == config["operations"]
+    assert all(len(wave) <= config["operations"] // config["concurrency"] for wave in waves)
+
+
+@pytest.mark.anyio
+async def test_bounded_evidence_query_load(engine: AsyncEngine) -> None:
+    """Measure fixed concurrent owned Evidence lookups against PostgreSQL."""
+    config = LOAD_WORKLOADS["evidence-query"]
+    tenant = "tenant-load-evidence"
+    incident = "incident-load-evidence"
+    await add_incident(engine, incident, tenant=tenant)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    base_artifact = evidence_artifact(tenant=tenant, incident=incident)
+    base_evidence = evidence_record(tenant=tenant, incident=incident)
+    evidence_ids: list[EvidenceId] = []
+    async with sessions.begin() as session:
+        repository = EvidenceRepository(session)
+        for index in range(config["operations"]):
+            digest = Sha256Digest(hashlib.sha256(f"evidence-load-{index}".encode()).hexdigest())
+            artifact = replace(
+                base_artifact,
+                id=ArtifactId(f"artifact-load-{index}"),
+                locator=f"local-artifact:v1:artifact-load-{index}",
+                content_hash=digest,
+            )
+            evidence_id = EvidenceId(f"evidence-load-{index}")
+            evidence_ids.append(evidence_id)
+            value = replace(
+                base_evidence,
+                id=evidence_id,
+                artifact_id=artifact.id,
+                content_hash=digest,
+                lineage=EvidenceLineage(
+                    ToolCallId(f"tool-call-load-{index}"),
+                    WorkflowRunId(f"workflow-load-{index}"),
+                    RedactionTransformId(f"redaction-load-{index}"),
+                ),
+            )
+            await repository.add(value, artifact)
+
+    semaphore = asyncio.Semaphore(config["concurrency"])
+
+    async def read(evidence_id: EvidenceId) -> Evidence | None:
+        async with semaphore, sessions() as session:
+            return await EvidenceRepository(session).get(
+                evidence_id,
+                tenant_id=TenantId(tenant),
+                incident_id=IncidentId(incident),
+            )
+
+    results = await asyncio.gather(*(read(evidence_id) for evidence_id in evidence_ids))
+    assert len(results) == config["operations"]
+    assert all(result is not None for result in results)
+    assert {result.id for result in results if result is not None} == set(evidence_ids)

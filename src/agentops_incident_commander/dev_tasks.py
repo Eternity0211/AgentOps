@@ -41,6 +41,11 @@ QUALITY_COMMANDS = (
         60,
     ),
     CommandSpec(
+        "supply-chain",
+        ("uv", "run", "--frozen", "python", "scripts/check_supply_chain.py"),
+        60,
+    ),
+    CommandSpec(
         "types",
         ("uv", "run", "--frozen", "mypy", "src", "scripts", "evaluation", "tests"),
         120,
@@ -958,6 +963,14 @@ def command_specs(
                 60,
             ),
         )
+    if task == "supply-chain":
+        return (
+            CommandSpec(
+                "supply-chain",
+                ("uv", "run", "--frozen", "python", "scripts/check_supply_chain.py"),
+                60,
+            ),
+        )
     if task == "typecheck":
         return (
             CommandSpec(
@@ -1169,6 +1182,7 @@ def build_parser() -> argparse.ArgumentParser:
             "lint",
             "architecture",
             "compose",
+            "supply-chain",
             "typecheck",
             "test",
             "docs",

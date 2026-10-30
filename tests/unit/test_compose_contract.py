@@ -116,7 +116,7 @@ def test_collector_uses_last_published_multi_arch_release(
     assert isinstance(services, dict)
     collector = services["otel-collector"]
     assert isinstance(collector, dict)
-    assert collector["image"] == "otel/opentelemetry-collector-contrib:0.161.0"
+    assert collector["image"].startswith("otel/opentelemetry-collector-contrib:0.161.0@sha256:")
 
 
 def test_grafana_is_read_only_provisioned_and_secret_protected(
@@ -128,7 +128,7 @@ def test_grafana_is_read_only_provisioned_and_secret_protected(
     grafana = services["grafana"]
     assert isinstance(grafana, dict)
 
-    assert grafana["image"] == "grafana/grafana:13.1.5"
+    assert grafana["image"].startswith("grafana/grafana:13.1.5@sha256:")
     assert grafana["environment"]["GF_AUTH_ANONYMOUS_ORG_ROLE"] == "Viewer"
     assert grafana["environment"]["GF_PLUGINS_PREINSTALL_DISABLED"] == "true"
     assert grafana["environment"]["GF_PLUGINS_PREINSTALL_AUTO_UPDATE"] == "false"
@@ -152,7 +152,7 @@ def test_validation_reports_service_and_topology_violations(
     services = invalid["services"]
     assert isinstance(services, dict)
     control = services["control-postgres"]
-    assert control["image"] == "pgvector/pgvector:0.8.6-pg18"
+    assert control["image"].startswith("pgvector/pgvector:0.8.6-pg18@sha256:")
     assert isinstance(control, dict)
     control.update(
         {

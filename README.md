@@ -472,6 +472,7 @@ uv run --frozen ruff format --check .
 uv run --frozen ruff check .
 uv run --frozen python scripts/check_architecture.py
 uv run --frozen python scripts/check_compose.py
+uv run --frozen python scripts/check_supply_chain.py
 uv run --frozen mypy src scripts tests
 uv run --frozen pytest
 uv run --frozen pre-commit run --all-files
@@ -494,6 +495,7 @@ python scripts/dev.py format --write
 python scripts/dev.py lint
 python scripts/dev.py architecture
 python scripts/dev.py compose
+python scripts/dev.py supply-chain
 python scripts/dev.py typecheck
 python scripts/dev.py test --suite unit
 python scripts/dev.py test --suite agent-output
@@ -544,7 +546,13 @@ Copy `.env.example` to the ignored `.env` file, then create the four ignored run
 
 The current topology is intentionally profile-scoped: `control-plane` provides its isolated PostgreSQL store, `simulator` provides the diagnosed PostgreSQL and Redis dependencies, and `observability` provides Prometheus, Loki, Tempo, Grafana, and the OpenTelemetry Collector. Persistent stores use named volumes; runtime root filesystems are read-only; CPU, memory, and process counts are bounded; and published observability ports bind to `127.0.0.1` by default. `python scripts/dev.py compose` renders every profile with synthetic secret sentinels and verifies those invariants without starting containers or exposing the sentinels.
 
-The image tags are explicit release versions selected from the upstream PostgreSQL, Redis, Prometheus, Grafana, Loki, Tempo, and OpenTelemetry Collector release streams. Digest locking and the update/SBOM policy remain a later hardening item and are not claimed here.
+Registry images and both Python bases are locked by readable release tag plus immutable manifest
+digest. The locally built simulator and evaluator use fixed non-root numeric identities, drop all
+capabilities, run with read-only roots, and disable privilege escalation. The commit-pinned CI
+supply-chain job scans vulnerabilities, secrets, and misconfiguration and retains a commit-bound
+CycloneDX repository SBOM. See [Supply-chain security](docs/SUPPLY_CHAIN.md) for the reviewed update
+policy, scanner limitations, upstream-image permission exceptions, and the explicitly future
+release provenance plan.
 
 The simulator includes API Gateway, Order, Inventory, and Payment services plus isolated PostgreSQL and Redis dependencies. Order writes are idempotent, Inventory reservations are atomic and idempotent, and dependency-aware readiness fails closed. Services emit bounded traces, HTTP metrics, and trace-linked logs through the OpenTelemetry Collector toward Prometheus, Loki, and Tempo. Six deterministic scenarios cover deployment-induced HTTP 500s, database pool exhaustion, Redis timeout, downstream latency, memory leak, and bad configuration. Their labels live behind a separate evaluator image, Compose file/profile, internal network, read-only path, and credential; runtime/model-capable paths are protected by leakage-canary tests.
 
@@ -581,6 +589,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Deterministic health verification](docs/HEALTH_VERIFICATION.md)
 - [Constrained postmortem drafting and versioned human revisions](docs/POSTMORTEM.md)
 - [Threat model](docs/THREAT_MODEL.md)
+- [Supply-chain security](docs/SUPPLY_CHAIN.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)
 - [Local Compose foundation](docs/COMPOSE.md)

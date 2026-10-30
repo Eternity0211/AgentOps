@@ -46,7 +46,7 @@ dev = [
 
 [tool.uv]
 default-groups = ["dev"]
-required-version = ">=0.12.5,<0.13"
+required-version = ">=0.13.4,<0.14"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/agentops_incident_commander"]

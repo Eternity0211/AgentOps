@@ -1,15 +1,20 @@
-FROM python:3.12.14-slim
+FROM python:3.12.14-slim@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-RUN groupadd --system evaluator \
-    && useradd --system --gid evaluator --no-create-home evaluator
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends \
+        openssl=3.5.7-1~deb13u3 \
+        libpcre2-8-0=10.46-1~deb13u3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system --gid 10002 evaluator \
+    && useradd --system --uid 10002 --gid evaluator --no-create-home evaluator
 
 COPY evaluation/verify_ground_truth.py /app/verify_ground_truth.py
 
-USER evaluator:evaluator
+USER 10002:10002
 
 ENTRYPOINT ["python", "/app/verify_ground_truth.py"]

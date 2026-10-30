@@ -21,13 +21,14 @@ def test_quality_task_has_stable_bounded_order() -> None:
         "lint",
         "architecture",
         "compose",
+        "supply-chain",
         "types",
         "tests",
         "planning-docs",
         "build",
     ]
     assert all(command.timeout_seconds > 0 for command in commands)
-    assert commands[6].timeout_seconds == 300
+    assert commands[7].timeout_seconds == 300
     assert commands[-1].argv == ("uv", "build", "--offline", "--no-sources")
 
 
@@ -38,6 +39,7 @@ def test_quality_task_has_stable_bounded_order() -> None:
         ("lint", "lint"),
         ("architecture", "architecture"),
         ("compose", "compose"),
+        ("supply-chain", "supply-chain"),
         ("typecheck", "types"),
         ("test", "unit-safety-tests"),
         ("docs", "planning-docs"),
@@ -60,7 +62,7 @@ def test_smoke_suite_is_bounded_and_does_not_weaken_the_full_gate() -> None:
 
     assert command.label == "smoke-tests"
     assert command.argv[-3:] == ("pytest", "--no-cov", "tests/smoke")
-    assert dev_tasks.QUALITY_COMMANDS[6].argv == ("uv", "run", "--frozen", "pytest")
+    assert dev_tasks.QUALITY_COMMANDS[7].argv == ("uv", "run", "--frozen", "pytest")
 
 
 def test_unit_suite_is_a_fixed_core_safety_coverage_gate() -> None:
@@ -156,7 +158,7 @@ def test_external_integration_suite_checks_docker_then_runs_only_owned_tests() -
     )
     assert commands[0].timeout_seconds == 15
     assert commands[1].timeout_seconds == 300
-    assert dev_tasks.QUALITY_COMMANDS[6].argv == ("uv", "run", "--frozen", "pytest")
+    assert dev_tasks.QUALITY_COMMANDS[7].argv == ("uv", "run", "--frozen", "pytest")
 
 
 def test_e2e_suite_binds_six_scenarios_to_the_real_recovery_chain() -> None:

@@ -1,4 +1,4 @@
-FROM python:3.12.14-slim
+FROM python:3.12.14-slim@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -7,13 +7,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN groupadd --system --gid 10001 simulator \
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends \
+        openssl=3.5.7-1~deb13u3 \
+        libpcre2-8-0=10.46-1~deb13u3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system --gid 10001 simulator \
     && useradd --system --uid 10001 --gid simulator --home-dir /app simulator
 
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
-RUN pip install --no-cache-dir uv==0.12.20 \
+RUN pip install --no-cache-dir uv==0.13.4 \
     && uv sync --frozen --no-dev \
+    && pip uninstall --yes uv \
     && chown -R simulator:simulator /app
 
 USER 10001:10001

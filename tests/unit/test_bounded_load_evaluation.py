@@ -12,6 +12,7 @@ from evaluation.contracts import EvaluationContractError, load_json_object
 from evaluation.run_bounded_load_evaluation import (
     LoadExecution,
     execute_bounded_load_evaluation,
+    junit_name_matches,
     load_plan,
 )
 
@@ -40,6 +41,13 @@ def test_load_plan_is_closed_bounded_and_covers_required_surfaces() -> None:
     assert [item.operations for item in plan.workloads] == [128, 64, 64, 64]
     assert [item.concurrency for item in plan.workloads] == [8, 8, 8, 4]
     assert len(plan.fingerprint) == 64
+
+
+def test_junit_match_accepts_anyio_suffix_without_prefix_collision() -> None:
+    name = "test_bounded_api_health_load"
+    assert junit_name_matches(name, name)
+    assert junit_name_matches(f"{name}[asyncio]", name)
+    assert not junit_name_matches(f"{name}_other[asyncio]", name)
 
 
 def test_bounded_load_runner_is_create_only_and_reports_exact_counts(tmp_path: Path) -> None:

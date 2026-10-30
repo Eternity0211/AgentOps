@@ -48,6 +48,11 @@ class LoadExecution:
 LoadExecutor = Callable[[Path, LoadPlan], LoadExecution]
 
 
+def junit_name_matches(case_name: str, test_name: str) -> bool:
+    """Match pytest's plain or AnyIO-backend-suffixed JUnit case name."""
+    return case_name == test_name or case_name.startswith(f"{test_name}[")
+
+
 def load_plan(path: Path) -> LoadPlan:
     value = load_json_object(path)
     if set(value) != {"plan_version", "schema_version", "workloads"}:
@@ -136,7 +141,9 @@ def _default_executor(root: Path, plan: LoadPlan) -> LoadExecution:
         durations: dict[str, int] = {}
         for workload in plan.workloads:
             test_name = workload.test_node.rsplit("::", 1)[1]
-            matches = [case for case in cases if case.attrib.get("name") == test_name]
+            matches = [
+                case for case in cases if junit_name_matches(case.attrib.get("name", ""), test_name)
+            ]
             if len(matches) != 1:
                 raise EvaluationContractError("bounded-load JUnit workload set is incomplete")
             try:

@@ -279,7 +279,7 @@ Exit: one correlation ID reconstructs the incident and agent-control flow withou
   - [x] Define the versioned four-baseline metrics policy, create-only report generator, and measured worker-resilience runner.
 - [x] Add configured evaluation regression gates for prompt/model/policy promotion based on measured baselines.
 - [ ] Add bounded concurrency/load tests for API, job leasing, evidence queries, and workers; report observed limits without production-scale claims.
-  - [x] Define the fixed four-surface load plan, real PostgreSQL probes, in-process API/worker probes, and create-only result runner.
+  - [x] Define the fixed four-surface load plan, real PostgreSQL probes, in-process API/worker probes, and create-only result runner with backend-qualified JUnit parsing.
 
 Exit: versioned raw results reproduce every published claim and all required safety/resilience suites pass.
 

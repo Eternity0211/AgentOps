@@ -382,6 +382,21 @@ def test_up_task_has_bounded_preflight_launch_and_health_sequence() -> None:
     assert "--volumes" not in dev_tasks.COMPOSE_DOWN.argv
 
 
+def test_doctor_is_read_only_bounded_and_checks_local_compose_prerequisites() -> None:
+    """Troubleshooting validates local inputs without starting or stopping containers."""
+    commands = dev_tasks.command_specs("doctor")
+
+    assert [command.label for command in commands] == [
+        "compose-contract",
+        "runtime-prerequisites",
+        "docker-daemon",
+        "compose-version",
+        "runtime-compose-config",
+    ]
+    assert all(command.timeout_seconds <= 60 for command in commands)
+    assert not any("up" in command.argv or "down" in command.argv for command in commands)
+
+
 def test_status_checks_running_containers_then_health() -> None:
     """Status is read-only and uses the same observable readiness contract."""
     commands = dev_tasks.command_specs("status")

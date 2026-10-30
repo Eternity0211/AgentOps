@@ -422,12 +422,21 @@ uv venv --python .python/cpython-3.12.14-windows-x86_64-none/python.exe .venv
 After creating the local secret files described below and starting Docker Engine, the fixed task runner controls the simulator and observability profiles:
 
 ```text
+python scripts/dev.py doctor
 python scripts/dev.py up
 python scripts/dev.py status
 python scripts/dev.py down
 ```
 
-`up` validates the static Compose contract and Docker daemon, builds/starts with Compose `--wait`, then checks Gateway readiness/version, Prometheus/Loki/Tempo/Grafana readiness, and the Collector's Prometheus target. A post-start failure automatically stops partial containers without deleting named volumes. `status` repeats the observable health contract. `down` removes containers and orphans but deliberately does not remove persistent volumes. Grafana is available at `http://127.0.0.1:3000` by default and loads the two AgentOps dashboards without manual import.
+`doctor` performs read-only, bounded checks for Python 3.12, the Compose contract, all four local
+runtime secret files, Docker Engine/Compose, and the rendered profile configuration; it never
+changes containers or volumes. `up` validates the same static and daemon boundaries, builds/starts
+with Compose `--wait`, then checks Gateway readiness/version, Prometheus/Loki/Tempo/Grafana
+readiness, and the Collector's Prometheus target. A post-start failure automatically stops partial
+containers without deleting named volumes. `status` repeats the observable health contract. `down`
+removes containers and orphans but deliberately does not remove persistent volumes. Grafana is
+available at `http://127.0.0.1:3000` by default and loads the two AgentOps dashboards without manual
+import.
 
 The fault controller syntax and safe state/cleanup framework are available for all six scenarios. The focused in-process smoke suite verifies the four-service baseline, each fault symptom, and restoration to a fresh baseline without requiring Docker. The six-scenario product E2E is available; evaluation commands remain reserved:
 
@@ -495,6 +504,7 @@ python scripts/dev.py test --suite smoke
 python scripts/dev.py docs
 python scripts/dev.py build
 python scripts/dev.py pre-commit
+python scripts/dev.py doctor
 python scripts/dev.py up
 python scripts/dev.py status
 python scripts/dev.py down

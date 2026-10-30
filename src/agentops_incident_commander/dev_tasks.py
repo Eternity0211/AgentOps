@@ -985,6 +985,32 @@ def command_specs(
                 360,
             ),
         )
+    if task == "doctor":
+        return (
+            CommandSpec(
+                "compose-contract",
+                ("uv", "run", "--frozen", "python", "scripts/check_compose.py"),
+                60,
+            ),
+            CommandSpec(
+                "runtime-prerequisites",
+                (
+                    "uv",
+                    "run",
+                    "--frozen",
+                    "python",
+                    "scripts/check_runtime_prerequisites.py",
+                ),
+                30,
+            ),
+            DOCKER_DAEMON,
+            CommandSpec("compose-version", ("docker", "compose", "version", "--short"), 15),
+            CommandSpec(
+                "runtime-compose-config",
+                ("docker", "compose", *COMPOSE_PROFILES, "config", "--quiet"),
+                30,
+            ),
+        )
     if task == "up":
         return (
             CommandSpec(
@@ -1104,6 +1130,7 @@ def build_parser() -> argparse.ArgumentParser:
             "docs",
             "build",
             "pre-commit",
+            "doctor",
             "up",
             "down",
             "status",

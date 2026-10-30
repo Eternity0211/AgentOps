@@ -50,17 +50,27 @@ The initial versions were selected from official upstream release streams on 202
 
 ## Start, inspect, and stop
 
-With Docker Engine running and the three ignored secret files present:
+With Docker Engine running and the four ignored runtime secret files present:
 
 ```text
+python scripts/dev.py doctor
 python scripts/dev.py up
 python scripts/dev.py status
 python scripts/dev.py down
 ```
 
+Run `doctor` first when the local stack does not start. It is read-only: it checks the repository's
+static Compose contract, Python 3.12, all four configured local secret files without printing their
+contents, Docker Engine, Docker Compose, and the rendered profile configuration. Every subprocess
+has a fixed timeout, and the first failed prerequisite is named with a corrective action. The
+command never starts, stops, or modifies a container or named volume.
+
 `up` executes four bounded stages: static Compose validation, Docker daemon detection, profile startup with Compose `--wait`, and the repository-owned runtime health checker. The health checker accepts only loopback targets and allowlisted port settings, limits each response to 1 MB, gives individual HTTP calls a two-second deadline, and gives the complete poll a 60-second deadline. It verifies:
 
-The task runner reads only `BIND_ADDRESS`, `GATEWAY_PORT`, `PROMETHEUS_PORT`, `LOKI_PORT`, and `TEMPO_PORT` from the ignored `.env` file for this health contract. It never imports database/Redis credentials or arbitrary environment keys, and an explicit process environment override wins.
+The task runner reads only `BIND_ADDRESS`, `GATEWAY_PORT`, `PROMETHEUS_PORT`, `LOKI_PORT`,
+`TEMPO_PORT`, and `GRAFANA_PORT` from the ignored `.env` file for this health contract. It never
+imports database/Redis credentials or arbitrary environment keys, and an explicit process
+environment override wins.
 
 - Gateway `/readyz` reports the Gateway role ready;
 - Gateway `/versionz` contains deployment ID, version, and schema version;
@@ -69,12 +79,29 @@ The task runner reads only `BIND_ADDRESS`, `GATEWAY_PORT`, `PROMETHEUS_PORT`, `L
 
 If Compose starts but startup or health validation fails, the runner executes `down --remove-orphans` and returns the original failure code. Cleanup failure is reported separately and cannot hide the cause. Named volumes are never removed by these commands. `status` checks running containers and reruns the same endpoint contract; it does not mutate the stack.
 
-Typical fail-closed diagnostics are `executable-not-found`, Docker daemon unavailable, Compose secret/configuration failure, startup timeout, a named endpoint contract failure, or a Collector target that is not `up`. Fix the named prerequisite and rerun `up`; do not bypass the readiness checker.
+Typical fail-closed diagnostics are `executable-not-found`, a missing/empty/oversized local secret,
+Docker daemon unavailable, Compose configuration failure, startup timeout, a named endpoint
+contract failure, or a Collector target that is not `up`. Run `doctor`, fix the named prerequisite,
+and rerun `up`; do not bypass the readiness checker.
 
 ## Verified local boundary
 
 Order receives only the simulator PostgreSQL secret and waits for the database health check. Inventory receives only the simulator Redis secret and waits for Redis health. The shared application health check calls `/readyz`: it probes PostgreSQL from Order and Redis from Inventory with a bounded timeout, while Gateway and Payment report process readiness. `/healthz` remains a liveness endpoint and does not probe dependencies.
 
-On 2026-10-02, Docker Engine 29.8.0 and Docker Compose v5.5.1 built the simulator image, started all 11 services across the control-plane, simulator, and observability profiles, reached healthy status, and passed the repository-owned six-endpoint runtime checker. PostgreSQL 18 required its named volume at `/var/lib/postgresql`; live verification caught and fixed the obsolete pre-18 mount. A separate non-internal `observability-ingress` network was likewise required for the three loopback-only diagnostic ports, while the Collector receivers stayed internal.
+On 2026-10-02, Docker Engine 29.8.0 and Docker Compose v5.5.1 built the simulator image, started all
+11 services across the simulator and observability profiles, reached healthy status, and passed the
+repository-owned six-endpoint runtime checker. PostgreSQL 18 required its named volume at
+`/var/lib/postgresql`; live verification caught and fixed the obsolete pre-18 mount. A separate
+non-internal `observability-ingress` network was likewise required for the three loopback-only
+diagnostic ports, while the Collector receivers stayed internal.
 
 The run then injected and cleaned all six faults, queried all three telemetry backends, revalidated the healthy baseline, and stopped the stack without deleting named volumes. See `docs/PHASE_1_VERIFICATION.md` for the exact observations and limitations. This is a single local functional verification, not a production capacity, reliability, or latency benchmark.
+
+On 2026-10-30, the Phase 13 cross-platform runner rehearsal used Docker Engine 29.8.0 and Docker
+Compose v5.5.1 on Windows. `doctor` rejected a missing Grafana secret-path setting with a stable
+corrective message, then passed all five read-only stages after the local-only file was configured.
+The first `up` attempt encountered an upstream mirror EOF while resolving the Python base image and
+proved automatic container cleanup without volume deletion. After the bounded pull retry, `up`
+reported all 11 selected-profile services healthy and passed all seven runtime checks; `status`
+repeated the checks, and `down` removed containers and networks while all seven existing named
+volumes remained. This is a local developer-workflow rehearsal, not a production reliability claim.

@@ -104,6 +104,30 @@ AGENT_OUTPUT_PROPERTY_TESTS = CommandSpec(
     120,
 )
 
+MOCK_EVALUATION_TESTS = CommandSpec(
+    "mock-evaluation",
+    (
+        "uv",
+        "run",
+        "--frozen",
+        "pytest",
+        "tests/unit/test_evaluation_harness.py",
+        "tests/unit/test_rules_baseline.py",
+        "tests/unit/test_single_agent_baseline.py",
+        "tests/unit/test_controlled_graph_baseline.py",
+        "tests/unit/test_controlled_graph_memory_baseline.py",
+        "tests/unit/test_comprehensive_metrics.py",
+        "tests/unit/test_evaluation_regression_gate.py",
+        "tests/unit/test_bounded_load_evaluation.py",
+        "tests/unit/test_ground_truth_isolation.py",
+        "tests/unit/test_ground_truth_manifests.py",
+        "-p",
+        "no:cacheprovider",
+        "--no-cov",
+    ),
+    180,
+)
+
 EXTERNAL_INTEGRATION_TESTS = CommandSpec(
     "external-integration-tests",
     (
@@ -893,11 +917,19 @@ def build_environment(root: Path, source: Mapping[str, str] | None = None) -> di
 
 
 def command_specs(
-    task: str, *, write: bool = False, suite: str = "unit"
+    task: str,
+    *,
+    write: bool = False,
+    suite: str = "unit",
+    model: str | None = None,
 ) -> tuple[CommandSpec, ...]:
     """Resolve one public task into an immutable, allowlisted command sequence."""
     if write and task != "format":
         raise TaskConfigurationError("--write is valid only for the format task")
+    if suite != "unit" and task != "test":
+        raise TaskConfigurationError("--suite is valid only for the test task")
+    if model is not None and task != "eval":
+        raise TaskConfigurationError("--model is valid only for the eval task")
 
     if task == "quality":
         return QUALITY_COMMANDS
@@ -985,6 +1017,10 @@ def command_specs(
                 360,
             ),
         )
+    if task == "eval":
+        if model != "mock":
+            raise TaskConfigurationError("eval requires --model mock")
+        return (MOCK_EVALUATION_TESTS,)
     if task == "doctor":
         return (
             CommandSpec(
@@ -1130,6 +1166,7 @@ def build_parser() -> argparse.ArgumentParser:
             "docs",
             "build",
             "pre-commit",
+            "eval",
             "doctor",
             "up",
             "down",
@@ -1140,6 +1177,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("fault_action", nargs="?", help="Fault action: inject or clean.")
     parser.add_argument("--scenario", help="Allowlisted simulator fault scenario.")
     parser.add_argument("--run-id", help="Validated run identifier for injection or cleanup.")
+    parser.add_argument(
+        "--model",
+        choices=("mock",),
+        help="Evaluation model mode; only the deterministic mock is currently allowed.",
+    )
     parser.add_argument("--write", action="store_true", help="Apply formatting changes.")
     parser.add_argument(
         "--suite",
@@ -1178,6 +1220,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"[dev] configuration-error reason={error}", file=sys.stderr, flush=True)
         return 2
     if arguments.task == "fault":
+        if arguments.write or arguments.suite != "unit" or arguments.model is not None:
+            print(
+                "[dev] configuration-error reason=fault accepts only action, --scenario, and "
+                "--run-id",
+                file=sys.stderr,
+                flush=True,
+            )
+            return 2
         from agentops_incident_commander import faults
 
         return faults.main(
@@ -1199,7 +1249,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 2
     try:
-        commands = command_specs(arguments.task, write=arguments.write, suite=arguments.suite)
+        commands = command_specs(
+            arguments.task,
+            write=arguments.write,
+            suite=arguments.suite,
+            model=arguments.model,
+        )
     except TaskConfigurationError as error:
         print(f"[dev] configuration-error reason={error}", file=sys.stderr, flush=True)
         return 2

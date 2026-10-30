@@ -397,6 +397,32 @@ def test_doctor_is_read_only_bounded_and_checks_local_compose_prerequisites() ->
     assert not any("up" in command.argv or "down" in command.argv for command in commands)
 
 
+def test_mock_evaluation_is_a_closed_credential_free_reproducibility_suite() -> None:
+    """The shared evaluation task cannot select providers, paths, or arbitrary commands."""
+    commands = dev_tasks.command_specs("eval", model="mock")
+
+    assert commands == (dev_tasks.MOCK_EVALUATION_TESTS,)
+    assert commands[0].label == "mock-evaluation"
+    assert commands[0].timeout_seconds == 180
+    assert commands[0].argv[-3:] == ("-p", "no:cacheprovider", "--no-cov")
+    selected = commands[0].argv[4:-3]
+    assert len(selected) == 10
+    assert all(node.startswith("tests/unit/test_") and node.endswith(".py") for node in selected)
+    assert any("ground_truth" in node for node in selected)
+    assert any("regression_gate" in node for node in selected)
+
+
+@pytest.mark.parametrize("model", [None, "provider", "mock "])
+def test_evaluation_rejects_missing_or_non_mock_model(model: str | None) -> None:
+    with pytest.raises(dev_tasks.TaskConfigurationError, match="requires --model mock"):
+        dev_tasks.command_specs("eval", model=model)
+
+
+def test_evaluation_rejects_test_suite_selection() -> None:
+    with pytest.raises(dev_tasks.TaskConfigurationError, match="--suite is valid only"):
+        dev_tasks.command_specs("eval", model="mock", suite="smoke")
+
+
 def test_status_checks_running_containers_then_health() -> None:
     """Status is read-only and uses the same observable readiness contract."""
     commands = dev_tasks.command_specs("status")
@@ -614,6 +640,31 @@ def test_main_rejects_fault_options_for_other_tasks(
     """Scenario and run selections cannot alter ordinary allowlisted commands."""
     assert dev_tasks.main(("lint", "--run-id", "run-abcdef123456")) == 2
     assert "fault options require the fault task" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "option",
+    [
+        ("--write",),
+        ("--suite", "smoke"),
+        ("--model", "mock"),
+    ],
+)
+def test_main_rejects_unrelated_options_for_fault(
+    option: tuple[str, ...], capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert dev_tasks.main(("fault", "clean", *option)) == 2
+    assert "fault accepts only" in capsys.readouterr().err
+
+
+def test_main_rejects_model_for_non_evaluation_tasks(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert dev_tasks.main(("lint", "--model", "mock")) == 2
+    assert "--model is valid only" in capsys.readouterr().err
+
+    assert dev_tasks.main(("eval", "--model", "mock", "--suite", "smoke")) == 2
+    assert "--suite is valid only" in capsys.readouterr().err
 
 
 def test_main_dispatches_fault_task(monkeypatch: pytest.MonkeyPatch) -> None:

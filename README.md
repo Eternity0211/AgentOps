@@ -438,7 +438,11 @@ removes containers and orphans but deliberately does not remove persistent volum
 available at `http://127.0.0.1:3000` by default and loads the two AgentOps dashboards without manual
 import.
 
-The fault controller syntax and safe state/cleanup framework are available for all six scenarios. The focused in-process smoke suite verifies the four-service baseline, each fault symptom, and restoration to a fresh baseline without requiring Docker. The six-scenario product E2E is available; evaluation commands remain reserved:
+The fault controller syntax and safe state/cleanup framework are available for all six scenarios.
+The focused in-process smoke suite verifies the four-service baseline, each fault symptom, and
+restoration to a fresh baseline without requiring Docker. The six-scenario product E2E and the
+credential-free evaluation reproducibility gate use the same fixed Python task runner on Windows
+and in CI:
 
 ```text
 python scripts/dev.py fault inject --scenario http-500
@@ -504,13 +508,27 @@ python scripts/dev.py test --suite smoke
 python scripts/dev.py docs
 python scripts/dev.py build
 python scripts/dev.py pre-commit
+python scripts/dev.py eval --model mock
 python scripts/dev.py doctor
 python scripts/dev.py up
 python scripts/dev.py status
 python scripts/dev.py down
 ```
 
-The runner never forwards arbitrary shell text: every task maps to an immutable argument list, runs without a shell, has a timeout, stops on first failure, and emits start/pass/fail timing lines. The `architecture` task rejects domain imports of FastAPI, SQLAlchemy, LangGraph/LangChain, model-provider SDKs, or higher internal layers. The unit suite owns the versioned Phase 12 core-unit coverage scope and requires 100% statement and branch coverage; `agent-output` runs the deterministic generated schema/adversarial contract, `workflow` runs the closed all-path gate, `integration` checks Docker and runs only the Testcontainers adapter boundary, `e2e` runs the six-scenario eligibility/handoff matrix plus a real recovery chain, `resilience` runs the fixed worker-crash and stale-lease matrix, `concurrency` runs duplicate-delivery and authority-race cases, `failure` runs the closed timeout/retry/malformed-payload/dependency-outage matrix, `security` runs the closed adversarial authority-boundary matrix, and the quality task still runs the complete repository suite. The smoke suite is deliberately in-process; evaluation tasks remain unavailable until their implementation phase.
+The runner never forwards arbitrary shell text: every task maps to an immutable argument list, runs
+without a shell, has a timeout, stops on first failure, and emits start/pass/fail timing lines. The
+`architecture` task rejects domain imports of FastAPI, SQLAlchemy, LangGraph/LangChain,
+model-provider SDKs, or higher internal layers. The unit suite owns the versioned Phase 12
+core-unit coverage scope and requires 100% statement and branch coverage; `agent-output` runs the
+deterministic generated schema/adversarial contract, `workflow` runs the closed all-path gate,
+`integration` checks Docker and runs only the Testcontainers adapter boundary, `e2e` runs the
+six-scenario eligibility/handoff matrix plus a real recovery chain, `resilience` runs the fixed
+worker-crash and stale-lease matrix, `concurrency` runs duplicate-delivery and authority-race cases,
+`failure` runs the closed timeout/retry/malformed-payload/dependency-outage matrix, and `security`
+runs the closed adversarial authority-boundary matrix. The smoke suite is deliberately in-process.
+`eval --model mock` runs the fixed four-baseline, comprehensive-metrics, regression, bounded-load
+result, and Ground Truth isolation test set; it accepts no provider credential, output path, or
+arbitrary test selection. The quality task still runs the complete repository suite.
 
 ## Compose foundation
 

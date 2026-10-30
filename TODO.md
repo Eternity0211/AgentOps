@@ -286,7 +286,7 @@ Exit: versioned raw results reproduce every published claim and all required saf
 ## Phase 13 — Developer experience, security, and demo release
 
 - [x] Provide cross-platform task-runner Compose startup/shutdown with readiness and troubleshooting.
-- [ ] Provide task-runner fault injection/cleanup and evaluation commands shared by Windows and CI.
+- [x] Provide task-runner fault injection/cleanup and evaluation commands shared by Windows and CI.
 - [ ] Provide deterministic mock-model mode requiring no external model credential.
 - [ ] Add dependency/image locking, update policy, vulnerability/secret scans, SBOM/provenance plan, and minimal container users/permissions.
 - [ ] Validate least-privilege DB roles, network paths, filesystem mounts, and service credentials.

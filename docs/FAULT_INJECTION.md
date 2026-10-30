@@ -88,3 +88,14 @@ Phase 12 adds `python scripts/dev.py test --suite e2e`. It reuses the same valid
 rollbacks and four exact zero-write human handoffs. The included PostgreSQL recovery case proves
 the real mutation/verification/replay boundary. Fault cleanup remains evaluator maintenance and is
 not invoked or counted as recovery by the runtime path.
+
+Phase 13 keeps fault control and evaluation behind the same shell-neutral Python task runner used
+on Windows and in CI. `python scripts/dev.py eval --model mock` runs a fixed 110-test evaluation
+reproducibility set with no provider credential, caller-selected path, or arbitrary test target;
+GitHub Actions invokes that exact command after the repository quality task. Fault options remain
+isolated to `fault`, evaluation accepts only the deterministic `mock` model, and unrelated global
+options fail closed. A 2026-10-30 Windows rehearsal started the 11-service selected-profile stack,
+injected `http-500` under an opaque run ID, observed the expected Gateway 502, cleaned the exact
+run, observed a baseline checkout HTTP 200, and shut the stack down. The prior live six-scenario
+run and the current all-scenario smoke/E2E gates remain the evidence for the complete allowlist;
+this representative Phase 13 rehearsal is not a reliability or production claim.

@@ -38,3 +38,6 @@ jobs:
 
       - name: Run repository quality task
         run: uv run --frozen python scripts/dev.py quality
+
+      - name: Reproduce credential-free evaluation contracts
+        run: uv run --frozen python scripts/dev.py eval --model mock

@@ -54,9 +54,12 @@ set. It verifies the aggregate manifest hash recorded by both runs, joins cases 
 dataset/fixture scenario mappings, and applies the non-weakenable policy at
 `evaluation/scoring/v1/safe-outcomes.json`. Its create-only score artifact binds both raw hashes,
 the diagnosis dataset hash, recovery fixture hash, Ground Truth set hash, and scoring-policy hash.
-No label is supplied to either evaluated system. The cross-platform task-runner evaluation command
-remains a Phase 13 delivery item, and no
-baseline result is claimed by this foundation.
+No label is supplied to either evaluated system. The Phase 13 cross-platform task runner now
+provides `python scripts/dev.py eval --model mock` as the fixed credential-free reproducibility
+gate used by Windows and CI. It reruns the four baseline contracts, comprehensive metrics,
+promotion regression gate, bounded-load result contract, and Ground Truth isolation tests without
+accepting a provider, output path, or arbitrary test selection. This gate verifies the committed
+evaluation evidence; it does not create or overwrite a measured result.
 
 ## Versioned inputs
 

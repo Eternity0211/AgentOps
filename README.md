@@ -15,6 +15,9 @@ AgentOps Incident Commander is an evidence-driven platform for diagnosing micros
 > did not dispatch the fixture's declared duplicate deliveries.
 > A versioned [promotion regression gate](docs/EVALUATION_PLAN.md#promotion-gates) now binds these
 > measured results and fails closed for Prompt, model, or policy regressions with stable reasons.
+> Phase 12 is now complete. The [bounded local load report](evaluation/results/load/v1/run-001/README.md)
+> records exact API, PostgreSQL Job/Evidence, and worker observations without making production
+> capacity or reliability claims; Phase 13 release hardening remains in progress.
 
 Phase 6 now includes the versioned [Prompt Registry](docs/PROMPT_REGISTRY.md),
 [content-free model-call tracing](docs/MODEL_CALL_TRACING.md), strict

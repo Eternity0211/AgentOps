@@ -154,7 +154,49 @@ def _default_executor(root: Path, plan: LoadPlan) -> LoadExecution:
     return LoadExecution(durations, len(cases))
 
 
-def _render(document: Mapping[str, Any]) -> str:
+def load_bounded_load_result(path: Path, plan_path: Path) -> dict[str, Any]:
+    """Reload a result only when every plan binding and measured count is exact."""
+    value = load_json_object(path)
+    expected = {
+        "code_revision",
+        "collected_tests",
+        "finished_at",
+        "hardware_summary",
+        "plan_sha256",
+        "plan_version",
+        "platform",
+        "python_version",
+        "run_id",
+        "schema_version",
+        "started_at",
+        "workloads",
+    }
+    if set(value) != expected or value["schema_version"] != SCHEMA_VERSION:
+        raise EvaluationContractError("bounded-load result contract mismatch")
+    plan = load_plan(plan_path)
+    if value["plan_version"] != PLAN_VERSION or value["plan_sha256"] != plan.fingerprint:
+        raise EvaluationContractError("bounded-load result is not bound to the supplied plan")
+    workloads = value["workloads"]
+    if not isinstance(workloads, list) or len(workloads) != len(plan.workloads):
+        raise EvaluationContractError("bounded-load result workload set is incomplete")
+    for measured, configured in zip(workloads, plan.workloads, strict=True):
+        if not isinstance(measured, dict) or measured.get("workload_id") != configured.workload_id:
+            raise EvaluationContractError("bounded-load result workload order changed")
+        duration_ms = measured.get("duration_ms")
+        if (
+            measured.get("configured_operations") != configured.operations
+            or measured.get("completed_operations") != configured.operations
+            or measured.get("concurrency") != configured.concurrency
+            or type(duration_ms) is not int
+            or duration_ms <= 0
+            or measured.get("operations_per_second_milli")
+            != configured.operations * 1_000_000 // duration_ms
+        ):
+            raise EvaluationContractError("bounded-load measured workload is inconsistent")
+    return value
+
+
+def render_load_markdown(document: Mapping[str, Any]) -> str:
     lines = [
         "# AgentOps bounded local load evaluation",
         "",
@@ -242,7 +284,7 @@ def execute_bounded_load_evaluation(
         "workloads": workloads,
     }
     payload = f"{canonical_json(document)}\n"
-    markdown = _render(document)
+    markdown = render_load_markdown(document)
     raw_path = output_dir / "load-raw.json"
     report_path = output_dir / "README.md"
     if raw_path.exists() or report_path.exists():

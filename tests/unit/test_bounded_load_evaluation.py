@@ -13,11 +13,14 @@ from evaluation.run_bounded_load_evaluation import (
     LoadExecution,
     execute_bounded_load_evaluation,
     junit_name_matches,
+    load_bounded_load_result,
     load_plan,
+    render_load_markdown,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
 PLAN_PATH = ROOT / "evaluation" / "load" / "v1" / "plan.json"
+RESULT_ROOT = ROOT / "evaluation" / "results" / "load" / "v1" / "run-001"
 
 
 def _clock() -> Callable[[], datetime]:
@@ -132,3 +135,13 @@ def test_bounded_load_runner_rejects_missing_workload_and_backwards_clock(
             ),
             clock=lambda: next(times),
         )
+
+
+def test_committed_bounded_load_result_is_bound_and_reproducible() -> None:
+    result = load_bounded_load_result(RESULT_ROOT / "load-raw.json", PLAN_PATH)
+    assert result["code_revision"] == "1678dd05e077dcf16db7dd7779f2642009275406"
+    assert result["run_id"] == "bounded-load-20261030-001"
+    assert result["collected_tests"] == 4
+    assert [item["completed_operations"] for item in result["workloads"]] == [128, 64, 64, 64]
+    assert [item["concurrency"] for item in result["workloads"]] == [8, 8, 8, 4]
+    assert render_load_markdown(result) == (RESULT_ROOT / "README.md").read_text(encoding="utf-8")

@@ -338,3 +338,13 @@ as additional or missing workloads. The measured result remains pending executio
 committed runner revision. These
 small component-level samples are explicitly not production throughput, capacity, availability,
 or reliability claims and cannot by themselves justify Kafka, NATS, or another broker.
+
+The measured run is committed under `evaluation/results/load/v1/run-001/` with run ID
+`bounded-load-20261030-001` and evaluated revision
+`1678dd05e077dcf16db7dd7779f2642009275406`. Its canonical raw fingerprint is
+`1e9c104a30cf315e23b8aa0e3337d66c69cff91bc59c4ac4b14e22fc1795ff67`. All four workloads
+completed: API 128/128 at concurrency 8 in 247ms; Evidence reads 64/64 at concurrency 8 in
+7892ms; Job leases 64/64 across eight claimers in 1968ms; and worker processing 64/64 at the
+configured concurrency limit 4 in 5ms. The generated report records derived local rates and the
+exact Python, platform, CPU-count, plan hash, and test count. These single-run figures retain the
+non-production limitations above.

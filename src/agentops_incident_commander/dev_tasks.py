@@ -1021,6 +1021,14 @@ def command_specs(
         if model != "mock":
             raise TaskConfigurationError("eval requires --model mock")
         return (MOCK_EVALUATION_TESTS,)
+    if task == "mock":
+        return (
+            CommandSpec(
+                "mock-model-mode",
+                ("uv", "run", "--frozen", "python", "scripts/run_mock_mode.py"),
+                30,
+            ),
+        )
     if task == "doctor":
         return (
             CommandSpec(
@@ -1167,6 +1175,7 @@ def build_parser() -> argparse.ArgumentParser:
             "build",
             "pre-commit",
             "eval",
+            "mock",
             "doctor",
             "up",
             "down",

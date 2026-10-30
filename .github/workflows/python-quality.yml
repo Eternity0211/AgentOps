@@ -41,3 +41,6 @@ jobs:
 
       - name: Reproduce credential-free evaluation contracts
         run: uv run --frozen python scripts/dev.py eval --model mock
+
+      - name: Run credential-free mock-model mode
+        run: uv run --frozen python scripts/dev.py mock

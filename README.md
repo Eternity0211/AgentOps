@@ -509,6 +509,7 @@ python scripts/dev.py docs
 python scripts/dev.py build
 python scripts/dev.py pre-commit
 python scripts/dev.py eval --model mock
+python scripts/dev.py mock
 python scripts/dev.py doctor
 python scripts/dev.py up
 python scripts/dev.py status
@@ -529,6 +530,13 @@ runs the closed adversarial authority-boundary matrix. The smoke suite is delibe
 `eval --model mock` runs the fixed four-baseline, comprehensive-metrics, regression, bounded-load
 result, and Ground Truth isolation test set; it accepts no provider credential, output path, or
 arbitrary test selection. The quality task still runs the complete repository suite.
+
+`python scripts/dev.py mock` is the user-runnable deterministic model mode. It invokes the real
+`diagnosis-mock/1.0.0` adapter repeatedly for planning and reporting against fixed adversarial
+context, compares the injection-resistant scenario, requires byte-stable response fingerprints and
+zero model cost, and prints only bounded usage/fingerprint metadata. It imports no provider SDK,
+reads no external model credential, makes no network call, and grants no execution authority.
+Production-provider invocation remains disabled.
 
 ## Compose foundation
 

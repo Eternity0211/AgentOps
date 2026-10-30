@@ -287,7 +287,7 @@ Exit: versioned raw results reproduce every published claim and all required saf
 
 - [x] Provide cross-platform task-runner Compose startup/shutdown with readiness and troubleshooting.
 - [x] Provide task-runner fault injection/cleanup and evaluation commands shared by Windows and CI.
-- [ ] Provide deterministic mock-model mode requiring no external model credential.
+- [x] Provide deterministic mock-model mode requiring no external model credential.
 - [ ] Add dependency/image locking, update policy, vulnerability/secret scans, SBOM/provenance plan, and minimal container users/permissions.
 - [ ] Validate least-privilege DB roles, network paths, filesystem mounts, and service credentials.
 - [ ] Complete README quickstart, configuration reference, architecture/workflow diagrams, data model, threat model, ADRs, API docs, runbooks, and contribution guide.

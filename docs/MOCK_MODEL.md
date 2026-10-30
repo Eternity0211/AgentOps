@@ -27,3 +27,23 @@ The mock adapter does not bypass normal graph controls. A caller must still comp
 the Tool Registry, persist model-call trace metadata, resolve every Evidence reference, and pass
 the deterministic Evidence Gate. Later Phase 6 composition connects these existing ports end to
 end and requires approved Prompt Registry versions for every node.
+
+## Runnable mock mode
+
+Phase 13 exposes the adapter through the same fixed Python task runner used by Windows and CI:
+
+```text
+python scripts/dev.py mock
+```
+
+The command needs no provider account, API key, network access, database, Docker runtime, or model
+download. It submits one fixed typed request containing adversarial untrusted context to both the
+normal and injection-resistant scenarios, repeats planning and reporting, and fails unless the
+strict outputs, usage, and response fingerprints are identical with zero cost. It prints only the
+model version, canonical fingerprints, bounded token counters, and integer cost; no context or
+output body is emitted. GitHub Actions runs the same command.
+
+This is an executable local/CI verification mode, not a production provider integration or an
+alternate authority path. It cannot call tools, policy, approval, Executor, or verifier components,
+and its conclusions remain subject to the ordinary deterministic workflow gates whenever used by a
+Diagnosis workflow.

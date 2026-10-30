@@ -412,6 +412,21 @@ def test_mock_evaluation_is_a_closed_credential_free_reproducibility_suite() -> 
     assert any("regression_gate" in node for node in selected)
 
 
+def test_mock_mode_is_a_fixed_bounded_credential_free_command() -> None:
+    commands = dev_tasks.command_specs("mock")
+
+    assert len(commands) == 1
+    assert commands[0].label == "mock-model-mode"
+    assert commands[0].argv == (
+        "uv",
+        "run",
+        "--frozen",
+        "python",
+        "scripts/run_mock_mode.py",
+    )
+    assert commands[0].timeout_seconds == 30
+
+
 @pytest.mark.parametrize("model", [None, "provider", "mock "])
 def test_evaluation_rejects_missing_or_non_mock_model(model: str | None) -> None:
     with pytest.raises(dev_tasks.TaskConfigurationError, match="requires --model mock"):

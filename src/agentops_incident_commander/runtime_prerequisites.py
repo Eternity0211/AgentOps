@@ -11,6 +11,7 @@ MAX_DOTENV_BYTES = 65_536
 MAX_SECRET_BYTES = 4_096
 REQUIRED_SECRET_SETTINGS = (
     "CONTROL_DB_PASSWORD_FILE",
+    "SIMULATOR_DB_ADMIN_PASSWORD_FILE",
     "SIMULATOR_DB_PASSWORD_FILE",
     "SIMULATOR_REDIS_PASSWORD_FILE",
     "GRAFANA_ADMIN_PASSWORD_FILE",
@@ -61,6 +62,7 @@ def required_secret_paths(
     settings.update((name, source[name]) for name in REQUIRED_SECRET_SETTINGS if source.get(name))
 
     paths: list[Path] = []
+    secret_values: set[bytes] = set()
     for name in REQUIRED_SECRET_SETTINGS:
         configured = settings.get(name)
         if not configured:
@@ -69,8 +71,11 @@ def required_secret_paths(
             )
         candidate = Path(configured)
         path = candidate if candidate.is_absolute() else root / candidate
+        resolved = path.resolve()
+        if resolved in paths:
+            raise RuntimePrerequisiteError("runtime credentials must use distinct secret files")
         try:
-            payload = path.read_bytes()
+            payload = resolved.read_bytes()
         except FileNotFoundError as error:
             raise RuntimePrerequisiteError(f"secret file missing for {name}: {path}") from error
         except OSError as error:
@@ -81,7 +86,11 @@ def required_secret_paths(
             raise RuntimePrerequisiteError(
                 f"secret file exceeds the 4096-byte limit for {name}: {path}"
             )
-        paths.append(path.resolve())
+        normalized = payload.strip()
+        if normalized in secret_values:
+            raise RuntimePrerequisiteError("runtime secret files must contain distinct credentials")
+        secret_values.add(normalized)
+        paths.append(resolved)
     return tuple(paths)
 
 

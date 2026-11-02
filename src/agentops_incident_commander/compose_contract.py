@@ -42,9 +42,76 @@ EXPECTED_VOLUMES = {
 }
 EXPECTED_SECRETS = {
     "control_db_password": "control-db-password.txt",
+    "simulator_db_admin_password": "simulator-db-admin-password.txt",
     "simulator_db_password": "simulator-db-password.txt",
     "simulator_redis_password": "simulator-redis-password.txt",
     "grafana_admin_password": "grafana-admin-password.txt",
+}
+EXPECTED_SERVICE_NETWORKS = {
+    "gateway": {"ingress", "simulator"},
+    "order": {"simulator"},
+    "inventory": {"simulator"},
+    "payment": {"simulator"},
+    "control-postgres": {"control-plane"},
+    "simulator-postgres": {"simulator"},
+    "simulator-redis": {"simulator"},
+    "prometheus": {"observability", "observability-ingress"},
+    "loki": {"observability", "observability-ingress"},
+    "tempo": {"observability", "observability-ingress"},
+    "otel-collector": {"observability", "simulator"},
+    "grafana": {"observability", "observability-ingress"},
+}
+EXPECTED_SERVICE_SECRETS = {
+    "gateway": (),
+    "order": ("simulator_db_password",),
+    "inventory": ("simulator_redis_password",),
+    "payment": (),
+    "control-postgres": ("control_db_password",),
+    "simulator-postgres": ("simulator_db_admin_password", "simulator_db_password"),
+    "simulator-redis": ("simulator_redis_password",),
+    "prometheus": (),
+    "loki": (),
+    "tempo": (),
+    "otel-collector": (),
+    "grafana": ("grafana_admin_password",),
+}
+EXPECTED_VOLUME_MOUNTS = {
+    "gateway": (),
+    "order": (),
+    "inventory": (),
+    "payment": (),
+    "control-postgres": (("control_postgres_data", "/var/lib/postgresql"),),
+    "simulator-postgres": (("simulator_postgres_data", "/var/lib/postgresql"),),
+    "simulator-redis": (("simulator_redis_data", "/data"),),
+    "prometheus": (("prometheus_data", "/prometheus"),),
+    "loki": (("loki_data", "/loki"),),
+    "tempo": (("tempo_data", "/var/tempo"),),
+    "otel-collector": (),
+    "grafana": (("grafana_data", "/var/lib/grafana"),),
+}
+EXPECTED_CONFIG_MOUNTS = {
+    "gateway": (),
+    "order": (),
+    "inventory": (),
+    "payment": (),
+    "control-postgres": (),
+    "simulator-postgres": (
+        ("simulator_postgres_init", "/docker-entrypoint-initdb.d/10-simulator-role.sh"),
+    ),
+    "simulator-redis": (),
+    "prometheus": (
+        ("prometheus_config", "/etc/prometheus/prometheus.yml"),
+        ("prometheus_alert_rules", "/etc/prometheus/rules/agentops-alerts.yml"),
+    ),
+    "loki": (("loki_config", "/etc/loki/config.yml"),),
+    "tempo": (("tempo_config", "/etc/tempo/config.yml"),),
+    "otel-collector": (("otel_collector_config", "/etc/otelcol-contrib/config.yml"),),
+    "grafana": (
+        ("grafana_datasources", "/etc/grafana/provisioning/datasources/agentops.yml"),
+        ("grafana_dashboard_provider", "/etc/grafana/provisioning/dashboards/agentops.yml"),
+        ("grafana_diagnosed_dashboard", "/etc/grafana/dashboards/diagnosed-system.json"),
+        ("grafana_control_plane_dashboard", "/etc/grafana/dashboards/agent-platform.json"),
+    ),
 }
 
 
@@ -68,6 +135,7 @@ def render_compose_config(
         environment_name: contract_secrets / filename
         for environment_name, filename in (
             ("CONTROL_DB_PASSWORD_FILE", "control-db-password.txt"),
+            ("SIMULATOR_DB_ADMIN_PASSWORD_FILE", "simulator-db-admin-password.txt"),
             ("SIMULATOR_DB_PASSWORD_FILE", "simulator-db-password.txt"),
             ("SIMULATOR_REDIS_PASSWORD_FILE", "simulator-redis-password.txt"),
             ("GRAFANA_ADMIN_PASSWORD_FILE", "grafana-admin-password.txt"),
@@ -78,6 +146,9 @@ def render_compose_config(
     environment.update(
         {
             "DOCKER_CONFIG": str(docker_config),
+            "SIMULATOR_DB_ADMIN_USER": "simulator_admin",
+            "SIMULATOR_DB_USER": "simulator_app",
+            "SIMULATOR_REDIS_USER": "inventory_app",
             **{name: str(path) for name, path in secret_paths.items()},
         }
     )
@@ -154,11 +225,33 @@ def validate_compose_config(config: Mapping[str, Any]) -> tuple[str, ...]:
             violations.append(f"service {name} must not be privileged")
         if not service.get("networks"):
             violations.append(f"service {name} must attach to an isolated network")
+        if set(service.get("networks", {})) != EXPECTED_SERVICE_NETWORKS.get(name, set()):
+            violations.append(f"service {name} networks must match its least-privilege paths")
+        secret_bindings = tuple(item.get("source") for item in service.get("secrets", []))
+        if secret_bindings != EXPECTED_SERVICE_SECRETS.get(name, ()):
+            violations.append(f"service {name} secrets must match its credential allowlist")
+        for item in service.get("secrets", []):
+            if not str(item.get("target", "")).startswith("/run/secrets/"):
+                violations.append(f"service {name} secrets must mount below /run/secrets")
+        volume_bindings = tuple(
+            (item.get("source"), item.get("target")) for item in service.get("volumes", [])
+        )
+        if volume_bindings != EXPECTED_VOLUME_MOUNTS.get(name, ()):
+            violations.append(f"service {name} volumes must match its writable-store allowlist")
+        config_bindings = tuple(
+            (item.get("source"), item.get("target")) for item in service.get("configs", [])
+        )
+        if config_bindings != EXPECTED_CONFIG_MOUNTS.get(name, ()):
+            violations.append(f"service {name} configs must match its read-only config allowlist")
         for port in service.get("ports", []):
             if port.get("host_ip") != "127.0.0.1":
                 violations.append(f"service {name} published ports must bind to loopback")
-        if "POSTGRES_PASSWORD" in service.get("environment", {}):
-            violations.append(f"service {name} must use a password file secret")
+        environment = service.get("environment", {}) or {}
+        for key, value in environment.items():
+            if "PASSWORD" not in key:
+                continue
+            if not key.endswith("FILE") or not str(value).startswith("/run/secrets/"):
+                violations.append(f"service {name} must use a password file secret")
 
     networks = config.get("networks", {})
     for name in EXPECTED_NETWORKS:

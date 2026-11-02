@@ -38,6 +38,8 @@ def test_simulator_services_have_dependency_aware_wiring(
     assert inventory["depends_on"]["simulator-redis"]["condition"] == "service_healthy"
     assert [secret["source"] for secret in order["secrets"]] == ["simulator_db_password"]
     assert [secret["source"] for secret in inventory["secrets"]] == ["simulator_redis_password"]
+    assert order["environment"]["SIMULATOR_DB_USER"] == "simulator_app"
+    assert inventory["environment"]["SIMULATOR_REDIS_USER"] == "inventory_app"
     assert "/readyz" in order["healthcheck"]["test"][-1]
     assert order["tmpfs"] == ["/tmp:size=16m,mode=1777"]
 
@@ -171,6 +173,12 @@ def test_validation_reports_service_and_topology_violations(
             "environment": {"POSTGRES_PASSWORD": "unsafe"},
         }
     )
+    order = services["order"]
+    assert isinstance(order, dict)
+    order["secrets"].append({"source": "control_db_password", "target": "/tmp/leaked"})
+    order["volumes"] = [{"type": "bind", "source": ".", "target": "/workspace"}]
+    order["configs"] = [{"source": "loki_config", "target": "/tmp/loki.yml"}]
+    order["environment"]["UNSAFE_PASSWORD"] = "plaintext"
     services["unexpected"] = "invalid"
     invalid["networks"] = {}
     invalid["volumes"] = {}
@@ -183,6 +191,12 @@ def test_validation_reports_service_and_topology_violations(
     assert "service control-postgres must not be privileged" in violations
     assert "service control-postgres published ports must bind to loopback" in violations
     assert "service control-postgres must use a password file secret" in violations
+    assert "service control-postgres networks must match its least-privilege paths" in violations
+    assert "service order secrets must match its credential allowlist" in violations
+    assert "service order secrets must mount below /run/secrets" in violations
+    assert "service order volumes must match its writable-store allowlist" in violations
+    assert "service order configs must match its read-only config allowlist" in violations
+    assert "service order must use a password file secret" in violations
     assert "network simulator must exist and be internal" in violations
     assert "named volumes must match the approved persistent stores" in violations
     assert "secret control_db_password must use local file control-db-password.txt" in violations

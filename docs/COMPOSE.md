@@ -28,11 +28,18 @@ PostgreSQL 18 stores clusters beneath a major-version-specific subdirectory. Bot
 ## Secret setup
 
 1. Copy `.env.example` to the ignored `.env` file.
-2. Create `secrets/control-db-password.txt`, `secrets/simulator-db-password.txt`, and `secrets/simulator-redis-password.txt`.
+2. Create `secrets/control-db-password.txt`, `secrets/simulator-db-admin-password.txt`,
+   `secrets/simulator-db-password.txt`, `secrets/simulator-redis-password.txt`, and
+   `secrets/grafana-admin-password.txt`.
 3. Put a distinct, non-empty local-only credential in each file.
 4. Never use a production, personal, or shared credential in this lab.
 
-The secret files and `.env` are ignored. Compose mounts secrets as files; PostgreSQL uses `POSTGRES_PASSWORD_FILE`, and Redis builds an ephemeral configuration in its read-only container instead of placing a password in the committed command or environment.
+The secret files and `.env` are ignored. Compose mounts secrets as files; PostgreSQL uses
+`POSTGRES_PASSWORD_FILE`, and Redis builds an ephemeral ACL configuration in its read-only
+container instead of placing a password in the committed command or environment. The simulator
+database owner and Order runtime credentials must be different. Redis disables the default user
+and Inventory uses its named, key- and command-scoped account. See
+[Database and service least privilege](DATABASE_SECURITY.md) for role setup and rotation limits.
 
 The separate evaluation file additionally requires `secrets/ground-truth-access.txt`. Runtime profiles never receive this credential or the evaluation mounts/network. See `docs/GROUND_TRUTH.md` for the isolated one-shot evaluator contract.
 
@@ -44,13 +51,16 @@ Run:
 python scripts/dev.py compose
 ```
 
-The check renders all implemented profiles with synthetic files inside the ignored `.docker-config/` directory and asserts the approved services, profiles, internal networks, health checks, resource bounds, loopback-only published ports, named volumes, secret-file usage, and absence of rendered secret content. It does not pull images or require the Docker daemon.
+The check renders all implemented profiles with synthetic files inside the ignored `.docker-config/`
+directory and asserts exact per-service network, secret, named-volume, and config allowlists in
+addition to profiles, health checks, resource bounds, loopback-only published ports, password-file
+usage, and absence of rendered secret content. It does not pull images or require the Docker daemon.
 
 The initial versions were selected from official upstream release streams on 2026-10-01: [PostgreSQL releases](https://www.postgresql.org/docs/release/), [Redis releases](https://github.com/redis/redis/releases), [Prometheus releases](https://github.com/prometheus/prometheus/releases), [Loki releases](https://github.com/grafana/loki/releases), [Tempo releases](https://github.com/grafana/tempo/releases), and [OpenTelemetry Collector releases](https://github.com/open-telemetry/opentelemetry-collector-releases/releases). A live pull on 2026-10-02 found that Collector `0.162.0` had no published multi-architecture manifest, matching the [upstream release issue](https://github.com/open-telemetry/opentelemetry-collector-releases/issues/1690); the stack therefore pins the registry-verified `0.161.0` release. Phase 12 will add digest locking, update policy, scanning, and provenance rather than overstating tag immutability here.
 
 ## Start, inspect, and stop
 
-With Docker Engine running and the four ignored runtime secret files present:
+With Docker Engine running and the five ignored runtime secret files present:
 
 ```text
 python scripts/dev.py doctor
@@ -60,7 +70,7 @@ python scripts/dev.py down
 ```
 
 Run `doctor` first when the local stack does not start. It is read-only: it checks the repository's
-static Compose contract, Python 3.12, all four configured local secret files without printing their
+static Compose contract, Python 3.12, all five configured local secret files without printing their
 contents, Docker Engine, Docker Compose, and the rendered profile configuration. Every subprocess
 has a fixed timeout, and the first failed prerequisite is named with a corrective action. The
 command never starts, stops, or modifies a container or named volume.
@@ -86,7 +96,12 @@ and rerun `up`; do not bypass the readiness checker.
 
 ## Verified local boundary
 
-Order receives only the simulator PostgreSQL secret and waits for the database health check. Inventory receives only the simulator Redis secret and waits for Redis health. The shared application health check calls `/readyz`: it probes PostgreSQL from Order and Redis from Inventory with a bounded timeout, while Gateway and Payment report process readiness. `/healthz` remains a liveness endpoint and does not probe dependencies.
+The simulator PostgreSQL container receives its bootstrap owner secret and the distinct runtime
+secret used to initialize `simulator_app`. Order receives only that runtime secret and waits for the
+database health check. Inventory receives only its named Redis-user secret and waits for Redis
+health. The shared application health check calls `/readyz`: it probes PostgreSQL from Order and
+Redis from Inventory with a bounded timeout, while Gateway and Payment report process readiness.
+`/healthz` remains a liveness endpoint and does not probe dependencies.
 
 On 2026-10-02, Docker Engine 29.8.0 and Docker Compose v5.5.1 built the simulator image, started all
 11 services across the simulator and observability profiles, reached healthy status, and passed the

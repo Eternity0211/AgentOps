@@ -246,7 +246,8 @@ and result bodies are deliberately excluded so the ledger does not become an unc
 store.
 
 The application adapter exposes append, integrity-checked correlation/target reads, and bounded
-tenant export. PostgreSQL privileges deny runtime mutation of tenant heads and audit rows,
+tenant export. The checked-in post-migration runtime grant contract denies schema creation,
+temporary tables, owner-role assumption, and mutation of tenant heads or audit rows,
 while owner-visible triggers independently reject `UPDATE`, `DELETE`, and `TRUNCATE`. Export uses
 the tenant sequence as its cursor and binds each page to a reproducible manifest; head comparison
 detects internal gaps and a missing tail. Database constraints reject malformed hashes and
@@ -254,7 +255,8 @@ duplicate tenant sequences. Integration tests prove migration round trips, sixte
 assignments, application-role append/mutation denial, deterministic export replay, and fail-closed
 tamper/gap behavior. Retention, authorized export procedure, legal holds, and the limits of the
 current non-anchored design are specified in [Audit ledger integrity, export, and
-retention](AUDIT_LEDGER.md).
+retention](AUDIT_LEDGER.md). Deployment role separation and the real-login refusal matrix are
+specified in [Database and service least privilege](DATABASE_SECURITY.md).
 
 ## Transactional outbox
 

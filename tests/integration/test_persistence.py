@@ -1874,25 +1874,63 @@ async def test_audit_export_rejects_a_gap_at_the_page_boundary(engine: AsyncEngi
 async def test_runtime_audit_role_can_append_but_has_no_mutation_or_head_access(
     engine: AsyncEngine,
 ) -> None:
+    """The deployment grant script permits runtime DML but denies authority boundaries."""
     role = f"audit_runtime_{uuid4().hex}"
     event = audit_event(
         f"audit-role-{uuid4().hex}",
         tenant_id=f"tenant-role-{uuid4().hex}",
     )
     quoted_role = f'"{role}"'
+    runtime_password = f"runtime-{uuid4().hex}"
+    runtime_engine: AsyncEngine | None = None
+    root = Path(__file__).resolve().parents[2]
+    grant_script = (root / "config" / "postgres" / "control-plane-runtime-grants.sql").read_text(
+        encoding="utf-8"
+    )
+    public_database_temporary = False
+    public_schema_create = False
     try:
         async with engine.begin() as connection:
-            await connection.execute(text(f"CREATE ROLE {quoted_role} NOLOGIN"))
-            await connection.execute(text(f"GRANT USAGE ON SCHEMA public TO {quoted_role}"))
-            await connection.execute(text(f"GRANT SELECT, INSERT ON audit_events TO {quoted_role}"))
-            await connection.execute(
-                text(f"GRANT SELECT ON audit_tenant_sequences TO {quoted_role}")
+            database_name = await connection.scalar(text("SELECT current_database()"))
+            assert isinstance(database_name, str)
+            owner = await connection.scalar(text("SELECT current_user"))
+            assert isinstance(owner, str)
+            public_database_temporary = bool(
+                await connection.scalar(
+                    text("SELECT has_database_privilege('public', current_database(), 'TEMPORARY')")
+                )
+            )
+            public_schema_create = bool(
+                await connection.scalar(
+                    text("SELECT has_schema_privilege('public', 'public', 'CREATE')")
+                )
             )
             await connection.execute(
-                text(f"GRANT USAGE, SELECT ON SEQUENCE audit_events_sequence_seq TO {quoted_role}")
+                text(
+                    f"CREATE ROLE {quoted_role} LOGIN PASSWORD '{runtime_password}' "
+                    "NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS"
+                )
             )
+            database_identifier = '"' + database_name.replace('"', '""') + '"'
+            rendered_script = grant_script.replace("\\set ON_ERROR_STOP on", "").replace(
+                ':"database_name"', database_identifier
+            )
+            rendered_script = rendered_script.replace("agentops_runtime", quoted_role)
+            for statement in rendered_script.split(";"):
+                if statement.strip():
+                    await connection.execute(text(statement))
 
         async with engine.begin() as connection:
+            role_attributes = (
+                await connection.execute(
+                    text(
+                        "SELECT rolcanlogin, rolsuper, rolcreatedb, rolcreaterole, rolinherit, "
+                        "rolreplication, rolbypassrls FROM pg_roles WHERE rolname = :role"
+                    ),
+                    {"role": role},
+                )
+            ).one()
+            assert tuple(role_attributes) == (True, False, False, False, False, False, False)
             privileges = (
                 await connection.execute(
                     text(
@@ -1902,15 +1940,43 @@ async def test_runtime_audit_role_can_append_but_has_no_mutation_or_head_access(
                         "has_table_privilege(:role, 'audit_events', 'DELETE'), "
                         "has_table_privilege(:role, 'audit_events', 'TRUNCATE'), "
                         "has_table_privilege(:role, 'audit_tenant_sequences', 'SELECT'), "
-                        "has_table_privilege(:role, 'audit_tenant_sequences', 'UPDATE')"
+                        "has_table_privilege(:role, 'audit_tenant_sequences', 'UPDATE'), "
+                        "has_table_privilege(:role, 'incidents', 'SELECT'), "
+                        "has_table_privilege(:role, 'incidents', 'INSERT'), "
+                        "has_table_privilege(:role, 'incidents', 'UPDATE'), "
+                        "has_table_privilege(:role, 'incidents', 'DELETE'), "
+                        "has_schema_privilege(:role, 'public', 'USAGE'), "
+                        "has_schema_privilege(:role, 'public', 'CREATE'), "
+                        "has_database_privilege(:role, current_database(), 'CONNECT'), "
+                        "has_database_privilege(:role, current_database(), 'CREATE'), "
+                        "has_database_privilege(:role, current_database(), 'TEMPORARY')"
                     ),
                     {"role": role},
                 )
             ).one()
-            assert tuple(privileges) == (True, True, False, False, False, True, False)
+            assert tuple(privileges) == (
+                True,
+                True,
+                False,
+                False,
+                False,
+                True,
+                False,
+                True,
+                True,
+                True,
+                True,
+                True,
+                False,
+                True,
+                False,
+                False,
+            )
 
-        async with engine.begin() as connection:
-            await connection.execute(text(f"SET LOCAL ROLE {quoted_role}"))
+        runtime_engine = create_async_engine(
+            engine.url.set(username=role, password=runtime_password), pool_pre_ping=True
+        )
+        async with runtime_engine.begin() as connection:
             await connection.execute(
                 text(
                     "INSERT INTO audit_events "
@@ -1943,19 +2009,38 @@ async def test_runtime_audit_role_can_append_but_has_no_mutation_or_head_access(
             "UPDATE audit_events SET actor_id = 'attacker' WHERE id = :event_id",
             "DELETE FROM audit_events WHERE id = :event_id",
             "TRUNCATE audit_events",
+            "UPDATE audit_tenant_sequences SET last_sequence = 99",
+            "INSERT INTO audit_tenant_sequences (tenant_id, last_sequence) VALUES ('x', 1)",
+            "CREATE TABLE runtime_forbidden (id integer)",
+            "CREATE TEMPORARY TABLE runtime_temp_forbidden (id integer)",
+            "ALTER TABLE incidents ADD COLUMN runtime_forbidden integer",
+            f'SET LOCAL ROLE "{owner.replace(chr(34), chr(34) * 2)}"',
         ):
-            async with engine.connect() as connection:
+            async with runtime_engine.connect() as connection:
                 transaction = await connection.begin()
                 try:
-                    await connection.execute(text(f"SET LOCAL ROLE {quoted_role}"))
-                    with pytest.raises(DBAPIError, match="permission denied"):
+                    with pytest.raises(
+                        DBAPIError,
+                        match=r"permission denied|must be owner|not allowed to SET ROLE",
+                    ):
                         await connection.execute(text(statement), {"event_id": event.id.value})
                 finally:
                     await transaction.rollback()
     finally:
+        if runtime_engine is not None:
+            await runtime_engine.dispose()
         async with engine.begin() as connection:
             await connection.execute(text(f"DROP OWNED BY {quoted_role}"))
             await connection.execute(text(f"DROP ROLE {quoted_role}"))
+            database_name = await connection.scalar(text("SELECT current_database()"))
+            assert isinstance(database_name, str)
+            database_identifier = '"' + database_name.replace('"', '""') + '"'
+            if public_database_temporary:
+                await connection.execute(
+                    text(f"GRANT TEMPORARY ON DATABASE {database_identifier} TO PUBLIC")
+                )
+            if public_schema_create:
+                await connection.execute(text("GRANT CREATE ON SCHEMA public TO PUBLIC"))
 
 
 @pytest.mark.anyio

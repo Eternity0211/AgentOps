@@ -71,7 +71,7 @@ services:
       SIMULATOR_DB_HOST: simulator-postgres
       SIMULATOR_DB_PORT: 5432
       SIMULATOR_DB_NAME: ${SIMULATOR_DB_NAME:-commerce}
-      SIMULATOR_DB_USER: ${SIMULATOR_DB_USER:-simulator}
+      SIMULATOR_DB_USER: ${SIMULATOR_DB_USER:-simulator_app}
       SIMULATOR_DB_PASSWORD_FILE: /run/secrets/simulator_db_password
       DEPENDENCY_TIMEOUT_SECONDS: ${DEPENDENCY_TIMEOUT_SECONDS:-2}
       OTEL_SDK_ENABLED: "true"
@@ -106,6 +106,7 @@ services:
     environment:
       SIMULATOR_REDIS_HOST: simulator-redis
       SIMULATOR_REDIS_PORT: 6379
+      SIMULATOR_REDIS_USER: ${SIMULATOR_REDIS_USER:-inventory_app}
       SIMULATOR_REDIS_PASSWORD_FILE: /run/secrets/simulator_redis_password
       DEPENDENCY_TIMEOUT_SECONDS: ${DEPENDENCY_TIMEOUT_SECONDS:-2}
       OTEL_SDK_ENABLED: "true"
@@ -174,9 +175,12 @@ services:
     profiles: [simulator]
     environment:
       POSTGRES_DB: ${SIMULATOR_DB_NAME:-commerce}
-      POSTGRES_USER: ${SIMULATOR_DB_USER:-simulator}
-      POSTGRES_PASSWORD_FILE: /run/secrets/simulator_db_password
-    secrets: [simulator_db_password]
+      POSTGRES_USER: ${SIMULATOR_DB_ADMIN_USER:-simulator_admin}
+      POSTGRES_PASSWORD_FILE: /run/secrets/simulator_db_admin_password
+    secrets: [simulator_db_admin_password, simulator_db_password]
+    configs:
+      - source: simulator_postgres_init
+        target: /docker-entrypoint-initdb.d/10-simulator-role.sh
     volumes:
       - simulator_postgres_data:/var/lib/postgresql
     tmpfs:
@@ -194,11 +198,14 @@ services:
     <<: [*runtime-defaults, *small-resources]
     image: redis:8.10.2-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
     profiles: [simulator]
+    environment:
+      SIMULATOR_REDIS_USER: ${SIMULATOR_REDIS_USER:-inventory_app}
     command:
       - /bin/sh
       - -ec
       - >-
-        printf 'requirepass %s\n' "$$(cat /run/secrets/simulator_redis_password)"
+        printf 'user default off\nuser %s on >%s ~stock:* ~reservation:* +ping +eval +exists +setnx +get +decrby +set\n'
+        "$$SIMULATOR_REDIS_USER" "$$(cat /run/secrets/simulator_redis_password)"
         > /tmp/redis.conf;
         exec redis-server /tmp/redis.conf --appendonly yes --maxmemory 192mb
         --maxmemory-policy allkeys-lru
@@ -211,7 +218,7 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
-        - REDISCLI_AUTH="$$(cat /run/secrets/simulator_redis_password)" redis-cli ping | grep -q PONG
+        - REDISCLI_AUTH="$$(cat /run/secrets/simulator_redis_password)" redis-cli --user "$$SIMULATOR_REDIS_USER" ping | grep -q PONG
       interval: 5s
       timeout: 3s
       retries: 12
@@ -418,12 +425,16 @@ configs:
     file: ./config/observability/grafana/diagnosed-system.json
   grafana_control_plane_dashboard:
     file: ./config/observability/grafana/agent-platform.json
+  simulator_postgres_init:
+    file: ./config/postgres/init-simulator-role.sh
 
 secrets:
   control_db_password:
     file: ${CONTROL_DB_PASSWORD_FILE:?set CONTROL_DB_PASSWORD_FILE to a local secret file}
   simulator_db_password:
     file: ${SIMULATOR_DB_PASSWORD_FILE:?set SIMULATOR_DB_PASSWORD_FILE to a local secret file}
+  simulator_db_admin_password:
+    file: ${SIMULATOR_DB_ADMIN_PASSWORD_FILE:?set SIMULATOR_DB_ADMIN_PASSWORD_FILE to a local secret file}
   simulator_redis_password:
     file: ${SIMULATOR_REDIS_PASSWORD_FILE:?set SIMULATOR_REDIS_PASSWORD_FILE to a local secret file}
   grafana_admin_password:

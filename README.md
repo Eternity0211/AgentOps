@@ -428,7 +428,7 @@ python scripts/dev.py status
 python scripts/dev.py down
 ```
 
-`doctor` performs read-only, bounded checks for Python 3.12, the Compose contract, all four local
+`doctor` performs read-only, bounded checks for Python 3.12, the Compose contract, all five local
 runtime secret files, Docker Engine/Compose, and the rendered profile configuration; it never
 changes containers or volumes. `up` validates the same static and daemon boundaries, builds/starts
 with Compose `--wait`, then checks Gateway readiness/version, Prometheus/Loki/Tempo/Grafana
@@ -542,9 +542,23 @@ Production-provider invocation remains disabled.
 
 ## Compose foundation
 
-Copy `.env.example` to the ignored `.env` file, then create the four ignored runtime secret files referenced by `CONTROL_DB_PASSWORD_FILE`, `SIMULATOR_DB_PASSWORD_FILE`, `SIMULATOR_REDIS_PASSWORD_FILE`, and `GRAFANA_ADMIN_PASSWORD_FILE`. Each file must contain a distinct, non-empty local-only credential. The isolated evaluator additionally uses `GROUND_TRUTH_ACCESS_FILE` only with `compose.evaluation.yaml`. The repository does not commit working credentials or unsafe fallback passwords; absent secret files prevent profile startup.
+Copy `.env.example` to the ignored `.env` file, then create the five ignored runtime secret files
+referenced by `CONTROL_DB_PASSWORD_FILE`, `SIMULATOR_DB_ADMIN_PASSWORD_FILE`,
+`SIMULATOR_DB_PASSWORD_FILE`, `SIMULATOR_REDIS_PASSWORD_FILE`, and
+`GRAFANA_ADMIN_PASSWORD_FILE`. Each file must contain a distinct, non-empty local-only credential.
+The isolated evaluator additionally uses `GROUND_TRUTH_ACCESS_FILE` only with
+`compose.evaluation.yaml`. The repository does not commit working credentials or unsafe fallback
+passwords; absent secret files prevent profile startup.
 
-The current topology is intentionally profile-scoped: `control-plane` provides its isolated PostgreSQL store, `simulator` provides the diagnosed PostgreSQL and Redis dependencies, and `observability` provides Prometheus, Loki, Tempo, Grafana, and the OpenTelemetry Collector. Persistent stores use named volumes; runtime root filesystems are read-only; CPU, memory, and process counts are bounded; and published observability ports bind to `127.0.0.1` by default. `python scripts/dev.py compose` renders every profile with synthetic secret sentinels and verifies those invariants without starting containers or exposing the sentinels.
+The current topology is intentionally profile-scoped: `control-plane` provides its isolated
+PostgreSQL store, `simulator` provides the diagnosed PostgreSQL and Redis dependencies, and
+`observability` provides Prometheus, Loki, Tempo, Grafana, and the OpenTelemetry Collector.
+Persistent stores use named volumes; runtime root filesystems are read-only; CPU, memory, and
+process counts are bounded; and published observability ports bind to `127.0.0.1` by default.
+`python scripts/dev.py compose` renders every profile with synthetic secret sentinels and verifies
+exact per-service network, credential, writable-volume, and read-only-config allowlists without
+starting containers or exposing the sentinels. The control-plane and simulator database role
+contracts are documented in [Database and service least privilege](docs/DATABASE_SECURITY.md).
 
 Registry images and both Python bases are locked by readable release tag plus immutable manifest
 digest. The locally built simulator and evaluator use fixed non-root numeric identities, drop all
@@ -593,6 +607,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)
 - [Local Compose foundation](docs/COMPOSE.md)
+- [Database and service least privilege](docs/DATABASE_SECURITY.md)
 - [Simulator service contracts](docs/SIMULATOR_SERVICES.md)
 - [Simulator observability baseline](docs/OBSERVABILITY.md)
 - [Control-plane observability contract](docs/CONTROL_PLANE_OBSERVABILITY.md)

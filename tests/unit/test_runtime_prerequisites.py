@@ -12,7 +12,7 @@ from agentops_incident_commander import runtime_prerequisites
 
 
 def configured_environment(tmp_path: Path) -> dict[str, str]:
-    """Create four bounded local secret files and return their settings."""
+    """Create bounded local secret files and return their settings."""
     environment: dict[str, str] = {}
     for index, name in enumerate(runtime_prerequisites.REQUIRED_SECRET_SETTINGS):
         path = tmp_path / f"secret-{index}.txt"
@@ -26,7 +26,7 @@ def test_required_secret_paths_accept_environment_overrides(tmp_path: Path) -> N
 
     paths = runtime_prerequisites.required_secret_paths(tmp_path, environment)
 
-    assert len(paths) == 4
+    assert len(paths) == 5
     assert all(path.is_absolute() for path in paths)
 
 
@@ -37,20 +37,20 @@ def test_required_secret_paths_default_to_process_environment(
     for name, value in environment.items():
         monkeypatch.setenv(name, value)
 
-    assert len(runtime_prerequisites.required_secret_paths(tmp_path)) == 4
+    assert len(runtime_prerequisites.required_secret_paths(tmp_path)) == 5
 
 
 def test_required_secret_paths_read_relative_dotenv_paths(tmp_path: Path) -> None:
     lines: list[str] = []
     for index, name in enumerate(runtime_prerequisites.REQUIRED_SECRET_SETTINGS):
         path = tmp_path / f"secret-{index}.txt"
-        path.write_text("local-only\n", encoding="utf-8")
+        path.write_text(f"local-only-{index}\n", encoding="utf-8")
         lines.append(f"{name}={path.name}")
     (tmp_path / ".env").write_text("\n".join(lines), encoding="utf-8")
 
     paths = runtime_prerequisites.required_secret_paths(tmp_path, {})
 
-    assert paths == tuple((tmp_path / f"secret-{index}.txt").resolve() for index in range(4))
+    assert paths == tuple((tmp_path / f"secret-{index}.txt").resolve() for index in range(5))
 
 
 @pytest.mark.parametrize(
@@ -140,6 +140,23 @@ def test_secret_path_must_be_a_readable_regular_file(tmp_path: Path) -> None:
         runtime_prerequisites.required_secret_paths(tmp_path, environment)
 
 
+def test_runtime_credentials_must_use_distinct_files_and_values(tmp_path: Path) -> None:
+    environment = configured_environment(tmp_path)
+    first, second = runtime_prerequisites.REQUIRED_SECRET_SETTINGS[:2]
+    environment[second] = environment[first]
+    with pytest.raises(
+        runtime_prerequisites.RuntimePrerequisiteError, match="distinct secret files"
+    ):
+        runtime_prerequisites.required_secret_paths(tmp_path, environment)
+
+    environment = configured_environment(tmp_path)
+    Path(environment[second]).write_text("local-only-0\n", encoding="utf-8")
+    with pytest.raises(
+        runtime_prerequisites.RuntimePrerequisiteError, match="distinct credentials"
+    ):
+        runtime_prerequisites.required_secret_paths(tmp_path, environment)
+
+
 def test_validate_requires_python_312(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(sys, "version_info", (3, 13, 0))
 
@@ -150,15 +167,15 @@ def test_validate_requires_python_312(monkeypatch: pytest.MonkeyPatch, tmp_path:
 def test_validate_accepts_python_312_and_valid_secrets(tmp_path: Path) -> None:
     environment = configured_environment(tmp_path)
 
-    assert len(runtime_prerequisites.validate(tmp_path, environment)) == 4
+    assert len(runtime_prerequisites.validate(tmp_path, environment)) == 5
 
 
 def test_main_reports_success_failure_and_arguments(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setattr(runtime_prerequisites, "validate", lambda root: (root,) * 4)
+    monkeypatch.setattr(runtime_prerequisites, "validate", lambda root: (root,) * 5)
     assert runtime_prerequisites.main() == 0
-    assert "secret_files=4" in capsys.readouterr().out
+    assert "secret_files=5" in capsys.readouterr().out
 
     monkeypatch.setattr(
         runtime_prerequisites,

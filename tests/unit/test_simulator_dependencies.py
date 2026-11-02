@@ -243,6 +243,7 @@ async def test_postgres_save_is_idempotent_and_observable(
     connection.inserted = None
     assert await store.save(checkout, "corr-db") is False
 
+    assert connection.execute_calls == []
     insert_query, insert_args = connection.fetch_calls[-1]
     assert "ON CONFLICT (order_id) DO NOTHING" in insert_query
     assert insert_args == (
@@ -639,6 +640,7 @@ def test_redis_default_client_uses_secret_and_bounded_options(
     assert captured == {
         "host": "cache",
         "port": 6380,
+        "username": "inventory_app",
         "password": "redis-secret",
         "socket_connect_timeout": 3.0,
         "socket_timeout": 3.0,

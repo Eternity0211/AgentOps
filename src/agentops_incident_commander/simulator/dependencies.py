@@ -182,17 +182,6 @@ async def _observe[ResultT](
 class PostgresOrderStore:
     """Idempotent Order persistence backed by a bounded asyncpg pool."""
 
-    _schema = """
-        CREATE TABLE IF NOT EXISTS simulator_orders (
-            order_id text PRIMARY KEY,
-            items jsonb NOT NULL,
-            amount_minor bigint NOT NULL CHECK (amount_minor > 0),
-            currency character(3) NOT NULL,
-            correlation_id text NOT NULL,
-            created_at timestamptz NOT NULL DEFAULT now()
-        )
-    """
-
     def __init__(
         self,
         environment: Mapping[str, str] | None = None,
@@ -205,7 +194,7 @@ class PostgresOrderStore:
         self._host = source.get("SIMULATOR_DB_HOST", "simulator-postgres")
         self._port = int(source.get("SIMULATOR_DB_PORT", "5432"))
         self._database = source.get("SIMULATOR_DB_NAME", "commerce")
-        self._user = source.get("SIMULATOR_DB_USER", "simulator")
+        self._user = source.get("SIMULATOR_DB_USER", "simulator_app")
         self._password_file = source.get(
             "SIMULATOR_DB_PASSWORD_FILE", "/run/secrets/simulator_db_password"
         )
@@ -328,7 +317,6 @@ class PostgresOrderStore:
     async def save(self, checkout: CheckoutRequest, correlation_id: str) -> bool:
         async def action() -> bool:
             async def query(connection: PgConnection) -> bool:
-                await connection.execute(self._schema)
                 inserted = await connection.fetchval(
                     """
                     INSERT INTO simulator_orders
@@ -408,6 +396,7 @@ class RedisInventoryStore:
                 redis_asyncio.Redis(
                     host=source.get("SIMULATOR_REDIS_HOST", "simulator-redis"),
                     port=int(source.get("SIMULATOR_REDIS_PORT", "6379")),
+                    username=source.get("SIMULATOR_REDIS_USER", "inventory_app"),
                     password=password,
                     socket_connect_timeout=timeout,
                     socket_timeout=timeout,

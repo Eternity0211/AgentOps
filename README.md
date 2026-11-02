@@ -2,7 +2,7 @@
 
 AgentOps Incident Commander is an evidence-driven platform for diagnosing microservice incidents and performing controlled recovery. It combines metrics, logs, traces, topology, and deployment history; a constrained Diagnosis Agent builds verifiable root-cause hypotheses; a constrained Remediation Agent proposes recovery only after a deterministic evidence gate passes. Deterministic policy, approval, execution, health verification, and failure routing retain authority over every state change.
 
-> Status: Phase 0 through Phase 11 are complete, and Phase 12 is in progress. Measured [rules](evaluation/results/rules/v1/README.md), [single-Agent](evaluation/results/single-agent/v1/README.md), and [controlled LangGraph](evaluation/results/controlled-graph/v1/README.md) baselines are committed from their exact runner revisions. The fourth memory-aware graph runner is implemented with the same graph/model/budgets/safety chain and only versioned `HISTORICAL_REFERENCE` context; its measured artifacts remain pending execution from the committed revision. The rules baseline records 6/6 correct handoffs; both measured model baselines honestly record 0/6 because the shared mock model's single-source candidates fail the Gate and do not match scenario-specific handoff reasons. Graph orchestration alone produced no claimed diagnosis-quality gain. All three record 5/6 recovery safe outcomes and 1/2 eligible automated recoveries, with explicit denominators and no production-scale claim. The reproducible simulator and live local Compose verification remain documented in the versioned [Phase 1 verification record](docs/PHASE_1_VERIFICATION.md). The control plane includes the framework-free [typed domain model](docs/DOMAIN_MODEL.md), complete Incident lifecycle, deterministic Alert triage, a [PostgreSQL/pgvector persistence foundation](docs/PERSISTENCE.md) with append-only audit, transactional outbox, durable JobLease queue, tenant ownership, command idempotency, and immutable Evidence Gate decisions, separate [API/worker process composition](docs/CONTROL_PLANE_PROCESSES.md) with bounded runtime controls, tenant-scoped [authentication/RBAC contracts](docs/AUTHORIZATION.md), and a fail-closed [versioned business API](docs/API_V1.md) with a committed OpenAPI snapshot and stable problem-detail conventions. Phase 3 includes [immutable Artifact storage](docs/ARTIFACT_STORAGE.md), a tenant-scoped [Evidence model, normalization, quality, verification, redaction, untrusted-telemetry quarantine, and budgeted Context Builder pipeline](docs/EVIDENCE_MODEL.md), five bounded [deterministic collectors](docs/COLLECTORS.md), log error clustering, metric trend summaries, trace critical-path/error summaries, Incident-window deployment correlation with raw Artifact provenance, and tenant-scoped Evidence/Artifact read APIs with verified content bindings. Phase 4 includes the immutable, fail-closed [versioned ToolDefinition registry and deterministic Tool Gateway](docs/TOOL_GATEWAY.md) with conservative schema compatibility, validation, RBAC, exact dispatch, bounded timeout/retry/result controls, hash-only audit events, five bounded live read-tool v1 adapters, the disabled historical-reference-only `search_similar_incidents` v1 contract, and a diagnosis-only read catalog with recursive URL/path/command rejection. Phase 5 includes the versioned [deterministic Evidence Gate](docs/EVIDENCE_GATE.md), resolvable/owned/fresh/independent evidence checks, explicit counter/missing-evidence handling, confidence non-authority, reproducible persistence, audit binding, and adversarial fail-closed coverage. A production authentication adapter and production Artifact backend remain open; no production-scale or reliability claim is implied.
+> Status: Phase 0 through Phase 12 are complete, and Phase 13 release hardening is in progress. Measured [rules](evaluation/results/rules/v1/README.md), [single-Agent](evaluation/results/single-agent/v1/README.md), and [controlled LangGraph](evaluation/results/controlled-graph/v1/README.md) baselines are committed from their exact runner revisions. The fourth memory-aware graph runner is implemented with the same graph/model/budgets/safety chain and only versioned `HISTORICAL_REFERENCE` context; its measured artifacts remain pending execution from the committed revision. The rules baseline records 6/6 correct handoffs; both measured model baselines honestly record 0/6 because the shared mock model's single-source candidates fail the Gate and do not match scenario-specific handoff reasons. Graph orchestration alone produced no claimed diagnosis-quality gain. All three record 5/6 recovery safe outcomes and 1/2 eligible automated recoveries, with explicit denominators and no production-scale claim. The reproducible simulator and live local Compose verification remain documented in the versioned [Phase 1 verification record](docs/PHASE_1_VERIFICATION.md). The control plane includes the framework-free [typed domain model](docs/DOMAIN_MODEL.md), complete Incident lifecycle, deterministic Alert triage, a [PostgreSQL/pgvector persistence foundation](docs/PERSISTENCE.md) with append-only audit, transactional outbox, durable JobLease queue, tenant ownership, command idempotency, and immutable Evidence Gate decisions, separate [API/worker process composition](docs/CONTROL_PLANE_PROCESSES.md) with bounded runtime controls, tenant-scoped [authentication/RBAC contracts](docs/AUTHORIZATION.md), and a fail-closed [versioned business API](docs/API_V1.md) with a committed OpenAPI snapshot and stable problem-detail conventions. Phase 3 includes [immutable Artifact storage](docs/ARTIFACT_STORAGE.md), a tenant-scoped [Evidence model, normalization, quality, verification, redaction, untrusted-telemetry quarantine, and budgeted Context Builder pipeline](docs/EVIDENCE_MODEL.md), five bounded [deterministic collectors](docs/COLLECTORS.md), log error clustering, metric trend summaries, trace critical-path/error summaries, Incident-window deployment correlation with raw Artifact provenance, and tenant-scoped Evidence/Artifact read APIs with verified content bindings. Phase 4 includes the immutable, fail-closed [versioned ToolDefinition registry and deterministic Tool Gateway](docs/TOOL_GATEWAY.md) with conservative schema compatibility, validation, RBAC, exact dispatch, bounded timeout/retry/result controls, hash-only audit events, five bounded live read-tool v1 adapters, the disabled historical-reference-only `search_similar_incidents` v1 contract, and a diagnosis-only read catalog with recursive URL/path/command rejection. Phase 5 includes the versioned [deterministic Evidence Gate](docs/EVIDENCE_GATE.md), resolvable/owned/fresh/independent evidence checks, explicit counter/missing-evidence handling, confidence non-authority, reproducible persistence, audit binding, and adversarial fail-closed coverage. A production authentication adapter and production Artifact backend remain open; no production-scale or reliability claim is implied.
 
 > Phase 12 evaluation update: all four predeclared baselines are now measured and committed. The
 > [memory-aware graph result](evaluation/results/controlled-graph-memory/v1/README.md) supersedes
@@ -394,6 +394,39 @@ desktop/mobile Chromium smoke and WCAG contract. See
 [Phase 10 verification record](docs/PHASE_10_VERIFICATION.md) for the tested authorization,
 accessibility, and critical-flow boundary.
 
+## Quickstart
+
+Prerequisites are Git, Docker Engine/Desktop, and `uv`. The local reference path runs the diagnosed
+microservice simulator, observability stack, fixed tests, and credential-free mock evaluation. It
+does not pretend to be a production deployment: the installed control-plane API needs a
+deployment-owned authentication adapter, and the worker entry point needs an injected JobLease work
+source and handlers before it can process Incidents.
+
+```text
+git clone https://github.com/Eternity0211/AgentOps.git
+cd AgentOps
+uv python install 3.12.14
+uv sync --frozen --all-groups
+python scripts/dev.py quality
+```
+
+To run the local stack, copy `.env.example` to the ignored `.env`, create the five distinct
+local-only secret files named there, start Docker, and run:
+
+```text
+python scripts/dev.py doctor
+python scripts/dev.py up
+python scripts/dev.py status
+python scripts/dev.py mock
+python scripts/dev.py eval --model mock
+python scripts/dev.py down
+```
+
+Never copy production or personal credentials into this lab. `doctor` checks file presence, size,
+and uniqueness without printing values. See [Configuration reference](docs/CONFIGURATION.md) for
+every supported setting and [Operations runbook](docs/OPERATIONS_RUNBOOK.md) for startup,
+troubleshooting, Incident handling, recovery, crash/resume, migration, and cleanup procedures.
+
 ## Python 3.12 bootstrap
 
 The project is pinned to Python 3.12.14 in `.python-version`; Python 3.14 is not an accepted substitute. `uv` is the bootstrap tool. A normal developer/CI setup is:
@@ -479,7 +512,9 @@ uv run --frozen pre-commit run --all-files
 uv build --offline --no-sources
 ```
 
-The same commands run in the `Python Quality / quality` GitHub Actions job. The current package is intentionally minimal; simulator and application code arrive in later atomic batches.
+The same commands run in the `Python Quality / quality` GitHub Actions job. Container-backed
+integration tests require a reachable Docker Engine; a missing daemon is an environment failure,
+not a passing or skipped database boundary.
 
 If the host restricts the normal user cache directory, set `PRE_COMMIT_HOME` to the ignored repository-local `.pre-commit-cache` directory before running pre-commit. The project task runner normalizes this automatically.
 
@@ -573,6 +608,9 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 ## Documentation
 
 - [Project specification](docs/PROJECT_SPEC.md)
+- [Configuration reference](docs/CONFIGURATION.md)
+- [Operations runbook](docs/OPERATIONS_RUNBOOK.md)
+- [Contribution guide](CONTRIBUTING.md)
 - [Architecture and workflows](docs/ARCHITECTURE.md)
 - [Decision history and rationale](docs/DECISION_HISTORY.md)
 - [Comparison with Programming Tutor](docs/COMPARISON_WITH_PROGRAMMING_TUTOR.md)

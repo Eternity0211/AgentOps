@@ -122,8 +122,9 @@ completeness uses deterministic ruleset `1.0.0`: every displayed call requires o
 hash-bound `model.call_started`, and each terminal call additionally requires one exact
 `model.call_finished`. Missing or duplicate requirements produce `INCOMPLETE`; trace truncation
 produces `PARTIAL`; mismatched tenant, target, correlation, causation, schema, timestamp, or hash
-bindings fail closed with `PLATFORM_OBSERVABILITY_INTEGRITY_FAILED`. This scoped UI status does not
-claim the full workflow-path audit completeness that Phase 11 will enforce.
+bindings fail closed with `PLATFORM_OBSERVABILITY_INTEGRITY_FAILED`. This scoped UI status is not
+the full workflow-path audit result; complete-path assertions use the separate closed catalog and
+authoritative record bindings defined by the Phase 11 audit contract.
 
 Evidence lists use the same opaque newest-first cursor convention, ordered by collection time and
 Evidence ID. Metadata includes source/query provenance, observation and collection ranges, quality

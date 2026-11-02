@@ -16,6 +16,7 @@ function Add-ValidationError {
 
 $requiredFiles = @(
     'AGENTS.md',
+    'CONTRIBUTING.md',
     'README.md',
     'TODO.md',
     'docs/PROJECT_SPEC.md',
@@ -25,8 +26,11 @@ $requiredFiles = @(
     'docs/EVALUATION_PLAN.md',
     'docs/DECISION_HISTORY.md',
     'docs/COMPARISON_WITH_PROGRAMMING_TUTOR.md',
+    'docs/CONFIGURATION.md',
+    'docs/OPERATIONS_RUNBOOK.md',
     'docs/ADR/README.md',
-    'docs/ADR/0005-recovery-action-and-compensation-semantics.md'
+    'docs/ADR/0005-recovery-action-and-compensation-semantics.md',
+    'docs/ADR/0006-least-privilege-runtime-boundaries.md'
 )
 
 foreach ($relativePath in $requiredFiles) {

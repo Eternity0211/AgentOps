@@ -20,7 +20,7 @@ Protected assets include infrastructure control, approvals, incident/evidence in
 | SSRF/path/target injection | Typed enumerated tool inputs, service registry resolution, deny raw URLs/paths/commands, egress allowlist. | Malformed and encoded bypass tests. |
 | Resource/cost exhaustion | Per-incident step/token/time budgets, bounded retries/replans, concurrency/rate limits, payload caps. | Budget and load tests. |
 | Model/provider compromise | Provider abstraction, minimal/redacted context, output schemas, distrust outputs, audit exact model/settings. | Invalid/malicious output contract tests. |
-| Supply-chain compromise | Locked dependencies/images, scanning/SBOM plan, minimal images, reviewed update process. | CI scans and provenance report. |
+| Supply-chain compromise | Locked dependencies/images, minimal images, reviewed updates, CI vulnerability/secret/misconfiguration scans, and a commit-bound SBOM; release provenance remains explicitly future. | Supply-chain contract tests and retained CI scan/SBOM artifacts. |
 
 ## Safety invariants
 

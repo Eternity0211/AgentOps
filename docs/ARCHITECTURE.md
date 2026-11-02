@@ -333,7 +333,16 @@ validated history visible and offers only a read retry.
 
 ## Deployment topology
 
-The reference Compose topology separates `api`, `worker`, `console`, control-plane `postgres`, Prometheus/Loki/Tempo/Grafana, OTel Collector, and simulator services. The simulator includes its own PostgreSQL and Redis as diagnosed dependencies. Redis is not a control-plane queue or cache in the MVP. The runtime and Ground Truth evaluator use different Compose profiles/networks/credentials so runtime containers cannot read evaluation labels.
+The deployment architecture separates `api`, `worker`, `console`, control-plane PostgreSQL,
+Prometheus/Loki/Tempo/Grafana, OTel Collector, and simulator services. The checked-in local Compose
+stack currently runs control-plane PostgreSQL, the simulator, and observability; API and worker are
+installed process entry points, and the console remains a separately verified workspace. This
+repository does not claim those three surfaces are already composed as one production deployment.
+The simulator includes its own PostgreSQL and Redis as diagnosed dependencies. Redis is not a
+control-plane queue or cache in the MVP. Runtime and Ground Truth use different Compose files,
+profiles, networks, mounts, and credentials so runtime containers cannot read evaluation labels.
+Exact runtime identity, network, secret, volume, and config boundaries follow
+[ADR 0006](ADR/0006-least-privilege-runtime-boundaries.md).
 
 ## Dependency direction
 

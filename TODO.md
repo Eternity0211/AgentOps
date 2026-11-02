@@ -291,7 +291,7 @@ Exit: versioned raw results reproduce every published claim and all required saf
 - [x] Add dependency/image locking, update policy, vulnerability/secret scans, SBOM/provenance plan, and minimal container users/permissions.
 - [x] Validate least-privilege DB roles, network paths, filesystem mounts, and service credentials.
 - [x] Complete README quickstart, configuration reference, architecture/workflow diagrams, data model, threat model, ADRs, API docs, runbooks, and contribution guide.
-- [ ] Publish evaluation report containing methods, environment, raw-result links, limitations, and reproducible commands.
+- [x] Publish evaluation report containing methods, environment, raw-result links, limitations, and reproducible commands.
 - [ ] Create demo script showing six faults, eligibility-aware handoff or approved recovery, verification/failure routing, audit, crash resume, and mock mode.
 - [ ] Run clean-machine rehearsal and record exact versions/timings/issues.
 - [ ] Derive portfolio/resume statements only from committed reproducible measurements.

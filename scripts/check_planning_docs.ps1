@@ -24,6 +24,7 @@ $requiredFiles = @(
     'docs/DATA_MODEL.md',
     'docs/THREAT_MODEL.md',
     'docs/EVALUATION_PLAN.md',
+    'docs/EVALUATION_REPORT.md',
     'docs/DECISION_HISTORY.md',
     'docs/COMPARISON_WITH_PROGRAMMING_TUTOR.md',
     'docs/CONFIGURATION.md',
@@ -36,6 +37,23 @@ $requiredFiles = @(
 foreach ($relativePath in $requiredFiles) {
     if (-not (Test-Path -LiteralPath $relativePath -PathType Leaf)) {
         Add-ValidationError "Required file is missing: $relativePath"
+    }
+}
+
+$evaluationReportPath = Join-Path $repositoryRoot 'docs/EVALUATION_REPORT.md'
+if (Test-Path -LiteralPath $evaluationReportPath -PathType Leaf) {
+    $evaluationReportContent = [System.IO.File]::ReadAllText($evaluationReportPath)
+    $evaluationReportSections = @(
+        '## Methods',
+        '## Execution environment',
+        '## Raw artifacts',
+        '## Reproduction',
+        '## Limitations'
+    )
+    foreach ($section in $evaluationReportSections) {
+        if (-not $evaluationReportContent.Contains($section, [System.StringComparison]::Ordinal)) {
+            Add-ValidationError "Evaluation report section is missing: $section"
+        }
     }
 }
 

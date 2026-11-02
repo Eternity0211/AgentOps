@@ -337,10 +337,9 @@ failed HTTP responses, or worker concurrency overflow.
 The create-only runner records the exact committed revision, plan hash, Python/platform/hardware,
 operation counts, concurrency, per-workload JUnit duration, and derived local operations per
 second. Pytest AnyIO backend suffixes are parsed as part of the exact declared test identity, not
-as additional or missing workloads. The measured result remains pending execution from the
-committed runner revision. These
-small component-level samples are explicitly not production throughput, capacity, availability,
-or reliability claims and cannot by themselves justify Kafka, NATS, or another broker.
+as additional or missing workloads. These small component-level samples are explicitly not
+production throughput, capacity, availability, or reliability claims and cannot by themselves
+justify Kafka, NATS, or another broker.
 
 The measured run is committed under `evaluation/results/load/v1/run-001/` with run ID
 `bounded-load-20261030-001` and evaluated revision

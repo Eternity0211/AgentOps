@@ -293,7 +293,7 @@ Exit: versioned raw results reproduce every published claim and all required saf
 - [x] Complete README quickstart, configuration reference, architecture/workflow diagrams, data model, threat model, ADRs, API docs, runbooks, and contribution guide.
 - [x] Publish evaluation report containing methods, environment, raw-result links, limitations, and reproducible commands.
 - [x] Create demo script showing six faults, eligibility-aware handoff or approved recovery, verification/failure routing, audit, crash resume, and mock mode.
-- [ ] Run clean-machine rehearsal and record exact versions/timings/issues.
+- [x] Run clean-machine rehearsal and record exact versions/timings/issues.
 - [ ] Derive portfolio/resume statements only from committed reproducible measurements.
 
 Exit: a reviewer can clone, run mock mode, reproduce representative scenarios/evaluation, inspect safety controls, and verify every quantitative statement.

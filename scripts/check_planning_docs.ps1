@@ -26,6 +26,7 @@ $requiredFiles = @(
     'docs/EVALUATION_PLAN.md',
     'docs/EVALUATION_REPORT.md',
     'docs/DEMO.md',
+    'docs/CLEAN_MACHINE_REHEARSAL.md',
     'docs/DECISION_HISTORY.md',
     'docs/COMPARISON_WITH_PROGRAMMING_TUTOR.md',
     'docs/CONFIGURATION.md',
@@ -38,6 +39,38 @@ $requiredFiles = @(
 foreach ($relativePath in $requiredFiles) {
     if (-not (Test-Path -LiteralPath $relativePath -PathType Leaf)) {
         Add-ValidationError "Required file is missing: $relativePath"
+    }
+}
+
+$cleanMachinePath = Join-Path $repositoryRoot 'docs/CLEAN_MACHINE_REHEARSAL.md'
+if (Test-Path -LiteralPath $cleanMachinePath -PathType Leaf) {
+    $cleanMachineContent = [System.IO.File]::ReadAllText($cleanMachinePath)
+    $cleanMachineSections = @(
+        '## Scope and acceptance criteria',
+        '## Rehearsal environment',
+        '## Reproduction procedure',
+        '## Results and timings',
+        '## Issues discovered and disposition',
+        '## Limitations',
+        '## Evidence links'
+    )
+    foreach ($section in $cleanMachineSections) {
+        if (-not $cleanMachineContent.Contains($section, [System.StringComparison]::Ordinal)) {
+            Add-ValidationError "Clean-machine rehearsal is missing section: $section"
+        }
+    }
+    foreach ($requiredEvidence in @(
+        '2b968acdf2362dad9dfc9c278cdc41b102c965ad',
+        '41456364604',
+        '41456364615',
+        '41456364754',
+        '41456364717',
+        '8298e7e37fd84513bb0fda3535c3e67c90be8491',
+        '41438852334'
+    )) {
+        if (-not $cleanMachineContent.Contains($requiredEvidence, [System.StringComparison]::Ordinal)) {
+            Add-ValidationError "Clean-machine rehearsal is missing evidence identity: $requiredEvidence"
+        }
     }
 }
 

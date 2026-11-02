@@ -655,6 +655,7 @@ The simulator includes API Gateway, Order, Inventory, and Payment services plus 
 - [Threat model](docs/THREAT_MODEL.md)
 - [Supply-chain security](docs/SUPPLY_CHAIN.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
+- [Clean-machine rehearsal](docs/CLEAN_MACHINE_REHEARSAL.md)
 - [Repository CI and branch governance](docs/REPOSITORY_GOVERNANCE.md)
 - [Local Compose foundation](docs/COMPOSE.md)
 - [Database and service least privilege](docs/DATABASE_SECURITY.md)

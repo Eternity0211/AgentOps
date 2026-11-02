@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import os
 import re
@@ -12,7 +13,7 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal, cast
+from typing import Literal, Protocol, cast
 from uuid import uuid4
 
 ScenarioName = Literal[
@@ -25,6 +26,22 @@ ScenarioName = Literal[
 ]
 FaultStatus = Literal["applying", "active"]
 Runner = Callable[[tuple[str, ...], Path, Mapping[str, str]], int]
+
+
+class _WindowsFileLock(Protocol):
+    LK_NBLCK: int
+    LK_UNLCK: int
+
+    def locking(self, descriptor: int, mode: int, size: int) -> None: ...
+
+
+class _PosixFileLock(Protocol):
+    LOCK_EX: int
+    LOCK_NB: int
+    LOCK_UN: int
+
+    def flock(self, descriptor: int, operation: int) -> None: ...
+
 
 SCENARIO_TARGETS: dict[ScenarioName, str] = {
     "http-500": "order",
@@ -152,7 +169,7 @@ def _exclusive_lock(path: Path) -> Iterator[None]:
             handle.flush()
         handle.seek(0)
         if os.name == "nt":
-            import msvcrt
+            msvcrt = cast(_WindowsFileLock, importlib.import_module("msvcrt"))
 
             try:
                 msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
@@ -164,19 +181,16 @@ def _exclusive_lock(path: Path) -> Iterator[None]:
                 handle.seek(0)
                 msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
         else:
-            import fcntl
+            fcntl = cast(_PosixFileLock, importlib.import_module("fcntl"))
 
             try:
-                fcntl.flock(  # type: ignore[attr-defined]
-                    handle.fileno(),
-                    fcntl.LOCK_EX | fcntl.LOCK_NB,  # type: ignore[attr-defined]
-                )
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             except OSError as error:
                 raise FaultControlError("another fault operation is in progress") from error
             try:
                 yield
             finally:
-                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)  # type: ignore[attr-defined]
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 def _atomic_write(path: Path, content: str) -> None:

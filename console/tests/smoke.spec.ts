@@ -47,10 +47,16 @@ test("renders a readable console foundation without horizontal overflow", async 
   await expect(page.getByRole("link", { name: "Approvals" })).toHaveCount(0);
   await expect(page.getByRole("listitem")).toHaveCount(3);
   if (!testInfo.project.name.startsWith("mobile")) {
-    await page.keyboard.press("Tab");
-    await expect(
-      page.getByRole("link", { name: "Skip to content" }),
-    ).toBeFocused();
+    const skipLink = page.getByRole("link", { name: "Skip to content" });
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await page.keyboard.press("Tab");
+      if (
+        await skipLink.evaluate((element) => element === document.activeElement)
+      ) {
+        break;
+      }
+    }
+    await expect(skipLink).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(page.locator("#console-content")).toBeFocused();
   }

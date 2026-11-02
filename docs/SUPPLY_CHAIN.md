@@ -41,6 +41,15 @@ not replace GitHub repository secret protection, host image scanning, or a relea
 CI downloads the vulnerability databases at run time, so a scanner-service outage is an explicit
 CI failure rather than a clean security result.
 
+The 2026-11-02 clean-host rehearsal exposed three blocking findings rather than suppressing them:
+Linux strict typing rejected platform-stub assumptions in the cross-platform fault lock, the
+`setup-node` v6.2.0 comment was paired with a mistyped commit SHA, and the current Trivy database
+reported one HIGH and two CRITICAL fixed findings against Next.js 16.4.0. The lock implementation
+now resolves either standard-library module through a typed protocol, the Action uses the exact
+upstream v6.2.0 commit `6044e13b5dc448c55e2357c09f80417699197238`, and the console lock is
+updated to Next.js 16.4.1. These are remediations to be reverified by clean CI, not waived findings
+or a general vulnerability-free claim.
+
 ## Reviewed update policy
 
 Dependency and image updates are grouped by trust boundary and reviewed at least monthly. A known

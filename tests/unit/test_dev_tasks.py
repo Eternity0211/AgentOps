@@ -29,7 +29,13 @@ def test_quality_task_has_stable_bounded_order() -> None:
     ]
     assert all(command.timeout_seconds > 0 for command in commands)
     assert commands[7].timeout_seconds == 300
-    assert commands[-1].argv == ("uv", "build", "--offline", "--no-sources")
+    assert commands[-1].argv == (
+        "uv",
+        "build",
+        "--offline",
+        "--no-sources",
+        "--no-build-isolation",
+    )
 
 
 @pytest.mark.parametrize(

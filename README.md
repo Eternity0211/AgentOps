@@ -512,12 +512,14 @@ uv run --frozen python scripts/check_supply_chain.py
 uv run --frozen mypy src scripts tests
 uv run --frozen pytest
 uv run --frozen pre-commit run --all-files
-uv build --offline --no-sources
+uv build --offline --no-sources --no-build-isolation
 ```
 
 The same commands run in the `Python Quality / quality` GitHub Actions job. Container-backed
 integration tests require a reachable Docker Engine; a missing daemon is an environment failure,
-not a passing or skipped database boundary.
+not a passing or skipped database boundary. The offline build deliberately uses the already
+synchronized, frozen development environment for its locked Hatchling backend; it does not depend
+on an incidental build-isolation cache or contact the package registry.
 
 If the host restricts the normal user cache directory, set `PRE_COMMIT_HOME` to the ignored repository-local `.pre-commit-cache` directory before running pre-commit. The project task runner normalizes this automatically.
 

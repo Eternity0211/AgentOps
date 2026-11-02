@@ -56,7 +56,11 @@ QUALITY_COMMANDS = (
         ("pwsh", "-NoProfile", "-File", "scripts/check_planning_docs.ps1"),
         60,
     ),
-    CommandSpec("build", ("uv", "build", "--offline", "--no-sources"), 120),
+    CommandSpec(
+        "build",
+        ("uv", "build", "--offline", "--no-sources", "--no-build-isolation"),
+        120,
+    ),
 )
 
 UNIT_SAFETY_COVERAGE_TARGETS = (
@@ -1100,7 +1104,13 @@ def command_specs(
             ),
         )
     if task == "build":
-        return (CommandSpec("build", ("uv", "build", "--offline", "--no-sources"), 120),)
+        return (
+            CommandSpec(
+                "build",
+                ("uv", "build", "--offline", "--no-sources", "--no-build-isolation"),
+                120,
+            ),
+        )
     if task == "pre-commit":
         return (
             CommandSpec(

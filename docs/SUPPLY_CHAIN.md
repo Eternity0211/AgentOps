@@ -60,10 +60,11 @@ The second clean rerun passed all 2,783 Linux tests at 100% coverage and then ex
 packaging gap: `uv build --offline --no-sources` could not resolve the declared Hatchling backend
 because synchronization had never installed it as a locked development tool. Hatchling is now an
 explicit frozen development dependency, so the online sync prepares the exact backend before the
-offline build gate. A warm workstation cache is no longer accepted as evidence that a clean build
-is reproducible. The Python workflow also runs the deterministic release demo after the quality,
-evaluation, and mock-mode gates so a clean hosted runner exercises the documented end-to-end
-release path.
+offline build gate. The gate uses `--no-build-isolation` so it consumes that synchronized backend
+instead of requiring a second copy in an incidental uv build cache. A warm workstation cache is no
+longer accepted as evidence that a clean build is reproducible. The Python workflow also runs the
+deterministic release demo after the quality, evaluation, and mock-mode gates so a clean hosted
+runner exercises the documented end-to-end release path.
 
 ## Reviewed update policy
 

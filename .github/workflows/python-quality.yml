@@ -44,3 +44,6 @@ jobs:
 
       - name: Run credential-free mock-model mode
         run: uv run --frozen python scripts/dev.py mock
+
+      - name: Run deterministic release demo
+        run: uv run --frozen python scripts/dev.py demo

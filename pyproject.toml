@@ -34,6 +34,7 @@ agentops-worker = "agentops_incident_commander.apps.worker:main"
 
 [dependency-groups]
 dev = [
+    "hatchling>=1.27,<2",
     "hypothesis>=6.140,<7",
     "mypy>=1.18,<2",
     "pre-commit>=4.3,<5",

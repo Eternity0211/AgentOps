@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 import types
@@ -354,13 +353,22 @@ def test_read_state_maps_file_failure(tmp_path: Path, monkeypatch: pytest.Monkey
 
 
 def test_lock_contention_is_reported(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A concurrent Windows operation receives a stable refusal."""
-    if os.name != "nt":
-        pytest.skip("Windows locking branch")
-    import msvcrt
+    """The Windows advisory lock acquires, releases, and maps contention on every host."""
+    fake = types.ModuleType("msvcrt")
+    fake.LK_NBLCK = 1  # type: ignore[attr-defined]
+    fake.LK_UNLCK = 2  # type: ignore[attr-defined]
+    calls: list[tuple[int, int]] = []
+    fake.locking = (  # type: ignore[attr-defined]
+        lambda _descriptor, mode, size: calls.append((mode, size))
+    )
+    monkeypatch.setitem(sys.modules, "msvcrt", fake)
+    monkeypatch.setattr("agentops_incident_commander.faults.os.name", "nt")
 
-    monkeypatch.setattr(msvcrt, "locking", lambda *args: (_ for _ in ()).throw(OSError()))
+    with faults._exclusive_lock(tmp_path / "lock"):
+        pass
+    assert calls == [(1, 1), (2, 1)]
 
+    fake.locking = lambda *args: (_ for _ in ()).throw(OSError())  # type: ignore[attr-defined]
     with (
         pytest.raises(faults.FaultControlError, match="in progress"),
         faults._exclusive_lock(tmp_path / "lock"),

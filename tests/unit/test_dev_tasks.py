@@ -179,6 +179,37 @@ def test_e2e_suite_binds_six_scenarios_to_the_real_recovery_chain() -> None:
     assert commands[1].timeout_seconds == 300
 
 
+def test_demo_is_fixed_visible_and_covers_release_story() -> None:
+    commands = dev_tasks.command_specs("demo")
+
+    assert commands == dev_tasks.DEMO_COMMANDS
+    assert [command.label for command in commands] == [
+        "mock-model-mode",
+        "docker-daemon",
+        "demo-six-fault-matrix",
+        "demo-approved-recovery-and-verification-routes",
+        "demo-audit-and-crash-resume",
+    ]
+    assert commands[0] == dev_tasks.MOCK_MODEL_MODE
+    assert commands[1] == dev_tasks.DOCKER_DAEMON
+    selected = tuple(argument for command in commands[2:] for argument in command.argv)
+    assert "tests/e2e/test_fault_scenario_lifecycle.py" in selected
+    assert any("full_chain_closes_once_and_replays" in argument for argument in selected)
+    assert any(
+        "passing_verification_is_the_only_route_to_closed" in argument for argument in selected
+    )
+    assert any(
+        "failed_verification_uses_only_non_compensable_route" in argument for argument in selected
+    )
+    assert any("every_declared_workflow_path" in argument for argument in selected)
+    assert any("continues_from_every_durable_boundary" in argument for argument in selected)
+    assert all("-vv" in command.argv for command in commands[2:])
+    assert all(
+        command.argv[-3:] == ("-p", "no:cacheprovider", "--no-cov") for command in commands[2:]
+    )
+    assert all(command.timeout_seconds > 0 for command in commands)
+
+
 def test_resilience_suite_is_closed_deduplicated_and_docker_gated() -> None:
     expected_boundaries = {
         "diagnosis_checkpoint_boundaries",

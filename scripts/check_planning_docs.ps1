@@ -25,6 +25,7 @@ $requiredFiles = @(
     'docs/THREAT_MODEL.md',
     'docs/EVALUATION_PLAN.md',
     'docs/EVALUATION_REPORT.md',
+    'docs/DEMO.md',
     'docs/DECISION_HISTORY.md',
     'docs/COMPARISON_WITH_PROGRAMMING_TUTOR.md',
     'docs/CONFIGURATION.md',

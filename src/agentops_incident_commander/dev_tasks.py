@@ -133,6 +133,12 @@ MOCK_EVALUATION_TESTS = CommandSpec(
     180,
 )
 
+MOCK_MODEL_MODE = CommandSpec(
+    "mock-model-mode",
+    ("uv", "run", "--frozen", "python", "scripts/run_mock_mode.py"),
+    30,
+)
+
 EXTERNAL_INTEGRATION_TESTS = CommandSpec(
     "external-integration-tests",
     (
@@ -165,6 +171,72 @@ SIX_SCENARIO_E2E_TESTS = CommandSpec(
         "--no-cov",
     ),
     300,
+)
+
+DEMO_SIX_FAULT_MATRIX = CommandSpec(
+    "demo-six-fault-matrix",
+    (
+        "uv",
+        "run",
+        "--frozen",
+        "pytest",
+        "tests/e2e/test_fault_scenario_lifecycle.py",
+        "-vv",
+        "-p",
+        "no:cacheprovider",
+        "--no-cov",
+    ),
+    180,
+)
+
+DEMO_RECOVERY_ROUTES = CommandSpec(
+    "demo-approved-recovery-and-verification-routes",
+    (
+        "uv",
+        "run",
+        "--frozen",
+        "pytest",
+        (
+            "tests/integration/test_persistence.py::"
+            "test_authorized_rollback_service_full_chain_closes_once_and_replays"
+        ),
+        (
+            "tests/unit/test_recovery_orchestration.py::"
+            "test_passing_verification_is_the_only_route_to_closed"
+        ),
+        (
+            "tests/unit/test_recovery_orchestration.py::"
+            "test_failed_verification_uses_only_non_compensable_route"
+        ),
+        "-vv",
+        "-p",
+        "no:cacheprovider",
+        "--no-cov",
+    ),
+    180,
+)
+
+DEMO_AUDIT_AND_RESUME = CommandSpec(
+    "demo-audit-and-crash-resume",
+    (
+        "uv",
+        "run",
+        "--frozen",
+        "pytest",
+        (
+            "tests/unit/test_audit_completeness.py::"
+            "test_every_declared_workflow_path_has_a_complete_audit_assertion"
+        ),
+        (
+            "tests/integration/test_graph_checkpoints.py::"
+            "test_new_worker_continues_from_every_durable_boundary_without_duplicate_effects"
+        ),
+        "-vv",
+        "-p",
+        "no:cacheprovider",
+        "--no-cov",
+    ),
+    180,
 )
 
 RESILIENCE_TEST_CASES = (
@@ -866,6 +938,13 @@ DOCKER_DAEMON = CommandSpec(
     ("docker", "info", "--format", "{{json .ServerVersion}}"),
     15,
 )
+DEMO_COMMANDS = (
+    MOCK_MODEL_MODE,
+    DOCKER_DAEMON,
+    DEMO_SIX_FAULT_MATRIX,
+    DEMO_RECOVERY_ROUTES,
+    DEMO_AUDIT_AND_RESUME,
+)
 COMPOSE_DOWN = CommandSpec(
     "runtime-down",
     ("docker", "compose", *COMPOSE_PROFILES, "down", "--remove-orphans", "--timeout", "20"),
@@ -1035,13 +1114,9 @@ def command_specs(
             raise TaskConfigurationError("eval requires --model mock")
         return (MOCK_EVALUATION_TESTS,)
     if task == "mock":
-        return (
-            CommandSpec(
-                "mock-model-mode",
-                ("uv", "run", "--frozen", "python", "scripts/run_mock_mode.py"),
-                30,
-            ),
-        )
+        return (MOCK_MODEL_MODE,)
+    if task == "demo":
+        return DEMO_COMMANDS
     if task == "doctor":
         return (
             CommandSpec(
@@ -1190,6 +1265,7 @@ def build_parser() -> argparse.ArgumentParser:
             "pre-commit",
             "eval",
             "mock",
+            "demo",
             "doctor",
             "up",
             "down",

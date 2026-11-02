@@ -416,6 +416,7 @@ python scripts/dev.py doctor
 python scripts/dev.py up
 python scripts/dev.py status
 python scripts/dev.py mock
+python scripts/dev.py demo
 python scripts/dev.py eval --model mock
 python scripts/dev.py down
 ```
@@ -485,10 +486,14 @@ python scripts/dev.py fault inject --scenario bad-configuration
 python scripts/dev.py fault clean
 python scripts/dev.py test --suite smoke
 python scripts/dev.py test --suite e2e
+python scripts/dev.py demo
 python scripts/dev.py eval --model mock
 ```
 
-See [Deterministic fault control](docs/FAULT_INJECTION.md) for run IDs, concurrency, recovery state, cleanup, and the scenario enablement boundary.
+See [Deterministic release demo](docs/DEMO.md) for the exact six-fault, recovery, verification,
+audit, crash-resume, and mock-mode sequence. See
+[Deterministic fault control](docs/FAULT_INJECTION.md) for run IDs, concurrency, recovery state,
+cleanup, and the scenario enablement boundary.
 
 The repository-owned Python task runner below is the single cross-platform entry point for Windows, POSIX shells, and CI; `make` may be offered later only as an optional convenience wrapper.
 
@@ -545,6 +550,7 @@ python scripts/dev.py build
 python scripts/dev.py pre-commit
 python scripts/dev.py eval --model mock
 python scripts/dev.py mock
+python scripts/dev.py demo
 python scripts/dev.py doctor
 python scripts/dev.py up
 python scripts/dev.py status
@@ -565,6 +571,12 @@ runs the closed adversarial authority-boundary matrix. The smoke suite is delibe
 `eval --model mock` runs the fixed four-baseline, comprehensive-metrics, regression, bounded-load
 result, and Ground Truth isolation test set; it accepts no provider credential, output path, or
 arbitrary test selection. The quality task still runs the complete repository suite.
+
+`demo` is the bounded release walkthrough. It runs mock mode, checks Docker, displays all six fault
+scenario IDs and their eligibility-aware terminal routes, exercises the approved PostgreSQL
+rollback chain plus verification PASS/FAIL routing, checks every declared audit path, and proves
+worker replacement resumes from durable checkpoints without duplicate effects. It is documented
+in [Deterministic release demo](docs/DEMO.md).
 
 `python scripts/dev.py mock` is the user-runnable deterministic model mode. It invokes the real
 `diagnosis-mock/1.0.0` adapter repeatedly for planning and reporting against fixed adversarial

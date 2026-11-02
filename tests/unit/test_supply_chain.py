@@ -187,6 +187,69 @@ def test_workflow_validation_reports_unreadable_file(
     assert supply_chain._validate_workflows(tmp_path) == ["workflow bad.yml must be readable"]
 
 
+@pytest.mark.parametrize(
+    "content",
+    [
+        "[]\n",
+        "jobs:\n  invalid: []\n",
+        "jobs:\n  invalid:\n    steps: invalid\n",
+        "jobs:\n  invalid:\n    steps: [invalid]\n",
+    ],
+)
+def test_workflow_validation_ignores_non_action_shapes(tmp_path: Path, content: str) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "other.yml").write_text(content, encoding="utf-8")
+
+    assert supply_chain._validate_workflows(tmp_path) == []
+
+
+def test_workflow_validation_requires_reviewed_trivy_binary(tmp_path: Path) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    path = workflows / "supply-chain.yml"
+    path.write_text(
+        f"""jobs:
+  scan:
+    steps:
+      - uses: aquasecurity/trivy-action@{ACTION_SHA}
+        with:
+          scan-type: fs
+""",
+        encoding="utf-8",
+    )
+
+    assert supply_chain._validate_workflows(tmp_path) == [
+        "workflow supply-chain.yml Trivy steps must pin binary v0.76.1"
+    ]
+
+    path.write_text(
+        f"""jobs:
+  scan:
+    steps:
+      - uses: aquasecurity/trivy-action@{ACTION_SHA}
+        with: invalid
+""",
+        encoding="utf-8",
+    )
+    assert supply_chain._validate_workflows(tmp_path) == [
+        "workflow supply-chain.yml Trivy steps must pin binary v0.76.1"
+    ]
+
+    path.write_text(
+        f"""jobs:
+  scan:
+    steps:
+      - uses: aquasecurity/trivy-action@{ACTION_SHA}
+        with:
+          version: v0.76.1
+          scan-type: fs
+""",
+        encoding="utf-8",
+    )
+    assert supply_chain._validate_workflows(tmp_path) == []
+
+
 def test_lockfile_validation_reports_missing_malformed_and_unlocked_versions(
     tmp_path: Path,
 ) -> None:

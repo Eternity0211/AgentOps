@@ -15,6 +15,8 @@ IMAGE_DIGEST = re.compile(r"^[^@\s]+:[^@\s]+@sha256:[0-9a-f]{64}$")
 ACTION_SHA = re.compile(r"^[0-9a-f]{40}$")
 NUMERIC_USER = re.compile(r"^USER\s+[1-9][0-9]*:[1-9][0-9]*\s*$", re.MULTILINE)
 ACTION_USE = re.compile(r"^\s*-?\s*uses:\s*([^\s#]+)", re.MULTILINE)
+TRIVY_ACTION = "aquasecurity/trivy-action@"
+TRIVY_VERSION = "v0.76.1"
 LOCK_FILES = (
     "uv.lock",
     "console/package-lock.json",
@@ -111,6 +113,29 @@ def _validate_workflows(root: Path) -> list[str]:
             _, separator, revision = use.rpartition("@")
             if not separator or ACTION_SHA.fullmatch(revision) is None:
                 violations.append(f"workflow {path.name} action {use} must pin a full commit SHA")
+        document = yaml.safe_load(content)
+        if not isinstance(document, Mapping):
+            continue
+        jobs = document.get("jobs")
+        if not isinstance(jobs, Mapping):
+            continue
+        for job in jobs.values():
+            if not isinstance(job, Mapping):
+                continue
+            steps = job.get("steps", ())
+            if not isinstance(steps, Sequence) or isinstance(steps, str):
+                continue
+            for step in steps:
+                if not isinstance(step, Mapping):
+                    continue
+                use = step.get("uses")
+                if not isinstance(use, str) or not use.startswith(TRIVY_ACTION):
+                    continue
+                inputs = step.get("with")
+                if not isinstance(inputs, Mapping) or inputs.get("version") != TRIVY_VERSION:
+                    violations.append(
+                        f"workflow {path.name} Trivy steps must pin binary {TRIVY_VERSION}"
+                    )
     return violations
 
 

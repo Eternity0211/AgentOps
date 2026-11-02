@@ -26,6 +26,7 @@ jobs:
       - name: Generate CycloneDX repository SBOM
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          version: v0.76.1
           scan-type: fs
           scan-ref: .
           format: cyclonedx
@@ -42,6 +43,7 @@ jobs:
       - name: Scan vulnerabilities, secrets, and misconfiguration
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          version: v0.76.1
           scan-type: fs
           scan-ref: .
           scanners: vuln,secret,misconfig
@@ -58,6 +60,7 @@ jobs:
       - name: Scan simulator image vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          version: v0.76.1
           scan-type: image
           image-ref: agentops-simulator:ci
           scanners: vuln
@@ -69,6 +72,7 @@ jobs:
       - name: Scan evaluator image vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          version: v0.76.1
           scan-type: image
           image-ref: agentops-evaluator:ci
           scanners: vuln

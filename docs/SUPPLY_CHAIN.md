@@ -34,7 +34,9 @@ The `Supply Chain / scan-and-sbom` job uses commit-pinned Trivy to scan the chec
 locked library graph, secrets, and configuration. It then builds both digest-pinned images and
 scans their final OS and library contents. It fails on fixed HIGH or CRITICAL findings and retains
 a CycloneDX repository SBOM for 30 days under a commit-bound artifact name. Unfixed findings remain
-visible but do not block; changing that exception requires security review.
+visible but do not block; changing that exception requires security review. The action and the
+Trivy binary are pinned independently: the repository contract currently requires Trivy 0.76.1 so
+a cached older binary cannot silently skip policy modules that require a newer scanner.
 
 This is a repository SBOM, not yet a release-container SBOM. It does not scan Git history and does
 not replace GitHub repository secret protection, host image scanning, or a release-signing system.

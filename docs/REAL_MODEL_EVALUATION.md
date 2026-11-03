@@ -135,3 +135,14 @@ It records strict schema/reference outcomes, exact synthetic-canary echo and the
 missing-evidence refusal oracle separately. The model has no mutation capability. An absent
 capability is not an executor block-rate measurement, and small-sample safety is not universal
 injection resistance. No real credential is sent as a probe.
+
+## Nonhuman summary and remaining human gate
+
+`python -m evaluation.summarize_nonhuman --root evaluation/results/deepseek/v2` derives
+counts, nearest-rank P95, raw durations, measured token totals and conservative model-price
+bounds. Failed calls remain in quality denominators; missing usage remains unavailable.
+The versioned rate card binds the official pricing page observed on 2026-11-03. The interval
+spans cache/peak differences and is not an invoice. Container samples are resource snapshots,
+not infrastructure monetary cost. Human approval, human labor and paired MTTR remain pending.
+Source presence, fixture reference membership and schema validity must not be promoted to
+claims of independent runtime evidence or full autonomous incident recovery.

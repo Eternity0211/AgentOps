@@ -146,3 +146,6 @@ spans cache/peak differences and is not an invoice. Container samples are resour
 not infrastructure monetary cost. Human approval, human labor and paired MTTR remain pending.
 Source presence, fixture reference membership and schema validity must not be promoted to
 claims of independent runtime evidence or full autonomous incident recovery.
+
+Provider schema failures additionally record only field locations and validation error types,
+never input values, provider exception bodies, response text or reasoning.

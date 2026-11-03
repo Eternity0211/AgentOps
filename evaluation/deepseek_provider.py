@@ -177,7 +177,13 @@ class DeepSeekEvaluationProvider:
             result["error_code"] = "TRANSPORT_ERROR"
         except ProviderFailure as error:
             result["error_code"] = str(error)
-        except (ValueError, KeyError, IndexError, TypeError, ValidationError):
+        except ValidationError as error:
+            result["error_code"] = "INVALID_RESPONSE"
+            result["schema_errors"] = [
+                {"location": list(item["loc"]), "type": item["type"]}
+                for item in error.errors(include_input=False, include_context=False)[:8]
+            ]
+        except (ValueError, KeyError, IndexError, TypeError):
             result["error_code"] = "INVALID_RESPONSE"
         finally:
             result["duration_ms"] = (time.monotonic_ns() - started) // 1_000_000

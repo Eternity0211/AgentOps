@@ -1,0 +1,23 @@
+{
+  "version": "real-paired-replay/1.0.0",
+  "model": "deepseek-flash",
+  "repeats": 3,
+  "modes": [
+    "single",
+    "graph",
+    "memory"
+  ],
+  "taxonomy": [
+    "configuration-drift",
+    "database-pool-exhaustion",
+    "downstream-latency",
+    "deployment-regression",
+    "redis-timeout",
+    "unknown"
+  ],
+  "calls_per_case": 1,
+  "max_output_tokens": 2048,
+  "max_context_characters": 12288,
+  "independent_variable": "single-vs-graph: orchestration; graph-vs-memory: historical context",
+  "scope": "summary replay; fixed deterministic collection plan; no model planning comparison"
+}

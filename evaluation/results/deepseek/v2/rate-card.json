@@ -1,0 +1,20 @@
+{
+  "schema_version": "deepseek-flash-price-bounds/1.0.0",
+  "observed_date": "2026-11-03",
+  "source": "https://api-docs.deepseek.com/quick_start/pricing/",
+  "currency": "USD",
+  "unit": "per_million_tokens",
+  "model": "deepseek-flash",
+  "bounds": {
+    "input_min": "0.003",
+    "input_max": "0.30",
+    "output_min": "0.60",
+    "output_max": "1.20"
+  },
+  "method": "Conservative range over peak/off-peak and cache hit/miss; not an invoice. Failed calls with missing usage are excluded and flagged.",
+  "limitations": [
+    "No exact cache breakdown recorded",
+    "No account balance or private billing data persisted",
+    "No infrastructure monetary cost assumed"
+  ]
+}

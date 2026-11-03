@@ -687,3 +687,7 @@ The repository remains named `AgentOps`, while the documentation and portfolio d
 A bounded [DeepSeek read-only smoke adapter](docs/REAL_MODEL_EVALUATION.md) is available
 for synthetic summary replay. This does not enable API/worker provider invocation or
 write operations; real-provider measurements are separate from the four mock baselines.
+
+The [2026-11-03 real-model nonhuman evaluation](evaluation/results/deepseek/v2/README.md)
+records paired replay, actual Compose faults, immutable experiment evidence and adversarial
+results. Live diagnosis remains below acceptance; no approved recovery or efficiency gain is claimed.

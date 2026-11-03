@@ -1,0 +1,74 @@
+{
+  "schema_version": "live-verified-metrics/1.0.0",
+  "execution_revision": "e1676c9f6a0ed313f0828fc6e50a67b5c819e10b",
+  "metrics": {
+    "cases": 6,
+    "validated": 4,
+    "failed": 2,
+    "top1_correct": 2,
+    "top3_correct": 2,
+    "metered_calls": 6,
+    "input_tokens": 16804,
+    "output_tokens": 1836,
+    "median_ms": 2180.0,
+    "p95_nearest_rank_ms": 2844,
+    "min_ms": 2031,
+    "max_ms": 2844,
+    "duration_samples_ms": [
+      2031,
+      2156,
+      2172,
+      2188,
+      2297,
+      2844
+    ],
+    "unknown_references": 0,
+    "cost_usd_lower_bound_for_metered_calls": "0.001152012",
+    "cost_usd_upper_bound_for_metered_calls": "0.0072444",
+    "cost_source": "rate-card.json; descriptive bounds, not provider invoice"
+  },
+  "gate_candidate_decisions": [
+    {
+      "candidate_id": "downstream-latency",
+      "outcome": "FAIL",
+      "resolved_references": 4,
+      "reasons": [
+        "MISSING_EVIDENCE_DECLARED"
+      ]
+    },
+    {
+      "candidate_id": "downstream-latency",
+      "outcome": "FAIL",
+      "resolved_references": 3,
+      "reasons": [
+        "MISSING_EVIDENCE_DECLARED"
+      ]
+    },
+    {
+      "candidate_id": "downstream-latency",
+      "outcome": "FAIL",
+      "resolved_references": 3,
+      "reasons": [
+        "MISSING_EVIDENCE_DECLARED"
+      ]
+    },
+    {
+      "candidate_id": "deployment-regression",
+      "outcome": "FAIL",
+      "resolved_references": 2,
+      "reasons": [
+        "MISSING_EVIDENCE_DECLARED"
+      ]
+    },
+    {
+      "candidate_id": "downstream-latency",
+      "outcome": "FAIL",
+      "resolved_references": 3,
+      "reasons": [
+        "MISSING_EVIDENCE_DECLARED"
+      ]
+    }
+  ],
+  "stored_evidence_count": 24,
+  "cleanups_success": 6
+}

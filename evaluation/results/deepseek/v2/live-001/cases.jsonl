@@ -1,0 +1,1 @@
+{"scenario": "http-500", "started_at": "2026-11-03T03:23:10.666832+00:00", "baseline": {"status": 200, "duration_ms": 63}, "recovery_credit": false, "cleanup_exit": 0, "after_cleanup": {"status": 200, "duration_ms": 343}}

@@ -350,6 +350,7 @@ This index is an omission check, not a second task list. The referenced phases c
   Test plan: transport/auth/timeout/truncation/malformed/schema/reference negative tests; Ruff,
   mypy, unit tests; real six-case read-only run with immutable results and explicit limitations.
 - [x] R2a: implement bounded real-provider paired replay runner; 22 relevant tests, Ruff and mypy pass.
+- [x] R2b: publish 54 real-provider paired replay calls; retain known-case/held-out distinction.
 - [ ] R2: real-provider fair single/graph/memory comparisons with repeated held-out scenarios.
   Acceptance: predeclared equal model/budgets and cause taxonomy; opaque IDs; repeated paired
   inputs; same scoring across modes; real graph topology and advisory-only memory; per-call
@@ -357,6 +358,9 @@ This index is an omission check, not a second task list. The referenced phases c
   Tests: strict schema, unknown IDs, memory citation refusal, graph routes, budget limits,
   equal-context pair hashes, isolated scoring and report arithmetic; Ruff/mypy/pytest.
 - [x] R3a-runner: bounded live Compose collection runner with cleanup-on-failure tests.
+- [x] R3b: execute two six-fault Compose diagnosis runs; publish 24 immutable Artifacts and Gate results.
+  Outcomes are measurements, not capability acceptance: verified run 4/6 valid reports, 2/6
+  exact Top-1, 0/5 candidate Gate passes; all six evaluator cleanups succeed.
 - [ ] R3a: collect real local simulator fault observations and evaluate diagnosis up to human wait.
   Acceptance: actual HTTP observations, provenance/hash/time, baseline/fault/cleanup separation,
   real provider calls, no automatic approval or recovery credit; distinguish in-process and Compose.
@@ -365,6 +369,9 @@ This index is an omission check, not a second task list. The referenced phases c
 - [x] R4a: publish six-case provider, worker-resilience, bounded-load and full Python regression artifacts.
   Result: 2,810 Python tests pass with 100% statement/branch source coverage; 20 new adapter/runner
   tests independently pass with 100% coverage. See evaluation/results/deepseek/v1/README.md.
+- [x] R4b: publish real adversarial probes, price bounds, resource snapshots and 2,820-test regression.
+  Full requested coverage matrix distinguishes measured results, human tasks and remaining
+  nonhuman engineering gaps. See evaluation/results/deepseek/v2/README.md.
 - [ ] R4: consolidated safety/evidence/resilience/load measurements and metric coverage matrix.
   Measurement batch acceptance: publish clean-revision six-case provider results, fixed worker
   resilience and bounded-load raw artifacts; distinguish test counts from outcome rates and

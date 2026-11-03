@@ -1,0 +1,473 @@
+{
+  "schema_version": "live-compose-diagnosis/1.0.0",
+  "code_revision": "c47495c4a52423ac438cf4092eb83cd46d486df5",
+  "environment": {
+    "SIMULATOR_DB_ADMIN_PASSWORD_FILE": "./secrets/simulator-db-admin-password.txt",
+    "GATEWAY_PORT": "18080",
+    "PROMETHEUS_PORT": "19090",
+    "LOKI_PORT": "13100",
+    "TEMPO_PORT": "13200",
+    "GRAFANA_PORT": "13000"
+  },
+  "results": [
+    {
+      "scenario": "http-500",
+      "started_at": "2026-11-03T03:26:03.578800+00:00",
+      "baseline": {
+        "status": 200,
+        "duration_ms": 93
+      },
+      "recovery_credit": false,
+      "probes": [
+        {
+          "status": 502,
+          "duration_ms": 31
+        },
+        {
+          "status": 502,
+          "duration_ms": 31
+        },
+        {
+          "status": 502,
+          "duration_ms": 63
+        },
+        {
+          "status": 502,
+          "duration_ms": 93
+        },
+        {
+          "status": 502,
+          "duration_ms": 32
+        },
+        {
+          "status": 502,
+          "duration_ms": 62
+        },
+        {
+          "status": 502,
+          "duration_ms": 31
+        },
+        {
+          "status": 502,
+          "duration_ms": 63
+        }
+      ],
+      "evidence_hash": "e80b0bc76e052a1ecd59de2977f7916ee21ca0b0e41e210b445d30ad83faa436",
+      "collected_at": "2026-11-03T03:26:40.714751+00:00",
+      "source_nonempty": {
+        "metrics": true,
+        "logs": true,
+        "traces": false,
+        "http-probes": true
+      },
+      "diagnosis": {
+        "request_hash": "a9b0999fb516f9f871a48fb73a67ce35f424a410281d3b08668d3869da3a086b",
+        "usage": {
+          "prompt_tokens": 2220,
+          "completion_tokens": 758,
+          "total_tokens": 2978
+        },
+        "cost": null,
+        "cost_reason": "NOT_REPORTED",
+        "status": "failed",
+        "error_code": "INVALID_RESPONSE",
+        "response_hash": "5190909c27a7a9b28e2686a2a5857694d740672b2055d99ecf0f84cb9e6efa05",
+        "model": "deepseek-flash",
+        "duration_ms": 4234
+      },
+      "terminal": "HUMAN_REVIEW_REQUIRED",
+      "cleanup_exit": 0,
+      "after_cleanup": {
+        "status": 200,
+        "duration_ms": 296
+      },
+      "top1_correct": false,
+      "top3_correct": false
+    },
+    {
+      "scenario": "db-pool-exhaustion",
+      "started_at": "2026-11-03T03:27:09.051931+00:00",
+      "baseline": {
+        "status": 200,
+        "duration_ms": 94
+      },
+      "recovery_credit": false,
+      "probes": [
+        {
+          "status": 502,
+          "duration_ms": 2046
+        },
+        {
+          "status": 502,
+          "duration_ms": 2016
+        },
+        {
+          "status": 502,
+          "duration_ms": 2031
+        },
+        {
+          "status": 502,
+          "duration_ms": 2016
+        },
+        {
+          "status": 502,
+          "duration_ms": 2031
+        },
+        {
+          "status": 502,
+          "duration_ms": 2031
+        },
+        {
+          "status": 502,
+          "duration_ms": 2032
+        },
+        {
+          "status": 502,
+          "duration_ms": 2015
+        }
+      ],
+      "evidence_hash": "7128fd354e57fcd4332bc9a2a1a31f6012edf7ccdb0048f3ba7a8c906ee8a566",
+      "collected_at": "2026-11-03T03:28:01.996312+00:00",
+      "source_nonempty": {
+        "metrics": true,
+        "logs": true,
+        "traces": true,
+        "http-probes": true
+      },
+      "diagnosis": {
+        "request_hash": "d2f11db40b4550670ad4d79d2334094d6cf8858ec1f369934b3dfcf7e40e57dd",
+        "usage": {
+          "prompt_tokens": 2777,
+          "completion_tokens": 817,
+          "total_tokens": 3594
+        },
+        "cost": null,
+        "cost_reason": "NOT_REPORTED",
+        "status": "failed",
+        "error_code": "INVALID_RESPONSE",
+        "response_hash": "d85270278965ed246a13bfe5b6eafd575d028e8adb7d4c2c51f7237f5ac20cdf",
+        "model": "deepseek-flash",
+        "duration_ms": 4546
+      },
+      "terminal": "HUMAN_REVIEW_REQUIRED",
+      "cleanup_exit": 0,
+      "after_cleanup": {
+        "status": 200,
+        "duration_ms": 297
+      },
+      "top1_correct": false,
+      "top3_correct": false
+    },
+    {
+      "scenario": "redis-timeout",
+      "started_at": "2026-11-03T03:28:30.148189+00:00",
+      "baseline": {
+        "status": 200,
+        "duration_ms": 94
+      },
+      "recovery_credit": false,
+      "probes": [
+        {
+          "status": 502,
+          "duration_ms": 2016
+        },
+        {
+          "status": 502,
+          "duration_ms": 2031
+        },
+        {
+          "status": 502,
+          "duration_ms": 2063
+        },
+        {
+          "status": 502,
+          "duration_ms": 2094
+        },
+        {
+          "status": 502,
+          "duration_ms": 2031
+        },
+        {
+          "status": 502,
+          "duration_ms": 2062
+        },
+        {
+          "status": 502,
+          "duration_ms": 2110
+        },
+        {
+          "status": 502,
+          "duration_ms": 2015
+        }
+      ],
+      "evidence_hash": "2475b2af07dda931be8aa85f09fc41e67855ec7f7fa0592aa87c5aad1a9c0699",
+      "collected_at": "2026-11-03T03:29:18.399435+00:00",
+      "source_nonempty": {
+        "metrics": true,
+        "logs": true,
+        "traces": true,
+        "http-probes": true
+      },
+      "diagnosis": {
+        "request_hash": "da9f008831eb9b7d3e5af21f938c75107070292756ff560bbd60eb70b235da1f",
+        "usage": {
+          "prompt_tokens": 2874,
+          "completion_tokens": 767,
+          "total_tokens": 3641
+        },
+        "cost": null,
+        "cost_reason": "NOT_REPORTED",
+        "status": "failed",
+        "error_code": "INVALID_RESPONSE",
+        "response_hash": "717d490fa1a05ce0ae27f4d022c3761a27a05a2a6731e7f24c33c135c2b75bbe",
+        "model": "deepseek-flash",
+        "duration_ms": 5047
+      },
+      "terminal": "HUMAN_REVIEW_REQUIRED",
+      "cleanup_exit": 0,
+      "after_cleanup": {
+        "status": 200,
+        "duration_ms": 94
+      },
+      "top1_correct": false,
+      "top3_correct": false
+    },
+    {
+      "scenario": "downstream-latency",
+      "started_at": "2026-11-03T03:29:45.479834+00:00",
+      "baseline": {
+        "status": 200,
+        "duration_ms": 94
+      },
+      "recovery_credit": false,
+      "probes": [
+        {
+          "status": 502,
+          "duration_ms": 2031
+        },
+        {
+          "status": 502,
+          "duration_ms": 2016
+        },
+        {
+          "status": 502,
+          "duration_ms": 2015
+        },
+        {
+          "status": 502,
+          "duration_ms": 2032
+        },
+        {
+          "status": 502,
+          "duration_ms": 2031
+        },
+        {
+          "status": 502,
+          "duration_ms": 2016
+        },
+        {
+          "status": 502,
+          "duration_ms": 2031
+        },
+        {
+          "status": 502,
+          "duration_ms": 2031
+        }
+      ],
+      "evidence_hash": "cdb8df01085c8e102bf15f8920445762fa5e102f90ed71ab61a09c74c718a8de",
+      "collected_at": "2026-11-03T03:30:34.179223+00:00",
+      "source_nonempty": {
+        "metrics": true,
+        "logs": true,
+        "traces": true,
+        "http-probes": true
+      },
+      "diagnosis": {
+        "request_hash": "b0e14a9cae46b8e7d904fa5ee00cf766417e46ed7f2a028d960dbc8266ebfb8e",
+        "usage": {
+          "prompt_tokens": 2584,
+          "completion_tokens": 702,
+          "total_tokens": 3286
+        },
+        "cost": null,
+        "cost_reason": "NOT_REPORTED",
+        "status": "failed",
+        "error_code": "INVALID_RESPONSE",
+        "response_hash": "addf4c36b6a9efcecc8c5df6589e0454d2f553011ea8b46a1653863c51e6822d",
+        "model": "deepseek-flash",
+        "duration_ms": 4266
+      },
+      "terminal": "HUMAN_REVIEW_REQUIRED",
+      "cleanup_exit": 0,
+      "after_cleanup": {
+        "status": 200,
+        "duration_ms": 78
+      },
+      "top1_correct": false,
+      "top3_correct": false
+    },
+    {
+      "scenario": "memory-leak",
+      "started_at": "2026-11-03T03:31:00.972634+00:00",
+      "baseline": {
+        "status": 200,
+        "duration_ms": 78
+      },
+      "recovery_credit": false,
+      "probes": [
+        {
+          "status": 200,
+          "duration_ms": 453
+        },
+        {
+          "status": 200,
+          "duration_ms": 188
+        },
+        {
+          "status": 200,
+          "duration_ms": 125
+        },
+        {
+          "status": 200,
+          "duration_ms": 62
+        },
+        {
+          "status": 200,
+          "duration_ms": 141
+        },
+        {
+          "status": 200,
+          "duration_ms": 78
+        },
+        {
+          "status": 200,
+          "duration_ms": 125
+        },
+        {
+          "status": 200,
+          "duration_ms": 78
+        }
+      ],
+      "evidence_hash": "3597ea2bd36a5b4da7687d840eb9ac0b9fe6fbfba94e4eeb612d2a53125b5c07",
+      "collected_at": "2026-11-03T03:31:37.287508+00:00",
+      "source_nonempty": {
+        "metrics": true,
+        "logs": true,
+        "traces": true,
+        "http-probes": true
+      },
+      "diagnosis": {
+        "request_hash": "ba9566f8d430c9a9211afdcd86772ed21c13e36caf96a49c3d43a9b5fc3df015",
+        "usage": {
+          "prompt_tokens": 2843,
+          "completion_tokens": 729,
+          "total_tokens": 3572
+        },
+        "cost": null,
+        "cost_reason": "NOT_REPORTED",
+        "status": "validated",
+        "error_code": null,
+        "response_hash": "a02845fabf4d6b83e9e4fc4b89ec33d0632fec5ab21f597dae81f273a2845e72",
+        "model": "deepseek-flash",
+        "cited_reference_count": 4,
+        "unknown_reference_count": 0,
+        "candidate_ids": [
+          "deployment-regression",
+          "downstream-latency",
+          "unknown"
+        ],
+        "disposition": "CANDIDATES",
+        "runtime_gate": "NOT_RUN",
+        "duration_ms": 4329
+      },
+      "terminal": "HUMAN_REVIEW_REQUIRED",
+      "cleanup_exit": 0,
+      "after_cleanup": {
+        "status": 200,
+        "duration_ms": 672
+      },
+      "top1_correct": true,
+      "top3_correct": true
+    },
+    {
+      "scenario": "bad-configuration",
+      "started_at": "2026-11-03T03:32:03.483415+00:00",
+      "baseline": {
+        "status": 200,
+        "duration_ms": 187
+      },
+      "recovery_credit": false,
+      "probes": [
+        {
+          "status": 502,
+          "duration_ms": 422
+        },
+        {
+          "status": 502,
+          "duration_ms": 265
+        },
+        {
+          "status": 502,
+          "duration_ms": 219
+        },
+        {
+          "status": 502,
+          "duration_ms": 188
+        },
+        {
+          "status": 502,
+          "duration_ms": 203
+        },
+        {
+          "status": 502,
+          "duration_ms": 94
+        },
+        {
+          "status": 502,
+          "duration_ms": 109
+        },
+        {
+          "status": 502,
+          "duration_ms": 187
+        }
+      ],
+      "evidence_hash": "812d109124a73ef36c56d7cc568a8fc5103a6df3e598c030bedd140b77dee1e4",
+      "collected_at": "2026-11-03T03:32:41.779410+00:00",
+      "source_nonempty": {
+        "metrics": true,
+        "logs": true,
+        "traces": false,
+        "http-probes": true
+      },
+      "diagnosis": {
+        "request_hash": "cbbefdcf7db40263f9fa5765e257e2ad3b9a3383d0004bc6ac8a5e7748aeb067",
+        "usage": {
+          "prompt_tokens": 2249,
+          "completion_tokens": 424,
+          "total_tokens": 2673
+        },
+        "cost": null,
+        "cost_reason": "NOT_REPORTED",
+        "status": "failed",
+        "error_code": "INVALID_RESPONSE",
+        "response_hash": "5b32a85b2c33ee864c28140ca4acf208f8ffac3ae958a6c9ace9f90fb01955dd",
+        "model": "deepseek-flash",
+        "duration_ms": 2688
+      },
+      "terminal": "HUMAN_REVIEW_REQUIRED",
+      "cleanup_exit": 0,
+      "after_cleanup": {
+        "status": 200,
+        "duration_ms": 78
+      },
+      "top1_correct": false,
+      "top3_correct": false
+    }
+  ],
+  "limitations": [
+    "Evaluator-controlled HTTP telemetry collection, not autonomous Tool Gateway",
+    "No approvals or product recovery executed; cleanup earns no recovery credit",
+    "Telemetry summaries truncated at 2048 characters; independent runtime Gate not run",
+    "Metrics query is cumulative; not an isolated rate or production P95 measurement"
+  ]
+}

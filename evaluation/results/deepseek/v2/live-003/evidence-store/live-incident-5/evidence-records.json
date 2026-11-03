@@ -1,0 +1,343 @@
+[
+  {
+    "evidence": {
+      "id": {
+        "value": "live-1"
+      },
+      "tenant_id": {
+        "value": "local-evaluation"
+      },
+      "incident_id": {
+        "value": "live-incident-5"
+      },
+      "source_type": "METRIC",
+      "source_instance": "local-metrics",
+      "tool_name": "bounded_live_probe",
+      "tool_version": "1.0.0",
+      "tool_schema_version": "1.0.0",
+      "normalized_query": {
+        "parameters": [
+          {
+            "name": "source",
+            "value": "metrics"
+          }
+        ]
+      },
+      "observed_from": "2026-11-03 03:41:52.820354+00:00",
+      "observed_to": "2026-11-03 03:42:07.219764+00:00",
+      "collected_at": "2026-11-03 03:42:07.219764+00:00",
+      "artifact_id": {
+        "value": "artifact-live-incident-5-live-1"
+      },
+      "content_hash": {
+        "value": "88469dd809cd44788af63ce56a7aa5f1888cb620d22b19a3fe9b9a7997f1b51e"
+      },
+      "parser_version": "1.0.0",
+      "normalizer_version": "1.0.0",
+      "quality": {
+        "score_basis_points": 7400,
+        "reasons": [
+          "source-available",
+          "incomplete-window",
+          "records-observed",
+          "parser-warnings"
+        ]
+      },
+      "lineage": {
+        "tool_call_id": {
+          "value": "call-live-1"
+        },
+        "workflow_run_id": {
+          "value": "workflow-live-incident-5"
+        },
+        "redaction_transform_id": {
+          "value": "redaction-live-1"
+        },
+        "parent_evidence_ids": []
+      },
+      "trust": "DIRECT_OBSERVATION",
+      "prompt_injection_status": "NONE",
+      "expires_at": "2026-11-03 04:42:07.219764+00:00",
+      "schema_version": "1.0.0"
+    },
+    "artifact": {
+      "id": {
+        "value": "artifact-live-incident-5-live-1"
+      },
+      "tenant_id": {
+        "value": "local-evaluation"
+      },
+      "incident_id": {
+        "value": "live-incident-5"
+      },
+      "locator": "local-artifact:v1:artifact-live-incident-5-live-1",
+      "media_type": "application/json",
+      "content_schema_version": "1.0.0",
+      "content_hash": {
+        "value": "88469dd809cd44788af63ce56a7aa5f1888cb620d22b19a3fe9b9a7997f1b51e"
+      },
+      "size_bytes": 2379,
+      "retention_class": "INCIDENT",
+      "created_at": "2026-11-03 03:42:07.219764+00:00",
+      "expires_at": "2026-11-10 03:42:07.219764+00:00",
+      "redaction_status": "NOT_REQUIRED",
+      "encrypted": false,
+      "metadata_schema_version": "1.0.0"
+    }
+  },
+  {
+    "evidence": {
+      "id": {
+        "value": "live-2"
+      },
+      "tenant_id": {
+        "value": "local-evaluation"
+      },
+      "incident_id": {
+        "value": "live-incident-5"
+      },
+      "source_type": "LOG",
+      "source_instance": "local-logs",
+      "tool_name": "bounded_live_probe",
+      "tool_version": "1.0.0",
+      "tool_schema_version": "1.0.0",
+      "normalized_query": {
+        "parameters": [
+          {
+            "name": "source",
+            "value": "logs"
+          }
+        ]
+      },
+      "observed_from": "2026-11-03 03:41:52.820354+00:00",
+      "observed_to": "2026-11-03 03:42:07.219764+00:00",
+      "collected_at": "2026-11-03 03:42:07.219764+00:00",
+      "artifact_id": {
+        "value": "artifact-live-incident-5-live-2"
+      },
+      "content_hash": {
+        "value": "ef9330057320d17596c8e4e0c145cfade3e5e395e06b39c0162d8b9929c456a3"
+      },
+      "parser_version": "1.0.0",
+      "normalizer_version": "1.0.0",
+      "quality": {
+        "score_basis_points": 7500,
+        "reasons": [
+          "source-available",
+          "incomplete-window",
+          "records-observed"
+        ]
+      },
+      "lineage": {
+        "tool_call_id": {
+          "value": "call-live-2"
+        },
+        "workflow_run_id": {
+          "value": "workflow-live-incident-5"
+        },
+        "redaction_transform_id": {
+          "value": "redaction-live-2"
+        },
+        "parent_evidence_ids": []
+      },
+      "trust": "DIRECT_OBSERVATION",
+      "prompt_injection_status": "NONE",
+      "expires_at": "2026-11-03 04:42:07.219764+00:00",
+      "schema_version": "1.0.0"
+    },
+    "artifact": {
+      "id": {
+        "value": "artifact-live-incident-5-live-2"
+      },
+      "tenant_id": {
+        "value": "local-evaluation"
+      },
+      "incident_id": {
+        "value": "live-incident-5"
+      },
+      "locator": "local-artifact:v1:artifact-live-incident-5-live-2",
+      "media_type": "application/json",
+      "content_schema_version": "1.0.0",
+      "content_hash": {
+        "value": "ef9330057320d17596c8e4e0c145cfade3e5e395e06b39c0162d8b9929c456a3"
+      },
+      "size_bytes": 1658,
+      "retention_class": "INCIDENT",
+      "created_at": "2026-11-03 03:42:07.219764+00:00",
+      "expires_at": "2026-11-10 03:42:07.219764+00:00",
+      "redaction_status": "NOT_REQUIRED",
+      "encrypted": false,
+      "metadata_schema_version": "1.0.0"
+    }
+  },
+  {
+    "evidence": {
+      "id": {
+        "value": "live-3"
+      },
+      "tenant_id": {
+        "value": "local-evaluation"
+      },
+      "incident_id": {
+        "value": "live-incident-5"
+      },
+      "source_type": "TRACE",
+      "source_instance": "local-traces",
+      "tool_name": "bounded_live_probe",
+      "tool_version": "1.0.0",
+      "tool_schema_version": "1.0.0",
+      "normalized_query": {
+        "parameters": [
+          {
+            "name": "source",
+            "value": "traces"
+          }
+        ]
+      },
+      "observed_from": "2026-11-03 03:41:52.820354+00:00",
+      "observed_to": "2026-11-03 03:42:07.219764+00:00",
+      "collected_at": "2026-11-03 03:42:07.219764+00:00",
+      "artifact_id": {
+        "value": "artifact-live-incident-5-live-3"
+      },
+      "content_hash": {
+        "value": "ae361ce56e9ced233ae401cc36b2d50842af3f43f96e929449648c93c6fb2ce8"
+      },
+      "parser_version": "1.0.0",
+      "normalizer_version": "1.0.0",
+      "quality": {
+        "score_basis_points": 7500,
+        "reasons": [
+          "source-available",
+          "incomplete-window",
+          "records-observed"
+        ]
+      },
+      "lineage": {
+        "tool_call_id": {
+          "value": "call-live-3"
+        },
+        "workflow_run_id": {
+          "value": "workflow-live-incident-5"
+        },
+        "redaction_transform_id": {
+          "value": "redaction-live-3"
+        },
+        "parent_evidence_ids": []
+      },
+      "trust": "DIRECT_OBSERVATION",
+      "prompt_injection_status": "NONE",
+      "expires_at": "2026-11-03 04:42:07.219764+00:00",
+      "schema_version": "1.0.0"
+    },
+    "artifact": {
+      "id": {
+        "value": "artifact-live-incident-5-live-3"
+      },
+      "tenant_id": {
+        "value": "local-evaluation"
+      },
+      "incident_id": {
+        "value": "live-incident-5"
+      },
+      "locator": "local-artifact:v1:artifact-live-incident-5-live-3",
+      "media_type": "application/json",
+      "content_schema_version": "1.0.0",
+      "content_hash": {
+        "value": "ae361ce56e9ced233ae401cc36b2d50842af3f43f96e929449648c93c6fb2ce8"
+      },
+      "size_bytes": 1173,
+      "retention_class": "INCIDENT",
+      "created_at": "2026-11-03 03:42:07.219764+00:00",
+      "expires_at": "2026-11-10 03:42:07.219764+00:00",
+      "redaction_status": "NOT_REQUIRED",
+      "encrypted": false,
+      "metadata_schema_version": "1.0.0"
+    }
+  },
+  {
+    "evidence": {
+      "id": {
+        "value": "live-http"
+      },
+      "tenant_id": {
+        "value": "local-evaluation"
+      },
+      "incident_id": {
+        "value": "live-incident-5"
+      },
+      "source_type": "METRIC",
+      "source_instance": "local-http-probes",
+      "tool_name": "bounded_live_probe",
+      "tool_version": "1.0.0",
+      "tool_schema_version": "1.0.0",
+      "normalized_query": {
+        "parameters": [
+          {
+            "name": "source",
+            "value": "http-probes"
+          }
+        ]
+      },
+      "observed_from": "2026-11-03 03:41:52.820354+00:00",
+      "observed_to": "2026-11-03 03:42:07.219764+00:00",
+      "collected_at": "2026-11-03 03:42:07.219764+00:00",
+      "artifact_id": {
+        "value": "artifact-live-incident-5-live-http"
+      },
+      "content_hash": {
+        "value": "8246d1a6897e2fc6eefd71338f040970f3a129da6122cc68adf8d3cb48b6d294"
+      },
+      "parser_version": "1.0.0",
+      "normalizer_version": "1.0.0",
+      "quality": {
+        "score_basis_points": 7500,
+        "reasons": [
+          "source-available",
+          "incomplete-window",
+          "records-observed"
+        ]
+      },
+      "lineage": {
+        "tool_call_id": {
+          "value": "call-live-http"
+        },
+        "workflow_run_id": {
+          "value": "workflow-live-incident-5"
+        },
+        "redaction_transform_id": {
+          "value": "redaction-live-http"
+        },
+        "parent_evidence_ids": []
+      },
+      "trust": "DIRECT_OBSERVATION",
+      "prompt_injection_status": "NONE",
+      "expires_at": "2026-11-03 04:42:07.219764+00:00",
+      "schema_version": "1.0.0"
+    },
+    "artifact": {
+      "id": {
+        "value": "artifact-live-incident-5-live-http"
+      },
+      "tenant_id": {
+        "value": "local-evaluation"
+      },
+      "incident_id": {
+        "value": "live-incident-5"
+      },
+      "locator": "local-artifact:v1:artifact-live-incident-5-live-http",
+      "media_type": "application/json",
+      "content_schema_version": "1.0.0",
+      "content_hash": {
+        "value": "8246d1a6897e2fc6eefd71338f040970f3a129da6122cc68adf8d3cb48b6d294"
+      },
+      "size_bytes": 340,
+      "retention_class": "INCIDENT",
+      "created_at": "2026-11-03 03:42:07.219764+00:00",
+      "expires_at": "2026-11-10 03:42:07.219764+00:00",
+      "redaction_status": "NOT_REQUIRED",
+      "encrypted": false,
+      "metadata_schema_version": "1.0.0"
+    }
+  }
+]

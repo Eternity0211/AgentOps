@@ -27,6 +27,7 @@ $requiredFiles = @(
     'docs/EVALUATION_REPORT.md',
     'docs/DEMO.md',
     'docs/CLEAN_MACHINE_REHEARSAL.md',
+    'docs/PORTFOLIO_STATEMENTS.md',
     'docs/DECISION_HISTORY.md',
     'docs/COMPARISON_WITH_PROGRAMMING_TUTOR.md',
     'docs/CONFIGURATION.md',
@@ -70,6 +71,30 @@ if (Test-Path -LiteralPath $cleanMachinePath -PathType Leaf) {
     )) {
         if (-not $cleanMachineContent.Contains($requiredEvidence, [System.StringComparison]::Ordinal)) {
             Add-ValidationError "Clean-machine rehearsal is missing evidence identity: $requiredEvidence"
+        }
+    }
+}
+
+$portfolioPath = Join-Path $repositoryRoot 'docs/PORTFOLIO_STATEMENTS.md'
+if (Test-Path -LiteralPath $portfolioPath -PathType Leaf) {
+    $portfolioContent = [System.IO.File]::ReadAllText($portfolioPath)
+    foreach ($section in @(
+        '## Usage contract',
+        '## Verified project summary',
+        '## Resume-ready statements',
+        '## 中文简历表述',
+        '## Optional bounded-load statement',
+        '## Quantitative evidence map',
+        '## Claims not supported',
+        '## Reproduction and update rule'
+    )) {
+        if (-not $portfolioContent.Contains($section, [System.StringComparison]::Ordinal)) {
+            Add-ValidationError "Portfolio statements are missing section: $section"
+        }
+    }
+    foreach ($evidenceId in @('E1', 'E2', 'E3', 'E4', 'E5')) {
+        if (-not $portfolioContent.Contains("| $evidenceId |", [System.StringComparison]::Ordinal)) {
+            Add-ValidationError "Portfolio statements are missing evidence mapping: $evidenceId"
         }
     }
 }

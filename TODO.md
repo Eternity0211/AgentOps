@@ -2,7 +2,7 @@
 
 Checkboxes are completion claims. Check an item only when its acceptance criteria and listed verification pass. Record measured results in committed reports; do not invent numbers.
 
-> Implementation status: **approved**. Phase 0 through Phase 11 exit checks pass; Phase 12 is in progress.
+> Implementation status: **core complete**. Phase 0 through Phase 13 exit checks pass; optional post-core enhancements remain open below.
 
 ## Execution protocol and dependency order
 
@@ -294,7 +294,7 @@ Exit: versioned raw results reproduce every published claim and all required saf
 - [x] Publish evaluation report containing methods, environment, raw-result links, limitations, and reproducible commands.
 - [x] Create demo script showing six faults, eligibility-aware handoff or approved recovery, verification/failure routing, audit, crash resume, and mock mode.
 - [x] Run clean-machine rehearsal and record exact versions/timings/issues.
-- [ ] Derive portfolio/resume statements only from committed reproducible measurements.
+- [x] Derive portfolio/resume statements only from committed reproducible measurements.
 
 Exit: a reviewer can clone, run mock mode, reproduce representative scenarios/evaluation, inspect safety controls, and verify every quantitative statement.
 

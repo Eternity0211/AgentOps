@@ -112,3 +112,16 @@ No runtime provider or mutation capability is enabled. Unknown fees remain null;
 cost bookkeeping is explicitly marked unenforced and is never reported as a measured fee.
 This comparison measures orchestration overhead and historical-context effects on known inputs.
 It cannot establish held-out generalization, production throughput, recovery or human efficiency.
+
+## Live Compose diagnosis experiment
+
+`python -m evaluation.run_live_diagnosis --output-dir artifacts/live-run` uses the
+repository fault injector against the independent AgentOps Compose project on ports
+18080/19090/13100/13200/13000. It generates eight business requests per fault, collects
+actual Prometheus/Loki/Tempo observations, and calls the real model once. It verifies
+baseline and post-cleanup checkout success. Cleanup runs in finally and earns no recovery
+credit. The evaluator uses fixed read endpoints and allowlisted liveness probes; models
+receive no commands, fault names or Ground Truth. This is evaluator-driven collection,
+not autonomous Tool Gateway investigation or persisted runtime Evidence Gate verification.
+Output includes per-call hashes, observed source presence and human-review terminal status.
+Do not infer approval, automated recovery or production quality from these observations.

@@ -356,6 +356,7 @@ This index is an omission check, not a second task list. The referenced phases c
   token/latency/failure records. No comparison to mock latency or post-hoc semantic relabeling.
   Tests: strict schema, unknown IDs, memory citation refusal, graph routes, budget limits,
   equal-context pair hashes, isolated scoring and report arithmetic; Ruff/mypy/pytest.
+- [x] R3a-runner: bounded live Compose collection runner with cleanup-on-failure tests.
 - [ ] R3a: collect real local simulator fault observations and evaluate diagnosis up to human wait.
   Acceptance: actual HTTP observations, provenance/hash/time, baseline/fault/cleanup separation,
   real provider calls, no automatic approval or recovery credit; distinguish in-process and Compose.

@@ -16,6 +16,7 @@ import httpx
 
 from agentops_incident_commander.faults import SCENARIO_TARGETS, clean, inject
 from evaluation.deepseek_provider import DeepSeekEvaluationProvider, digest
+from evaluation.live_evidence import ExperimentEvidence
 from evaluation.run_real_comparison import TAXONOMY
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -163,6 +164,9 @@ def run(output: Path) -> None:
     key = os.environ.get("DEEPSEEK_API_KEY", "")
     if not key:
         raise ValueError("DEEPSEEK_API_KEY required")
+    revision = subprocess.check_output(
+        ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
+    ).strip()
     output.mkdir(parents=True, exist_ok=False)
     environment = {**os.environ, **ENVIRONMENT}
 
@@ -200,6 +204,14 @@ def run(output: Path) -> None:
                 observations.append(
                     {"id": "live-http", "source": "http-probes", "summary": json.dumps(probes)}
                 )
+                incident = f"live-incident-{index}"
+                evidence = ExperimentEvidence(
+                    ROOT / "artifacts" / "live-evidence" / output.name / incident,
+                    incident,
+                    observations,
+                    observed_from=datetime.fromtimestamp(start, UTC),
+                )
+                reports: list[Any] = []
                 # No fault name, target mapping or evaluator result is supplied to the model.
                 record.update(
                     probes=probes,
@@ -207,9 +219,17 @@ def run(output: Path) -> None:
                     collected_at=datetime.now(UTC).isoformat(),
                     source_nonempty={o["source"]: o["summary"] != "[]" for o in observations},
                     diagnosis=provider.diagnose(
-                        f"live-incident-{index}", observations, taxonomy=TAXONOMY
+                        incident,
+                        evidence.observations,
+                        taxonomy=TAXONOMY,
+                        report_sink=reports.append,
                     ),
                     terminal="HUMAN_REVIEW_REQUIRED",
+                )
+                record["evidence_store"] = (
+                    evidence.gate(reports[0])
+                    if reports
+                    else {"stored_evidence_count": len(evidence.records), "gate": "NO_VALID_REPORT"}
                 )
             finally:
                 record["cleanup_exit"] = clean(root=ROOT, environment=environment)
@@ -228,9 +248,7 @@ def run(output: Path) -> None:
         record["top3_correct"] = bool(set(candidates[:3]) & set(expected))
     document = {
         "schema_version": "live-compose-diagnosis/1.0.0",
-        "code_revision": subprocess.check_output(
-            ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
-        ).strip(),
+        "code_revision": revision,
         "environment": ENVIRONMENT,
         "results": results,
         "limitations": [

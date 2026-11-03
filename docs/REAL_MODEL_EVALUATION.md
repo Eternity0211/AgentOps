@@ -149,3 +149,17 @@ claims of independent runtime evidence or full autonomous incident recovery.
 
 Provider schema failures additionally record only field locations and validation error types,
 never input values, provider exception bodies, response text or reasoning.
+
+## Live prompt v1.1 and immutable experiment evidence
+
+The initial live experiment exposed missing or contradictory counter-evidence fields. Prompt
+`deepseek-readonly-smoke/1.1.0` adds explicit field rules and a handoff example; old results
+remain unchanged. Subsequent live runs create domain Evidence/Artifact records in the ignored
+local `artifacts/live-evidence/<run>/<incident>` store, with real collection time ranges,
+redaction, prompt-injection inspection, query/source provenance, quality penalties for incomplete
+windows/truncation, expiry and immutable content hashes. Valid reports are re-resolved through
+the existing Artifact verifier and deterministic Evidence Gate. This is a local experimental
+store, not PostgreSQL workflow persistence, and a PASS never grants recovery authority.
+The original live-002 runner captured HEAD at completion, so its raw code_revision is a
+completion revision; execution began at dd3c168. Keep this correction with the raw record.
+The runner now captures revision before its first effect.

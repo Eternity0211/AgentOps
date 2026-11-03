@@ -52,3 +52,48 @@ Official protocol references:
 Human or production-dependent metrics must remain unmeasured until the corresponding observations
 exist. Safety tests are not production reliability estimates. Real-model proposals cannot stand
 in for human approval; no end-to-end recovery success is credited from diagnosis-only calls.
+
+## Measurement coverage for the requested checklist
+
+The current integration is an evaluation adapter only. It is not a deployed Diagnosis or
+Remediation service integration. The following statuses intentionally distinguish an observed
+provider metric, a deterministic regression check, and an unmeasured business outcome.
+
+| Requested metric | Current measurement |
+| --- | --- |
+| Top-1 / Top-3 | Exact existing root-cause-ID scoring on six synthetic-summary calls |
+| Correct human handoff | Not scored: no scenario-specific handoff reason in this report contract |
+| Unsupported conclusions | Not semantically measured; label mismatches are not automatically unsupported prose |
+| Fabricated references | Unknown fixture-ID count; not a runtime immutable-record resolution rate |
+| Missing-evidence recognition | No independent expected missing-evidence rubric yet |
+| First useful evidence time | Unmeasured: summaries are preloaded |
+| First correct diagnosis time | Unmeasured: provider completion time alone is insufficient |
+| Alert-to-recovery / MTTR | Unmeasured: no real-provider recovery experiment |
+| Approval wait / execution / verification duration | Existing deterministic checks only, not real incident time distributions |
+| Human active minutes / queries / page switches / interventions | Requires paired human trial |
+| Postmortem authoring and editing time | Requires paired human trial |
+| Remediation suggestion correctness | Unmeasured: adapter emits DiagnosisReport only |
+| Eligible / first-attempt recovery success | Existing fixed recovery fixtures remain separately reported; no new provider recovery credit |
+| Recurrence rate | Requires declared post-recovery follow-up window |
+| Verification-failure handoff | Deterministic regression coverage, not real-provider success rate |
+| Dangerous action blocking / unapproved execution | Deterministic policy/executor regression; diagnosis-only calls cannot measure action rates |
+| Expired or mutated approval rejection | Deterministic regression coverage |
+| Authorization refusal / duplicate execution / false closure | Deterministic regression coverage; no production frequency estimate |
+| Evidence resolution / ownership / freshness / independence | Deterministic regression coverage; fixture membership does not establish these properties |
+| Counter-evidence handling | Schema and deterministic Gate regression; no semantic model rubric yet |
+| Audit completeness | Hash-only provider start/finish journal plus existing runtime audit tests |
+| Sensitive-information leakage | No real secrets in input; deterministic redaction tests, no general zero-leakage claim |
+| Crash resume success / resume time | Fixed 13-control worker suite; elapsed suite time is not resume latency |
+| Duplicate delivery / stale lease recovery | Fixed worker and concurrency regression coverage |
+| Queue wait / concurrent throughput / P95 latency | Bounded component load only; no queue-wait or P95 distribution added |
+| Provider timeout rate | Per-call statuses in six-case run; timeout refusal also tested with deterministic transport |
+| Calls / input-output tokens / retry count | Actual real-provider journal; retries configured to zero |
+| Tool calls | No Tool Gateway dispatch in this experiment; not a real investigation tool count |
+| Model fee / infrastructure cost / cost per correct result | Unavailable without billing or versioned rate card and resource accounting |
+| Time / labor / cost reduction | No paired baseline; no improvement percentage claimed |
+| Rule / single / graph / memory quality differences | Existing mock results only; real-provider fair comparison remains open |
+
+All future quality comparisons must predeclare model settings, equal aggregate budgets,
+observation access, prompt/schema versions, holdout split and scoring rubric before running.
+Do not compare API wall time to mock execution time or use a synonym-normalization rule invented
+after seeing these outputs.

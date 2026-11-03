@@ -1,0 +1,193 @@
+{
+  "schema_version": "real-provider-smoke/1.0.0",
+  "started_at": "2026-11-03T03:04:15.641774+00:00",
+  "code_revision": "44073d27c83faab5ba0c473cef326008f3ca6316",
+  "source_hashes": {
+    "evaluation/deepseek_provider.py": "3f168dde079d0c8bf1bdc0d004f202c55666e68485104c1b096806e918147150",
+    "evaluation/run_deepseek_smoke.py": "b12c0db4a78e38ea2e766754891f968cd604c0a50d0cb1f73313282ac68c101d"
+  },
+  "python": "3.12.14",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "dataset_hash": "60b411b284105e53b4df81586f21fbfd5c5d9fdb5481870c96702885e9ff71c1",
+  "policy_hash": "7b840d26aa8491b38840209a1eea88adb0ff59f365fe81e2994cf0edebeb932b",
+  "prompt_version": "deepseek-readonly-smoke/1.0.0",
+  "limits": {
+    "calls": 6,
+    "max_output_tokens_per_call": 2048,
+    "timeout_seconds": 60,
+    "retries": 0,
+    "concurrency": 1
+  },
+  "summary": {
+    "cases": 6,
+    "validated": 6,
+    "top1_correct": 2,
+    "top3_correct": 2
+  },
+  "limitations": [
+    "Synthetic summary replay, not live fault injection",
+    "Fixture IDs are not persisted Evidence Store records",
+    "No runtime Gate, tools, approvals, execution or recovery exercised",
+    "No human baseline or causal efficiency claim",
+    "Costs unavailable; never interpreted as zero",
+    "Candidate labels scored by exact existing policy, not semantic judging"
+  ],
+  "results": [
+    {
+      "case_id": "bad-configuration-001",
+      "request_hash": "8ae137bb52ed56f083822467185c811fa75c97fae48c071c4406230416c2d182",
+      "usage": {
+        "prompt_tokens": 1152,
+        "completion_tokens": 438,
+        "total_tokens": 1590
+      },
+      "cost": null,
+      "cost_reason": "NOT_REPORTED",
+      "status": "validated",
+      "error_code": null,
+      "response_hash": "01ddec3851026fc854831d116569eeb7a219ed6362b74930726a1b5616dbcd44",
+      "model": "deepseek-flash",
+      "cited_reference_count": 4,
+      "unknown_reference_count": 0,
+      "candidate_ids": [
+        "payment-configuration-regression",
+        "payment-credential-or-secret-unavailability"
+      ],
+      "disposition": "CANDIDATES",
+      "runtime_gate": "NOT_RUN",
+      "duration_ms": 3625,
+      "top1_correct": false,
+      "top3_correct": false
+    },
+    {
+      "case_id": "db-pool-exhaustion-001",
+      "request_hash": "ae49ae8dfb8aff02c7513d4544bbb9919c53732301bf32938a64f1aa9e169ed2",
+      "usage": {
+        "prompt_tokens": 1149,
+        "completion_tokens": 528,
+        "total_tokens": 1677
+      },
+      "cost": null,
+      "cost_reason": "NOT_REPORTED",
+      "status": "validated",
+      "error_code": null,
+      "response_hash": "718bdd74d8924cd1ffe34ea8f0cf944dbade77e096e2f7d320d05975f41e4c4c",
+      "model": "deepseek-flash",
+      "cited_reference_count": 4,
+      "unknown_reference_count": 0,
+      "candidate_ids": [
+        "database-pool-exhaustion",
+        "database-network-connectivity-failure"
+      ],
+      "disposition": "CANDIDATES",
+      "runtime_gate": "NOT_RUN",
+      "duration_ms": 3938,
+      "top1_correct": true,
+      "top3_correct": true
+    },
+    {
+      "case_id": "downstream-latency-001",
+      "request_hash": "f8db0777de1272c533c3ec7c6c49cceebb9c7ae4dde58f72c3544e79cf78868b",
+      "usage": {
+        "prompt_tokens": 1151,
+        "completion_tokens": 532,
+        "total_tokens": 1683
+      },
+      "cost": null,
+      "cost_reason": "NOT_REPORTED",
+      "status": "validated",
+      "error_code": null,
+      "response_hash": "a8f0c3438db5046c0d1b111c3089a609234ad2b12fcdc068154c496c66e8eda7",
+      "model": "deepseek-flash",
+      "cited_reference_count": 4,
+      "unknown_reference_count": 0,
+      "candidate_ids": [
+        "payment-downstream-latency",
+        "payment-client-resource-saturation"
+      ],
+      "disposition": "CANDIDATES",
+      "runtime_gate": "NOT_RUN",
+      "duration_ms": 3796,
+      "top1_correct": false,
+      "top3_correct": false
+    },
+    {
+      "case_id": "http-500-001",
+      "request_hash": "bb074d3aac2989624845d1543cd9add194234fe2dcd4572d0108fa8a6e538b41",
+      "usage": {
+        "prompt_tokens": 1166,
+        "completion_tokens": 394,
+        "total_tokens": 1560
+      },
+      "cost": null,
+      "cost_reason": "NOT_REPORTED",
+      "status": "validated",
+      "error_code": null,
+      "response_hash": "0f66851c8c6d30f93eeecb497531014204e2b6f70a5bd6d3f84edaf70e0a94e8",
+      "model": "deepseek-flash",
+      "cited_reference_count": 4,
+      "unknown_reference_count": 0,
+      "candidate_ids": [
+        "deployment-regression",
+        "order-application-internal-error"
+      ],
+      "disposition": "CANDIDATES",
+      "runtime_gate": "NOT_RUN",
+      "duration_ms": 2906,
+      "top1_correct": true,
+      "top3_correct": true
+    },
+    {
+      "case_id": "memory-leak-001",
+      "request_hash": "1c5e3a9847be760f316c5111288737862b1803e0c7f5b692b9b808f38d18cee0",
+      "usage": {
+        "prompt_tokens": 1165,
+        "completion_tokens": 553,
+        "total_tokens": 1718
+      },
+      "cost": null,
+      "cost_reason": "NOT_REPORTED",
+      "status": "validated",
+      "error_code": null,
+      "response_hash": "738d4e9d404c32f4d900ab9ee31fea5da3bc396e67def08a04ea66666d0373cf",
+      "model": "deepseek-flash",
+      "cited_reference_count": 4,
+      "unknown_reference_count": 0,
+      "candidate_ids": [
+        "deployment-regression-memory-leak",
+        "cache-growth-unbounded"
+      ],
+      "disposition": "CANDIDATES",
+      "runtime_gate": "NOT_RUN",
+      "duration_ms": 3562,
+      "top1_correct": false,
+      "top3_correct": false
+    },
+    {
+      "case_id": "redis-timeout-001",
+      "request_hash": "233ca5df9a462714a2a4da3a838953e88bf04d611634301fa76e1fa1953f49fe",
+      "usage": {
+        "prompt_tokens": 1150,
+        "completion_tokens": 473,
+        "total_tokens": 1623
+      },
+      "cost": null,
+      "cost_reason": "NOT_REPORTED",
+      "status": "validated",
+      "error_code": null,
+      "response_hash": "4ebc81ad61ff14646174ff3c33a9ebc9134b2b861f700e7327ba62548642955d",
+      "model": "deepseek-flash",
+      "cited_reference_count": 4,
+      "unknown_reference_count": 0,
+      "candidate_ids": [
+        "redis-dependency-timeout",
+        "redis-connection-pool-exhaustion"
+      ],
+      "disposition": "CANDIDATES",
+      "runtime_gate": "NOT_RUN",
+      "duration_ms": 3469,
+      "top1_correct": false,
+      "top3_correct": false
+    }
+  ]
+}

@@ -1,0 +1,681 @@
+{
+  "schema_version": "python-control-verification/1.0.0",
+  "code_revision": "44073d27c83faab5ba0c473cef326008f3ca6316",
+  "recorded_at": "2026-11-03T03:09:52.461558+00:00",
+  "junit_sha256": "b9576db669733b0c3ec4067dec0729caebb65388fdb693dd98d4629b452f6975",
+  "tests": 2810,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "coverage": {
+    "covered_lines": 14194,
+    "num_statements": 14194,
+    "percent_covered": 100.0,
+    "percent_covered_display": "100",
+    "missing_lines": 0,
+    "excluded_lines": 608,
+    "percent_statements_covered": 100.0,
+    "percent_statements_covered_display": "100",
+    "num_branches": 3882,
+    "num_partial_branches": 0,
+    "covered_branches": 3882,
+    "missing_branches": 0,
+    "percent_branches_covered": 100.0,
+    "percent_branches_covered_display": "100"
+  },
+  "modules": {
+    "tests.e2e.test_fault_scenario_lifecycle": 7,
+    "tests.integration.test_graph_checkpoints": 11,
+    "tests.integration.test_persistence": 97,
+    "tests.load.test_bounded_load": 2,
+    "tests.property.test_agent_output_properties": 10,
+    "tests.smoke.test_simulator_scenarios": 10,
+    "tests.unit.test_action_dispatch": 11,
+    "tests.unit.test_action_execution_preflight": 12,
+    "tests.unit.test_action_executions": 55,
+    "tests.unit.test_action_executor": 13,
+    "tests.unit.test_action_snapshots": 15,
+    "tests.unit.test_alert_triage": 34,
+    "tests.unit.test_api_contracts": 30,
+    "tests.unit.test_api_v1": 19,
+    "tests.unit.test_approval_graph": 20,
+    "tests.unit.test_approvals": 10,
+    "tests.unit.test_architecture": 40,
+    "tests.unit.test_artifacts": 31,
+    "tests.unit.test_audit_completeness": 54,
+    "tests.unit.test_audit_domain": 62,
+    "tests.unit.test_auth": 7,
+    "tests.unit.test_bounded_load_evaluation": 6,
+    "tests.unit.test_checkpoints": 9,
+    "tests.unit.test_collectors": 17,
+    "tests.unit.test_compose_contract": 19,
+    "tests.unit.test_comprehensive_metrics": 7,
+    "tests.unit.test_context_builder": 25,
+    "tests.unit.test_control_plane_observability": 43,
+    "tests.unit.test_controlled_graph_baseline": 5,
+    "tests.unit.test_controlled_graph_memory_baseline": 6,
+    "tests.unit.test_correlation": 18,
+    "tests.unit.test_correlation_repository": 7,
+    "tests.unit.test_correlation_workflow": 11,
+    "tests.unit.test_deepseek_provider": 17,
+    "tests.unit.test_deepseek_smoke": 3,
+    "tests.unit.test_deployment_summaries": 24,
+    "tests.unit.test_dev_tasks": 59,
+    "tests.unit.test_diagnosis_graph": 53,
+    "tests.unit.test_diagnosis_progress": 31,
+    "tests.unit.test_diagnosis_prompts": 18,
+    "tests.unit.test_diagnosis_runtime": 17,
+    "tests.unit.test_diagnosis_schemas": 34,
+    "tests.unit.test_domain_values": 36,
+    "tests.unit.test_evaluation_harness": 50,
+    "tests.unit.test_evaluation_regression_gate": 13,
+    "tests.unit.test_evaluation_report": 2,
+    "tests.unit.test_evidence": 32,
+    "tests.unit.test_evidence_gate": 30,
+    "tests.unit.test_evidence_gate_resolution": 20,
+    "tests.unit.test_evidence_processing": 22,
+    "tests.unit.test_faults": 40,
+    "tests.unit.test_graph_state": 26,
+    "tests.unit.test_ground_truth_isolation": 7,
+    "tests.unit.test_ground_truth_manifests": 2,
+    "tests.unit.test_health_verification": 44,
+    "tests.unit.test_health_verification_evidence": 14,
+    "tests.unit.test_health_verification_failure_routing": 6,
+    "tests.unit.test_health_verification_routing": 7,
+    "tests.unit.test_incident_lifecycle": 294,
+    "tests.unit.test_incident_memory": 32,
+    "tests.unit.test_job_domain": 11,
+    "tests.unit.test_live_health_verification_collection": 42,
+    "tests.unit.test_log_patterns": 15,
+    "tests.unit.test_memory_embeddings": 43,
+    "tests.unit.test_metric_trends": 32,
+    "tests.unit.test_mock_mode": 6,
+    "tests.unit.test_mock_model": 19,
+    "tests.unit.test_model_calls": 49,
+    "tests.unit.test_observability_assets": 3,
+    "tests.unit.test_outbox_domain": 17,
+    "tests.unit.test_package_metadata": 1,
+    "tests.unit.test_persisted_health_verification": 9,
+    "tests.unit.test_persistence_repositories": 32,
+    "tests.unit.test_planning": 31,
+    "tests.unit.test_policy_contracts": 25,
+    "tests.unit.test_policy_engine": 17,
+    "tests.unit.test_portfolio_statements": 2,
+    "tests.unit.test_postmortem": 77,
+    "tests.unit.test_postmortem_revisions": 27,
+    "tests.unit.test_process_composition": 29,
+    "tests.unit.test_prompt_lifecycle": 6,
+    "tests.unit.test_prompt_registry": 24,
+    "tests.unit.test_query_deployments_tool": 18,
+    "tests.unit.test_query_logs_tool": 17,
+    "tests.unit.test_query_metrics_tool": 10,
+    "tests.unit.test_query_traces_tool": 24,
+    "tests.unit.test_recovery_composition": 3,
+    "tests.unit.test_recovery_orchestration": 37,
+    "tests.unit.test_redaction": 20,
+    "tests.unit.test_remediation_gate": 4,
+    "tests.unit.test_remediation_revision": 7,
+    "tests.unit.test_remediation_schemas": 22,
+    "tests.unit.test_rollback_adapter": 7,
+    "tests.unit.test_rollback_service_tool": 39,
+    "tests.unit.test_rules_baseline": 8,
+    "tests.unit.test_runtime_health": 26,
+    "tests.unit.test_runtime_prerequisites": 21,
+    "tests.unit.test_service_topology_tool": 18,
+    "tests.unit.test_similar_incidents_tool": 29,
+    "tests.unit.test_simulator_dependencies": 26,
+    "tests.unit.test_simulator_deployment": 19,
+    "tests.unit.test_simulator_fault_behavior": 16,
+    "tests.unit.test_simulator_memory_fault": 6,
+    "tests.unit.test_simulator_rollback": 15,
+    "tests.unit.test_simulator_services": 39,
+    "tests.unit.test_simulator_telemetry": 29,
+    "tests.unit.test_single_agent_baseline": 6,
+    "tests.unit.test_structured_logs": 31,
+    "tests.unit.test_supply_chain": 18,
+    "tests.unit.test_telemetry_safety": 23,
+    "tests.unit.test_tool_gateway": 58,
+    "tests.unit.test_tool_registry": 7,
+    "tests.unit.test_trace_summaries": 34
+  },
+  "declared_control_suites": {
+    "security": {
+      "passed_controls": 31,
+      "total_controls": 31,
+      "controls": [
+        {
+          "control_id": "prompt_injection_model_context",
+          "test_node": "tests/unit/test_mock_model.py::test_prompt_injection_context_cannot_change_or_leak_into_output",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "prompt_injection_collector_data",
+          "test_node": "tests/unit/test_collectors.py::test_logs_collector_preserves_untrusted_data_and_injection_state",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "prompt_injection_quarantine",
+          "test_node": "tests/unit/test_evidence_processing.py::test_normalizer_requires_suspected_injection_to_be_quarantined",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "prompt_like_authority_property",
+          "test_node": "tests/property/test_agent_output_properties.py::test_prompt_like_text_remains_data_and_cannot_create_authority_fields",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "secret_field_redaction",
+          "test_node": "tests/unit/test_redaction.py::test_sensitive_fields_are_replaced_with_secret_free_lineage",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "inline_secret_redaction",
+          "test_node": "tests/unit/test_redaction.py::test_inline_secret_patterns_are_redacted_and_paths_are_escaped",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "structured_log_secret_redaction",
+          "test_node": "tests/unit/test_structured_logs.py::test_secret_patterns_are_redacted_without_line_breaks",
+          "collected_cases": 7,
+          "status": "passed"
+        },
+        {
+          "control_id": "control_plane_signal_secret_redaction",
+          "test_node": "tests/unit/test_control_plane_observability.py::test_seeded_secret_never_crosses_control_plane_signal_boundaries",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "simulator_signal_secret_redaction",
+          "test_node": "tests/unit/test_simulator_telemetry.py::test_seeded_secret_never_crosses_simulator_signal_boundaries",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "evidence_forgery_gate",
+          "test_node": "tests/unit/test_evidence_gate_resolution.py::test_fabricated_or_altered_evidence_cannot_pass_with_maximum_confidence",
+          "collected_cases": 2,
+          "status": "passed"
+        },
+        {
+          "control_id": "fabricated_reference_property",
+          "test_node": "tests/property/test_agent_output_properties.py::test_syntactically_valid_fabricated_references_always_fail_the_evidence_gate",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "evidence_hash_and_size_tamper",
+          "test_node": "tests/unit/test_evidence_processing.py::test_validation_rejects_hash_and_size_tampering",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "postmortem_evidence_tamper",
+          "test_node": "tests/unit/test_postmortem.py::test_generation_rejects_tampered_evidence_artifact",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "action_terminal_replay",
+          "test_node": "tests/unit/test_action_executor.py::test_terminal_retry_records_replay_without_second_dispatch",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "diagnosis_conflicting_replay",
+          "test_node": "tests/unit/test_persistence_repositories.py::test_diagnosis_repository_rejects_conflicting_replay",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "postgres_control_replay_conflict",
+          "test_node": "tests/integration/test_persistence.py::test_control_conflicts_invalid_values_and_incomplete_replay_fail_closed",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "gateway_ssrf_path_command_rejection",
+          "test_node": "tests/unit/test_tool_gateway.py::test_diagnosis_invocation_rejects_nested_urls_paths_commands_and_controls",
+          "collected_cases": 8,
+          "status": "passed"
+        },
+        {
+          "control_id": "logs_query_target_injection",
+          "test_node": "tests/unit/test_query_logs_tool.py::test_query_logs_schema_rejects_raw_query_target_and_control_injection",
+          "collected_cases": 3,
+          "status": "passed"
+        },
+        {
+          "control_id": "deployment_query_target_injection",
+          "test_node": "tests/unit/test_query_deployments_tool.py::test_query_deployments_schema_rejects_raw_queries_and_targets",
+          "collected_cases": 3,
+          "status": "passed"
+        },
+        {
+          "control_id": "trace_query_target_injection",
+          "test_node": "tests/unit/test_query_traces_tool.py::test_query_traces_schema_rejects_raw_queries_and_targets",
+          "collected_cases": 3,
+          "status": "passed"
+        },
+        {
+          "control_id": "topology_query_target_injection",
+          "test_node": "tests/unit/test_service_topology_tool.py::test_topology_schema_rejects_raw_queries_and_targets",
+          "collected_cases": 3,
+          "status": "passed"
+        },
+        {
+          "control_id": "memory_query_target_injection",
+          "test_node": "tests/unit/test_similar_incidents_tool.py::test_v2_schema_rejects_queries_targets_and_invalid_limits",
+          "collected_cases": 5,
+          "status": "passed"
+        },
+        {
+          "control_id": "remediation_target_injection",
+          "test_node": "tests/unit/test_remediation_schemas.py::test_rollback_parameters_reject_model_supplied_targets_and_execution_fields",
+          "collected_cases": 4,
+          "status": "passed"
+        },
+        {
+          "control_id": "rollback_catalog_injected_lookup",
+          "test_node": "tests/unit/test_rollback_service_tool.py::test_catalog_rejects_untyped_or_injected_lookup",
+          "collected_cases": 4,
+          "status": "passed"
+        },
+        {
+          "control_id": "approval_resume_claim_bypass",
+          "test_node": "tests/unit/test_approval_graph.py::test_pending_approval_reinterrupts_and_never_trusts_resume_claims",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "approval_cross_tenant_bypass",
+          "test_node": "tests/unit/test_approval_graph.py::test_cross_tenant_lookup_cannot_resolve_approval",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "approval_role_bypass",
+          "test_node": "tests/unit/test_approvals.py::test_requester_and_approver_authorization_fail_closed",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "approval_mutation_invalidation",
+          "test_node": "tests/unit/test_remediation_revision.py::test_material_revision_invalidates_and_requires_fresh_approval",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "policy_approval_bypass",
+          "test_node": "tests/unit/test_policy_engine.py::test_valid_rollback_requires_approval_and_never_directly_allows_execution",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "execution_preflight_rbac_bypass",
+          "test_node": "tests/unit/test_action_execution_preflight.py::test_preflight_rejects_missing_permission_or_cross_tenant_actor",
+          "collected_cases": 3,
+          "status": "passed"
+        },
+        {
+          "control_id": "api_write_role_bypass",
+          "test_node": "tests/unit/test_api_contracts.py::test_write_and_approval_routes_reject_roles_without_permission_before_storage",
+          "collected_cases": 6,
+          "status": "passed"
+        }
+      ]
+    },
+    "concurrency": {
+      "passed_controls": 16,
+      "total_controls": 16,
+      "controls": [
+        {
+          "control_id": "control_command_idempotency",
+          "test_node": "tests/integration/test_persistence.py::test_control_commands_are_atomic_audited_and_idempotent",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "control_command_conflicting_replay",
+          "test_node": "tests/integration/test_persistence.py::test_control_conflicts_invalid_values_and_incomplete_replay_fail_closed",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "correlation_duplicate_delivery",
+          "test_node": "tests/integration/test_persistence.py::test_correlation_ledger_serializes_concurrent_exact_replay",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "audit_concurrent_sequence",
+          "test_node": "tests/integration/test_persistence.py::test_audit_sequence_is_unique_under_concurrent_appends",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "outbox_duplicate_intent",
+          "test_node": "tests/integration/test_persistence.py::test_outbox_rejects_duplicate_aggregate_intent",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "outbox_concurrent_claim",
+          "test_node": "tests/integration/test_persistence.py::test_outbox_concurrent_claims_are_disjoint",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "outbox_stale_delivery",
+          "test_node": "tests/integration/test_persistence.py::test_outbox_reclaims_stale_lease_and_publishes_once",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "job_concurrent_claim",
+          "test_node": "tests/integration/test_persistence.py::test_job_claims_are_priority_ordered_and_concurrently_disjoint",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "alert_concurrent_ingestion",
+          "test_node": "tests/integration/test_persistence.py::test_alert_repository_serializes_concurrent_ingestion",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "approval_api_replay",
+          "test_node": "tests/integration/test_persistence.py::test_approval_center_is_tenant_scoped_verified_and_idempotent",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "approval_same_decision_race",
+          "test_node": "tests/integration/test_persistence.py::test_concurrent_approval_decisions_have_exactly_one_winner",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "approval_terminal_races",
+          "test_node": "tests/integration/test_persistence.py::test_concurrent_approval_terminal_races_have_one_winner",
+          "collected_cases": 4,
+          "status": "passed"
+        },
+        {
+          "control_id": "action_lifecycle_duplicate_claim",
+          "test_node": "tests/integration/test_persistence.py::test_lifecycle_action_store_serializes_duplicate_claim_transition",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "action_duplicate_dispatch",
+          "test_node": "tests/integration/test_persistence.py::test_executor_concurrent_duplicate_delivery_dispatches_exactly_once",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "action_conflicting_reuse",
+          "test_node": "tests/integration/test_persistence.py::test_action_execution_serializes_duplicate_claims_and_rejects_conflicts",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "verification_route_duplicate_delivery",
+          "test_node": "tests/integration/test_persistence.py::test_successful_health_verification_closure_serializes_concurrent_replays",
+          "collected_cases": 1,
+          "status": "passed"
+        }
+      ]
+    },
+    "failure": {
+      "passed_controls": 24,
+      "total_controls": 24,
+      "controls": [
+        {
+          "control_id": "diagnosis_tool_timeout",
+          "test_node": "tests/unit/test_diagnosis_graph.py::test_parallel_tool_timeout_cancels_peers_and_cannot_persist_partial_evidence",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "diagnosis_model_failure",
+          "test_node": "tests/unit/test_diagnosis_graph.py::test_model_timeout_refusal_and_malformed_output_stop_downstream_work",
+          "collected_cases": 5,
+          "status": "passed"
+        },
+        {
+          "control_id": "mock_model_malformed",
+          "test_node": "tests/unit/test_mock_model.py::test_malformed_scenario_fails_strict_schema_validation",
+          "collected_cases": 2,
+          "status": "passed"
+        },
+        {
+          "control_id": "mock_model_timeout",
+          "test_node": "tests/unit/test_mock_model.py::test_timeout_scenario_is_immediate_and_typed",
+          "collected_cases": 2,
+          "status": "passed"
+        },
+        {
+          "control_id": "mock_model_refusal",
+          "test_node": "tests/unit/test_mock_model.py::test_refusal_is_valid_report_but_cannot_become_a_plan",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "tool_invalid_input",
+          "test_node": "tests/unit/test_tool_gateway.py::test_gateway_audits_unknown_disabled_permission_and_invalid_input",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "tool_classified_retry",
+          "test_node": "tests/unit/test_tool_gateway.py::test_gateway_retries_only_classified_allowed_failures_with_bounded_backoff",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "tool_retry_exhaustion",
+          "test_node": "tests/unit/test_tool_gateway.py::test_gateway_times_out_exhausts_and_does_not_retry_unclassified_failures",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "tool_invalid_output",
+          "test_node": "tests/unit/test_tool_gateway.py::test_gateway_rejects_invalid_or_oversized_results_without_retry",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "tool_cancellation_and_audit_outage",
+          "test_node": "tests/unit/test_tool_gateway.py::test_gateway_audits_cancellation_and_fails_closed_when_audit_is_unavailable",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "action_dispatch_timeout_and_failure",
+          "test_node": "tests/unit/test_action_dispatch.py::test_dispatch_classifies_failure_without_retry",
+          "collected_cases": 6,
+          "status": "passed"
+        },
+        {
+          "control_id": "verification_collection_timeout",
+          "test_node": "tests/unit/test_live_health_verification_collection.py::test_collection_timeout_cancels_partial_bundle",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "verification_persisted_timeout",
+          "test_node": "tests/unit/test_persisted_health_verification.py::test_fail_timeout_and_observer_failure_remain_non_authoritative",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "postmortem_malformed_output",
+          "test_node": "tests/unit/test_postmortem.py::test_false_fact_reference_omission_wrong_section_and_malformed_output_fail_closed",
+          "collected_cases": 4,
+          "status": "passed"
+        },
+        {
+          "control_id": "postmortem_timeout_and_refusal",
+          "test_node": "tests/unit/test_postmortem.py::test_timeout_and_refusal_are_traced_with_distinct_terminal_status",
+          "collected_cases": 2,
+          "status": "passed"
+        },
+        {
+          "control_id": "postgres_pool_creation_outage",
+          "test_node": "tests/unit/test_simulator_dependencies.py::test_postgres_maps_pool_creation_failures",
+          "collected_cases": 2,
+          "status": "passed"
+        },
+        {
+          "control_id": "postgres_operation_timeout",
+          "test_node": "tests/unit/test_simulator_dependencies.py::test_postgres_maps_timeout_and_operation_failure",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "postgres_pool_exhaustion",
+          "test_node": "tests/unit/test_simulator_dependencies.py::test_postgres_pool_exhaustion_is_bounded_observable_and_released",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "redis_client_outage",
+          "test_node": "tests/unit/test_simulator_dependencies.py::test_redis_maps_client_failures_and_logs_error",
+          "collected_cases": 2,
+          "status": "passed"
+        },
+        {
+          "control_id": "redis_operation_timeout",
+          "test_node": "tests/unit/test_simulator_dependencies.py::test_redis_maps_timeout",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "redis_forced_timeout",
+          "test_node": "tests/unit/test_simulator_dependencies.py::test_forced_redis_timeout_is_repeatable_observable_and_side_effect_free",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "simulator_redis_outage_response",
+          "test_node": "tests/unit/test_simulator_services.py::test_redis_timeout_fault_composes_inventory_store_and_returns_503",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "simulator_dependency_readiness",
+          "test_node": "tests/unit/test_simulator_services.py::test_dependency_unavailability_fails_readiness",
+          "collected_cases": 2,
+          "status": "passed"
+        },
+        {
+          "control_id": "tool_retry_audit_persistence",
+          "test_node": "tests/integration/test_persistence.py::test_tool_gateway_persists_and_asserts_complete_retried_success_path",
+          "collected_cases": 1,
+          "status": "passed"
+        }
+      ]
+    },
+    "workflow": {
+      "passed_controls": 14,
+      "total_controls": 14,
+      "controls": [
+        {
+          "control_id": "diagnosis_success",
+          "test_node": "tests/unit/test_diagnosis_graph.py::test_graph_pass_path_parallelizes_reads_and_returns_only_references",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "diagnosis_replan",
+          "test_node": "tests/unit/test_diagnosis_graph.py::test_graph_replans_once_then_passes_with_cumulative_budgets",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "diagnosis_refusal",
+          "test_node": "tests/unit/test_diagnosis_graph.py::test_model_timeout_refusal_and_malformed_output_stop_downstream_work",
+          "collected_cases": 5,
+          "status": "passed"
+        },
+        {
+          "control_id": "diagnosis_handoff",
+          "test_node": "tests/unit/test_diagnosis_graph.py::test_graph_handoff_routes_are_terminal_and_recorded",
+          "collected_cases": 2,
+          "status": "passed"
+        },
+        {
+          "control_id": "approval_success",
+          "test_node": "tests/unit/test_approval_graph.py::test_interrupt_contains_only_stable_references_and_reloads_approved_record",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "approval_rejected",
+          "test_node": "tests/unit/test_approval_graph.py::test_invalid_or_non_approved_records_route_to_human_without_execution",
+          "collected_cases": 8,
+          "status": "passed"
+        },
+        {
+          "control_id": "approval_expired",
+          "test_node": "tests/unit/test_approval_graph.py::test_invalid_or_non_approved_records_route_to_human_without_execution",
+          "collected_cases": 8,
+          "status": "passed"
+        },
+        {
+          "control_id": "recovery_success",
+          "test_node": "tests/unit/test_recovery_orchestration.py::test_passing_verification_is_the_only_route_to_closed",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "verification_rediagnosis",
+          "test_node": "tests/unit/test_recovery_orchestration.py::test_failed_verification_uses_only_non_compensable_route",
+          "collected_cases": 2,
+          "status": "passed"
+        },
+        {
+          "control_id": "verification_handoff",
+          "test_node": "tests/unit/test_recovery_orchestration.py::test_failed_verification_uses_only_non_compensable_route",
+          "collected_cases": 2,
+          "status": "passed"
+        },
+        {
+          "control_id": "safe_boundary_cancellation",
+          "test_node": "tests/unit/test_diagnosis_graph.py::test_cancel_stops_at_each_safe_boundary_before_its_effect",
+          "collected_cases": 7,
+          "status": "passed"
+        },
+        {
+          "control_id": "paused_resume_cancellation",
+          "test_node": "tests/unit/test_diagnosis_graph.py::test_pause_can_resume_as_cancel_without_running_the_node_effect",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "failed_verification_noncompensable",
+          "test_node": "tests/unit/test_health_verification_failure_routing.py::test_failure_router_emits_bound_non_compensable_route",
+          "collected_cases": 1,
+          "status": "passed"
+        },
+        {
+          "control_id": "future_compensation_guard",
+          "test_node": "tests/unit/test_architecture.py::test_mvp_compensation_surfaces_are_rejected",
+          "collected_cases": 4,
+          "status": "passed"
+        }
+      ]
+    }
+  },
+  "limitations": [
+    "Test case/control counts are not incident outcome or production reliability rates",
+    "No human baseline or real-provider recovery measured"
+  ]
+}

@@ -341,6 +341,27 @@ This index is an omission check, not a second task list. The referenced phases c
 - [ ] Evaluate horizontal worker scaling and a message broker only after PostgreSQL queue measurements demonstrate need.
 - [ ] Consider A2A only if independently deployed, separately owned agent services create a real protocol boundary.
 
+## Real-provider evaluation follow-up
+
+- [x] Batch R1: opt-in DeepSeek evaluation adapter and six-case smoke run.
+  Acceptance: official endpoint only, environment-only credential, bounded requests, strict existing
+  DiagnosisReport validation, opaque case IDs, pre-dispatch hash-only journal, usage and failures
+  retained, no runtime/write enablement or Ground Truth in requests.
+  Test plan: transport/auth/timeout/truncation/malformed/schema/reference negative tests; Ruff,
+  mypy, unit tests; real six-case read-only run with immutable results and explicit limitations.
+- [ ] R2: real-provider fair single/graph/memory comparisons with repeated held-out scenarios.
+- [ ] R3: live fault-injection diagnostics and approved recovery measurements.
+- [x] R4a: publish six-case provider, worker-resilience, bounded-load and full Python regression artifacts.
+  Result: 2,810 Python tests pass with 100% statement/branch source coverage; 20 new adapter/runner
+  tests independently pass with 100% coverage. See evaluation/results/deepseek/v1/README.md.
+- [ ] R4: consolidated safety/evidence/resilience/load measurements and metric coverage matrix.
+  Measurement batch acceptance: publish clean-revision six-case provider results, fixed worker
+  resilience and bounded-load raw artifacts; distinguish test counts from outcome rates and
+  mark every unsupported human/production metric unmeasured. Verification: full Python tests
+  with the existing 100% source coverage gate, report arithmetic and revision/hash checks,
+  credential/content review, Ruff/mypy/architecture. No fair-comparison or live-recovery credit.
+- [ ] R5: human paired trial, active labor, MTTR, recurrence and actual cost measurements.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:
@@ -356,15 +377,3 @@ These are scope constraints, not open checklist work:
 - Do not build general-purpose document Q&A.
 - Do not convert the core control path comprehensively to MCP.
 
-## Real-provider evaluation follow-up
-
-- [ ] Batch R1: opt-in DeepSeek evaluation adapter and six-case smoke run.
-  Acceptance: official endpoint only, environment-only credential, bounded requests, strict existing
-  DiagnosisReport validation, opaque case IDs, pre-dispatch hash-only journal, usage and failures
-  retained, no runtime/write enablement or Ground Truth in requests.
-  Test plan: transport/auth/timeout/truncation/malformed/schema/reference negative tests; Ruff,
-  mypy, unit tests; real six-case read-only run with immutable results and explicit limitations.
-- [ ] R2: real-provider fair single/graph/memory comparisons with repeated held-out scenarios.
-- [ ] R3: live fault-injection diagnostics and approved recovery measurements.
-- [ ] R4: consolidated safety/evidence/resilience/load measurements and metric coverage matrix.
-- [ ] R5: human paired trial, active labor, MTTR, recurrence and actual cost measurements.

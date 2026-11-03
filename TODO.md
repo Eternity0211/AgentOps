@@ -380,6 +380,22 @@ This index is an omission check, not a second task list. The referenced phases c
   credential/content review, Ruff/mypy/architecture. No fair-comparison or live-recovery credit.
 - [ ] R5: human paired trial, active labor, MTTR, recurrence and actual cost measurements.
 
+## Complete real-model evaluation follow-up
+
+- [x] C1: typed real-model planning/report/remediation transport and safe plan compilation.
+  Acceptance: fixed provider endpoint; bounded context/calls/tokens/timeouts; strict schemas;
+  content-free pre/post call records; invalid plans dispatch nothing; actual compiler checks
+  registered read tools, arguments, deduplication and aggregate budgets.
+  Tests: success, malformed/refusal/truncation/auth/timeout/unknown references, plan budget,
+  write-tool/URL refusal and audit failure; Ruff/mypy and relevant Pytest gates.
+  Verification: 63 relevant transport/compiler/regression tests pass; Ruff and strict mypy pass.
+- [ ] C2: autonomous read investigation through the gateway, discriminating telemetry and exact provenance.
+- [ ] C3: registered prompts, PostgreSQL evidence/checkpoint/job/call integration and crash/resume measurements.
+- [ ] C4: gate-bound real remediation, deterministic policy and actual pending approval records.
+- [ ] C5: frozen holdout/counter-evidence/normal/insufficient-evidence datasets and predeclared scoring.
+- [ ] C6: complete automatic regression, load/resilience/failure distributions and consolidated results.
+- [ ] C7: simulated-operator protocol and evaluation, explicitly separate from real human labor/approval.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

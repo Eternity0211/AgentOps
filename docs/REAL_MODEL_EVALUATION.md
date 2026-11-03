@@ -163,3 +163,17 @@ store, not PostgreSQL workflow persistence, and a PASS never grants recovery aut
 The original live-002 runner captured HEAD at completion, so its raw code_revision is a
 completion revision; execution began at dd3c168. Keep this correction with the raw record.
 The runner now captures revision before its first effect.
+
+## Typed planning and remediation transport
+
+The evaluation-only `structured_model` adapter has three closed purposes: PLAN, DIAGNOSE
+and REMEDIATE. Planning emits both the existing typed InvestigationPlan and bounded tool
+proposals; the existing compiler validates exact registered read tools, argument schemas,
+query uniqueness and aggregate budgets before any dispatch. Source/tool mismatches refuse.
+The transport has fixed official endpoint, bounded context, call count, output, response size
+and timeout, no automatic retry or redirects, and content-free start/finish records.
+Observed usage survives schema failures; conservative peak-price reservations are explicitly
+not billed costs. Diagnosis references must belong to supplied current Evidence IDs.
+Remediation cannot dispatch without a typed Gate PASS and must match both Gate fingerprints,
+incident, candidate and evaluated references. It has no approval or execution capability.
+This is not yet production worker composition or prompt promotion; those remain C3/C4 work.

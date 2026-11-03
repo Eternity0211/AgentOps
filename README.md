@@ -681,3 +681,9 @@ Work is delivered in small, verifiable Conventional Commits. A TODO is checked o
 ## Name note
 
 The repository remains named `AgentOps`, while the documentation and portfolio display name is **AgentOps Incident Commander**. This standalone project is not affiliated with other products or repositories named AgentOps.
+
+## Opt-in real-model evaluation
+
+A bounded [DeepSeek read-only smoke adapter](docs/REAL_MODEL_EVALUATION.md) is available
+for synthetic summary replay. This does not enable API/worker provider invocation or
+write operations; real-provider measurements are separate from the four mock baselines.

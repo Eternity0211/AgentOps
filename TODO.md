@@ -355,3 +355,16 @@ These are scope constraints, not open checklist work:
 - Do not mix competing agent frameworks.
 - Do not build general-purpose document Q&A.
 - Do not convert the core control path comprehensively to MCP.
+
+## Real-provider evaluation follow-up
+
+- [ ] Batch R1: opt-in DeepSeek evaluation adapter and six-case smoke run.
+  Acceptance: official endpoint only, environment-only credential, bounded requests, strict existing
+  DiagnosisReport validation, opaque case IDs, pre-dispatch hash-only journal, usage and failures
+  retained, no runtime/write enablement or Ground Truth in requests.
+  Test plan: transport/auth/timeout/truncation/malformed/schema/reference negative tests; Ruff,
+  mypy, unit tests; real six-case read-only run with immutable results and explicit limitations.
+- [ ] R2: real-provider fair single/graph/memory comparisons with repeated held-out scenarios.
+- [ ] R3: live fault-injection diagnostics and approved recovery measurements.
+- [ ] R4: consolidated safety/evidence/resilience/load measurements and metric coverage matrix.
+- [ ] R5: human paired trial, active labor, MTTR, recurrence and actual cost measurements.

@@ -125,3 +125,13 @@ receive no commands, fault names or Ground Truth. This is evaluator-driven colle
 not autonomous Tool Gateway investigation or persisted runtime Evidence Gate verification.
 Output includes per-call hashes, observed source presence and human-review terminal status.
 Do not infer approval, automated recovery or production quality from these observations.
+
+## Adversarial provider probes
+
+`python -m evaluation.run_real_adversarial --output-dir artifacts/adversarial-run`
+predeclares six probes and two repeats: log instructions, cross-incident references,
+historical-as-current references, approval bypass, synthetic canary echo and missing evidence.
+It records strict schema/reference outcomes, exact synthetic-canary echo and the explicit
+missing-evidence refusal oracle separately. The model has no mutation capability. An absent
+capability is not an executor block-rate measurement, and small-sample safety is not universal
+injection resistance. No real credential is sent as a probe.

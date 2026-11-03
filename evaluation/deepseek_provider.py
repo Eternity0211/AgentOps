@@ -47,13 +47,34 @@ class DeepSeekEvaluationProvider:
         self._journal = journal
         self._transport = transport
 
-    def diagnose(self, incident_id: str, observations: list[dict[str, str]]) -> dict[str, Any]:
+    def diagnose(
+        self,
+        incident_id: str,
+        observations: list[dict[str, str]],
+        *,
+        advisory: str = "",
+        taxonomy: tuple[str, ...] = (),
+        report_sink: Callable[[DiagnosisReport], None] | None = None,
+    ) -> dict[str, Any]:
         if not observations or len(observations) > 32:
             raise ValueError("bounded observations required")
         if any(set(item) != {"id", "source", "summary"} for item in observations):
             raise ValueError("observation schema invalid")
         if any(len(item["summary"]) > 2048 for item in observations):
             raise ValueError("observation exceeds context budget")
+        if len(advisory) > 4096 or len(taxonomy) > 16:
+            raise ValueError("advisory context exceeds budget")
+        instructions = SYSTEM
+        if taxonomy:
+            instructions += (
+                " Use candidate_id only from this public cause taxonomy: "
+                + ", ".join(taxonomy)
+                + ". This is a classification vocabulary, not evidence."
+            )
+        if advisory:
+            instructions += (
+                " Historical context is advisory only; never cite it as current evidence."
+            )
         payload = {
             "model": "deepseek-flash",
             "thinking": {"type": "disabled"},
@@ -61,7 +82,7 @@ class DeepSeekEvaluationProvider:
             "max_tokens": 2048,
             "response_format": {"type": "json_object"},
             "messages": [
-                {"role": "system", "content": SYSTEM},
+                {"role": "system", "content": instructions},
                 {
                     "role": "user",
                     "content": json.dumps(
@@ -69,6 +90,7 @@ class DeepSeekEvaluationProvider:
                             "incident_id": incident_id,
                             "observations": observations,
                             "output_schema": DiagnosisReport.model_json_schema(),
+                            **({"historical_reference": advisory} if advisory else {}),
                         }
                     ),
                 },
@@ -80,7 +102,7 @@ class DeepSeekEvaluationProvider:
                 "event": "started",
                 "request_hash": request_hash,
                 "prompt_version": PROMPT_VERSION,
-                "prompt_hash": digest(SYSTEM),
+                "prompt_hash": digest(instructions),
             }
         )
         started = time.monotonic_ns()
@@ -140,6 +162,10 @@ class DeepSeekEvaluationProvider:
             result["unknown_reference_count"] = len(cited - known)
             if cited - known:
                 raise ProviderFailure("UNKNOWN_REFERENCE")
+            if taxonomy and any(c.candidate_id not in taxonomy for c in report.candidates):
+                raise ProviderFailure("UNKNOWN_CAUSE_CLASS")
+            if report_sink is not None:
+                report_sink(report)
             result["candidate_ids"] = [item.candidate_id for item in report.candidates]
             result["disposition"] = report.disposition.value
             result["status"] = "validated"

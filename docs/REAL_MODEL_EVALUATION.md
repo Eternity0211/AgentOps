@@ -97,3 +97,18 @@ All future quality comparisons must predeclare model settings, equal aggregate b
 observation access, prompt/schema versions, holdout split and scoring rubric before running.
 Do not compare API wall time to mock execution time or use a synonym-normalization rule invented
 after seeing these outputs.
+
+## Paired real-provider replay v1
+
+`python -m evaluation.run_real_comparison --output-dir artifacts/paired-run` performs
+three repeats of the same six cases in single/graph/memory modes (54 calls). The fixed public
+cause taxonomy is declared before running; this is a new experiment, not a rescore of R1.
+Modes share model, output ceiling, observation IDs and scoring. Order rotates between repeats.
+Graph nodes actually execute the existing LangGraph topology with in-memory checkpoints.
+Collection is a fixed deterministic fixture-read plan, not model-generated planning or a live
+Tool Gateway. The evidence gate always hands off because fixture IDs are not runtime Evidence.
+Historical references are bounded and advisory; citing them as current evidence is rejected.
+No runtime provider or mutation capability is enabled. Unknown fees remain null; graph zero
+cost bookkeeping is explicitly marked unenforced and is never reported as a measured fee.
+This comparison measures orchestration overhead and historical-context effects on known inputs.
+It cannot establish held-out generalization, production throughput, recovery or human efficiency.

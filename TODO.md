@@ -349,7 +349,17 @@ This index is an omission check, not a second task list. The referenced phases c
   retained, no runtime/write enablement or Ground Truth in requests.
   Test plan: transport/auth/timeout/truncation/malformed/schema/reference negative tests; Ruff,
   mypy, unit tests; real six-case read-only run with immutable results and explicit limitations.
+- [x] R2a: implement bounded real-provider paired replay runner; 22 relevant tests, Ruff and mypy pass.
 - [ ] R2: real-provider fair single/graph/memory comparisons with repeated held-out scenarios.
+  Acceptance: predeclared equal model/budgets and cause taxonomy; opaque IDs; repeated paired
+  inputs; same scoring across modes; real graph topology and advisory-only memory; per-call
+  token/latency/failure records. No comparison to mock latency or post-hoc semantic relabeling.
+  Tests: strict schema, unknown IDs, memory citation refusal, graph routes, budget limits,
+  equal-context pair hashes, isolated scoring and report arithmetic; Ruff/mypy/pytest.
+- [ ] R3a: collect real local simulator fault observations and evaluate diagnosis up to human wait.
+  Acceptance: actual HTTP observations, provenance/hash/time, baseline/fault/cleanup separation,
+  real provider calls, no automatic approval or recovery credit; distinguish in-process and Compose.
+  Tests: collection failure, cleanup in finally, evidence reference resolution and no label leakage.
 - [ ] R3: live fault-injection diagnostics and approved recovery measurements.
 - [x] R4a: publish six-case provider, worker-resilience, bounded-load and full Python regression artifacts.
   Result: 2,810 Python tests pass with 100% statement/branch source coverage; 20 new adapter/runner

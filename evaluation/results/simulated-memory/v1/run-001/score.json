@@ -1,0 +1,190 @@
+{
+  "comparison_complete": false,
+  "intervals": {
+    "controlled-graph-simulated-memory": {
+      "safe_controls": [
+        0.0,
+        0.2991450484195441
+      ],
+      "top1": [
+        0.03101952264561239,
+        0.32799765130178804
+      ],
+      "top3": [
+        0.03101952264561239,
+        0.32799765130178804
+      ]
+    }
+  },
+  "labels_hash": "2becedfec79aaca92eefe9a460924c0cf957999db2a7b674daac29ffe54d2d32",
+  "missing_modes": [
+    "single-agent",
+    "controlled-graph",
+    "controlled-graph-memory"
+  ],
+  "modes": {
+    "controlled-graph-simulated-memory": {
+      "control_denominator": 9,
+      "failures": 22,
+      "fault_denominator": 18,
+      "safe_controls": 0,
+      "top1": 2,
+      "top3": 2
+    }
+  },
+  "outputs_hash": "1315826b1e62e2998bfaa359d2dd29e32720cdea57203e563617cbaf41acaef3",
+  "protocol_hash": "88f25bf5616b728013614ba25b653b2f0a77466c69ea7409d63aafd7fbb79f13",
+  "resources": {
+    "controlled-graph-simulated-memory": {
+      "actual_billed_cost": null,
+      "cost_upper_bound_nanousd": {
+        "known": 27,
+        "median": 1044600,
+        "missing": 0,
+        "p95_nearest_rank": 8118000,
+        "raw": [
+          982800,
+          993600,
+          994500,
+          1001700,
+          1016700,
+          1018200,
+          1019700,
+          1029000,
+          1029900,
+          1033500,
+          1033500,
+          1040100,
+          1043100,
+          1044600,
+          1045800,
+          1048800,
+          1056000,
+          1065000,
+          1066200,
+          1211100,
+          3036900,
+          5596500,
+          5709300,
+          7574700,
+          7840800,
+          8118000,
+          8505900
+        ]
+      },
+      "failure_duration_ms": {
+        "known": 22,
+        "median": 2453.5,
+        "missing": 0,
+        "p95_nearest_rank": 7156,
+        "raw": [
+          2016,
+          2187,
+          2203,
+          2235,
+          2250,
+          2266,
+          2312,
+          2328,
+          2406,
+          2422,
+          2453,
+          2454,
+          2485,
+          2515,
+          2546,
+          2594,
+          2609,
+          2672,
+          2719,
+          2750,
+          7156,
+          7797
+        ]
+      },
+      "input_tokens": {
+        "known": 27,
+        "median": 2095,
+        "missing": 0,
+        "p95_nearest_rank": 20984,
+        "raw": [
+          1986,
+          1988,
+          1990,
+          2003,
+          2003,
+          2004,
+          2093,
+          2093,
+          2093,
+          2094,
+          2094,
+          2094,
+          2095,
+          2095,
+          2101,
+          2101,
+          2101,
+          2102,
+          2104,
+          2104,
+          7471,
+          14295,
+          14551,
+          20033,
+          20152,
+          20984,
+          22265
+        ]
+      },
+      "output_tokens": {
+        "known": 27,
+        "median": 345,
+        "missing": 0,
+        "p95_nearest_rank": 1519,
+        "raw": [
+          322,
+          322,
+          325,
+          326,
+          327,
+          328,
+          334,
+          334,
+          335,
+          338,
+          338,
+          343,
+          344,
+          345,
+          348,
+          348,
+          354,
+          391,
+          391,
+          484,
+          663,
+          1090,
+          1120,
+          1304,
+          1496,
+          1519,
+          1522
+        ]
+      },
+      "success_duration_ms": {
+        "known": 5,
+        "median": 11344,
+        "missing": 0,
+        "p95_nearest_rank": 12485,
+        "raw": [
+          5406,
+          11031,
+          11344,
+          11438,
+          12485
+        ]
+      }
+    }
+  }
+}

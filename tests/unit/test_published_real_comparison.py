@@ -4,13 +4,23 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
 from evaluation.outcome_ledger import OutcomeLedger
 from evaluation.real_scoring import Label, protocol_hash, score
 from pydantic import TypeAdapter
 
 
-def test_published_partial_comparison_reproduces_from_raw_artifacts() -> None:
-    root = Path("evaluation/results/real-comparison/v1/run-001")
+@pytest.mark.parametrize(
+    "folder,modes,count",
+    [
+        ("real-comparison", ("single-agent", "controlled-graph"), 54),
+        ("simulated-memory", ("controlled-graph-simulated-memory",), 27),
+    ],
+)
+def test_published_partial_comparison_reproduces_from_raw_artifacts(
+    folder: str, modes: tuple[str, ...], count: int
+) -> None:
+    root = Path(f"evaluation/results/{folder}/v1/run-001")
     hashes = json.loads((root / "file-hashes.json").read_text(encoding="utf-8"))
     for name, digest in hashes.items():
         assert hashlib.sha256((root / name).read_bytes()).hexdigest() == digest
@@ -23,7 +33,7 @@ def test_published_partial_comparison_reproduces_from_raw_artifacts() -> None:
         labels,
         rows,
         expected_protocol_hash=digest,
-        evaluated_modes=("single-agent", "controlled-graph"),
+        evaluated_modes=modes,
     )
     assert json.loads((root / "score.json").read_text()) == json.loads(json.dumps(computed))
-    assert len(rows) == 54 and computed["comparison_complete"] is False
+    assert len(rows) == count and computed["comparison_complete"] is False

@@ -691,6 +691,12 @@ This index is an omission check, not a second task list. The referenced phases c
   valid citations, cross-tenant substitution, report tamper and missing files. Ruff/mypy pass.
   Measurements/publication remain separate; no human judgement or time-saving claim.
 
+- [x] C6k: publish 27 real-provider simulated-history outcomes separately.
+  Top-1/Top-3 2/18, controls 0/9, failures 22/27; 44 provider requests and raw token counts
+  retained. Archive 240 measured files (~0.76 MB), prototype-origin/context hashes and exact
+  scores. Publication regression reproduces both 54-case and 27-case reports. No memory
+  benefit, real-history validity or human/recovery gain is claimed.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

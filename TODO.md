@@ -530,6 +530,12 @@ This index is an omission check, not a second task list. The referenced phases c
   Full regression: 2,880 passed, 100% source statement/branch coverage. Ruff/mypy and
   architecture pass.
 
+- [x] C4a: registered remediation proposal with stored Gate pre/post admission and Policy review.
+  Missing/failed/changed Gate refuses; server-owned Policy inputs and requester binding are
+  checked; denied Policy produces no Approval, accepted review stops at PENDING through
+  existing lifecycle manager. Twenty-seven related unit tests plus Ruff/mypy pass.
+  SQL pending-approval/provider composition and live measurements remain open under C4.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

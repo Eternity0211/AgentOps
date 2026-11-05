@@ -55,3 +55,11 @@ round-trip exactly; changing only its monotonic version changes the complete fin
 the material fingerprint. Generated unsupported versions, coercible-looking scalar values,
 invalid identifiers, and command/URL/path/target/approval/policy/execution fields are rejected at
 the relevant top-level or nested strict model boundary.
+
+The opt-in evaluation registered-remediation adapter requires the exact stored PASS before
+model dispatch, then re-runs deterministic admission after typed model output. It sends only
+server-bound Incident/candidate/Gate fingerprints. A separate deterministic review function
+checks requester identity, evaluates Policy with server-owned inputs/rules, and invokes the
+existing Approval lifecycle only for APPROVAL_REQUIRED. It stops at PENDING and has no
+executor or approval-decision capability. Current adapter tests use controlled model/store
+fixtures; combined SQL pending-approval and live-provider measurements remain open.

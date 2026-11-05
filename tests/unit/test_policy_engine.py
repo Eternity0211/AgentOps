@@ -328,3 +328,47 @@ def test_invalid_evaluation_types_fail_before_policy_processing() -> None:
             decision_id=OpaqueIdentifier("policy-decision-1"),
             evaluated_at=cast(datetime, "not-a-date"),
         )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("denied", [False, True])
+async def test_evaluation_policy_stops_at_pending_review(denied: bool) -> None:
+    from evaluation.registered_remediation import request_remediation_review
+
+    from agentops_incident_commander.application.approvals import ApprovalLifecycleManager
+    from agentops_incident_commander.domain import CausationId, CorrelationId, Principal
+
+    changes = []
+
+    class Store:
+        async def get(self, *args: Any, **kwargs: Any) -> Any:
+            return None
+
+        async def apply(self, change: Any, audit_event: Any) -> None:
+            changes.append(change)
+
+    manager = ApprovalLifecycleManager(
+        Store(),
+        clock=lambda: NOW,
+        approval_id_factory=lambda: "evaluation-review",
+        audit_id_factory=lambda: "evaluation-review-audit",
+        expiry_actor_id=ActorId("expiry"),
+    )
+    admitted = admitted_proposal()
+    value = policy_input(admitted)
+    decision, approval = await request_remediation_review(
+        admitted,
+        value,
+        rules=rules(allowed_services=frozenset() if denied else frozenset({"orders"})),
+        decision_id=OpaqueIdentifier("evaluation-policy"),
+        evaluated_at=NOW,
+        approvals=manager,
+        principal=Principal(value.requester_actor_id, TENANT, value.requester_roles),
+        correlation_id=CorrelationId("evaluation-corr"),
+        causation_id=CausationId("evaluation-command"),
+    )
+    if denied:
+        assert decision.outcome is PolicyOutcome.DENY and approval is None and not changes
+    else:
+        assert approval is not None and approval.status.value == "PENDING"
+        assert len(changes) == 1

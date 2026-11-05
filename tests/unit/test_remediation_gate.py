@@ -167,3 +167,39 @@ async def test_invalid_admission_types_fail_before_storage_access() -> None:
     with pytest.raises(InvalidDomainValueError, match="scope"):
         await gate.admit(proposal(stored), tenant_id=cast(TenantId, "tenant"))
     assert store.calls == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("mode", ["success", "missing", "failed", "changed_after_call"])
+async def test_registered_remediation_requires_stored_gate_before_and_after_model(
+    mode: str,
+) -> None:
+    from types import SimpleNamespace
+
+    from evaluation.registered_remediation import propose_registered_remediation
+    from evaluation.structured_model import StructuredModelFailure
+
+    stored = decision(passing=mode != "failed")
+    store = Store(None if mode == "missing" else stored)
+    dispatched = []
+
+    async def invoke(*args: Any, **kwargs: Any) -> Any:
+        dispatched.append(True)
+        assert kwargs["gate"] == stored
+        if mode == "changed_after_call":
+            store.value = None
+        return SimpleNamespace(output=proposal(stored))
+
+    invoker = cast(
+        Any,
+        SimpleNamespace(
+            incident=INCIDENT, principal=SimpleNamespace(tenant_id=TENANT), invoke=invoke
+        ),
+    )
+    if mode == "success":
+        admitted = await propose_registered_remediation(invoker, store, stored, {})
+        assert admitted.evidence_gate_decision == stored and len(store.calls) == 2
+    else:
+        with pytest.raises((StructuredModelFailure, InvalidDomainValueError)):
+            await propose_registered_remediation(invoker, store, stored, {})
+    assert dispatched == ([True] if mode in ("success", "changed_after_call") else [])

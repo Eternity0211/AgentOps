@@ -677,6 +677,13 @@ This index is an omission check, not a second task list. The referenced phases c
   Ruff/mypy. Supplemental exploration is not a real closed-Incident or untouched held-out
   memory benchmark. Twenty-seven provider runs remain pending.
 
+- [x] C6j: publish 54 real-provider single/graph outcomes with reproducible partial scores.
+  Top-1/Top-3: 5/18 versus 4/18; controls 0/9 each; failures 19/27 versus 20/27.
+  Archive 382 measured files (about 1.20 MB), retain one uncertain serialization failure,
+  disclose mixed revisions/development case/partial report DTO retention; no benefit claim.
+  All file hashes and recomputed score verified by a publication regression test.
+  Real confirmed history remains unmeasured at user direction; simulation reported separately.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

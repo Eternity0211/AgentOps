@@ -8439,3 +8439,83 @@ async def test_registered_model_trace_and_report_commit_together_across_ports(
         assert stored is not None and stored.model_call_id.value == result.call_id
         assert trace.response_hash == stored.report_fingerprint
         assert observed[-1]["input_tokens"] == 10 and observed[-1]["actual_cost"] is None
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("failure", [False, True])
+async def test_leased_evaluation_worker_commits_before_handler(
+    engine: AsyncEngine, failure: bool
+) -> None:
+    from evaluation.leased_worker import LeasedEvaluationWorker
+
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        await add_job_incident(session)
+        await JobRepository(session).enqueue(job("leased-evaluation", max_attempts=1))
+    seen = []
+
+    async def handle(lease: JobLease) -> None:
+        async with sessions() as session:
+            row = await session.scalar(select(JobRow).where(JobRow.id == lease.job.id.value))
+            assert row is not None and row.status == "LEASED"
+        seen.append(lease.job.id.value)
+        if failure:
+            raise RuntimeError("sensitive provider failure")
+
+    worker = LeasedEvaluationWorker(sessions, OpaqueIdentifier("evaluation-worker"), handle)
+    if failure:
+        with pytest.raises(RuntimeError, match="sensitive provider failure"):
+            await worker.run_once()
+    else:
+        assert await worker.run_once() == 1
+    async with sessions() as session:
+        row = await session.scalar(select(JobRow).where(JobRow.id == "leased-evaluation"))
+        assert row is not None
+        assert row.status == ("DEAD_LETTER" if failure else "COMPLETED")
+        assert row.last_error == ("EVALUATION_WORKFLOW_FAILED" if failure else None)
+    assert seen == ["leased-evaluation"]
+    assert await worker.run_once() == 0
+
+
+@pytest.mark.anyio
+async def test_leased_evaluation_worker_cancellation_allows_stale_takeover(
+    engine: AsyncEngine,
+) -> None:
+    from evaluation.leased_worker import LeasedEvaluationWorker
+
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        await add_job_incident(session)
+        await JobRepository(session).enqueue(job("cancel-evaluation"))
+    started = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    async def handle(lease: JobLease) -> None:
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.set()
+
+    worker = LeasedEvaluationWorker(
+        sessions, OpaqueIdentifier("cancel-worker"), handle, lease_seconds=3
+    )
+    task = asyncio.create_task(worker.run_once())
+    await asyncio.wait_for(started.wait(), timeout=10)
+    await asyncio.sleep(1.2)
+    async with sessions() as session:
+        row = await session.scalar(select(JobRow).where(JobRow.id == "cancel-evaluation"))
+        assert row is not None and row.heartbeat_at is not None and row.leased_at is not None
+        assert row.heartbeat_at > row.leased_at
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert cancelled.is_set()
+    async with sessions.begin() as session:
+        leases = await JobRepository(session).claim(
+            OpaqueIdentifier("replacement-worker"),
+            now=datetime.now(UTC) + timedelta(seconds=5),
+            lease_duration=timedelta(seconds=30),
+            limit=1,
+        )
+    assert len(leases) == 1 and leases[0].attempt == 2

@@ -269,6 +269,7 @@ class AutonomousServices:
             provenance_by_id=provenance,
             existing=self.evidence,
             tenant=self.principal.tenant_id.value,
+            workflow=state.workflow_run_id,
         )
         if not self.evidence.records:
             raise ValueError("all telemetry quarantined")

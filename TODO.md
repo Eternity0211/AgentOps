@@ -485,6 +485,11 @@ This index is an omission check, not a second task list. The referenced phases c
   to investigation. Ten positive/tamper tests, Ruff/mypy/architecture pass. Combined real
   PostgreSQL/provider composition and mid-run restoration remain open.
 
+- [x] C3h: bind autonomous Evidence lineage to the actual registered workflow.
+  Tenant-scoped Artifact identities avoid cross-tenant aliasing; incremental Evidence rejects
+  tenant/workflow changes. Nine Evidence/autonomous tests plus Ruff/mypy/architecture pass.
+  Mid-investigation restoration is still open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

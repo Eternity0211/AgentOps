@@ -57,11 +57,15 @@ class ExperimentEvidence:
         provenance_by_id: dict[str, dict[str, Any]] | None = None,
         existing: ExperimentEvidence | None = None,
         tenant: str = "local-evaluation",
+        workflow: str | None = None,
     ) -> None:
         self.tenant = TenantId(tenant)
         self.incident = IncidentId(incident)
+        self.workflow = WorkflowRunId(workflow or f"workflow-{incident}")
         if existing is not None and (
-            existing.incident != self.incident or existing.tenant != self.tenant
+            existing.incident != self.incident
+            or existing.tenant != self.tenant
+            or existing.workflow != self.workflow
         ):
             raise ValueError("cannot merge evidence across incidents")
         self.records: dict[EvidenceId, Evidence] = dict(existing.records) if existing else {}
@@ -95,7 +99,8 @@ class ExperimentEvidence:
                     for n, pos in enumerate(range(0, len(query_encoding), 480))
                 )
             artifact_id = ArtifactId(
-                "artifact-" + hashlib.sha256(f"{incident}:{identifier}".encode()).hexdigest()
+                "artifact-"
+                + hashlib.sha256(f"{tenant}:{incident}:{identifier}".encode()).hexdigest()
             )
             redaction = redact_sensitive_data(
                 observation["summary"],
@@ -134,7 +139,7 @@ class ExperimentEvidence:
                     ),
                     lineage=EvidenceLineage(
                         ToolCallId(provenance.get("call_id", f"call-{identifier}")),
-                        WorkflowRunId(f"workflow-{incident}"),
+                        self.workflow,
                         redaction.transform_id,
                     ),
                     trust=TrustClassification.DIRECT_OBSERVATION,

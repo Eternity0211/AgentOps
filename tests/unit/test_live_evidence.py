@@ -116,3 +116,37 @@ def test_incremental_evidence_retains_original_records_and_exact_query(tmp_path:
         )
     with pytest.raises(ValueError):
         ExperimentEvidence(tmp_path, "other-incident", [], observed_from=now, existing=first)
+
+
+@pytest.mark.parametrize("scope", ["tenant", "workflow"])
+def test_registered_evidence_scope_cannot_merge(tmp_path: Path, scope: str) -> None:
+    now = datetime.now(UTC)
+    first = ExperimentEvidence(
+        tmp_path,
+        "incident",
+        [{"id": "e1", "source": "logs", "summary": "Observed failure"}],
+        observed_from=now,
+        tenant="tenant-a",
+        workflow="registered-workflow",
+    )
+    item = next(iter(first.records.values()))
+    assert item.lineage.workflow_run_id.value == "registered-workflow"
+    with pytest.raises(ValueError):
+        ExperimentEvidence(
+            tmp_path,
+            "incident",
+            [],
+            observed_from=now,
+            existing=first,
+            tenant="tenant-b" if scope == "tenant" else "tenant-a",
+            workflow="other-workflow" if scope == "workflow" else "registered-workflow",
+        )
+    other = ExperimentEvidence(
+        tmp_path / "other",
+        "incident",
+        [{"id": "e1", "source": "logs", "summary": "Observed failure"}],
+        observed_from=now,
+        tenant="tenant-b",
+        workflow="registered-workflow",
+    )
+    assert next(iter(other.records.values())).artifact_id != item.artifact_id

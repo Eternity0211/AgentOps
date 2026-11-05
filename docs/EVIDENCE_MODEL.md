@@ -100,3 +100,8 @@ Validation first performs authorized Artifact resolution, then rechecks ownershi
 byte size. It returns `VALID` or `EXPIRED` with separate Evidence and Artifact expiry reasons.
 Missing, altered, unauthorized, cross-Incident, or cross-tenant content raises a typed failure
 instead of producing a partially trusted result.
+
+The autonomous evaluation Evidence builder records the actual graph workflow identity,
+including registered invoker workflows. Incremental rounds reject tenant or workflow changes;
+Artifact identifiers include tenant, Incident and Evidence identity in their digest. Earlier
+immutable evaluation runs retain their original identifier scheme.

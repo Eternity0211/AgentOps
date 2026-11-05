@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import hashlib
 import json
 import secrets
 from dataclasses import asdict
@@ -90,7 +91,9 @@ class ExperimentEvidence:
                     QueryParameter(f"request_spec_{n:02d}", query_encoding[pos : pos + 480])
                     for n, pos in enumerate(range(0, len(query_encoding), 480))
                 )
-            artifact_id = ArtifactId(f"artifact-{incident}-{identifier}")
+            artifact_id = ArtifactId(
+                "artifact-" + hashlib.sha256(f"{incident}:{identifier}".encode()).hexdigest()
+            )
             redaction = redact_sensitive_data(
                 observation["summary"],
                 transform_id=RedactionTransformId(f"redaction-{identifier}"),
@@ -127,7 +130,7 @@ class ExperimentEvidence:
                         parser_warning_count=(0 if provenance else int(len(text) >= 2048)),
                     ),
                     lineage=EvidenceLineage(
-                        ToolCallId(f"call-{identifier}"),
+                        ToolCallId(provenance.get("call_id", f"call-{identifier}")),
                         WorkflowRunId(f"workflow-{incident}"),
                         redaction.transform_id,
                     ),

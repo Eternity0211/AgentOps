@@ -451,6 +451,9 @@ This index is an omission check, not a second task list. The referenced phases c
   integration cases, full Python regression/100% source coverage, Ruff/mypy/architecture.
   Verification: three real PostgreSQL port tests pass; full regression 2,844 passed,
   100% source statement/branch coverage; Ruff/mypy/architecture pass.
+- [x] C3c: autonomous Evidence commits before report generation and Gate resolves SQL records.
+  Tests: actual PostgreSQL success and foreign-key refusal; failed writes prevent DIAGNOSE.
+  Incident-scoped identifiers and exact Gateway call lineage prevent cross-incident aliasing.
 - [ ] C3: registered prompts, PostgreSQL evidence/checkpoint/job/call integration and crash/resume measurements.
 - [ ] C4: gate-bound real remediation, deterministic policy and actual pending approval records.
 - [ ] C5: frozen holdout/counter-evidence/normal/insufficient-evidence datasets and predeclared scoring.

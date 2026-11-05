@@ -231,3 +231,14 @@ immutable records and append a separate manifest. Explicit model handoff/refusal
 force another investigation. Tests cover first-round PASS, second-round PASS after missing
 evidence, aggregate accounting and terminal replay without further effects. Query specifications
 use base64url JSON chunks to preserve spaces exactly across bounded query fields.
+
+## Committed Evidence in autonomous workflows
+
+The investigation accepts a transaction-owning Evidence store. Each new immutable record
+commits before the report receives its ID, and Gate resolution uses that store rather than
+an in-memory substitute. PostgreSQL tests cover successful resolution and failed insertion
+preventing the diagnosis call. Evidence/call identities are scoped to the incident; Artifact
+identities use bounded hashes, and experiment incidents/SKUs are unique per run. Evidence
+lineage now uses the exact Gateway call ID, also visible in hash-only tool audit projections.
+This injection point is verified; the default local CLI still requires the remaining C3
+composition for full Prompt/Job/model-trace persistence.

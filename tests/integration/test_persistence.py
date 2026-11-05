@@ -8148,3 +8148,134 @@ async def test_workflow_trace_port_commits_start_finish_and_refuses_replay(
             response_hash=Sha256Digest("e" * 64),
         )
     assert await store.get(started.tenant_id, started.id) == completed
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("write_failure", [False, True])
+async def test_autonomous_gate_uses_committed_postgres_evidence(
+    engine: AsyncEngine,
+    tmp_path: Path,
+    write_failure: bool,
+) -> None:
+    from evaluation.autonomous_diagnosis import investigate
+    from evaluation.live_gateway import SOURCES, local_definitions
+    from evaluation.structured_model import StructuredEvaluationModel
+    from httpx import MockTransport, Response
+
+    from agentops_incident_commander.infrastructure.persistence.runtime_ports import (
+        PostgresWorkflowEvidenceStore,
+    )
+
+    incident = "postgres-autonomous"
+    if not write_failure:
+        await add_incident(engine, incident, tenant="local-evaluation")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    store = PostgresWorkflowEvidenceStore(sessions)
+    calls: list[str] = []
+
+    class Adapter:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+        async def invoke(self, context: Any, arguments: Any) -> dict[str, Any]:
+            return {
+                "source": SOURCES[self.name],
+                "summary": "Observed current error status 500",
+                "provenance": json.dumps({"tool": self.name, "version": "2.0.0"}),
+                "complete_window": False,
+                "records_seen": 1,
+            }
+
+    def respond(request: Any) -> Response:
+        payload = json.loads(request.content)
+        body = json.loads(payload["messages"][1]["content"])
+        if "plan" in body["output_schema"]["properties"]:
+            calls.append("PLAN")
+            output: dict[str, Any] = {
+                "plan": {
+                    "schema_version": "1.0.0",
+                    "plan_id": "plan",
+                    "summary": "Inspect independent sources",
+                    "steps": [
+                        {
+                            "step_id": source,
+                            "objective": "Inspect current evidence",
+                            "expected_source": kind,
+                            "parallel_group": 0,
+                        }
+                        for source, kind in (("metrics", "METRIC"), ("logs", "LOG"))
+                    ],
+                },
+                "tool_calls": [
+                    {
+                        "step_id": source,
+                        "tool_name": "query_" + source,
+                        "tool_version": "2.0.0",
+                        "arguments": {"service": "order"},
+                    }
+                    for source in ("metrics", "logs")
+                ],
+            }
+        else:
+            calls.append("DIAGNOSE")
+            output = {
+                "schema_version": "1.0.0",
+                "incident_id": incident,
+                "disposition": "CANDIDATES",
+                "candidates": [
+                    {
+                        "candidate_id": "observed-errors",
+                        "rank": 1,
+                        "statement": "Observed errors",
+                        "supporting_evidence_ids": body["context"]["evidence_ids"],
+                        "counter_evidence_ids": [],
+                        "counter_evidence_treatment": "NOT_APPLICABLE",
+                        "counter_evidence_explanation": None,
+                        "missing_evidence": [],
+                        "uncertainty": "Local test",
+                        "confidence_basis_points": 5000,
+                    }
+                ],
+                "missing_evidence": [],
+                "explanation": "Current bounded evidence",
+            }
+        return Response(
+            200,
+            json={
+                "usage": {"prompt_tokens": 100, "completion_tokens": 100, "total_tokens": 200},
+                "choices": [{"finish_reason": "stop", "message": {"content": json.dumps(output)}}],
+            },
+        )
+
+    model = StructuredEvaluationModel("test-only", lambda e: None, transport=MockTransport(respond))
+    adapters = {definition.identity: Adapter(definition.name) for definition in local_definitions()}
+
+    async def execute() -> Any:
+        return await investigate(
+            model,
+            incident,
+            "Observed checkout error",
+            tmp_path,
+            NOW - timedelta(minutes=1),
+            NOW,
+            lambda e: None,
+            adapters=adapters,
+            evidence_store=store,
+            max_replans=0,
+        )
+
+    if write_failure:
+        with pytest.raises(IntegrityError):
+            await execute()
+        assert calls == ["PLAN"]
+    else:
+        state, services = await execute()
+        assert state.phase.value == "COMPLETE"
+        assert services.evidence is not None
+        for item in services.evidence.records.values():
+            assert (
+                await store.get(item.id, tenant_id=item.tenant_id, incident_id=item.incident_id)
+                == item
+            )
+        assert calls == ["PLAN", "DIAGNOSE"]
+        assert services.gates[0].outcome is EvidenceGateOutcome.PASS

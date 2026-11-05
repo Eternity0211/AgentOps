@@ -36,7 +36,7 @@ def run(output: Path, *, smoke: bool = False) -> None:
     with httpx.Client(timeout=15, trust_env=False) as client:
         ready(client)
         for index, (scenario, target) in enumerate(scenarios, 1):
-            incident = f"autonomous-{index}"
+            incident = f"autonomous-{sku.removeprefix('evaluation-')}-{index}"
 
             def journal(event: dict[str, Any], incident_id: str = incident) -> None:
                 with (output / "events.jsonl").open("a", encoding="utf-8") as stream:

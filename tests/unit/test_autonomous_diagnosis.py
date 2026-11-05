@@ -131,6 +131,13 @@ def test_autonomous_plan_gateway_evidence_and_gate(tmp_path: Path, replan: bool)
                 "evidence-r0-metrics",
                 "evidence-r1-deployment",
             ]
+        if "plan" not in schema["properties"]:
+            context = json.loads(payload["messages"][1]["content"])["context"]
+            observations = context["observations"]
+            metric_id = next(o["id"] for o in observations if o["source"] == "metrics")
+            other_source = "deployments" if replan and len(model_requests) == 4 else "logs"
+            other_id = next(o["id"] for o in observations if o["source"] == other_source)
+            output["candidates"][0]["supporting_evidence_ids"] = [metric_id, other_id]
         return httpx.Response(
             200,
             json={

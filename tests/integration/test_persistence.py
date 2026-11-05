@@ -3846,7 +3846,10 @@ async def test_approval_lifecycle_persists_state_history_and_audit_atomically(
         audit_types = (
             await session.scalars(
                 select(AuditEventRow.event_type)
-                .where(AuditEventRow.event_type.like("approval.%"))
+                .where(
+                    AuditEventRow.event_type.like("approval.%"),
+                    AuditEventRow.target_id == approved.id.value,
+                )
                 .order_by(AuditEventRow.sequence)
             )
         ).all()
@@ -4600,7 +4603,11 @@ async def test_prompt_lifecycle_repository_commits_versions_transitions_and_audi
             await session.scalar(
                 select(func.count())
                 .select_from(AuditEventRow)
-                .where(AuditEventRow.event_type.like("prompt.%"))
+                .where(
+                    AuditEventRow.event_type.like("prompt.%"),
+                    AuditEventRow.correlation_id == "correlation-prompt",
+                    AuditEventRow.tenant_id == "tenant-1",
+                )
             )
             == 3
         )
@@ -4838,7 +4845,11 @@ async def test_model_call_trace_repository_records_exact_metadata_and_atomic_aud
             await session.scalar(
                 select(func.count())
                 .select_from(AuditEventRow)
-                .where(AuditEventRow.event_type.like("model.call_%"))
+                .where(
+                    AuditEventRow.event_type.like("model.call_%"),
+                    AuditEventRow.target_id.in_((started.id.value, timed_out_started.id.value)),
+                    AuditEventRow.tenant_id == "tenant-1",
+                )
             )
             == 4
         )

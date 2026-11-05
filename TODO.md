@@ -641,6 +641,11 @@ This index is an omission check, not a second task list. The referenced phases c
   without retry. Two transport tests and Ruff/mypy pass. Full regression has a failure under
   investigation; no full-regression acceptance is claimed. Real provider batch remains pending.
 
+- [x] C6-regression-audit: scope legacy audit assertions to their own target/correlation.
+  New append-only remediation events exposed three global-count assumptions; retain exact
+  expected lifecycle counts for the intended records rather than clearing audit history.
+  Four ordered integration cases pass. Full regression rerun remains pending.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

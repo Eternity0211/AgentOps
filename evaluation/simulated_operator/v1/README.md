@@ -10,3 +10,8 @@ Evidence/Artifacts, reruns Gate, and separately inspects a pending Approval revi
 Task completion and evidence sufficiency are separate outputs; a correctly observed Gate
 FAIL is not a failed read task. Missing bindings fail review. PostgreSQL integration uses
 controlled model outputs; no real-provider review benchmark has yet been published.
+
+Archival provider review uses `evaluation.review_archive`: it checks the validated-output
+hash, structured report and immutable Evidence manifests/Artifacts, then re-evaluates Gate
+at the recorded capture clock. It does not fabricate SQL model-call records for standalone
+runs, nor reconstruct missing report DTOs. Missing data fail the applicable review task.

@@ -684,6 +684,13 @@ This index is an omission check, not a second task list. The referenced phases c
   All file hashes and recomputed score verified by a publication regression test.
   Real confirmed history remains unmeasured at user direction; simulation reported separately.
 
+- [x] C7c: deterministic archival review of real-provider reports and Evidence.
+  Bind sanitized report to validated provider-output hash, rehydrate immutable Evidence DTOs,
+  resolve Artifact integrity/ownership at frozen capture time and re-evaluate Gate. Missing
+  reports stay unavailable; no invented SQL traces. Real archived-report regression covers
+  valid citations, cross-tenant substitution, report tamper and missing files. Ruff/mypy pass.
+  Measurements/publication remain separate; no human judgement or time-saving claim.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

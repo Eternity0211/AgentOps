@@ -9,6 +9,14 @@ Checkboxes are completion claims. Check an item only when its acceptance criteri
 目标：补齐真实模型驱动的调查、证据门禁、修复建议、策略与审批等待链路，
 再运行预先定义、可复现的完整测评。报告必须保留失败、缺失指标和实验限制。
 
+### 最新实测与剩余边界
+
+- 真实模型单次/图式对照已归档 54 次：故障 Top-1 为 5/18、4/18，控制场景各 0/9；未显示质量或提效收益。
+- 模拟历史独立实测 27 次，Top-1 为 2/18；真实已关闭历史按用户要求标记未测。
+- 持久化续跑已有 14 项 PostgreSQL 组合场景；重规划保留证据、部分并行续跑和未知结果拒绝均已验证。
+- 当前在补齐 C4 实验注册前置：三轮共 9 次真实调用均因诊断声明缺失证据而拒绝激活，提示词保留 DRAFT。
+- 真实模型与 SQL 的完整待审批链路、统一覆盖矩阵及最终报告仍未完成。实际人工审批、人工工时和生产收益未测。
+
 ### 已完成并提交
 
 - [x] DeepSeek 真实调用、严格结构校验、调用用量与耗时记录。
@@ -722,6 +730,16 @@ This index is an omission check, not a second task list. The referenced phases c
   regression: 2,947 passed with 100% source statement/branch coverage. The final uncertain
   dispatch fixture reaches DEAD_LETTER after three attempts with no extra external calls.
   Versioned case records, source hashes and exploratory failures are in durable-replay/v1/run-002.
+
+- [x] C4d: actual-provider mechanical preflight before isolated lab Prompt activation.
+  Versioned explicit synthetic fixtures, actual PostgreSQL draft/evaluate/promote lifecycle,
+  shared compiler/current-reference Gate/proposal admission, bounded three calls, refusal
+  leaves all DRAFT. Tenant/fixture/key checks fail before effects. Six focused tests pass.
+  Retain all three actual runs (nine responses): PLAN/REMEDIATE pass, DIAGNOSE declares
+  missing Evidence; all three suites refuse activation. v2 calibration adds trace/canary
+  observations without relaxing Gate. Published hashes/response bindings reproduce by test.
+  Full regression: 2,953 passed, 100% source statement/branch coverage; publication
+  regression passes separately. Actual registered live workflow/pending approval remains open.
 
 ## Explicit non-goal guardrails for the core version
 

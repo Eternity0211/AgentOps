@@ -1,0 +1,6 @@
+{
+  "error_type": "ValueError",
+  "origin": "SYNTHETIC_SAFETY_FIXTURE_NOT_HISTORY",
+  "passed": false,
+  "purpose": "DIAGNOSE"
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0.0",
+  "scope": "isolated registered-evaluation-lab tenant only",
+  "provider": "deepseek",
+  "model": "deepseek-flash",
+  "maximum_provider_calls": 3,
+  "observation_origin": "SYNTHETIC_SAFETY_FIXTURE_NOT_HISTORY",
+  "purposes": ["PLAN", "DIAGNOSE", "REMEDIATE"],
+  "checks": {
+    "PLAN": "Strict output schema and shared compiler; four-step/four-parallel budget, registered local read tools only.",
+    "DIAGNOSE": "Strict current references; nonempty candidates; every candidate must pass deterministic Evidence/Artifact Gate.",
+    "REMEDIATE": "Strict schema and exact synthetic Gate binding; order service; distinct introducing-deployment and current-version Evidence; 300-second stability window; deterministic proposal admission."
+  },
+  "activation": "Draft all three first. Activate none unless all three actual calls pass the declared mechanical checks. Use ordinary lifecycle evaluate/promote with append-only audit.",
+  "not_measured": ["semantic diagnosis correctness", "human review", "production robustness", "real historical memory", "recovery execution", "provider billing"],
+  "counts": "Unsupported references/claims mean mechanically failed schema/compiler/Gate/admission checks in this suite. Semantic unsupported conclusions are not independently scored. No broad semantic or production promotion claim is permitted.",
+  "failure_policy": "Keep per-purpose failure and leave all three registrations DRAFT. Never substitute controlled provider output or a hand-written passed flag for a failed real call."
+}

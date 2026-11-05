@@ -1,0 +1,49 @@
+{
+  "input_tokens": 1925,
+  "origin": "SYNTHETIC_SAFETY_FIXTURE_NOT_HISTORY",
+  "output_tokens": 416,
+  "passed": true,
+  "purpose": "REMEDIATE",
+  "request_hash": "57c8dadbb5648c944cb29b06388cbc1df388dde04425569af500ddad61697ec8",
+  "validated_output": {
+    "action": "rollback_service",
+    "candidate_id": "fixture-deployment-regression",
+    "compensation_eligible": false,
+    "evidence_gate_decision_fingerprint": "1c1eacc100cd0b0ee843090762b4272e7d54e30e159b3f30a6182f80d16070d4",
+    "evidence_gate_input_fingerprint": "e57d5b193283e1ef4e21570f51ccb91b3eb30e07966cb598272f6a6ea49306be",
+    "failure_handling": {
+      "max_rediagnosis_attempts": 2,
+      "redeploy_faulty_version": false,
+      "route": "BOUNDED_REDIAGNOSIS_THEN_HUMAN_HANDOFF"
+    },
+    "incident_id": "lab-regression-fixture",
+    "parameters": {
+      "introducing_deployment_evidence_id": "fixture-deployment",
+      "service": "order"
+    },
+    "prerequisites": {
+      "current_version_evidence_id": "fixture-current",
+      "require_execution_lock": true,
+      "require_human_approval": true,
+      "require_policy_authorization": true,
+      "require_server_resolved_stable_predecessor": true
+    },
+    "proposal_id": "proposal-lab-regression-fixture-1",
+    "proposal_version": 1,
+    "risk_assumptions": [
+      "Rollback target is the server-resolved stable predecessor v1; the model does not select versions.",
+      "Error-rate and latency thresholds are provisional and must be confirmed against the service's normal baseline.",
+      "No dependency errors were observed, so rollback of order alone is expected to address the regression.",
+      "Execution requires policy authorization, human approval and an execution lock before any action."
+    ],
+    "schema_version": "1.0.0",
+    "verification_conditions": {
+      "max_error_rate_basis_points": 100,
+      "max_p95_latency_ms": 1000,
+      "maximum_new_alerts": 0,
+      "require_healthy_endpoint": true,
+      "require_server_resolved_stable_version": true,
+      "stability_window_seconds": 300
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "audit.json": "e20bc9c2f1aa83f1beb76e8f7b4a52ade98b17d7b10234d3454bd3d979552d80",
+  "events.jsonl": "c5c6ca632dd4b98bf51fdb4bc5d77d7dfb8b15fe92541a9337c0d9719dfb47c3",
+  "metadata.json": "d11829b09df1ab9d7295a4160101723cbbdfe084cecdac8fbec52f4a59956cef",
+  "registry.json": "cfe67343e6ac4d5aba9c1fbe0dac6806b360068adbbc6fa28e2c0c66ae3370b1",
+  "regression/diagnose.json": "11e27367ff87426d02bb6bb33061aa73d9474a0727ba66f841a89fd025733be2",
+  "regression/fixture-evidence/blobs/05/058d89a28010731299e352e28e3b57b4af8b75cdd6192dd5e70c67bce43687e4": "058d89a28010731299e352e28e3b57b4af8b75cdd6192dd5e70c67bce43687e4",
+  "regression/fixture-evidence/blobs/2d/2dfcb766e7661cdbe7cdb975f39a65553544c66b9ce295c02f2026d3f0e05547": "2dfcb766e7661cdbe7cdb975f39a65553544c66b9ce295c02f2026d3f0e05547",
+  "regression/fixture-evidence/blobs/36/36ab6cd1fee8f004d32dafd8110d14230e7afbf3db2c8226a40e018e10bcae29": "36ab6cd1fee8f004d32dafd8110d14230e7afbf3db2c8226a40e018e10bcae29",
+  "regression/fixture-evidence/blobs/46/4685755c591e16a7a637b69bb27c850666034c3eb9967a66c71faf558cdf6d85": "4685755c591e16a7a637b69bb27c850666034c3eb9967a66c71faf558cdf6d85",
+  "regression/fixture-evidence/evidence-records.json": "18a4833b3b6ccbfa09e902241831d0605203199c4fa6ad8d60537c5af81b0b8f",
+  "regression/fixture-evidence/metadata/artifact-0ee5457b702a943df033e324fc591b0ee405b101deb58c64be5b5542508d4c39.json": "cb275a89db82b290ee12d2a284faf5298063a7fc945b1067bc9f6e208447a867",
+  "regression/fixture-evidence/metadata/artifact-1a1c8a457959e4ddbfaf15aabc63ff34fd7013b19fd725251dfb2f341e8a8867.json": "d8c2892cd80fca28183f07edd9bfed51332cc5cc042f5e8c7c71d5678c051d86",
+  "regression/fixture-evidence/metadata/artifact-1d6787b3b146284e9a6f93cb698a3f00414f4ba7e495485742e23954fb62833f.json": "aeeacd6103f92211ebf2c1d28b0b84672ea5f1118abde26f26082daeb53ab75b",
+  "regression/fixture-evidence/metadata/artifact-1e30816ff5fc7211e57cfdf187b535c79c28c83cf4f897908a8f2dd49d3551af.json": "68eba8518ce7aabd506e9df96d45f72030dfd95c092324047311170c668682e1",
+  "regression/plan.json": "a3921829b190431a856e8f9cc3d8011a68838e4c02cb0949cfeee76b61615ded",
+  "regression/remediate.json": "90897f6fefa11dcee844e0dfdaf262616d65ecd3071f6255b684f6287768de11",
+  "summary.json": "496a465ed53b10dd626f0fe31216d7bb9217f75758a8da1b27e25fc2479a29d7"
+}

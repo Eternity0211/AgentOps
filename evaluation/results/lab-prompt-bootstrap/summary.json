@@ -1,0 +1,26 @@
+[
+  {
+    "activated_count": 0,
+    "input_tokens": 4686,
+    "metered_responses": 3,
+    "output_tokens": 1075,
+    "provider_starts": 3,
+    "run": "v1/run-001"
+  },
+  {
+    "activated_count": 0,
+    "input_tokens": 4691,
+    "metered_responses": 3,
+    "output_tokens": 1119,
+    "provider_starts": 3,
+    "run": "v1/run-002"
+  },
+  {
+    "activated_count": 0,
+    "input_tokens": 4973,
+    "metered_responses": 3,
+    "output_tokens": 1125,
+    "provider_starts": 3,
+    "run": "v2/run-001"
+  }
+]

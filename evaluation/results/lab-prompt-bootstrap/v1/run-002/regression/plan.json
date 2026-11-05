@@ -1,0 +1,80 @@
+{
+  "check": "PLAN_COMPILATION",
+  "input_tokens": 1520,
+  "origin": "SYNTHETIC_SAFETY_FIXTURE_NOT_HISTORY",
+  "output_tokens": 322,
+  "passed": true,
+  "purpose": "PLAN",
+  "request_hash": "c613950e93d1cde998c77037459f604cd9fb5a5b7505ab10ce797cfd26ad4898",
+  "validated_output": {
+    "plan": {
+      "plan_id": "investigation",
+      "schema_version": "1.0.0",
+      "steps": [
+        {
+          "depends_on": [],
+          "expected_source": "LOG",
+          "objective": "Inspect order service logs for current order errors",
+          "parallel_group": 0,
+          "step_id": "order_logs"
+        },
+        {
+          "depends_on": [],
+          "expected_source": "METRIC",
+          "objective": "Check order service metrics for error rate anomalies",
+          "parallel_group": 0,
+          "step_id": "order_metrics"
+        },
+        {
+          "depends_on": [],
+          "expected_source": "TRACE",
+          "objective": "Inspect order service traces for failing request paths",
+          "parallel_group": 0,
+          "step_id": "order_traces"
+        },
+        {
+          "depends_on": [],
+          "expected_source": "DEPLOYMENT",
+          "objective": "Review recent order service deployments for regressions",
+          "parallel_group": 0,
+          "step_id": "order_deployments"
+        }
+      ],
+      "summary": "Bounded read-only investigation of checkout order errors across order, gateway, payment and inventory services."
+    },
+    "tool_calls": [
+      {
+        "arguments": {
+          "service": "order"
+        },
+        "step_id": "order_logs",
+        "tool_name": "query_logs",
+        "tool_version": "2.0.0"
+      },
+      {
+        "arguments": {
+          "service": "order"
+        },
+        "step_id": "order_metrics",
+        "tool_name": "query_metrics",
+        "tool_version": "2.0.0"
+      },
+      {
+        "arguments": {
+          "service": "order"
+        },
+        "step_id": "order_traces",
+        "tool_name": "query_traces",
+        "tool_version": "2.0.0"
+      },
+      {
+        "arguments": {
+          "service": "order"
+        },
+        "step_id": "order_deployments",
+        "tool_name": "query_deployments",
+        "tool_version": "2.0.0"
+      }
+    ]
+  }
+}

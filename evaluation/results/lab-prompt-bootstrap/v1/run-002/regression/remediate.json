@@ -1,0 +1,51 @@
+{
+  "check": "REMEDIATION_ADMISSION",
+  "input_tokens": 1930,
+  "origin": "SYNTHETIC_SAFETY_FIXTURE_NOT_HISTORY",
+  "output_tokens": 492,
+  "passed": true,
+  "purpose": "REMEDIATE",
+  "request_hash": "1f07da9072119bec2383301523a79db38ca1b11c7c50fc45311384cca9021309",
+  "validated_output": {
+    "action": "rollback_service",
+    "candidate_id": "fixture-deployment-regression",
+    "compensation_eligible": false,
+    "evidence_gate_decision_fingerprint": "9da6e342ec7eb9e8956c8adb23970e9ce06fd3c4f6b9fb8790b9fe16de8e0b66",
+    "evidence_gate_input_fingerprint": "e4e744f1b8e5307c6eb9b3610fdd65768ce9978f9a70000f2446d0350be57597",
+    "failure_handling": {
+      "max_rediagnosis_attempts": 2,
+      "redeploy_faulty_version": false,
+      "route": "BOUNDED_REDIAGNOSIS_THEN_HUMAN_HANDOFF"
+    },
+    "incident_id": "lab-regression-fixture",
+    "parameters": {
+      "introducing_deployment_evidence_id": "fixture-deployment",
+      "service": "order"
+    },
+    "prerequisites": {
+      "current_version_evidence_id": "fixture-current",
+      "require_execution_lock": true,
+      "require_human_approval": true,
+      "require_policy_authorization": true,
+      "require_server_resolved_stable_predecessor": true
+    },
+    "proposal_id": "lab-regression-fixture-rollback-1",
+    "proposal_version": 1,
+    "risk_assumptions": [
+      "Rollback target is the server-resolved stable predecessor v1; the model does not select versions.",
+      "Error rate rise is attributable to the v2 rollout, supported by deployment, log, metric and current-version evidence.",
+      "No dependency errors were observed, so rollback of order alone is expected to restore health.",
+      "Verification requires all five signals plus the 300-second server stability window before closure.",
+      "Execution requires policy authorization, human approval and an execution lock; this proposal is not an approval or execution."
+    ],
+    "schema_version": "1.0.0",
+    "verification_conditions": {
+      "max_error_rate_basis_points": 100,
+      "max_p95_latency_ms": 500,
+      "maximum_new_alerts": 0,
+      "require_healthy_endpoint": true,
+      "require_server_resolved_stable_version": true,
+      "stability_window_seconds": 300
+    }
+  }
+}

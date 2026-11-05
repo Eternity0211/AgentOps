@@ -1,0 +1,15 @@
+{
+  "activated_count": 0,
+  "actual_bill": null,
+  "approval_decisions": 0,
+  "ephemeral_database": true,
+  "fixture_origin": "SYNTHETIC_SAFETY_FIXTURE_NOT_HISTORY",
+  "fixture_version": "2.0.0",
+  "input_tokens": 4973,
+  "metered_responses": 3,
+  "output_tokens": 1125,
+  "provider_kind": "REAL_DEEPSEEK",
+  "provider_starts": 3,
+  "recovery_executions": 0,
+  "status": "REGRESSION_REFUSED"
+}

@@ -1,0 +1,51 @@
+{
+  "check": "DIAGNOSIS_EVIDENCE_GATE",
+  "error_type": "ValueError",
+  "gate_results": [
+    {
+      "candidate_id": "order-v2-rollout-regression",
+      "outcome": "FAIL",
+      "reasons": [
+        "MISSING_EVIDENCE_DECLARED"
+      ]
+    }
+  ],
+  "input_tokens": 1241,
+  "origin": "SYNTHETIC_SAFETY_FIXTURE_NOT_HISTORY",
+  "output_tokens": 305,
+  "passed": false,
+  "purpose": "DIAGNOSE",
+  "request_hash": "ebfdcbdb013c4e9b80019b9358965377d1a39b73ee848c93c3319768fb186d30",
+  "validated_output": {
+    "candidates": [
+      {
+        "candidate_id": "order-v2-rollout-regression",
+        "confidence_basis_points": 7500,
+        "counter_evidence_explanation": null,
+        "counter_evidence_ids": [],
+        "counter_evidence_treatment": "NOT_APPLICABLE",
+        "missing_evidence": [
+          "No v2 error stack traces or failing code paths identified",
+          "No canary/rollback comparison confirming v1 restores baseline"
+        ],
+        "rank": 1,
+        "statement": "Order service v2 rollout introduced a regression causing the HTTP 500 rate to rise from 0 to 20 percent; v1 is the known stable predecessor.",
+        "supporting_evidence_ids": [
+          "fixture-metric",
+          "fixture-log",
+          "fixture-deployment",
+          "fixture-current"
+        ],
+        "uncertainty": "Temporal correlation with rollout is strong but no direct code-level fault or rollback test is available."
+      }
+    ],
+    "disposition": "CANDIDATES",
+    "explanation": "Error onset coincides with the order v2 rollout, logs show no dependency errors, and a current probe confirms v2 is running. Single leading candidate: v2 regression; rollback validation would strengthen it.",
+    "incident_id": "lab-regression-fixture",
+    "missing_evidence": [
+      "No v2 error stack traces or failing code paths identified",
+      "No canary/rollback comparison confirming v1 restores baseline"
+    ],
+    "schema_version": "1.0.0"
+  }
+}

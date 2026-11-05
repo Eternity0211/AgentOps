@@ -1,0 +1,54 @@
+{
+  "check": "DIAGNOSIS_EVIDENCE_GATE",
+  "error_type": "ValueError",
+  "fixture_version": "2.0.0",
+  "gate_results": [
+    {
+      "candidate_id": "order-v2-checkout-serializer-attributeerror",
+      "outcome": "FAIL",
+      "reasons": [
+        "MISSING_EVIDENCE_DECLARED"
+      ]
+    }
+  ],
+  "input_tokens": 1380,
+  "origin": "SYNTHETIC_SAFETY_FIXTURE_NOT_HISTORY",
+  "output_tokens": 307,
+  "passed": false,
+  "purpose": "DIAGNOSE",
+  "request_hash": "b4b131bd24d73e56ac39edaf2b6a0000d6911eecb81ccccfc101dc0e2fc359d4",
+  "validated_output": {
+    "candidates": [
+      {
+        "candidate_id": "order-v2-checkout-serializer-attributeerror",
+        "confidence_basis_points": 9700,
+        "counter_evidence_explanation": null,
+        "counter_evidence_ids": [],
+        "counter_evidence_treatment": "NOT_APPLICABLE",
+        "missing_evidence": [
+          "Source diff between v1 and v2 checkout serializer",
+          "Stack trace line numbers and offending attribute name"
+        ],
+        "rank": 1,
+        "statement": "Order v2 introduced a defect in the checkout serializer that raises AttributeError, causing HTTP 500s; v1 does not exhibit the failure.",
+        "supporting_evidence_ids": [
+          "fixture-metric",
+          "fixture-log",
+          "fixture-deployment",
+          "fixture-current",
+          "fixture-trace",
+          "fixture-comparison"
+        ],
+        "uncertainty": "Fixture is synthetic; no real production telemetry or code diff was reviewed."
+      }
+    ],
+    "disposition": "CANDIDATES",
+    "explanation": "Error onset coincides with v2 rollout; traces localize failure to the v2 checkout serializer with downstream spans healthy, and an isolated canary shows v2 fails while v1 and revert succeed. Single candidate: v2 serializer regression.",
+    "incident_id": "lab-regression-fixture",
+    "missing_evidence": [
+      "Source diff between v1 and v2 checkout serializer",
+      "Stack trace line numbers and offending attribute name"
+    ],
+    "schema_version": "1.0.0"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "audit.json": "35a3e9720301c38c40664ffd801947249a23325c978288f4cc83f35751ec7b19",
+  "events.jsonl": "5717865ccc4ba9761221d20cafc65fbe3ca457d1f2e3f08b47faf8e4ecbf477e",
+  "metadata.json": "b17e9630c3c2f924b7fa8aa7ab555b651135ff03d53c511106f04f59dd406981",
+  "registry.json": "cfe67343e6ac4d5aba9c1fbe0dac6806b360068adbbc6fa28e2c0c66ae3370b1",
+  "regression/diagnose.json": "b829ef3f9879ea8b75db92db8e0bda0f1427988526c38e847600ef30c0c43850",
+  "regression/fixture-evidence/blobs/05/058d89a28010731299e352e28e3b57b4af8b75cdd6192dd5e70c67bce43687e4": "058d89a28010731299e352e28e3b57b4af8b75cdd6192dd5e70c67bce43687e4",
+  "regression/fixture-evidence/blobs/2d/2dfcb766e7661cdbe7cdb975f39a65553544c66b9ce295c02f2026d3f0e05547": "2dfcb766e7661cdbe7cdb975f39a65553544c66b9ce295c02f2026d3f0e05547",
+  "regression/fixture-evidence/blobs/36/36ab6cd1fee8f004d32dafd8110d14230e7afbf3db2c8226a40e018e10bcae29": "36ab6cd1fee8f004d32dafd8110d14230e7afbf3db2c8226a40e018e10bcae29",
+  "regression/fixture-evidence/blobs/46/4685755c591e16a7a637b69bb27c850666034c3eb9967a66c71faf558cdf6d85": "4685755c591e16a7a637b69bb27c850666034c3eb9967a66c71faf558cdf6d85",
+  "regression/fixture-evidence/blobs/8c/8c7c9df032eeb14950c2f48978aba576731b310fb6189f7e949c214a359f907d": "8c7c9df032eeb14950c2f48978aba576731b310fb6189f7e949c214a359f907d",
+  "regression/fixture-evidence/blobs/a6/a62e87484afa243a8576157b5058ff12c42b1ef9b1a5072395e3ccb12d2cdf44": "a62e87484afa243a8576157b5058ff12c42b1ef9b1a5072395e3ccb12d2cdf44",
+  "regression/fixture-evidence/evidence-records.json": "5951c8f2c92ac07277e4c72cc820f620475c31a558fe26deaf878b73022a62e3",
+  "regression/fixture-evidence/metadata/artifact-0ee5457b702a943df033e324fc591b0ee405b101deb58c64be5b5542508d4c39.json": "6c2146016ac0f944097f40f43837e23296666b039249a217e85fe4a085cbb8c7",
+  "regression/fixture-evidence/metadata/artifact-1a1c8a457959e4ddbfaf15aabc63ff34fd7013b19fd725251dfb2f341e8a8867.json": "2600cde2e9f7859129a42f765e5e53c45bce568c13b2c00adcc26a1f21fdb01a",
+  "regression/fixture-evidence/metadata/artifact-1d6787b3b146284e9a6f93cb698a3f00414f4ba7e495485742e23954fb62833f.json": "f89a155075c985737f6cfb1320f8c270bf7fa3ba2989b340b10dc07d0716ed05",
+  "regression/fixture-evidence/metadata/artifact-1e30816ff5fc7211e57cfdf187b535c79c28c83cf4f897908a8f2dd49d3551af.json": "78f2be75ad494598e6c6512063e7cf288b2521c0db3cef860452a04a6f3b89bd",
+  "regression/fixture-evidence/metadata/artifact-44c8d0e07067438bf9f5dd7a58b2d678867804fc29b77830e14ea4c7895eee9b.json": "613ac00569fa883d6670c9c77117639d9ad44c7e5ce22cc49789097554e810b4",
+  "regression/fixture-evidence/metadata/artifact-696c1516834f1107ea59fc8615be434bc6a14d61e8ea1b0ad7e78f3a5e813b29.json": "58bb3e8dde7b10db1f4346afc554998c86cafe8abb7298abf8fd63cf55c63b4e",
+  "regression/plan.json": "7f30d15ed7a21bea5156bacc20878d6481feabd2053e783522f787204252745d",
+  "regression/remediate.json": "57cc53432919e22eb165a0cff08d7bd533d69e92c1c3ed9a8c9f70f715f1d4c9",
+  "summary.json": "9b062be54394072d9db5d7663831363ea0539b34eab6586c0c3699b5f2218fda"
+}

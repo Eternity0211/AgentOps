@@ -1,0 +1,18 @@
+{
+  "events.jsonl": "e06ecfa866ccf11625d8af4e572b3dd09eb92eac0a5cff6b0b333d69bdd31412",
+  "metadata.json": "6fa92beaa08aa46ade6795a50649a59b8592b4196d036589b61985d1832b4853",
+  "registry.json": "c4a454b530d04db6168581d3b8ea7cfb2cb4f2abb775f7dec58ca6c8c49f6a14",
+  "regression/diagnose.json": "07201d7b4b92cf37610d6bb660f0c9a111686548cab661bb23edf39af933861f",
+  "regression/fixture-evidence/blobs/05/058d89a28010731299e352e28e3b57b4af8b75cdd6192dd5e70c67bce43687e4": "058d89a28010731299e352e28e3b57b4af8b75cdd6192dd5e70c67bce43687e4",
+  "regression/fixture-evidence/blobs/2d/2dfcb766e7661cdbe7cdb975f39a65553544c66b9ce295c02f2026d3f0e05547": "2dfcb766e7661cdbe7cdb975f39a65553544c66b9ce295c02f2026d3f0e05547",
+  "regression/fixture-evidence/blobs/36/36ab6cd1fee8f004d32dafd8110d14230e7afbf3db2c8226a40e018e10bcae29": "36ab6cd1fee8f004d32dafd8110d14230e7afbf3db2c8226a40e018e10bcae29",
+  "regression/fixture-evidence/blobs/46/4685755c591e16a7a637b69bb27c850666034c3eb9967a66c71faf558cdf6d85": "4685755c591e16a7a637b69bb27c850666034c3eb9967a66c71faf558cdf6d85",
+  "regression/fixture-evidence/evidence-records.json": "059d2e3ef21e4ef617217a5fd3cf90fd0eb31ba7a82f64eb8f8c48a962cb377b",
+  "regression/fixture-evidence/metadata/artifact-0ee5457b702a943df033e324fc591b0ee405b101deb58c64be5b5542508d4c39.json": "c84f7bce96b557896e0bc799f9bf4b4cc43343422f44406593c6be7291ac9e95",
+  "regression/fixture-evidence/metadata/artifact-1a1c8a457959e4ddbfaf15aabc63ff34fd7013b19fd725251dfb2f341e8a8867.json": "fb66d81fdc2a77773fca9663f64f87b2168c1875a28a8d051a514c366542f39a",
+  "regression/fixture-evidence/metadata/artifact-1d6787b3b146284e9a6f93cb698a3f00414f4ba7e495485742e23954fb62833f.json": "264e4e4190e12b66807a60b58efec77440570b785bae6f3bc95125ae457376e5",
+  "regression/fixture-evidence/metadata/artifact-1e30816ff5fc7211e57cfdf187b535c79c28c83cf4f897908a8f2dd49d3551af.json": "d911aedbe571fc4be5b93cc020e72a21ded6b87f19729e41cda980ba2b7ac29b",
+  "regression/plan.json": "5e5f638f002632b1f8a7770ba2f8a7a45461211de2b8ab5efe1a28f7cac51532",
+  "regression/remediate.json": "b1583fcf82a32900f447032d1185904c148972a0a1fd321a6298a48f5e2903b7",
+  "summary.json": "d6fbbe38c35ebf326e380d7a0fe35fc0a5e1db4d9c8583dc592deb0c340b43d7"
+}

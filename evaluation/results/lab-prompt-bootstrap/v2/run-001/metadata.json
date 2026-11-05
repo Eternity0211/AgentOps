@@ -1,0 +1,24 @@
+{
+  "base_revision": "d6d3f468c57a1de135b1e43c4a446f366d6320f6",
+  "concurrency": 1,
+  "fixture_version": "2.0.0",
+  "logical_cpus": 8,
+  "max_output_tokens": 2048,
+  "maximum_provider_calls": 3,
+  "model": "deepseek-flash",
+  "observation_origin": "SYNTHETIC_SAFETY_FIXTURE_NOT_HISTORY",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "provider_kind": "REAL_DEEPSEEK",
+  "python": "3.12.14",
+  "schema_version": "1.0.0",
+  "source_hashes": {
+    "evaluation/lab_prompts.py": "bacda5686ae4c18ce89657f56e88af339b0d6f8b5f59e8c48d0067f881c65692",
+    "evaluation/live_evidence.py": "1e5d5efdcb2140e03b29ecff29df00b27b7d13cbe3eef6b155b84122ff47725f",
+    "evaluation/registered_protocol/v2/bootstrap.json": "255bd1eca8b2f2407582c7c850580995e3c91e78c4a3e55811be71502d1a55a8",
+    "evaluation/run_lab_bootstrap.py": "ddfb8a6d9d683d6a6d5cf2de026f3c7fe0c52617b197618a288cfc7e00bc8094",
+    "evaluation/structured_model.py": "cbe7977ad85d7491e437e7285dad13382e9d60e581cc847394b1122ae50618ae"
+  },
+  "started_at": "2026-11-05T14:36:01.659260+00:00",
+  "temperature": 0,
+  "thinking": "disabled"
+}

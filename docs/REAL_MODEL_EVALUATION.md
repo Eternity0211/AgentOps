@@ -271,3 +271,27 @@ dispatch: the effect store separately checks committed/uncertain outcomes. Legac
 must pass their original hash/ownership checks before migration. See
 [ADR 0009](ADR/0009-bounded-tool-progress-retries.md). This is backend progress history; the
 administration view still shows the current step status rather than a retry-history UI.
+
+## Isolated lab Prompt registration preflight
+
+`evaluation/lab_prompts.py` runs the versioned mechanical
+[bootstrap protocol](../evaluation/registered_protocol/v1/bootstrap.json) before activating
+PLAN/DIAGNOSE/REMEDIATE registrations in the fixed `registered-evaluation-lab` tenant. It
+drafts first, makes three actual provider calls, checks the plan through the shared compiler,
+resolves diagnosis references and Gate decisions against immutable fixture Artifacts, and
+admits the typed remediation against a separately declared synthetic Gate. The current-version
+and introducing-deployment references must differ. All three must pass before any promotion.
+Failures remain DRAFT and are retained in per-purpose records. Other tenants refuse before work.
+
+The observations and Gate are explicit synthetic safety fixtures, not historical Incidents or
+real fault outcomes. Mechanical regression does not measure semantic root-cause accuracy,
+human review or production readiness. The normal Prompt lifecycle and audit are used without
+fabricated provider successes; this isolated preflight is not production Prompt promotion.
+
+Three actual-provider preflights are now [archived](../evaluation/results/lab-prompt-bootstrap/README.md):
+two v1 calibrations and one v2 calibration adding explicitly synthetic stack/canary observations.
+All nine responses pass transport/schema validation. In all three runs, diagnosis still declares
+missing Evidence and fails Gate; PLAN and REMEDIATE mechanical checks pass. Consequently every
+Prompt remains DRAFT (zero activations), with SQL lifecycle audit exported before container
+cleanup. The v2 fixture was designed after seeing v1 and is not an unseen test. No pending
+approval, real fault recovery, or production promotion is claimed by these preflights.

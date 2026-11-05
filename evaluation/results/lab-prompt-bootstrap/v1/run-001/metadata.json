@@ -1,0 +1,12 @@
+{
+  "base_revision": "d6d3f468c57a1de135b1e43c4a446f366d6320f6",
+  "observation_origin": "SYNTHETIC_SAFETY_FIXTURE_NOT_HISTORY",
+  "provider_kind": "REAL_DEEPSEEK",
+  "schema_version": "1.0.0",
+  "source_hashes": {
+    "evaluation/lab_prompts.py": "595cd587a51bd7482ab6c4a55b076805a497eaca6025673a9f06dfc761a29cff",
+    "evaluation/registered_protocol/v1/bootstrap.json": "b842b875305d137374bc98f1eea965f62278e2b25b59f813b008646a3a07a149",
+    "evaluation/structured_model.py": "cbe7977ad85d7491e437e7285dad13382e9d60e581cc847394b1122ae50618ae"
+  },
+  "started_at": "2026-11-05T14:28:15.547412+00:00"
+}

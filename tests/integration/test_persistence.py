@@ -9173,3 +9173,135 @@ async def test_durable_investigation_effects_replay_binding_integrity_and_uncert
         await store.execute("read:sensitive", binding, secret)
     with pytest.raises(ValueError, match="outcome uncertain"):
         await replacement.load("read:sensitive", binding)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("bad_reference", [False, True])
+@pytest.mark.parametrize("fixture_version", ["1.0.0", "2.0.0"])
+async def test_lab_prompts_require_measured_mechanical_regression_before_activation(
+    engine: AsyncEngine,
+    tmp_path: Path,
+    bad_reference: bool,
+    fixture_version: str,
+) -> None:
+    from evaluation.lab_prompts import LAB_TENANT, prepare_lab_prompts
+    from evaluation.structured_model import ModelPurpose, StructuredEvaluationModel
+    from httpx import MockTransport, Response
+
+    observed: list[dict[str, Any]] = []
+    calls = []
+
+    def respond(request: Any) -> Response:
+        body = json.loads(json.loads(request.content)["messages"][1]["content"])
+        context, schema = body["context"], body["output_schema"]
+        assert context["observation_origin"] == "SYNTHETIC_SAFETY_FIXTURE_NOT_HISTORY"
+        if "plan" in schema["properties"]:
+            calls.append("PLAN")
+            output = {
+                "plan": {
+                    "schema_version": "1.0.0",
+                    "plan_id": "regression-plan",
+                    "summary": "Inspect logs",
+                    "steps": [
+                        {
+                            "step_id": "logs",
+                            "objective": "Inspect recent errors",
+                            "expected_source": "LOG",
+                            "parallel_group": 0,
+                        }
+                    ],
+                },
+                "tool_calls": [
+                    {
+                        "step_id": "logs",
+                        "tool_name": "query_logs",
+                        "tool_version": "2.0.0",
+                        "arguments": {"service": "order"},
+                    }
+                ],
+            }
+        elif "disposition" in schema["properties"]:
+            calls.append("DIAGNOSE")
+            output = {
+                "schema_version": "1.0.0",
+                "incident_id": context["incident_id"],
+                "disposition": "CANDIDATES",
+                "candidates": [
+                    {
+                        "candidate_id": "rollout",
+                        "rank": 1,
+                        "statement": "Current errors correlate with rollout",
+                        "supporting_evidence_ids": ["fabricated"]
+                        if bad_reference
+                        else context["evidence_ids"],
+                        "counter_evidence_ids": [],
+                        "counter_evidence_treatment": "NOT_APPLICABLE",
+                        "counter_evidence_explanation": None,
+                        "missing_evidence": [],
+                        "uncertainty": "Fixture only",
+                        "confidence_basis_points": 5000,
+                    }
+                ],
+                "missing_evidence": [],
+                "explanation": "Current references only",
+            }
+        else:
+            calls.append("REMEDIATE")
+            output = RemediationProposal(
+                schema_version="1.0.0",
+                proposal_id="fixture-proposal",
+                proposal_version=1,
+                incident_id=context["incident_id"],
+                candidate_id=context["candidate_id"],
+                evidence_gate_input_fingerprint=context["evidence_gate_input_fingerprint"],
+                evidence_gate_decision_fingerprint=context["evidence_gate_decision_fingerprint"],
+                action=RecoveryAction.ROLLBACK_SERVICE,
+                parameters=RollbackServiceParameters(
+                    service="order", introducing_deployment_evidence_id="fixture-deployment"
+                ),
+                prerequisites=RollbackPrerequisites(current_version_evidence_id="fixture-current"),
+                verification_conditions=RollbackVerificationConditions(
+                    max_error_rate_basis_points=100,
+                    max_p95_latency_ms=500,
+                    stability_window_seconds=300,
+                ),
+                failure_handling=RemediationFailureHandling(
+                    route=RemediationFailureRoute.HUMAN_HANDOFF, max_rediagnosis_attempts=0
+                ),
+                risk_assumptions=("Synthetic regression only",),
+            ).model_dump(mode="json")
+        return Response(
+            200,
+            json={
+                "usage": {"prompt_tokens": 10, "completion_tokens": 10, "total_tokens": 20},
+                "choices": [{"finish_reason": "stop", "message": {"content": json.dumps(output)}}],
+            },
+        )
+
+    references = await prepare_lab_prompts(
+        async_sessionmaker(engine, expire_on_commit=False),
+        StructuredEvaluationModel(
+            "test-only", observed.append, transport=MockTransport(respond), max_calls=3
+        ),
+        tmp_path / "bootstrap",
+        observed.append,
+        fixture_version=fixture_version,
+    )
+    assert calls == ["PLAN", "DIAGNOSE", "REMEDIATE"]
+    assert len(references) == (0 if bad_reference else 3)
+    async with async_sessionmaker(engine)() as session:
+        rows = (
+            await session.scalars(
+                select(PromptVersionRow).where(PromptVersionRow.tenant_id == LAB_TENANT.value)
+            )
+        ).all()
+    assert len(rows) == 3 and {r.status for r in rows} == (
+        {"DRAFT"} if bad_reference else {"ACTIVE"}
+    )
+    assert (
+        json.loads((tmp_path / "bootstrap" / "diagnose.json").read_text(encoding="utf-8"))["passed"]
+        is not bad_reference
+    )
+    assert {e["purpose"] for e in observed if e.get("event") == "lab.prompt_regression"} == {
+        p.value for p in ModelPurpose
+    }

@@ -1,0 +1,38 @@
+[
+  {
+    "actor_id": "lab-prompt-administrator",
+    "event_fingerprint": "ca44e591b0f9616ec1837816d66f967723e60dbd6e3c9ef6c978c83bac572037",
+    "event_type": "prompt.drafted",
+    "occurred_at": "2026-11-05T14:33:27.543480+00:00",
+    "request_hash": "a356992f88d4f9e673c42976bd9ad65cfa6f9058f32f274f2455e309ae1f06d8",
+    "result_hash": "783cc473f010e01ce352d6ece0d8d34585a9311ee0afcb695cc5f43938da605d",
+    "sequence": 1,
+    "target_id": "lab-real-plan:1.0.0",
+    "target_type": "prompt.version",
+    "tenant_sequence": 1
+  },
+  {
+    "actor_id": "lab-prompt-administrator",
+    "event_fingerprint": "ef5bb716f848a1e10b47f032430977c4fe1caaa6398976b7653e442978f8a76a",
+    "event_type": "prompt.drafted",
+    "occurred_at": "2026-11-05T14:33:27.706099+00:00",
+    "request_hash": "a356992f88d4f9e673c42976bd9ad65cfa6f9058f32f274f2455e309ae1f06d8",
+    "result_hash": "6169a01cc4ae8b44a5dc239735e15f9b5cb1d893eb64efa154b95357e36dfd5d",
+    "sequence": 2,
+    "target_id": "lab-real-diagnose:1.0.0",
+    "target_type": "prompt.version",
+    "tenant_sequence": 2
+  },
+  {
+    "actor_id": "lab-prompt-administrator",
+    "event_fingerprint": "6843feee6c4c32d32ff45a1240ee5cc89b7cc100b0381e0efa484b65eb50b95e",
+    "event_type": "prompt.drafted",
+    "occurred_at": "2026-11-05T14:33:27.716109+00:00",
+    "request_hash": "a356992f88d4f9e673c42976bd9ad65cfa6f9058f32f274f2455e309ae1f06d8",
+    "result_hash": "87094a7882e3288ce66c76ca42e35a3cda640b9662d524a84972c8438024a021",
+    "sequence": 3,
+    "target_id": "lab-real-remediate:1.0.0",
+    "target_type": "prompt.version",
+    "tenant_sequence": 3
+  }
+]

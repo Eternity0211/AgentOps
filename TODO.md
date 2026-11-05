@@ -18,13 +18,13 @@ Checkboxes are completion claims. Check an item only when its acceptance criteri
 
 ### 当前正在做：C2 自主只读调查
 
-- [ ] 完成并提交中断前的只读工具 v2 契约、适配器、LangGraph 调查服务和测试。
-- [ ] 定位真实 PLAN 输出校验失败，记录不含模型原文的字段与错误类型。
+- [x] 完成并提交中断前的只读工具 v2 契约、适配器、LangGraph 调查服务和测试。
+- [x] 定位真实 PLAN 的额外 steps_note 字段错误；补充明确示例并保留严格校验。
 - [ ] 跑通“真实计划 → 现有编译器 → Tool Gateway → 实际遥测 → 不可变证据 → 诊断 → 门禁”。
 - [ ] 证明非法计划不调用工具；正常与故障场景均保留完整调用和查询来源。
 
-当前事实：C2 代码尚未提交；已有模拟接口测试通过，但真实冒烟实验失败，
-尚不能宣称自主调查已跑通。最近已提交批次为 C1（8cdf0cb）。
+当前事实：C2 已完成正常基线真实冒烟：5 次 Gateway 查询、2 次模型调用、5 条证据。
+这仅证明链路跑通；固定提交版本的故障测评和 C3 持久化仍需完成。
 
 ### 后续按顺序执行
 
@@ -433,6 +433,8 @@ This index is an omission check, not a second task list. The referenced phases c
   Tests: success, malformed/refusal/truncation/auth/timeout/unknown references, plan budget,
   write-tool/URL refusal and audit failure; Ruff/mypy and relevant Pytest gates.
   Verification: 63 relevant transport/compiler/regression tests pass; Ruff and strict mypy pass.
+- [x] C2a: local read catalog, real model-selected Gateway investigation and exact provenance;
+  25 relevant tests, Ruff/mypy and normal-baseline real smoke pass.
 - [ ] C2: autonomous read investigation through the gateway, discriminating telemetry and exact provenance.
 - [ ] C3: registered prompts, PostgreSQL evidence/checkpoint/job/call integration and crash/resume measurements.
 - [ ] C4: gate-bound real remediation, deterministic policy and actual pending approval records.

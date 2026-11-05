@@ -34,7 +34,7 @@ from agentops_incident_commander.workflows import (
     RemediationProposal,
 )
 
-VERSION = "real-structured-evaluation/1.0.0"
+VERSION = "real-structured-evaluation/1.1.0"
 
 
 class ModelPurpose(StrEnum):
@@ -66,7 +66,15 @@ INSTRUCTIONS = {
     ModelPurpose.PLAN: "Produce a bounded InvestigationProposal. Select only supplied tools and "
     "versions; each plan step needs one tool_call with the same step_id. Respect server budgets. "
     "Use exact supplied service, UTC window and structured arguments. No URLs, paths, shell, "
-    "writes or invented tools. Plan source fields must match their selected tools.",
+    "writes or invented tools. Plan source fields must match their selected tools. "
+    "Every object forbids extra fields: do not add steps_note, comments or explanations. "
+    "Use only plan and tool_calls at the root. Example (copy tool versions from the catalog): "
+    '{"plan":{"schema_version":"1.0.0","plan_id":"investigation",'
+    '"summary":"Inspect current logs","steps":[{"step_id":"logs","objective":"Inspect errors",'
+    '"expected_source":"LOG","depends_on":[],"parallel_group":0}]},'
+    '"tool_calls":[{"step_id":"logs","tool_name":"query_logs","tool_version":"2.0.0",'
+    '"arguments":{"service":"gateway"}}]}. '
+    "Keep each parallel_group at or below the supplied parallelism budget.",
     ModelPurpose.DIAGNOSE: "Return DiagnosisReport for the exact incident; prefer one candidate. "
     "Cite only current Evidence IDs; treat memory as advisory. CANDIDATES requires nonempty "
     "candidates; every other disposition requires candidates=[]. Ranks start at 1, consecutive; "
@@ -198,6 +206,7 @@ class StructuredEvaluationModel:
                     if len(data) > 262144:
                         raise StructuredModelFailure("RESPONSE_TOO_LARGE")
             body = json.loads(data)
+            event["response_hash"] = hashlib.sha256(data).hexdigest()
             usage = body["usage"]
             if any(
                 type(usage.get(k)) is not int or usage[k] < 0
@@ -269,7 +278,14 @@ class StructuredEvaluationModel:
         except StructuredModelFailure as error:
             event.update(status="FAILED", error_code=str(error))
             raise
-        except (ValueError, KeyError, IndexError, TypeError, ValidationError):
+        except ValidationError as error:
+            event.update(status="FAILED", error_code="INVALID_RESPONSE")
+            event["schema_errors"] = [
+                {"location": list(item["loc"]), "type": item["type"]}
+                for item in error.errors(include_input=False, include_context=False)[:12]
+            ]
+            raise StructuredModelFailure("INVALID_RESPONSE") from None
+        except (ValueError, KeyError, IndexError, TypeError):
             event.update(status="FAILED", error_code="INVALID_RESPONSE")
             raise StructuredModelFailure("INVALID_RESPONSE") from None
         finally:

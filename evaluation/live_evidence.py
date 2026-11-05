@@ -52,6 +52,7 @@ class ExperimentEvidence:
         observations: list[dict[str, str]],
         *,
         observed_from: datetime,
+        provenance_by_id: dict[str, dict[str, Any]] | None = None,
     ) -> None:
         self.tenant = TenantId("local-evaluation")
         self.incident = IncidentId(incident)
@@ -64,10 +65,20 @@ class ExperimentEvidence:
             "logs": EvidenceSourceType.LOG,
             "traces": EvidenceSourceType.TRACE,
             "http-probes": EvidenceSourceType.METRIC,
+            "deployments": EvidenceSourceType.DEPLOYMENT,
+            "topology": EvidenceSourceType.TOPOLOGY,
         }
         manifest = []
         for observation in observations:
             identifier = observation["id"]
+            provenance = (provenance_by_id or {}).get(identifier, {})
+            query_text = json.dumps(provenance, sort_keys=True, separators=(",", ":"))
+            query_fields = [QueryParameter("source", observation["source"])]
+            if provenance:
+                query_fields.extend(
+                    QueryParameter(f"request_spec_{n:02d}", query_text[pos : pos + 480])
+                    for n, pos in enumerate(range(0, len(query_text), 480))
+                )
             artifact_id = ArtifactId(f"artifact-{incident}-{identifier}")
             redaction = redact_sensitive_data(
                 observation["summary"],
@@ -86,12 +97,10 @@ class ExperimentEvidence:
                     incident_id=self.incident,
                     source_type=source_types[observation["source"]],
                     source_instance=f"local-{observation['source']}",
-                    tool_name="bounded_live_probe",
-                    tool_version="1.0.0",
-                    tool_schema_version="1.0.0",
-                    normalized_query=NormalizedQuery(
-                        (QueryParameter("source", observation["source"]),)
-                    ),
+                    tool_name=provenance.get("tool", "bounded_live_probe"),
+                    tool_version=provenance.get("version", "1.0.0"),
+                    tool_schema_version=provenance.get("version", "1.0.0"),
+                    normalized_query=NormalizedQuery(tuple(query_fields)),
                     observed_from=observed_from,
                     observed_to=now,
                     collected_at=now,
@@ -100,7 +109,11 @@ class ExperimentEvidence:
                     parser_version="1.0.0",
                     normalizer_version="1.0.0",
                     quality_signals=QualitySignals(
-                        True, False, int(text != "[]"), parser_warning_count=int(len(text) >= 2048)
+                        True,
+                        False,
+                        provenance.get("records_seen", int(text != "[]")),
+                        records_dropped=provenance.get("dropped_records", 0),
+                        parser_warning_count=(0 if provenance else int(len(text) >= 2048)),
                     ),
                     lineage=EvidenceLineage(
                         ToolCallId(f"call-{identifier}"),
@@ -111,7 +124,7 @@ class ExperimentEvidence:
                     prompt_injection_status=PromptInjectionStatus.NONE,
                     redaction_status=redaction.status,
                 ),
-                {"summary": text},
+                {"summary": text, "provenance": query_text},
             )
             self.storage.store(normalized.artifact, normalized.content)
             self.records[normalized.evidence.id] = normalized.evidence

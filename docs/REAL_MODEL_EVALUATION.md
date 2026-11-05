@@ -177,3 +177,25 @@ not billed costs. Diagnosis references must belong to supplied current Evidence 
 Remediation cannot dispatch without a typed Gate PASS and must match both Gate fingerprints,
 incident, candidate and evaluated references. It has no approval or execution capability.
 This is not yet production worker composition or prompt promotion; those remain C3/C4 work.
+
+## Autonomous local investigation v1
+
+`python -m evaluation.run_autonomous_live --output-dir artifacts/new-run [--smoke]`
+now uses a real PLAN call, the existing deterministic compiler, the existing Tool Gateway,
+actual local v2 read adapters, immutable experiment Evidence and the existing Diagnosis
+LangGraph. A second real call produces the report, whose references are resolved before
+the deterministic Gate. Source/tool consistency, catalog version, service allowlists,
+parallelism, cost reservations and aggregate budgets remain server checks.
+
+Loki labels and structured metadata are retained; trace details and bounded metric changes
+replace event-name-only/cumulative summaries. Exact query specifications are retained in
+Artifact payloads and reconstructable request_spec_* query fields. JSON is trimmed only at
+record boundaries; incomplete windows and dropped records reduce quality. Each experiment
+uses an isolated SKU so old inventory depletion cannot contaminate its baseline.
+
+Prompt transport v1.1 includes an explicit planning example and rejects extra fields rather
+than stripping model output. Schema errors retain field paths/types only. The first local
+normal-baseline smoke completed five Gateway reads and two real model calls; this is a
+connectivity/workflow observation, not an incident-recovery or accuracy benchmark.
+PostgreSQL checkpoints, registered prompt lifecycle, durable progress and work leasing are
+still C3 work. Actual approval and product writes remain outside this evaluation runner.

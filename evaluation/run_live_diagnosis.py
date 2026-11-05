@@ -30,13 +30,13 @@ ENVIRONMENT = {
 }
 
 
-def checkout(client: httpx.Client) -> dict[str, Any]:
+def checkout(client: httpx.Client, *, sku: str = "widget") -> dict[str, Any]:
     started = time.monotonic_ns()
     response = client.post(
         "http://127.0.0.1:18080/v1/checkout",
         json={
             "order_id": f"evaluation-{uuid4().hex[:16]}",
-            "items": [{"sku": "widget", "quantity": 1}],
+            "items": [{"sku": sku, "quantity": 1}],
             "amount_minor": 500,
             "currency": "USD",
         },

@@ -301,3 +301,29 @@ async def test_retriever_authorizes_tenant_before_search() -> None:
             query,
         )
     assert store.queries == [query]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("held_out", [False, True])
+async def test_evaluation_memory_rejects_held_out_and_preserves_reference_only(
+    held_out: bool,
+) -> None:
+    from evaluation.historical_context import historical_context
+
+    query = search_query(max_results=3)
+    viewer = Principal(ActorId("viewer"), query.tenant_id, frozenset({Role.VIEWER}))
+    excluded = frozenset({"incident-current", "incident-old"} if held_out else {"incident-current"})
+    if held_out:
+        with pytest.raises(ValueError, match="held-out"):
+            await historical_context(
+                SimilarIncidentRetriever(SearchStore()),
+                viewer,
+                query,
+                excluded_incident_ids=excluded,
+            )
+    else:
+        context = await historical_context(
+            SimilarIncidentRetriever(SearchStore()), viewer, query, excluded_incident_ids=excluded
+        )
+        assert len(context) == 1 and context[0]["historical_reference_only"] is True
+        assert "evidence_ids" not in context[0]

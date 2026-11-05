@@ -47,3 +47,9 @@ read replay and writes one durable outcome plus content-free events. Public taxo
 shared across modes. Current historical references are empty; mode metadata explicitly marks
 controlled-graph-memory as ineligible for quality comparison until confirmed history is wired.
 Do not treat its empty-history execution as a completed memory baseline or claim a memory gain.
+
+Memory mode accepts a server-owned `MemoryReplaySource` backed by the existing authorized
+SimilarIncidentRetriever. Query Incident must match the snapshot; all evaluation IDs must be
+excluded. Fresh, unique references are redacted/quarantined and remain advisory. Metadata
+distinguishes authorized retrieval (including zero matches) from no supplied history. Actual
+confirmed SQL records are still required for a nonempty-memory comparison.

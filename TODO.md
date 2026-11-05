@@ -604,6 +604,13 @@ This index is an omission check, not a second task list. The referenced phases c
   and Ruff/mypy pass. Memory mode metadata explicitly says NO_HISTORY_SUPPLIED and is
   ineligible for quality comparison; confirmed-memory composition and full runs remain open.
 
+- [x] C6c: authorized confirmed-history context entry for snapshot memory mode.
+  Reuse SimilarIncidentRetriever/RBAC; bind query to snapshot, cap three results, exclude all
+  current/held-out IDs, check freshness/duplicates, redact/quarantine summaries and retain
+  historical-reference-only trust. MemoryReplaySource is optional and empty/unconfigured
+  modes remain explicitly marked. Forty-seven related tests pass; real SQL history source
+  and nonempty memory-provider comparison remain open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

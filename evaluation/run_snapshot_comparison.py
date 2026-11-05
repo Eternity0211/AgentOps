@@ -12,6 +12,7 @@ from typing import Any
 
 from agentops_incident_commander.domain import EvidenceGateDecision
 from evaluation.autonomous_diagnosis import investigate
+from evaluation.historical_context import MemoryReplaySource
 from evaluation.live_gateway import local_definitions
 from evaluation.observation_snapshot import SnapshotReadAdapter, load_snapshot
 from evaluation.outcome_ledger import OutcomeLedger
@@ -20,6 +21,8 @@ from evaluation.structured_model import ModelPurpose, StructuredEvaluationModel,
 
 
 class ComparisonModel(StructuredEvaluationModel):
+    history: tuple[dict[str, Any], ...] = ()
+
     def invoke(
         self,
         purpose: ModelPurpose,
@@ -36,7 +39,7 @@ class ComparisonModel(StructuredEvaluationModel):
                     "Use exact public cause IDs for root-cause candidates. "
                     "If unsupported, hand off with missing evidence."
                 ),
-                "historical_references": [],
+                "historical_references": list(self.history),
             },
             gate=gate,
         )
@@ -51,6 +54,7 @@ def run_snapshot(
     *,
     key: str,
     transport: Any = None,
+    memory_source: MemoryReplaySource | None = None,
 ) -> Outcome:
     if mode not in MODES:
         raise ValueError("unknown comparison mode")
@@ -82,6 +86,21 @@ def run_snapshot(
     started = time.monotonic_ns()
     values: dict[str, Any] = {}
     try:
+        if memory_source is not None:
+            if mode != "controlled-graph-memory":
+                raise ValueError("history is exclusive to memory comparison")
+            model.history = asyncio.run(memory_source.for_incident(identity))
+            (run_root / "mode.json").write_text(
+                json.dumps(
+                    {
+                        "mode": mode,
+                        "historical_reference_count": len(model.history),
+                        "memory_status": "AUTHORIZED_RETRIEVAL",
+                        "quality_comparison_eligible": True,
+                    }
+                ),
+                encoding="utf-8",
+            )
         _state, services = asyncio.run(
             investigate(
                 model,

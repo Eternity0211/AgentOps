@@ -66,3 +66,7 @@ model or SQL runtime ports. Runtime metadata records revision and exact source h
 Prompt transport v1.2.0 clarifies the existing four-step parallel-group ceiling. The first
 http-500 instance was exposed during development smoke (two plan rejections then one
 completed diagnosis); it must be reported as a development case, not an unseen holdout.
+
+The scorer can publish complete per-mode subsets with explicit `evaluated_modes`. Such a
+report sets `comparison_complete=false` and lists missing modes. Default scoring still
+requires all 81 records; partial reports do not establish completion of the frozen protocol.

@@ -653,6 +653,12 @@ This index is an omission check, not a second task list. The referenced phases c
   durable runtime ports refuse frozen time. Record exact source/revision hashes and content-free
   failure sites. Thirty-five related tests plus Ruff/mypy pass; official batch remains pending.
 
+- [x] C6f: explicit incomplete-mode scoring and repaired full regression.
+  Complete per-mode subsets may be reported only with comparison_complete=false and missing
+  modes listed; default scorer still demands all 81 outcomes. Ten scoring tests pass. Full
+  audit-scope-fix regression: 2,922 passed with 100% source statement/branch coverage.
+  Single/graph real-provider batch is running; valid memory data remains unavailable.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

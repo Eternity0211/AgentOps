@@ -113,3 +113,14 @@ def test_protocol_hash_is_newline_independent(tmp_path: Any) -> None:
     one.write_bytes(b'{\n"value":1\n}\n')
     two.write_bytes(b'{\r\n"value":1\r\n}\r\n')
     assert protocol_hash(one) == protocol_hash(two)
+
+
+def test_partial_modes_are_explicitly_incomplete() -> None:
+    labels, rows = fixture()
+    modes = ("single-agent", "controlled-graph")
+    subset = tuple(r for r in rows if r.mode in modes)
+    result = score(labels, subset, expected_protocol_hash="a" * 64, evaluated_modes=modes)
+    assert result["comparison_complete"] is False
+    assert result["missing_modes"] == ["controlled-graph-memory"]
+    with pytest.raises(ValueError):
+        score(labels, subset, expected_protocol_hash="a" * 64)

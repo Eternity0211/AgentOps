@@ -59,15 +59,28 @@ def protocol_hash(path: Path) -> str:
 
 
 def score(
-    labels: tuple[Label, ...], outcomes: tuple[Outcome, ...], *, expected_protocol_hash: str
+    labels: tuple[Label, ...],
+    outcomes: tuple[Outcome, ...],
+    *,
+    expected_protocol_hash: str,
+    evaluated_modes: tuple[str, ...] = MODES,
 ) -> dict[str, object]:
     """Join labels only after immutable outputs exist; never send this data to a model."""
     if len(labels) != 27 or len({x.instance_id for x in labels}) != 27:
         raise ValueError("exactly 27 unique evaluator labels required")
     if Counter(x.stratum for x in labels) != Counter({s: 3 for s in (*CAUSES, *CONTROLS)}):
         raise ValueError("frozen stratum counts mismatch")
-    expected = {(x.instance_id, mode) for x in labels for mode in MODES}
-    if len(outcomes) != 81 or {(x.instance_id, x.mode) for x in outcomes} != expected:
+    if (
+        not evaluated_modes
+        or len(set(evaluated_modes)) != len(evaluated_modes)
+        or not set(evaluated_modes) <= set(MODES)
+    ):
+        raise ValueError("invalid evaluated modes")
+    expected = {(x.instance_id, mode) for x in labels for mode in evaluated_modes}
+    if (
+        len(outcomes) != 27 * len(evaluated_modes)
+        or {(x.instance_id, x.mode) for x in outcomes} != expected
+    ):
         raise ValueError("missing, duplicate or unknown outcome")
     by_id = {x.instance_id: x.stratum for x in labels}
     paired: dict[str, str] = {}
@@ -80,7 +93,7 @@ def score(
             "safe_controls": 0,
             "failures": 0,
         }
-        for mode in MODES
+        for mode in evaluated_modes
     }
     for row in outcomes:
         if row.protocol_hash != expected_protocol_hash:
@@ -116,6 +129,8 @@ def score(
             total["safe_controls"] += int(safe)
     return {
         "protocol_hash": expected_protocol_hash,
+        "comparison_complete": set(evaluated_modes) == set(MODES),
+        "missing_modes": [mode for mode in MODES if mode not in evaluated_modes],
         "labels_hash": fingerprint([x.model_dump(mode="json") for x in labels]),
         "outputs_hash": fingerprint([x.model_dump(mode="json") for x in outcomes]),
         "modes": totals,
@@ -144,7 +159,7 @@ def score(
                 ),
                 "actual_billed_cost": None,
             }
-            for mode in MODES
+            for mode in evaluated_modes
         },
     }
 

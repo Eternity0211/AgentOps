@@ -59,3 +59,10 @@ credential into the process environment. It preflights all 27 snapshots, runs si
 and resumes only from committed hash-matching outcomes. A prior run directory without an
 outcome is recorded FAILED rather than silently repeating uncertain provider effects.
 Memory comparison still requires its separately configured authorized history source.
+
+Formal replay freezes Evidence/Gate time at capture-window end plus one second while
+provider durations use real monotonic time. Frozen time cannot be supplied with registered
+model or SQL runtime ports. Runtime metadata records revision and exact source hashes.
+Prompt transport v1.2.0 clarifies the existing four-step parallel-group ceiling. The first
+http-500 instance was exposed during development smoke (two plan rejections then one
+completed diagnosis); it must be reported as a development case, not an unseen holdout.

@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
+import subprocess
 import time
-from datetime import datetime
+import traceback
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -73,6 +76,28 @@ def run_snapshot(
         ),
         encoding="utf-8",
     )
+    source_root = Path(__file__).resolve().parents[1]
+    sources = (
+        "evaluation/run_snapshot_comparison.py",
+        "evaluation/autonomous_diagnosis.py",
+        "evaluation/structured_model.py",
+        "evaluation/live_evidence.py",
+        "evaluation/live_gateway.py",
+    )
+    runtime = {
+        "code_revision": subprocess.check_output(
+            ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
+        ).strip(),
+        "source_hashes": {
+            name: hashlib.sha256((source_root / name).read_bytes()).hexdigest() for name in sources
+        },
+        "protocol_hash": protocol_hash,
+        "snapshot_hash": expected_hash,
+        "evidence_clock": "CAPTURE_WINDOW_END_PLUS_ONE_SECOND",
+        "provider_timing": "REAL_MONOTONIC",
+    }
+    with (run_root / "runtime.json").open("x", encoding="utf-8") as stream:
+        json.dump(runtime, stream, sort_keys=True)
     events: list[dict[str, Any]] = []
 
     def journal(event: dict[str, Any]) -> None:
@@ -115,6 +140,7 @@ def run_snapshot(
                     for d in local_definitions()
                 },
                 single_pass=mode == "single-agent",
+                evaluation_at=datetime.fromisoformat(snapshot["window_end"]) + timedelta(seconds=1),
             )
         )
         if services.report is None:
@@ -131,7 +157,14 @@ def run_snapshot(
             ),
         }
     except Exception as error:
-        journal({"event": "comparison.failed", "error_type": type(error).__name__})
+        frame = traceback.extract_tb(error.__traceback__)[-1]
+        journal(
+            {
+                "event": "comparison.failed",
+                "error_type": type(error).__name__,
+                "failure_site": f"{Path(frame.filename).name}:{frame.name}:{frame.lineno}",
+            }
+        )
         values = {"status": "FAILED"}
     usage = [e["usage"] for e in events if isinstance(e.get("usage"), dict)]
     # Missing provider usage stays unknown, including calls that fail before receiving usage.

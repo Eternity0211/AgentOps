@@ -646,6 +646,13 @@ This index is an omission check, not a second task list. The referenced phases c
   expected lifecycle counts for the intended records rather than clearing audit history.
   Four ordered integration cases pass. Full regression rerun remains pending.
 
+- [x] C6e: freeze replay clock and clarify bounded planning before official comparison.
+  Prompt transport v1.2.0 explicitly limits step count per parallel group. Development smoke
+  keeps two rejected plans and one completed diagnosis; the exposed first instance is a
+  development case, not an unseen holdout. Replay Evidence/Gate use capture-window end+1s;
+  durable runtime ports refuse frozen time. Record exact source/revision hashes and content-free
+  failure sites. Thirty-five related tests plus Ruff/mypy pass; official batch remains pending.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

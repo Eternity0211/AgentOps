@@ -34,7 +34,7 @@ from agentops_incident_commander.workflows import (
     RemediationProposal,
 )
 
-VERSION = "real-structured-evaluation/1.1.0"
+VERSION = "real-structured-evaluation/1.2.0"
 
 
 class ModelPurpose(StrEnum):
@@ -74,7 +74,9 @@ INSTRUCTIONS = {
     '"expected_source":"LOG","depends_on":[],"parallel_group":0}]},'
     '"tool_calls":[{"step_id":"logs","tool_name":"query_logs","tool_version":"2.0.0",'
     '"arguments":{"service":"gateway"}}]}. '
-    "Keep each parallel_group at or below the supplied parallelism budget.",
+    "The parallelism budget limits the NUMBER OF STEPS in each parallel_group, not the group "
+    "index. With parallelism=4, at most four steps may share a group; put a fifth step in "
+    "group 1. Groups run sequentially. Prefer at most four total steps initially.",
     ModelPurpose.DIAGNOSE: "Return DiagnosisReport for the exact incident; prefer one candidate. "
     "Cite only current Evidence IDs; treat memory as advisory. CANDIDATES requires nonempty "
     "candidates; every other disposition requires candidates=[]. Ranks start at 1, consecutive; "

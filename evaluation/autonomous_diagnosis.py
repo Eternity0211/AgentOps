@@ -136,6 +136,7 @@ class AutonomousServices:
         self.usage: list[dict[str, int]] = []
         self.resumed = False
         self.round = 0
+        self.clock: Callable[[], datetime] = lambda: datetime.now(UTC)
         self.persisted_evidence = evidence_store
         self.scope = hashlib.sha256(incident.encode()).hexdigest()[:16]
 
@@ -266,6 +267,7 @@ class AutonomousServices:
             self.incident,
             observations,
             observed_from=self.start,
+            at=self.clock(),
             provenance_by_id=provenance,
             existing=self.evidence,
             tenant=self.principal.tenant_id.value,
@@ -281,7 +283,7 @@ class AutonomousServices:
                     item.artifact_id,
                     incident_id=item.incident_id,
                     principal=self.principal,
-                    at=datetime.now(UTC),
+                    at=self.clock(),
                 )
                 await self.persisted_evidence.add(item, content.artifact)
         return EvidencePersistenceResult(
@@ -309,6 +311,7 @@ class AutonomousServices:
                 incident=self.incident,
                 workflow=state.workflow_run_id,
                 batch=state.budgets.used_replans,
+                at=self.clock(),
             )
         assert self.evidence is not None
 
@@ -369,7 +372,7 @@ class AutonomousServices:
         self.gates = []
         for candidate in self.report.candidates:
             claim = self.report.evidence_gate_claim(candidate.candidate_id)
-            now = datetime.now(UTC)
+            now = self.clock()
             resolution = await resolve_gate_evidence_references(
                 claim,
                 tenant_id=self.evidence.tenant,
@@ -416,6 +419,7 @@ async def investigate(
     model_invoker: RegisteredModelInvoker | None = None,
     progress_recorder: DiagnosisProgressRecorder | None = None,
     single_pass: bool = False,
+    evaluation_at: datetime | None = None,
 ) -> tuple[DiagnosisGraphState, AutonomousServices]:
     if max_replans not in (0, 1):
         raise ValueError("autonomous investigation permits zero or one replan")
@@ -423,6 +427,8 @@ async def investigate(
         raise ValueError("registered model adapter does not match workflow adapter")
     if model_invoker is not None and model_invoker.incident.value != incident:
         raise ValueError("registered model incident does not match workflow incident")
+    if evaluation_at is not None and (model_invoker is not None or evidence_store is not None):
+        raise ValueError("frozen replay clock cannot be used with durable runtime ports")
     definitions = local_definitions()
     registry = ToolRegistry(definitions)
     gateway = ToolGateway(
@@ -434,6 +440,8 @@ async def investigate(
     services = AutonomousServices(
         model, gateway, registry, incident, alert, root, start, evidence_store, model_invoker
     )
+    if evaluation_at is not None:
+        services.clock = lambda: evaluation_at
     state = DiagnosisGraphState(
         state_schema_version="1.3.0",
         graph_version="1.0.0",

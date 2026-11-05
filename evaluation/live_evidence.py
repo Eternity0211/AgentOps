@@ -57,7 +57,9 @@ class ExperimentEvidence:
         incident: str,
         workflow: str,
         batch: int,
+        at: datetime | None = None,
     ) -> ExperimentEvidence:
+        at = at or datetime.now(UTC)
         restored = cls.__new__(cls)
         restored.tenant = principal.tenant_id
         restored.incident = IncidentId(incident)
@@ -78,10 +80,10 @@ class ExperimentEvidence:
                 item.artifact_id,
                 incident_id=restored.incident,
                 principal=principal,
-                at=datetime.now(UTC),
+                at=at,
             )
             item.verify_artifact(content.artifact)
-            if item.is_expired(at=datetime.now(UTC)):
+            if item.is_expired(at=at):
                 raise ValueError("restored evidence has expired")
             payload = json.loads(content.content)
             restored.records[item.id] = item
@@ -105,6 +107,7 @@ class ExperimentEvidence:
         existing: ExperimentEvidence | None = None,
         tenant: str = "local-evaluation",
         workflow: str | None = None,
+        at: datetime | None = None,
     ) -> None:
         self.tenant = TenantId(tenant)
         self.incident = IncidentId(incident)
@@ -121,7 +124,7 @@ class ExperimentEvidence:
         )
         self.observations: list[dict[str, str]] = list(existing.observations) if existing else []
         self.batch: int = existing.batch + 1 if existing else 0
-        now = datetime.now(UTC)
+        now = at or datetime.now(UTC)
         source_types = {
             "metrics": EvidenceSourceType.METRIC,
             "logs": EvidenceSourceType.LOG,

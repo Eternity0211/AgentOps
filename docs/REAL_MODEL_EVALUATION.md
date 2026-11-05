@@ -199,3 +199,14 @@ normal-baseline smoke completed five Gateway reads and two real model calls; thi
 connectivity/workflow observation, not an incident-recovery or accuracy benchmark.
 PostgreSQL checkpoints, registered prompt lifecycle, durable progress and work leasing are
 still C3 work. Actual approval and product writes remain outside this evaluation runner.
+
+## Autonomous checkpoint composition
+
+The autonomous investigation accepts an official checkpointer and uses the existing
+DiagnosisWorkflowRunner to distinguish new work from continuation. A real PostgreSQL
+integration test closes and replaces the saver, then replays a completed investigation
+without additional model/tool calls. The normal unit flow also verifies terminal replay.
+This proves completed-run replay only. Mid-investigation reconstruction of compiled calls,
+Evidence, reports and model-call budgets remains C3 work; do not claim general crash recovery
+from this test. The default evaluation CLI still uses in-memory checkpoints until the durable
+composition is complete.

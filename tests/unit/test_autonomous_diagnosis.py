@@ -13,6 +13,7 @@ import pytest
 from evaluation.autonomous_diagnosis import investigate
 from evaluation.live_gateway import SOURCES, LocalReadAdapter, local_definitions
 from evaluation.structured_model import StructuredEvaluationModel
+from langgraph.checkpoint.memory import InMemorySaver
 
 
 def plan() -> dict[str, Any]:
@@ -108,6 +109,7 @@ def test_autonomous_plan_gateway_evidence_and_gate(tmp_path: Path) -> None:
         "test-only", events.append, transport=httpx.MockTransport(respond)
     )
     adapters = {definition.identity: Adapter(definition.name) for definition in local_definitions()}
+    saver = InMemorySaver()
     state, services = asyncio.run(
         investigate(
             model,
@@ -118,6 +120,7 @@ def test_autonomous_plan_gateway_evidence_and_gate(tmp_path: Path) -> None:
             now,
             events.append,
             adapters=adapters,
+            checkpointer=saver,
         )
     )
     assert state.phase.value == "COMPLETE"
@@ -127,6 +130,24 @@ def test_autonomous_plan_gateway_evidence_and_gate(tmp_path: Path) -> None:
     assert services.gates[0].outcome.value == "PASS"
     assert len([event for event in events if event.get("kind") == "tool-audit"]) >= 4
     assert services.evidence is not None
+    calls_before_replay = len(dispatched)
+    journal_before_replay = len(events)
+    replay_state, replay_services = asyncio.run(
+        investigate(
+            model,
+            "incident-1",
+            "Checkout errors",
+            tmp_path,
+            now - timedelta(minutes=1),
+            now,
+            events.append,
+            adapters=adapters,
+            checkpointer=saver,
+        )
+    )
+    assert replay_state == state and replay_services.resumed
+    assert len(dispatched) == calls_before_replay
+    assert len(events) == journal_before_replay
     assert (
         "request_spec_00"
         in next(iter(services.evidence.records.values())).normalized_query.as_dict()

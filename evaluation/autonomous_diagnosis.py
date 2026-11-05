@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import InMemorySaver
 
 import agentops_incident_commander.application  # noqa: F401
@@ -35,6 +36,7 @@ from agentops_incident_commander.domain import (
     WorkflowRunId,
 )
 from agentops_incident_commander.infrastructure import diagnosis_checkpoint_serializer
+from agentops_incident_commander.infrastructure.diagnosis_runtime import DiagnosisWorkflowRunner
 from agentops_incident_commander.workflows import (
     ContextLoadResult,
     DiagnosisGraphState,
@@ -107,6 +109,7 @@ class AutonomousServices:
             ActorId("evaluation-operator"), TenantId("local-evaluation"), frozenset({Role.OPERATOR})
         )
         self.usage: list[dict[str, int]] = []
+        self.resumed = False
 
     async def load_context(
         self, state: DiagnosisGraphState, *, operation_id: str
@@ -288,6 +291,7 @@ async def investigate(
     journal: Callable[[dict[str, Any]], None],
     *,
     adapters: dict[Any, Any] | None = None,
+    checkpointer: BaseCheckpointSaver[Any] | None = None,
 ) -> tuple[DiagnosisGraphState, AutonomousServices]:
     definitions = local_definitions()
     registry = ToolRegistry(definitions)
@@ -330,12 +334,11 @@ async def investigate(
         checkpoint_sequence=0,
         updated_at=datetime.now(UTC),
     )
-    saver = InMemorySaver(serde=diagnosis_checkpoint_serializer())
+    saver = checkpointer or InMemorySaver(serde=diagnosis_checkpoint_serializer())
     graph = build_diagnosis_graph(checkpointer=saver)
-    config: Any = {"configurable": {"thread_id": incident}}
-    result = await graph.ainvoke(
+    outcome = await DiagnosisWorkflowRunner(graph).run_or_resume(
         state,
-        config=config,
-        context=DiagnosisRuntimeContext(services, FixedPromptReference(), _Progress()),
+        DiagnosisRuntimeContext(services, FixedPromptReference(), _Progress()),
     )
-    return DiagnosisGraphState.model_validate(result), services
+    services.resumed = outcome.resumed
+    return outcome.state, services

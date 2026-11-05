@@ -436,6 +436,10 @@ This index is an omission check, not a second task list. The referenced phases c
 - [x] C2a: local read catalog, real model-selected Gateway investigation and exact provenance;
   25 relevant tests, Ruff/mypy and normal-baseline real smoke pass.
 - [ ] C2: autonomous read investigation through the gateway, discriminating telemetry and exact provenance.
+- [x] C3a: inject the official PostgreSQL checkpointer and use the existing resume-aware runner.
+  Verification: replacement PostgreSQL saver restores a completed autonomous investigation;
+  exactly two model calls and one tool call remain unchanged after replay. This does not yet
+  establish mid-investigation effect reconstruction, Prompt Registry or JobLease composition.
 - [ ] C3: registered prompts, PostgreSQL evidence/checkpoint/job/call integration and crash/resume measurements.
 - [ ] C4: gate-bound real remediation, deterministic policy and actual pending approval records.
 - [ ] C5: frozen holdout/counter-evidence/normal/insufficient-evidence datasets and predeclared scoring.

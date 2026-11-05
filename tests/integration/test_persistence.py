@@ -8038,3 +8038,113 @@ async def test_bounded_evidence_query_load(engine: AsyncEngine) -> None:
     assert len(results) == config["operations"]
     assert all(result is not None for result in results)
     assert {result.id for result in results if result is not None} == set(evidence_ids)
+
+
+@pytest.mark.anyio
+async def test_workflow_ports_commit_and_scope_evidence(engine: AsyncEngine) -> None:
+    from agentops_incident_commander.infrastructure.persistence.runtime_ports import (
+        PostgresWorkflowEvidenceStore,
+    )
+
+    await add_incident(engine, "incident-evidence", tenant="tenant-1")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    store = PostgresWorkflowEvidenceStore(sessions)
+    item, artifact = evidence_record(), evidence_artifact()
+    await store.add(item, artifact)
+    assert await store.get(item.id, tenant_id=item.tenant_id, incident_id=item.incident_id) == item
+    assert (
+        await store.get(item.id, tenant_id=TenantId("other"), incident_id=item.incident_id) is None
+    )
+    with pytest.raises(IntegrityError):
+        await store.add(item, artifact)
+    assert await store.get(item.id, tenant_id=item.tenant_id, incident_id=item.incident_id) == item
+
+
+@pytest.mark.anyio
+async def test_workflow_prompt_port_lifecycle_commits_across_sessions(engine: AsyncEngine) -> None:
+    from agentops_incident_commander.infrastructure.persistence.runtime_ports import (
+        PostgresWorkflowPromptStore,
+    )
+
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    store = PostgresWorkflowPromptStore(sessions)
+    owner = Principal(ActorId("workflow-admin"), TenantId("tenant-1"), frozenset({Role.ADMIN}))
+    ids = count(1)
+    manager = PromptLifecycleManager(
+        store, clock=lambda: NOW, id_factory=lambda: f"workflow-prompt-{next(ids)}"
+    )
+    definition = prompt_definition("1.0.0", "Bounded workflow prompt")
+    reference = PromptVersionReference(definition.prompt_id, definition.version)
+    common: dict[str, Any] = {
+        "principal": owner,
+        "correlation_id": CorrelationId("workflow-correlation"),
+        "causation_id": CausationId("workflow-prompt-command"),
+    }
+    await manager.draft(definition, **common)
+    assert (
+        await store.resolve(owner.tenant_id, definition.prompt_id, definition.version) == definition
+    )
+    assert await store.active(owner.tenant_id, definition.prompt_id) is None
+    await manager.evaluate(
+        PromptRegressionEvaluation(
+            reference,
+            SemanticVersion("1.0.0"),
+            (PromptRegressionFixtureResult("contract-fixture", True),),
+            NOW,
+        ),
+        **common,
+    )
+    active = await manager.promote(reference, **common)
+    assert await store.active(owner.tenant_id, definition.prompt_id) == active
+    assert await store.resolve(TenantId("other"), definition.prompt_id, definition.version) is None
+
+
+@pytest.mark.anyio
+async def test_workflow_trace_port_commits_start_finish_and_refuses_replay(
+    engine: AsyncEngine,
+) -> None:
+    from agentops_incident_commander.infrastructure.persistence.runtime_ports import (
+        PostgresWorkflowModelTraceStore,
+    )
+
+    await add_incident(engine, "incident-workflow-model", tenant="tenant-1")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    prompt = await activate_prompt_for_model_call(sessions, audit_prefix="workflow-port")
+    store = PostgresWorkflowModelTraceStore(sessions)
+    ids = count(1)
+    manager = ModelCallTraceManager(
+        store, clock=lambda: NOW, id_factory=lambda: f"workflow-model-{next(ids)}"
+    )
+    started = await manager.start(
+        tenant_id=TenantId("tenant-1"),
+        incident_id=IncidentId("incident-workflow-model"),
+        workflow_run_id=WorkflowRunId("workflow-model"),
+        node="diagnosis.hypothesis",
+        attempt=1,
+        prompt=prompt,
+        request_hash=Sha256Digest("d" * 64),
+        actor_id=ActorId("workflow-worker"),
+        correlation_id=CorrelationId("workflow-correlation"),
+        causation_id=CausationId("workflow-model-command"),
+    )
+    assert await store.get(started.tenant_id, started.id) == started
+    completed = await manager.finish(
+        started,
+        status=ModelCallStatus.SUCCEEDED,
+        metering=ModelMetering(None, None, ModelMeteringUnavailableReason.PROVIDER_DID_NOT_RETURN),
+        actor_id=ActorId("workflow-worker"),
+        response_hash=Sha256Digest("e" * 64),
+    )
+    assert await store.get(started.tenant_id, started.id) == completed
+    assert await store.get(TenantId("other"), started.id) is None
+    with pytest.raises(InvalidDomainValueError):
+        await manager.finish(
+            started,
+            status=ModelCallStatus.SUCCEEDED,
+            metering=ModelMetering(
+                None, None, ModelMeteringUnavailableReason.PROVIDER_DID_NOT_RETURN
+            ),
+            actor_id=ActorId("workflow-worker"),
+            response_hash=Sha256Digest("e" * 64),
+        )
+    assert await store.get(started.tenant_id, started.id) == completed

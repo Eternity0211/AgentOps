@@ -210,3 +210,13 @@ This proves completed-run replay only. Mid-investigation reconstruction of compi
 Evidence, reports and model-call budgets remains C3 work; do not claim general crash recovery
 from this test. The default evaluation CLI still uses in-memory checkpoints until the durable
 composition is complete.
+
+## Transaction-owning workflow ports
+
+PostgresWorkflowEvidenceStore, PostgresWorkflowPromptStore and PostgresWorkflowModelTraceStore
+compose the existing repositories with an independently committed transaction for each write.
+Evidence identifiers are published after commit; Prompt lifecycle/model-call changes retain
+atomic repository audit. Integration tests verify cross-session reads, tenant isolation,
+committed lifecycle transitions and rejected duplicate Evidence/trace completion without
+corruption. Full regression: 2,844 tests and 100% source statement/branch coverage. These ports
+are integration building blocks; complete durable autonomous-worker composition remains open.

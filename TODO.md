@@ -440,6 +440,12 @@ This index is an omission check, not a second task list. The referenced phases c
   Verification: replacement PostgreSQL saver restores a completed autonomous investigation;
   exactly two model calls and one tool call remain unchanged after replay. This does not yet
   establish mid-investigation effect reconstruction, Prompt Registry or JobLease composition.
+- [x] C3b: transaction-owning PostgreSQL ports for Evidence, Prompt Registry and model traces.
+  Acceptance: cross-session committed reads, tenant isolation, atomic lifecycle/audit and
+  duplicate-write/finish rollback without corruption. Test plan: three actual PostgreSQL
+  integration cases, full Python regression/100% source coverage, Ruff/mypy/architecture.
+  Verification: three real PostgreSQL port tests pass; full regression 2,844 passed,
+  100% source statement/branch coverage; Ruff/mypy/architecture pass.
 - [ ] C3: registered prompts, PostgreSQL evidence/checkpoint/job/call integration and crash/resume measurements.
 - [ ] C4: gate-bound real remediation, deterministic policy and actual pending approval records.
 - [ ] C5: frozen holdout/counter-evidence/normal/insufficient-evidence datasets and predeclared scoring.

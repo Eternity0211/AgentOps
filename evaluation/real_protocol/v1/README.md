@@ -23,3 +23,10 @@ Actual billed cost remains unknown. Repeated local scenarios may be dependent; i
 are descriptive under a binomial assumption, not production reliability evidence. Bounded
 file ingestion verifies externally supplied raw SHA-256 hashes before scoring and validates
 outputs before loading labels. Hashes bind bytes; they do not authenticate who produced them.
+
+Capture entry: `python -m evaluation.capture_real_dataset --output PATH` (or `--smoke`).
+It collects 18 fault and three normal instances, using the existing bounded local adapters
+as evaluator-owned read collectors. Snapshots have fixed source windows and query provenance;
+model-selected replay still goes through the Tool Gateway. Redaction/quarantine precedes
+export. The evaluator manifest contains labels and cleanup observations and must never be
+loaded by model adapters. Six derived insufficient/counter-evidence controls remain pending.

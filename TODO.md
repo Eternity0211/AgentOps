@@ -566,6 +566,13 @@ This index is an omission check, not a second task list. The referenced phases c
   token/cost values. Eight scorer tests pass; local repeated samples imply no production claim.
   Dataset capture, durable result writer and real provider runs remain open.
 
+- [x] C5d: bounded known-family observation capture and immutable read replay.
+  Capture entry schedules 18 fault and three normal instances, snapshots all local read
+  sources, redacts output/quarantines injection, records opaque IDs and evaluator-only labels,
+  and always cleans injected faults with baseline verification. Three tests cover immutable
+  replay, sanitation/quarantine and cleanup on failure; Ruff/mypy pass. Live smoke/capture and
+  six explicitly derived control instances remain open; no 27-instance dataset claim yet.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

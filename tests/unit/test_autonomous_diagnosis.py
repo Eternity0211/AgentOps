@@ -290,7 +290,9 @@ def test_gate_restore_rejects_unbound_report(mode: str) -> None:
     state = cast(
         Any,
         SimpleNamespace(
-            workflow_run_id="workflow", model_call_ids=() if mode == "empty_calls" else ("call",)
+            workflow_run_id="workflow",
+            model_call_ids=() if mode == "empty_calls" else ("call",),
+            budgets=SimpleNamespace(used_replans=0),
         ),
     )
     with pytest.raises(ValueError, match=r"report reader|report binding"):

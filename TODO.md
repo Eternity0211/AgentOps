@@ -703,6 +703,16 @@ This index is an omission check, not a second task list. The referenced phases c
   Archive source/hash bindings and regression-recomputed arithmetic; no approval or recovery.
   Real confirmed history remains unmeasured; simulated history stays separately reported.
 
+- [x] C3o: durable autonomous plan/read/model/Evidence effect reconstruction.
+  Bind SQL claims/results to tenant, Incident, workflow, actor, inputs, Prompt and source;
+  validate result hashes against append-only audit, recompile restored plans and refuse
+  ambiguous effects without redispatch. Seven replacement boundaries retain exactly two
+  model/two tool effects in registered queue/checkpoint fixtures. Eleven PostgreSQL cases
+  and 44 targeted tests pass; Ruff/mypy/architecture/planning pass. Versioned raw case
+  records in evaluation/results/durable-replay/v1/run-001. Full regression: 2,937 passed,
+  100% source statement/branch coverage;
+  partial-parallel/replan replacement and actual-provider SQL composition remain open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

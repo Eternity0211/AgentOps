@@ -1,0 +1,21 @@
+{
+  "actual_provider_cost": null,
+  "approval_decisions": 0,
+  "base_revision": "83a967bd7e027d02188934cf36522c970cac256b",
+  "counts_source": "exact in-test assertions; passing cases retained in test-results.json",
+  "human_time_saved": null,
+  "model_effects_per_registered_fixture_asserted": 2,
+  "postgres_cases_passed": 11,
+  "provider_kind": "CONTROLLED_HTTP_MOCK_TRANSPORT_NOT_REAL_PROVIDER",
+  "recovery_executions": 0,
+  "registered_job_cases_passed": 8,
+  "schema_version": "1.0.0",
+  "tool_effects_per_registered_fixture_asserted": 2,
+  "unverified": [
+    "replan worker replacement",
+    "partial parallel completion interruption",
+    "production provider startup",
+    "arbitrary instruction-level crash recovery"
+  ],
+  "worker_replacement_cases_passed": 7
+}

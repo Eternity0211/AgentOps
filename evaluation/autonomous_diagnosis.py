@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import secrets
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -34,11 +35,13 @@ from agentops_incident_commander.domain import (
     EvidenceId,
     IncidentId,
     Principal,
+    RedactionTransformId,
     Role,
     TenantId,
     ToolCallId,
     ToolRegistry,
     WorkflowRunId,
+    redact_sensitive_data,
 )
 from agentops_incident_commander.infrastructure import diagnosis_checkpoint_serializer
 from agentops_incident_commander.infrastructure.diagnosis_runtime import DiagnosisWorkflowRunner
@@ -60,11 +63,13 @@ from agentops_incident_commander.workflows import (
     build_diagnosis_graph,
 )
 from evaluation.baselines.controlled_graph import _Progress
+from evaluation.durable_effects import StoredModelResult, WorkflowEffectStore
 from evaluation.live_evidence import ExperimentEvidence
 from evaluation.live_gateway import SOURCES, LocalReadAdapter, local_definitions
 from evaluation.registered_model import RegisteredModelInvoker
 from evaluation.structured_model import (
     INSTRUCTIONS,
+    InvestigationProposal,
     ModelPurpose,
     StructuredEvaluationModel,
     StructuredResult,
@@ -119,6 +124,8 @@ class AutonomousServices:
         start: datetime,
         evidence_store: WorkflowEvidenceStore | None = None,
         model_invoker: RegisteredModelInvoker | None = None,
+        effects: WorkflowEffectStore | None = None,
+        end: datetime | None = None,
     ) -> None:
         self.model, self.gateway, self.registry = model, gateway, registry
         self.incident, self.alert, self.root, self.start = incident, alert, root, start
@@ -139,6 +146,89 @@ class AutonomousServices:
         self.clock: Callable[[], datetime] = lambda: datetime.now(UTC)
         self.persisted_evidence = evidence_store
         self.scope = hashlib.sha256(incident.encode()).hexdigest()[:16]
+        self.effects = effects
+        self.input_hash = fingerprint(
+            {
+                "alert": alert,
+                "start": start.isoformat(),
+                "end": end.isoformat() if end else None,
+                "instructions": INSTRUCTIONS,
+                "catalog": [
+                    {
+                        "name": d.name,
+                        "version": d.semantic_version.value,
+                        "input": d.input_schema.as_dict(),
+                        "output": d.output_schema.as_dict(),
+                    }
+                    for d in gateway.diagnosis_catalog()
+                ],
+                "sources": {
+                    name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
+                    for name in (
+                        "autonomous_diagnosis.py",
+                        "durable_effects.py",
+                        "live_evidence.py",
+                        "live_gateway.py",
+                        "structured_model.py",
+                    )
+                },
+            }
+        )
+
+    def effect_binding(self, state: DiagnosisGraphState) -> dict[str, Any]:
+        return {
+            "schema_version": "1.0.0",
+            "graph_version": state.graph_version,
+            "state_schema_version": state.state_schema_version,
+            "tenant_id": state.tenant_id,
+            "incident_id": state.incident_id,
+            "workflow_run_id": state.workflow_run_id,
+            "actor_id": self.principal.actor_id.value,
+            "correlation_id": state.correlation_id,
+            "causation_id": state.causation_id,
+            "input_hash": self.input_hash,
+            "prompt": state.prompt.model_dump(mode="json"),
+        }
+
+    async def invoke_model_effect(
+        self, state: DiagnosisGraphState, purpose: ModelPurpose, context: dict[str, Any]
+    ) -> StructuredResult:
+        async def invoke() -> dict[str, Any]:
+            result = await self.invoke_model(purpose, context, self.round + 1)
+            return StoredModelResult.capture(result).model_dump(mode="json")
+
+        if self.effects is None:
+            return await self.invoke_model(purpose, context, self.round + 1)
+        value = await self.effects.execute(
+            f"model:{purpose.value}:r{self.round}", self.effect_binding(state), invoke
+        )
+        return StoredModelResult.model_validate_json(json.dumps(value)).restore(purpose)
+
+    async def restore_plan(self, state: DiagnosisGraphState) -> None:
+        self.round = state.budgets.used_replans
+        if self.compiled is not None:
+            return
+        if self.effects is None:
+            raise ValueError("durable plan unavailable for resumed investigation")
+        value = await self.effects.load(f"model:PLAN:r{self.round}", self.effect_binding(state))
+        if value is None:
+            raise ValueError("checkpoint plan effect missing")
+        result = StoredModelResult.model_validate_json(json.dumps(value)).restore(ModelPurpose.PLAN)
+        count = len(cast(InvestigationProposal, result.output).tool_calls)
+        remaining = 12 - (len(state.tool_call_ids) - count)
+        self.compiled = compile_real_plan(
+            result,
+            self.registry,
+            PlanningBudgets(min(8, remaining), 4, 160000, 32000, 1000000000),
+            prior_query_fingerprints=frozenset(state.tool_query_fingerprints[:-count]),
+        )
+        references = tuple(self.call_id(call.step_id) for call in self.compiled.calls)
+        if (
+            references != state.tool_call_ids[-count:]
+            or tuple(call.query_fingerprint for call in self.compiled.calls)
+            != state.tool_query_fingerprints[-count:]
+        ):
+            raise ValueError("checkpoint plan references changed")
 
     def call_id(self, step_id: str) -> str:
         return f"call-{self.scope}-r{self.round}-{step_id}"
@@ -157,6 +247,10 @@ class AutonomousServices:
 
     async def plan(self, state: DiagnosisGraphState, *, operation_id: str) -> PlanNodeResult:
         self.round = state.budgets.used_replans
+        if state.evidence_ids and self.evidence is None:
+            await self.restore_evidence(state)
+        if state.budgets.used_replans and self.report is None:
+            await self.restore_report(state, self.round - 1)
         remaining = 12 - state.budgets.used_tool_calls
         context = {
             "incident_id": self.incident,
@@ -186,7 +280,7 @@ class AutonomousServices:
                 for d in self.gateway.diagnosis_catalog()
             ],
         }
-        result = await self.invoke_model(ModelPurpose.PLAN, context, self.round + 1)
+        result = await self.invoke_model_effect(state, ModelPurpose.PLAN, context)
         self.compiled = compile_real_plan(
             result,
             self.registry,
@@ -216,6 +310,7 @@ class AutonomousServices:
     async def load_tool_batches(
         self, state: DiagnosisGraphState, *, operation_id: str
     ) -> tuple[tuple[str, ...], ...]:
+        await self.restore_plan(state)
         groups = sorted({call.parallel_group for call in self.compiled.calls})
         return tuple(
             tuple(
@@ -229,6 +324,7 @@ class AutonomousServices:
     async def execute_read_tool(
         self, state: DiagnosisGraphState, tool_call_id: str, *, operation_id: str
     ) -> None:
+        await self.restore_plan(state)
         selected = next(
             call for call in self.compiled.calls if self.call_id(call.step_id) == tool_call_id
         )
@@ -243,12 +339,69 @@ class AutonomousServices:
             causation_id=CausationId(state.causation_id),
             arguments_json=selected.arguments_json,
         )
-        result = await self.gateway.invoke_diagnosis(request)
-        self.results[tool_call_id] = result.result()
+
+        async def invoke() -> dict[str, Any]:
+            result = await self.gateway.invoke_diagnosis(request)
+            value = result.result()
+            if self.effects is not None:
+                redaction = redact_sensitive_data(
+                    value,
+                    transform_id=RedactionTransformId("durable-read-result"),
+                    lineage_key=secrets.token_bytes(32),
+                )
+                return cast(dict[str, Any], redaction.value)
+            return value
+
+        self.results[tool_call_id] = (
+            await self.effects.execute(
+                f"read:{tool_call_id}",
+                self.effect_binding(state) | {"query_fingerprint": selected.query_fingerprint},
+                invoke,
+            )
+            if self.effects is not None
+            else await invoke()
+        )
 
     async def persist_evidence(
         self, state: DiagnosisGraphState, *, operation_id: str
     ) -> EvidencePersistenceResult:
+        await self.restore_plan(state)
+        for call in self.compiled.calls:
+            identifier = self.call_id(call.step_id)
+            if identifier not in self.results:
+                value = (
+                    await self.effects.load(
+                        f"read:{identifier}",
+                        self.effect_binding(state) | {"query_fingerprint": call.query_fingerprint},
+                    )
+                    if self.effects is not None
+                    else None
+                )
+                if value is None:
+                    raise ValueError("checkpoint read result missing")
+                self.results[identifier] = value
+        if self.effects is None:
+            return await self._persist_evidence(state)
+
+        async def persist() -> dict[str, Any]:
+            result = await self._persist_evidence(state)
+            return {"evidence_ids": list(result.evidence_ids)}
+
+        value = await self.effects.execute(
+            f"evidence:r{self.round}", self.effect_binding(state), persist
+        )
+        identifiers = tuple(value["evidence_ids"])
+        if self.evidence is None:
+            await self.restore_evidence(
+                state.model_copy(
+                    update={
+                        "evidence_ids": tuple(dict.fromkeys((*state.evidence_ids, *identifiers)))
+                    }
+                )
+            )
+        return EvidencePersistenceResult(identifiers)
+
+    async def _persist_evidence(self, state: DiagnosisGraphState) -> EvidencePersistenceResult:
         observations, provenance = [], {}
         for call in self.compiled.calls:
             record = self.results[self.call_id(call.step_id)]
@@ -329,7 +482,9 @@ class AutonomousServices:
                 continue
             observations.append(item)
             used += size
-        result = await self.invoke_model(
+        self.round = state.budgets.used_replans
+        result = await self.invoke_model_effect(
+            state,
             ModelPurpose.DIAGNOSE,
             {
                 "incident_id": self.incident,
@@ -337,7 +492,6 @@ class AutonomousServices:
                 "evidence_ids": [item["id"] for item in observations],
                 "observations": observations,
             },
-            self.round + 1,
         )
         self.report = cast(DiagnosisReport, result.output)
         self.usage.append({"input": result.input_tokens, "output": result.output_tokens})
@@ -347,10 +501,7 @@ class AutonomousServices:
             result.cost_upper_bound_nanousd,
         )
 
-    async def evaluate_evidence_gate(
-        self, state: DiagnosisGraphState, *, operation_id: str
-    ) -> GateNodeResult:
-        await self.restore_evidence(state)
+    async def restore_report(self, state: DiagnosisGraphState, round_number: int) -> None:
         if self.report is None and self.model_invoker is not None:
             reader = self.model_invoker.report_reader
             if reader is None:
@@ -368,6 +519,30 @@ class AutonomousServices:
             ):
                 raise ValueError("checkpoint report binding mismatch")
             self.report = record.report
+        if self.report is None and self.effects is not None:
+            value = await self.effects.load(
+                f"model:DIAGNOSE:r{round_number}", self.effect_binding(state)
+            )
+            if value is None:
+                raise ValueError("checkpoint report effect missing")
+            result = StoredModelResult.model_validate_json(json.dumps(value)).restore(
+                ModelPurpose.DIAGNOSE
+            )
+            restored = cast(DiagnosisReport, result.output)
+            if (
+                restored.incident_id != state.incident_id
+                or not state.model_call_ids
+                or (result.call_id or f"model-{self.scope}-diagnosis-{round_number}")
+                != state.model_call_ids[-1]
+            ):
+                raise ValueError("checkpoint report effect binding mismatch")
+            self.report = restored
+
+    async def evaluate_evidence_gate(
+        self, state: DiagnosisGraphState, *, operation_id: str
+    ) -> GateNodeResult:
+        await self.restore_evidence(state)
+        await self.restore_report(state, state.budgets.used_replans)
         assert self.evidence is not None and self.report is not None
         self.gates = []
         for candidate in self.report.candidates:
@@ -420,6 +595,7 @@ async def investigate(
     progress_recorder: DiagnosisProgressRecorder | None = None,
     single_pass: bool = False,
     evaluation_at: datetime | None = None,
+    effects: WorkflowEffectStore | None = None,
 ) -> tuple[DiagnosisGraphState, AutonomousServices]:
     if max_replans not in (0, 1):
         raise ValueError("autonomous investigation permits zero or one replan")
@@ -429,6 +605,8 @@ async def investigate(
         raise ValueError("registered model incident does not match workflow incident")
     if evaluation_at is not None and (model_invoker is not None or evidence_store is not None):
         raise ValueError("frozen replay clock cannot be used with durable runtime ports")
+    if effects is not None and (evidence_store is None or single_pass or evaluation_at is not None):
+        raise ValueError("durable effects require runtime Evidence and graph composition")
     definitions = local_definitions()
     registry = ToolRegistry(definitions)
     gateway = ToolGateway(
@@ -438,7 +616,17 @@ async def investigate(
         audit_id_factory=lambda: f"audit-{uuid4().hex}",
     )
     services = AutonomousServices(
-        model, gateway, registry, incident, alert, root, start, evidence_store, model_invoker
+        model,
+        gateway,
+        registry,
+        incident,
+        alert,
+        root,
+        start,
+        evidence_store,
+        model_invoker,
+        effects,
+        end,
     )
     if evaluation_at is not None:
         services.clock = lambda: evaluation_at

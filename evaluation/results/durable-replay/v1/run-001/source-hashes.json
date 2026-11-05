@@ -1,0 +1,8 @@
+{
+  "docs/ADR/0008-evaluation-effect-replay.md": "505a1c1258a2eb6702a8ccb86cc602463336847fdca184efe80162383b7c91e4",
+  "evaluation/autonomous_diagnosis.py": "67b5222a0da3771fb6b4a97bc8dba1758e9dc1d3c5e995fd2fa162edda6e26b9",
+  "evaluation/durable_effects.py": "fa9831203160da03f5570e5ef1582c4c984ed26ef146ce98a124157fd016eb1e",
+  "evaluation/investigation_job.py": "490e569aac11ae5d3a85abfddf888be033bbddf1257491a2b30482f2caaab354",
+  "tests/integration/test_persistence.py": "9685dad15b608a362332ed91422cf09d5fb53bb7ff33b817f39635f90a91d83a",
+  "tests/unit/test_autonomous_diagnosis.py": "0c41633f1abd1959a9d1811b2ff38d8ee85be82515016cc961e14b9c3cdebaf7"
+}

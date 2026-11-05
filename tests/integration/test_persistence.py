@@ -8355,6 +8355,11 @@ async def test_workflow_model_budget_serializes_concurrent_replacement_workers(
         (False, True, False),
         (False, True, True),
         (False, True, 2),
+        (False, True, 3),
+        (False, True, 4),
+        (False, True, 5),
+        (False, True, 6),
+        (False, True, 7),
     ],
 )
 async def test_autonomous_gate_uses_committed_postgres_evidence(
@@ -8547,6 +8552,7 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
     if registered:
         from dataclasses import replace
 
+        from evaluation.durable_effects import SqlInvestigationEffects
         from evaluation.investigation_job import (
             InvestigationJobInput,
             RegisteredInvestigationJobHandler,
@@ -8593,22 +8599,35 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
                 PostgresDiagnosisProgressRecorder(sessions),
                 lambda e: None,
                 adapters=adapters,
+                effects=SqlInvestigationEffects(
+                    sessions, invoker.principal, "combined-corr", "combined-command"
+                ),
             )
             worker = LeasedEvaluationWorker(sessions, OpaqueIdentifier("combined-worker"), handler)
             if crash:
                 from evaluation.autonomous_diagnosis import AutonomousServices
 
-                target_node = "evaluate_evidence_gate" if crash == 2 else "hypothesize"
+                target_node = {
+                    1: "hypothesize",
+                    2: "evaluate_evidence_gate",
+                    3: "load_tool_batches",
+                    4: "persist_evidence",
+                    5: "persist_evidence",
+                    6: "plan",
+                    7: "hypothesize",
+                }[crash]
                 original_hypothesis = getattr(AutonomousServices, target_node)
 
                 async def fail_hypothesis(self: Any, state: Any, *, operation_id: str) -> Any:
+                    if crash in (5, 6, 7):
+                        await original_hypothesis(self, state, operation_id=operation_id)
                     raise RuntimeError("injected before hypothesis")
 
                 monkeypatch.setattr(AutonomousServices, target_node, fail_hypothesis)
                 with pytest.raises(RuntimeError, match="injected before hypothesis"):
                     await worker.run_once()
-                assert calls == (["PLAN", "DIAGNOSE"] if crash == 2 else ["PLAN"])
-                assert len(tool_calls) == 2
+                assert calls == (["PLAN", "DIAGNOSE"] if crash in (2, 7) else ["PLAN"])
+                assert len(tool_calls) == (0 if crash in (3, 6) else 2)
                 monkeypatch.setattr(AutonomousServices, target_node, original_hypothesis)
                 async with postgres_diagnosis_checkpointer(connection_url) as replacement:
                     handler.checkpointer = replacement
@@ -8938,3 +8957,113 @@ async def test_evaluation_policy_creates_only_pending_sql_review(engine: AsyncEn
             and review.policy_decision == decision
             and review.proposal == proposed
         )
+
+
+@pytest.mark.anyio
+async def test_durable_investigation_effects_replay_binding_integrity_and_uncertainty(
+    engine: AsyncEngine,
+) -> None:
+    from evaluation.durable_effects import SqlInvestigationEffects
+    from evaluation.structured_model import fingerprint
+
+    await add_incident(engine, "effect-incident", tenant="tenant-1")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    principal = Principal(
+        ActorId("effect-operator"), TenantId("tenant-1"), frozenset({Role.OPERATOR})
+    )
+    store = SqlInvestigationEffects(sessions, principal, "effect-corr", "effect-command")
+    binding = {
+        "tenant_id": "tenant-1",
+        "actor_id": "effect-operator",
+        "incident_id": "effect-incident",
+        "workflow_run_id": "effect-workflow",
+        "input_hash": "a" * 64,
+        "correlation_id": "effect-corr",
+        "causation_id": "effect-command",
+    }
+    calls = 0
+
+    async def effect() -> dict[str, Any]:
+        nonlocal calls
+        calls += 1
+        return {"observations": ["current bounded error"]}
+
+    assert await store.load("read:1", binding) is None
+    result = await store.execute("read:1", binding, effect)
+    replacement = SqlInvestigationEffects(sessions, principal, "effect-corr", "effect-command")
+    assert await replacement.load("read:1", binding) == result
+    assert await replacement.execute("read:1", binding, effect) == result and calls == 1
+    with pytest.raises(ValueError, match="input binding changed"):
+        await replacement.execute("read:1", binding | {"input_hash": "b" * 64}, effect)
+    other = SqlInvestigationEffects(
+        sessions,
+        replace(principal, actor_id=ActorId("other-operator")),
+        "effect-corr",
+        "effect-command",
+    )
+    with pytest.raises(ValueError, match="input binding changed"):
+        await other.execute("read:1", binding | {"actor_id": "other-operator"}, effect)
+    with pytest.raises(ValueError, match="tenant binding mismatch"):
+        await replacement.execute("read:1", binding | {"tenant_id": "tenant-2"}, effect)
+    with pytest.raises(ValueError, match="incident ownership unavailable"):
+        await replacement.execute("read:1", binding | {"incident_id": "missing-incident"}, effect)
+    assert calls == 1
+    assert (
+        await replacement.execute("read:1", binding | {"workflow_run_id": "new-workflow"}, effect)
+        == result
+    )
+    assert calls == 2
+    key, _ = store.identity("read:1", binding)
+    async with sessions.begin() as session:
+        row = await session.scalar(store.query(key))
+        assert row is not None
+        changed = {"observations": ["substituted value"]}
+        row.response_body = {
+            "schema_version": "1.0.0",
+            "payload": changed,
+            "payload_hash": fingerprint(changed),
+        }
+    with pytest.raises(ValueError, match="audit binding unavailable"):
+        await replacement.load("read:1", binding)
+
+    async def fail() -> dict[str, Any]:
+        nonlocal calls
+        calls += 1
+        raise RuntimeError("injected effect interruption")
+
+    with pytest.raises(RuntimeError, match="injected effect interruption"):
+        await store.execute("model:unknown", binding, fail)
+    with pytest.raises(ValueError, match="outcome uncertain"):
+        await replacement.execute("model:unknown", binding, effect)
+    assert calls == 3
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    async def slow() -> dict[str, Any]:
+        nonlocal calls
+        calls += 1
+        entered.set()
+        await release.wait()
+        return result
+
+    task = asyncio.create_task(store.execute("read:concurrent", binding, slow))
+    await entered.wait()
+    try:
+        with pytest.raises(ValueError, match="outcome uncertain"):
+            await replacement.execute("read:concurrent", binding, effect)
+    finally:
+        release.set()
+        assert await task == result
+    assert calls == 4
+    async with sessions() as session:
+        events = await AuditRepository(session).by_correlation(CorrelationId("effect-corr"))
+    assert sum(e.event.type == "evaluation.effect_claimed" for e in events) == 4
+    assert sum(e.event.type == "evaluation.effect_completed" for e in events) == 3
+    assert sum(e.event.type == "evaluation.effect_failed" for e in events) == 1
+
+    async def secret() -> dict[str, Any]:
+        return {"password": "fixture-sensitive-value"}
+
+    with pytest.raises(ValueError, match="requires redaction"):
+        await store.execute("read:sensitive", binding, secret)
+    with pytest.raises(ValueError, match="outcome uncertain"):
+        await replacement.load("read:sensitive", binding)

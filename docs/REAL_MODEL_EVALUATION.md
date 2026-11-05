@@ -242,3 +242,20 @@ identities use bounded hashes, and experiment incidents/SKUs are unique per run.
 lineage now uses the exact Gateway call ID, also visible in hash-only tool audit projections.
 This injection point is verified; the default local CLI still requires the remaining C3
 composition for full Prompt/Job/model-trace persistence.
+
+## Durable evaluation effect replay
+
+The registered job handler accepts `SqlInvestigationEffects` in addition to its SQL stores and
+official PostgreSQL checkpointer. [ADR 0008](ADR/0008-evaluation-effect-replay.md) defines the
+separate operation namespace, ownership/input/source bindings, committed claims, vetted result
+cache, and independent append-only audit verification. Restored plans pass the compiler again;
+cached read results and Evidence IDs reconstruct process-local state. Plan/report completion
+before graph checkpointing can resume without another provider call. An incomplete effect
+refuses redispatch because its external outcome may be unknown. This is not an exactly-once
+provider guarantee and does not guarantee recovery from arbitrary instruction-level failures.
+
+PostgreSQL tests exercise before-dispatch/before-Evidence boundaries and completion-before-graph
+transition failures for PLAN, Evidence and DIAGNOSE. These use controlled provider fixtures,
+not actual DeepSeek responses. Full replan/partial-parallel interruption measurements and
+production startup composition remain separate requirements. Default local comparison runners
+retain their original behavior; the published 54+27 real-model outcomes are never rewritten.

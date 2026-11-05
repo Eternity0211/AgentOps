@@ -14,6 +14,7 @@ import agentops_incident_commander.application  # noqa: F401
 from agentops_incident_commander.domain import JobLease
 from agentops_incident_commander.workflows import DiagnosisProgressRecorder
 from evaluation.autonomous_diagnosis import WorkflowEvidenceStore, investigate
+from evaluation.durable_effects import WorkflowEffectStore
 from evaluation.registered_model import RegisteredModelInvoker
 
 
@@ -42,11 +43,13 @@ class RegisteredInvestigationJobHandler:
         journal: Callable[[dict[str, Any]], None],
         *,
         adapters: dict[Any, Any] | None = None,
+        effects: WorkflowEffectStore | None = None,
     ) -> None:
         self.payload, self.factory = payload, invoker_factory
         self.checkpointer, self.evidence, self.progress = checkpointer, evidence, progress
         self.journal = journal
         self.adapters = dict(adapters) if adapters is not None else None
+        self.effects = effects
 
     async def __call__(self, lease: JobLease) -> None:
         job, payload = lease.job, self.payload
@@ -92,4 +95,5 @@ class RegisteredInvestigationJobHandler:
             progress_recorder=self.progress,
             model_invoker=invoker,
             adapters=self.adapters,
+            effects=self.effects,
         )

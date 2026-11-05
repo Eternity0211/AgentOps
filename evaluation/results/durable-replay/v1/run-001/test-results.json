@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0.0",
+  "suite_time_seconds": 31.008,
+  "tests": [
+    {
+      "class": "tests.integration.test_persistence",
+      "duration_seconds": 8.787,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-False-False-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "class": "tests.integration.test_persistence",
+      "duration_seconds": 0.241,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[True-False-False-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "class": "tests.integration.test_persistence",
+      "duration_seconds": 1.44,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-False-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "class": "tests.integration.test_persistence",
+      "duration_seconds": 1.395,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-True-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "class": "tests.integration.test_persistence",
+      "duration_seconds": 1.408,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-2-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "class": "tests.integration.test_persistence",
+      "duration_seconds": 1.506,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-3-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "class": "tests.integration.test_persistence",
+      "duration_seconds": 1.454,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-4-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "class": "tests.integration.test_persistence",
+      "duration_seconds": 1.491,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-5-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "class": "tests.integration.test_persistence",
+      "duration_seconds": 1.586,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-6-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "class": "tests.integration.test_persistence",
+      "duration_seconds": 2.88,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-7-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "class": "tests.integration.test_persistence",
+      "duration_seconds": 2.249,
+      "name": "test_durable_investigation_effects_replay_binding_integrity_and_uncertainty[asyncio]",
+      "passed": true
+    }
+  ],
+  "timestamp": "2026-11-05T21:49:33.266088+08:00"
+}

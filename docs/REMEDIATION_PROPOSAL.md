@@ -63,3 +63,8 @@ checks requester identity, evaluates Policy with server-owned inputs/rules, and 
 existing Approval lifecycle only for APPROVAL_REQUIRED. It stops at PENDING and has no
 executor or approval-decision capability. Current adapter tests use controlled model/store
 fixtures; combined SQL pending-approval and live-provider measurements remain open.
+
+A PostgreSQL integration now verifies the evaluation Policy-to-review function using the
+actual Approval lifecycle repository: pending state and exact proposal/Policy review snapshot
+commit and survive a fresh session. Inputs are controlled Gate/proposal fixtures, so this is
+persistence evidence, not provider-quality, real human approval or recovery evidence.

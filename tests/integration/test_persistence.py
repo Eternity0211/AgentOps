@@ -8698,3 +8698,76 @@ async def test_leased_evaluation_worker_cancellation_allows_stale_takeover(
             limit=1,
         )
     assert len(leases) == 1 and leases[0].attempt == 2
+
+
+@pytest.mark.anyio
+async def test_evaluation_policy_creates_only_pending_sql_review(engine: AsyncEngine) -> None:
+    from dataclasses import replace
+
+    from evaluation.registered_remediation import request_remediation_review
+
+    from agentops_incident_commander.application import (
+        EvidenceBoundRemediationProposal,
+        PolicyRules,
+        evidence_gate_decision_fingerprint,
+    )
+
+    await add_incident(
+        engine, "incident-approval-storage", tenant="tenant-1", state=IncidentState.POLICY_REVIEW
+    )
+    value = approval_policy_input()
+    gate = EvidenceGateDecision(
+        incident_id=value.incident_id,
+        candidate_id="candidate-approval-storage",
+        outcome=EvidenceGateOutcome.PASS,
+        reasons=(),
+        evaluated_evidence_ids=(EvidenceId("evidence-deployment"), EvidenceId("evidence-current")),
+        rules_version="1.1.0",
+        input_fingerprint=Sha256Digest("c" * 64),
+        evaluated_at=NOW,
+    )
+    value = replace(
+        value, evidence_gate_decision_fingerprint=evidence_gate_decision_fingerprint(gate)
+    )
+    proposed = approval_review_proposal(value)
+    value = replace(value, proposal_fingerprint=proposed.fingerprint)
+    admitted = EvidenceBoundRemediationProposal(value.tenant_id, proposed, gate)
+    rules = PolicyRules(
+        SemanticVersion("1.0.0"),
+        frozenset({PolicyEnvironment.PRODUCTION}),
+        frozenset({Role.OPERATOR}),
+        frozenset({PolicyAction.ROLLBACK_SERVICE}),
+        frozenset({"orders"}),
+        frozenset({PolicyBlastRadius.SINGLE_SERVICE}),
+        True,
+        True,
+        timedelta(minutes=30),
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        decision, pending = await request_remediation_review(
+            admitted,
+            value,
+            rules=rules,
+            decision_id=OpaqueIdentifier("evaluation-review-policy"),
+            evaluated_at=NOW + timedelta(minutes=4),
+            approvals=approval_manager(
+                session,
+                at=NOW + timedelta(minutes=5),
+                approval_id="evaluation-pending-sql",
+                audit_id="evaluation-pending-sql-audit",
+            ),
+            principal=Principal(value.requester_actor_id, value.tenant_id, value.requester_roles),
+            correlation_id=CorrelationId("evaluation-review-corr"),
+            causation_id=CausationId("evaluation-review-command"),
+        )
+    assert pending is not None and pending.status is ApprovalStatus.PENDING
+    async with sessions() as session:
+        repository = ApprovalLifecycleRepository(session)
+        assert await repository.get(pending.id, tenant_id=value.tenant_id) == pending
+        review = await repository.get_review_snapshot(pending.id, tenant_id=value.tenant_id)
+        assert (
+            review is not None
+            and review.policy_decision == decision
+            and review.proposal == proposed
+        )

@@ -536,6 +536,12 @@ This index is an omission check, not a second task list. The referenced phases c
   existing lifecycle manager. Twenty-seven related unit tests plus Ruff/mypy pass.
   SQL pending-approval/provider composition and live measurements remain open under C4.
 
+- [x] C4b: deterministic evaluation Policy creates a persisted PENDING approval and review.
+  Actual PostgreSQL integration commits through ApprovalLifecycleManager and verifies exact
+  proposal/Policy snapshot and PENDING state from a new session. One integration case passes;
+  no human decision or execution is dispatched. Gate/proposal inputs are controlled fixtures;
+  registered-provider-to-stored-Gate-to-approval composition remains open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

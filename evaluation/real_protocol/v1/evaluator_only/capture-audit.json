@@ -1,0 +1,20 @@
+{
+  "failed_capture_ids": [],
+  "product_recovery_credit": false,
+  "record_count": 21,
+  "successful_strata": {
+    "bad-configuration": 3,
+    "db-pool-exhaustion": 3,
+    "downstream-latency": 3,
+    "http-500": 3,
+    "memory-leak": 3,
+    "normal": 3,
+    "redis-timeout": 3
+  },
+  "unavailable_sources": {
+    "query_traces:gateway": 13,
+    "query_traces:inventory": 10,
+    "query_traces:order": 12,
+    "query_traces:payment": 11
+  }
+}

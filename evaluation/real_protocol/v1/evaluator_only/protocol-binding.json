@@ -1,0 +1,7 @@
+{
+  "capture_raw_protocol_sha256": "0ffed77c73098898276fb48738ddb33dbd2339c39a267e4ffe3ce08036a3fc26",
+  "git_blob_protocol_sha256": "5e7ddcad19f2c06bbb4ff2ff47740111470f1b9ffacf7b8349d13df2a4ed1fec",
+  "json_equivalent": true,
+  "protocol_hash": "88f25bf5616b728013614ba25b653b2f0a77466c69ea7409d63aafd7fbb79f13",
+  "scheme": "canonical-json-sha256/v1"
+}

@@ -17,6 +17,7 @@ def derive_control(
     destination: Path,
     *,
     kind: Literal["insufficient-evidence", "counter-evidence"],
+    manifest_path: Path | None = None,
 ) -> dict[str, str]:
     parent = load_snapshot(parent_path, expected_hash=expected_hash)
     if kind not in ("insufficient-evidence", "counter-evidence"):
@@ -49,6 +50,8 @@ def derive_control(
         "transform_version": "controls/1.0.0",
         "origin": "DERIVED_EXPERIMENTAL_CONTROL_NOT_LIVE_FAULT",
     }
-    with destination.with_suffix(".control.json").open("x", encoding="utf-8") as stream:
+    with (manifest_path or destination.with_suffix(".control.json")).open(
+        "x", encoding="utf-8"
+    ) as stream:
         json.dump(manifest, stream, sort_keys=True)
     return manifest

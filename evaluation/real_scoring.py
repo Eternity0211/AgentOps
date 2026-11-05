@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import statistics
 from collections import Counter
@@ -54,7 +55,7 @@ class Outcome(StrictRecord):
 
 
 def protocol_hash(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return fingerprint(json.loads(path.read_text(encoding="utf-8-sig")))
 
 
 def score(

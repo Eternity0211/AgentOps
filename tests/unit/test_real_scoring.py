@@ -104,3 +104,12 @@ def test_score_files_verifies_original_bytes(tmp_path: Any) -> None:
         score_files(
             label_path, output_path, protocol, labels_sha256=label_hash, outcomes_sha256=output_hash
         )
+
+
+def test_protocol_hash_is_newline_independent(tmp_path: Any) -> None:
+    from evaluation.real_scoring import protocol_hash
+
+    one, two = tmp_path / "lf.json", tmp_path / "crlf.json"
+    one.write_bytes(b'{\n"value":1\n}\n')
+    two.write_bytes(b'{\r\n"value":1\r\n}\r\n')
+    assert protocol_hash(one) == protocol_hash(two)

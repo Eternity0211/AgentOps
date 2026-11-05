@@ -628,6 +628,13 @@ This index is an omission check, not a second task list. The referenced phases c
   missing/wrong-workflow negatives pass; Ruff/mypy pass. Published measured review artifacts
   on real provider outputs and complete simulated-operator report remain open.
 
+- [x] C5i: complete, verify and archive 27 versioned observation inputs.
+  Actual captures: 18 faults + three normal; all baseline/final checkouts 200 and 18 cleanups.
+  374/420 read combinations available, 46 trace failures retained. Derive six controls from
+  normal parents, keep evaluator labels separate, verify 27 hashes and three-per-stratum
+  counts; bounded credential scan clean. Archive about 1.88 MB with explicit limitations.
+  Provider calls, valid memory baseline and full scoring remain open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

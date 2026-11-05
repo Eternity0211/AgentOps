@@ -1,0 +1,110 @@
+[
+  {
+    "instance_id": "instance-867c81af2f964116",
+    "stratum": "http-500"
+  },
+  {
+    "instance_id": "instance-f956717e4aab48d2",
+    "stratum": "http-500"
+  },
+  {
+    "instance_id": "instance-ab4c79aabd71489a",
+    "stratum": "http-500"
+  },
+  {
+    "instance_id": "instance-43db18a966a54012",
+    "stratum": "db-pool-exhaustion"
+  },
+  {
+    "instance_id": "instance-6c29dddb448e401c",
+    "stratum": "db-pool-exhaustion"
+  },
+  {
+    "instance_id": "instance-f707b5102d9e4a6d",
+    "stratum": "db-pool-exhaustion"
+  },
+  {
+    "instance_id": "instance-31c23833b08d4b8f",
+    "stratum": "redis-timeout"
+  },
+  {
+    "instance_id": "instance-292cba46fe294af8",
+    "stratum": "redis-timeout"
+  },
+  {
+    "instance_id": "instance-77b7277586744d89",
+    "stratum": "redis-timeout"
+  },
+  {
+    "instance_id": "instance-8a619309fde94610",
+    "stratum": "downstream-latency"
+  },
+  {
+    "instance_id": "instance-db7bb22349ec4699",
+    "stratum": "downstream-latency"
+  },
+  {
+    "instance_id": "instance-e2cd05e116824b59",
+    "stratum": "downstream-latency"
+  },
+  {
+    "instance_id": "instance-6e544776f1dc4199",
+    "stratum": "memory-leak"
+  },
+  {
+    "instance_id": "instance-4b130ade09ca407f",
+    "stratum": "memory-leak"
+  },
+  {
+    "instance_id": "instance-5bd8ecd53fb7432a",
+    "stratum": "memory-leak"
+  },
+  {
+    "instance_id": "instance-9ccebe715484454e",
+    "stratum": "bad-configuration"
+  },
+  {
+    "instance_id": "instance-63bc37fd77bc4b0a",
+    "stratum": "bad-configuration"
+  },
+  {
+    "instance_id": "instance-6af0644daa064db5",
+    "stratum": "bad-configuration"
+  },
+  {
+    "instance_id": "instance-5b0c095912e2427c",
+    "stratum": "normal"
+  },
+  {
+    "instance_id": "instance-212eeab48e894e96",
+    "stratum": "normal"
+  },
+  {
+    "instance_id": "instance-6b8ddd026574497a",
+    "stratum": "normal"
+  },
+  {
+    "instance_id": "instance-a8be4330862647fc",
+    "stratum": "insufficient-evidence"
+  },
+  {
+    "instance_id": "instance-8bc0889edd0844b4",
+    "stratum": "counter-evidence"
+  },
+  {
+    "instance_id": "instance-9f39161d4ef14e0c",
+    "stratum": "insufficient-evidence"
+  },
+  {
+    "instance_id": "instance-e0156a93fbe74576",
+    "stratum": "counter-evidence"
+  },
+  {
+    "instance_id": "instance-76e67befe35f410c",
+    "stratum": "insufficient-evidence"
+  },
+  {
+    "instance_id": "instance-952fc518c6e643eb",
+    "stratum": "counter-evidence"
+  }
+]

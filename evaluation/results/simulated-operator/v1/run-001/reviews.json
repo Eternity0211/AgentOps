@@ -1,0 +1,1646 @@
+[
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-867c81af2f964116",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-f956717e4aab48d2",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-ab4c79aabd71489a",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-43db18a966a54012",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-6c29dddb448e401c",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-f707b5102d9e4a6d",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-31c23833b08d4b8f",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-292cba46fe294af8",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-77b7277586744d89",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-8a619309fde94610",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-db7bb22349ec4699",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-e2cd05e116824b59",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-6e544776f1dc4199",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-4b130ade09ca407f",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-5bd8ecd53fb7432a",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-9ccebe715484454e",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-63bc37fd77bc4b0a",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 156,
+    "declared_citations": 3,
+    "failure_type": null,
+    "gate_outcomes": {
+      "http-500": "FAIL"
+    },
+    "human_time_saved": null,
+    "instance_id": "instance-6af0644daa064db5",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 3,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 3,
+    "tasks": {
+      "citation_resolution": "PASS",
+      "gate:http-500": "PASS",
+      "report_binding": "PASS"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-5b0c095912e2427c",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-212eeab48e894e96",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-6b8ddd026574497a",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-a8be4330862647fc",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-8bc0889edd0844b4",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-9f39161d4ef14e0c",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-e0156a93fbe74576",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-76e67befe35f410c",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-952fc518c6e643eb",
+    "mode": "single-agent",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-867c81af2f964116",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-f956717e4aab48d2",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-ab4c79aabd71489a",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-43db18a966a54012",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-6c29dddb448e401c",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-f707b5102d9e4a6d",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-31c23833b08d4b8f",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-292cba46fe294af8",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-77b7277586744d89",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-8a619309fde94610",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-db7bb22349ec4699",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-e2cd05e116824b59",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-6e544776f1dc4199",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-4b130ade09ca407f",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-5bd8ecd53fb7432a",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-9ccebe715484454e",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-63bc37fd77bc4b0a",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 63,
+    "declared_citations": 3,
+    "failure_type": null,
+    "gate_outcomes": {
+      "http-500": "PASS"
+    },
+    "human_time_saved": null,
+    "instance_id": "instance-6af0644daa064db5",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 3,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 3,
+    "tasks": {
+      "citation_resolution": "PASS",
+      "gate:http-500": "PASS",
+      "report_binding": "PASS"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-5b0c095912e2427c",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-212eeab48e894e96",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-6b8ddd026574497a",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-a8be4330862647fc",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-8bc0889edd0844b4",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-9f39161d4ef14e0c",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-e0156a93fbe74576",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-76e67befe35f410c",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 47,
+    "declared_citations": 0,
+    "failure_type": null,
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-952fc518c6e643eb",
+    "mode": "controlled-graph",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 1,
+    "tasks": {
+      "report_binding": "PASS"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 78,
+    "declared_citations": 3,
+    "failure_type": null,
+    "gate_outcomes": {
+      "http-500": "PASS"
+    },
+    "human_time_saved": null,
+    "instance_id": "instance-867c81af2f964116",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 3,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 3,
+    "tasks": {
+      "citation_resolution": "PASS",
+      "gate:http-500": "PASS",
+      "report_binding": "PASS"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-f956717e4aab48d2",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 125,
+    "declared_citations": 5,
+    "failure_type": null,
+    "gate_outcomes": {
+      "http-500": "FAIL"
+    },
+    "human_time_saved": null,
+    "instance_id": "instance-ab4c79aabd71489a",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 3,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 3,
+    "tasks": {
+      "citation_resolution": "PASS",
+      "gate:http-500": "PASS",
+      "report_binding": "PASS"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-43db18a966a54012",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-6c29dddb448e401c",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-f707b5102d9e4a6d",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-31c23833b08d4b8f",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-292cba46fe294af8",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 125,
+    "declared_citations": 4,
+    "failure_type": null,
+    "gate_outcomes": {
+      "http-500": "PASS"
+    },
+    "human_time_saved": null,
+    "instance_id": "instance-77b7277586744d89",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 3,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 3,
+    "tasks": {
+      "citation_resolution": "PASS",
+      "gate:http-500": "PASS",
+      "report_binding": "PASS"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-8a619309fde94610",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-db7bb22349ec4699",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-e2cd05e116824b59",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-6e544776f1dc4199",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 78,
+    "declared_citations": 0,
+    "failure_type": null,
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-4b130ade09ca407f",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 1,
+    "tasks": {
+      "report_binding": "PASS"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-5bd8ecd53fb7432a",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-9ccebe715484454e",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-63bc37fd77bc4b0a",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 94,
+    "declared_citations": 4,
+    "failure_type": null,
+    "gate_outcomes": {
+      "http-500": "FAIL"
+    },
+    "human_time_saved": null,
+    "instance_id": "instance-6af0644daa064db5",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 3,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 3,
+    "tasks": {
+      "citation_resolution": "PASS",
+      "gate:http-500": "PASS",
+      "report_binding": "PASS"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-5b0c095912e2427c",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-212eeab48e894e96",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-6b8ddd026574497a",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-a8be4330862647fc",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-8bc0889edd0844b4",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-9f39161d4ef14e0c",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-e0156a93fbe74576",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-76e67befe35f410c",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  },
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_review": "NOT_APPLICABLE_NO_PROPOSAL",
+    "backend_review_ms": 0,
+    "declared_citations": 0,
+    "failure_type": "FileNotFoundError",
+    "gate_outcomes": {},
+    "human_time_saved": null,
+    "instance_id": "instance-952fc518c6e643eb",
+    "mode": "controlled-graph-simulated-memory",
+    "recovery_executed": false,
+    "required_tasks": 1,
+    "source_kind": "ARCHIVED_REAL_PROVIDER_OUTPUT",
+    "task_successes": 0,
+    "tasks": {
+      "report_binding": "FAIL"
+    },
+    "unresolved_citations": 0
+  }
+]

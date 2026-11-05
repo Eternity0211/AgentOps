@@ -1,0 +1,17 @@
+{
+  "approval_decisions": 0,
+  "code_hash": "a198e1ea4e520d55a408c6d749de06cbd640a21c4254c5e620826d3fa93a52e4",
+  "code_revision": "2e8b7560087925a412f7fc78152fa5899d695c62",
+  "declared_citations": 22,
+  "human_time_saved": null,
+  "missing_reports": 73,
+  "recovery_executions": 0,
+  "report_binding": {
+    "FAIL": 73,
+    "PASS": 8
+  },
+  "required_tasks": 93,
+  "review_count": 81,
+  "task_successes": 20,
+  "unresolved_citations": 0
+}

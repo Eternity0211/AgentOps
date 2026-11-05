@@ -697,6 +697,12 @@ This index is an omission check, not a second task list. The referenced phases c
   scores. Publication regression reproduces both 54-case and 27-case reports. No memory
   benefit, real-history validity or human/recovery gain is claimed.
 
+- [x] C7d: publish read-only simulated review of 81 actual provider outcomes.
+  Eight report bindings available, 73 missing retained; 22/22 declared citations resolve.
+  Task completion 20/93 is backend review coverage, not human quality or time savings.
+  Archive source/hash bindings and regression-recomputed arithmetic; no approval or recovery.
+  Real confirmed history remains unmeasured; simulated history stays separately reported.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

@@ -48,6 +48,22 @@ supported unregistered inline-Prompt route.
 
 ## Verification
 
+The opt-in evaluation `RegisteredModelInvoker` now binds the exact ACTIVE registration,
+purpose, instruction content and DeepSeek settings before committing a model-call start.
+Its transaction-owning PostgreSQL port serializes starts with a tenant/workflow advisory
+lock and counts all persisted starts, including failed or unfinished calls, against a bounded
+budget (default four). Replacement workers therefore cannot reset that budget. This is an
+evaluation composition; production provider startup and mid-investigation effect restoration
+remain separate TODOs.
+
+Successful trace response hashes bind the validated canonical output; diagnosis reports use
+the report fingerprint and are stored with the completed trace binding and their own audit
+transaction. The provider-body hash remains separate in the content-free evaluation journal.
+Usage observations retain provider token counts and a price upper bound, while core billed
+cost remains unavailable when the provider does not return an actual charge. A report write
+failure propagates and cannot publish a successful workflow result; trace completion and report
+publication are separate transactions.
+
 Unit tests cover exact settings, complete and unavailable metering, integer cost, token arithmetic,
 registered-active Prompt enforcement, all terminal outcomes, duplicate completion, bounded failure
 codes, and the absence of payload fields. PostgreSQL integration tests cover migration round trips,

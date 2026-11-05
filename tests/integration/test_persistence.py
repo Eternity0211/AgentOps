@@ -4537,10 +4537,11 @@ async def activate_prompt_for_model_call(
     sessions: async_sessionmaker[AsyncSession],
     *,
     audit_prefix: str = "model",
+    definition: PromptDefinition | None = None,
 ) -> PromptDefinition:
     ids = count(1)
     owner = Principal(ActorId("admin-model"), TenantId("tenant-1"), frozenset({Role.ADMIN}))
-    definition = prompt_definition("2.0.0", "Return evidence-linked candidates only.")
+    definition = definition or prompt_definition("2.0.0", "Return evidence-linked candidates only.")
     reference = PromptVersionReference(definition.prompt_id, definition.version)
     regression = PromptRegressionEvaluation(
         reference,
@@ -8136,6 +8137,7 @@ async def test_workflow_trace_port_commits_start_finish_and_refuses_replay(
         response_hash=Sha256Digest("e" * 64),
     )
     assert await store.get(started.tenant_id, started.id) == completed
+
     assert await store.get(TenantId("other"), started.id) is None
     with pytest.raises(InvalidDomainValueError):
         await manager.finish(
@@ -8148,6 +8150,48 @@ async def test_workflow_trace_port_commits_start_finish_and_refuses_replay(
             response_hash=Sha256Digest("e" * 64),
         )
     assert await store.get(started.tenant_id, started.id) == completed
+
+
+@pytest.mark.anyio
+async def test_workflow_model_budget_serializes_concurrent_replacement_workers(
+    engine: AsyncEngine,
+) -> None:
+    from agentops_incident_commander.domain import ModelCallTrace
+    from agentops_incident_commander.infrastructure.persistence.runtime_ports import (
+        PostgresWorkflowModelTraceStore,
+    )
+
+    await add_incident(engine, "budget-incident", tenant="tenant-1")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    prompt = await activate_prompt_for_model_call(sessions, audit_prefix="durable-budget")
+    for invalid in (0, 129, True):
+        with pytest.raises(InvalidDomainValueError):
+            PostgresWorkflowModelTraceStore(sessions, max_calls_per_workflow=invalid)
+
+    async def start(worker: str) -> ModelCallTrace:
+        store = PostgresWorkflowModelTraceStore(sessions, max_calls_per_workflow=1)
+        ids = count(1)
+        manager = ModelCallTraceManager(
+            store, clock=lambda: NOW, id_factory=lambda: f"budget-{worker}-{next(ids)}"
+        )
+        return await manager.start(
+            tenant_id=TenantId("tenant-1"),
+            incident_id=IncidentId("budget-incident"),
+            workflow_run_id=WorkflowRunId("durable-budget-workflow"),
+            node="diagnosis.plan",
+            attempt=1,
+            prompt=prompt,
+            request_hash=Sha256Digest("d" * 64),
+            actor_id=ActorId("workflow-worker"),
+            correlation_id=CorrelationId("budget-correlation"),
+            causation_id=CausationId("budget-command"),
+        )
+
+    results = await asyncio.gather(start("one"), start("two"), return_exceptions=True)
+    assert sum(isinstance(result, ModelCallTrace) for result in results) == 1
+    assert sum(isinstance(result, InvalidDomainValueError) for result in results) == 1
+    with pytest.raises(InvalidDomainValueError, match="budget exhausted"):
+        await start("replacement")
 
 
 @pytest.mark.anyio
@@ -8279,3 +8323,106 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
             )
         assert calls == ["PLAN", "DIAGNOSE"]
         assert services.gates[0].outcome is EvidenceGateOutcome.PASS
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("bad_prompt", [False, True])
+async def test_registered_model_trace_and_report_commit_together_across_ports(
+    engine: AsyncEngine,
+    bad_prompt: bool,
+) -> None:
+    from evaluation.registered_model import RegisteredModelInvoker
+    from evaluation.structured_model import (
+        ModelPurpose,
+        StructuredEvaluationModel,
+        StructuredModelFailure,
+    )
+    from httpx import MockTransport, Response
+
+    from agentops_incident_commander.infrastructure.persistence.runtime_ports import (
+        PostgresWorkflowDiagnosisReportStore,
+        PostgresWorkflowModelTraceStore,
+        PostgresWorkflowPromptStore,
+    )
+
+    await add_incident(engine, "registered-incident", tenant="tenant-1")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    context = {"incident_id": "registered-incident", "evidence_ids": []}
+    instruction = StructuredEvaluationModel.request_payload(ModelPurpose.DIAGNOSE, context)[
+        "messages"
+    ][0]["content"]
+    definition = PromptDefinition.create(
+        prompt_id=PromptId("registered-report"),
+        version=SemanticVersion("1.0.0"),
+        purpose=PromptPurpose.DIAGNOSIS,
+        content="Wrong registered content" if bad_prompt else instruction,
+        model_parameters=PromptModelParameters("deepseek", "deepseek-flash", 0, 10000, 2048),
+        schema_compatibility=PromptSchemaCompatibility(
+            SemanticVersion("1.0.0"), SemanticVersion("1.0.0")
+        ),
+        trace=PromptTraceLink(
+            ActorId("admin-model"),
+            CorrelationId("registered-corr"),
+            CausationId("registered-command"),
+            NOW,
+        ),
+    )
+    active = await activate_prompt_for_model_call(
+        sessions, definition=definition, audit_prefix=f"registered-port-{int(bad_prompt)}"
+    )
+    calls = []
+    observed: list[dict[str, Any]] = []
+
+    def respond(request: Any) -> Response:
+        calls.append(True)
+        report = {
+            "schema_version": "1.0.0",
+            "incident_id": "registered-incident",
+            "disposition": "HUMAN_HANDOFF",
+            "candidates": [],
+            "missing_evidence": ["current sources"],
+            "explanation": "Insufficient current evidence",
+        }
+        return Response(
+            200,
+            json={
+                "usage": {"prompt_tokens": 10, "completion_tokens": 10, "total_tokens": 20},
+                "choices": [{"finish_reason": "stop", "message": {"content": json.dumps(report)}}],
+            },
+        )
+
+    ids = count(1)
+    traces = PostgresWorkflowModelTraceStore(sessions)
+    invoker = RegisteredModelInvoker(
+        StructuredEvaluationModel("test-only", lambda e: None, transport=MockTransport(respond)),
+        PostgresWorkflowPromptStore(sessions),
+        ModelCallTraceManager(
+            traces, clock=lambda: NOW, id_factory=lambda: f"registered-trace-{next(ids)}"
+        ),
+        {ModelPurpose.DIAGNOSE: PromptVersionReference(active.prompt_id, active.version)},
+        Principal(ActorId("registered-operator"), TenantId("tenant-1"), frozenset({Role.OPERATOR})),
+        IncidentId("registered-incident"),
+        WorkflowRunId("registered-workflow"),
+        CorrelationId("registered-corr"),
+        CausationId("registered-command"),
+        observed.append,
+        report_writer=PostgresWorkflowDiagnosisReportStore(sessions),
+    )
+    if bad_prompt:
+        with pytest.raises(StructuredModelFailure, match="PROMPT_CONTENT_MISMATCH"):
+            await invoker.invoke(ModelPurpose.DIAGNOSE, context)
+        assert calls == []
+    else:
+        result = await invoker.invoke(ModelPurpose.DIAGNOSE, context)
+        assert result.call_id is not None
+        trace = await traces.get(TenantId("tenant-1"), ModelCallId(result.call_id))
+        assert trace is not None and trace.status is ModelCallStatus.SUCCEEDED
+        assert trace.node == "diagnosis.hypothesis"
+        assert trace.metering is not None and trace.metering.cost is None
+        async with sessions() as session:
+            stored = await DiagnosisReportRepository(session).latest(
+                tenant_id=TenantId("tenant-1"), incident_id=IncidentId("registered-incident")
+            )
+        assert stored is not None and stored.model_call_id.value == result.call_id
+        assert trace.response_hash == stored.report_fingerprint
+        assert observed[-1]["input_tokens"] == 10 and observed[-1]["actual_cost"] is None

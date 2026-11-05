@@ -455,6 +455,15 @@ This index is an omission check, not a second task list. The referenced phases c
   Tests: actual PostgreSQL success and foreign-key refusal; failed writes prevent DIAGNOSE.
   Incident-scoped identifiers and exact Gateway call lineage prevent cross-incident aliasing.
 - [ ] C3: registered prompts, PostgreSQL evidence/checkpoint/job/call integration and crash/resume measurements.
+- [x] C3d: registered evaluation invoker, durable concurrent call budget and report persistence.
+  Acceptance: exact ACTIVE Prompt/content/settings and RBAC before provider;
+  durable call start before dispatch; canonical report/trace binding; tenant/workflow budget
+  serialized across concurrent and replacement callers. Test plan: transport negative cases,
+  PostgreSQL report/trace and concurrent-budget integration, full Python coverage, Ruff/mypy,
+  architecture and planning checks. Verification: four focused PostgreSQL cases pass; full
+  regression 2,859 passed with 100% source statement/branch coverage; final nine invoker
+  tests also pass, including report-write failure. Ruff/mypy/architecture/Compose/supply-chain
+  and planning checks pass. C3 remains open for job composition and mid-run reconstruction.
 - [ ] C4: gate-bound real remediation, deterministic policy and actual pending approval records.
 - [ ] C5: frozen holdout/counter-evidence/normal/insufficient-evidence datasets and predeclared scoring.
 - [ ] C6: complete automatic regression, load/resilience/failure distributions and consolidated results.

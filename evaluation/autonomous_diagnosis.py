@@ -61,10 +61,12 @@ from agentops_incident_commander.workflows import (
 from evaluation.baselines.controlled_graph import _Progress
 from evaluation.live_evidence import ExperimentEvidence
 from evaluation.live_gateway import SOURCES, LocalReadAdapter, local_definitions
+from evaluation.registered_model import RegisteredModelInvoker
 from evaluation.structured_model import (
     INSTRUCTIONS,
     ModelPurpose,
     StructuredEvaluationModel,
+    StructuredResult,
     compile_real_plan,
     fingerprint,
 )
@@ -115,6 +117,7 @@ class AutonomousServices:
         root: Path,
         start: datetime,
         evidence_store: WorkflowEvidenceStore | None = None,
+        model_invoker: RegisteredModelInvoker | None = None,
     ) -> None:
         self.model, self.gateway, self.registry = model, gateway, registry
         self.incident, self.alert, self.root, self.start = incident, alert, root, start
@@ -126,6 +129,9 @@ class AutonomousServices:
         self.principal = Principal(
             ActorId("evaluation-operator"), TenantId("local-evaluation"), frozenset({Role.OPERATOR})
         )
+        if model_invoker is not None:
+            self.principal = model_invoker.principal
+        self.model_invoker = model_invoker
         self.usage: list[dict[str, int]] = []
         self.resumed = False
         self.round = 0
@@ -134,6 +140,13 @@ class AutonomousServices:
 
     def call_id(self, step_id: str) -> str:
         return f"call-{self.scope}-r{self.round}-{step_id}"
+
+    async def invoke_model(
+        self, purpose: ModelPurpose, context: dict[str, Any], attempt: int
+    ) -> StructuredResult:
+        if self.model_invoker is not None:
+            return await self.model_invoker.invoke(purpose, context, attempt=attempt)
+        return await asyncio.to_thread(self.model.invoke, purpose, context)
 
     async def load_context(
         self, state: DiagnosisGraphState, *, operation_id: str
@@ -171,7 +184,7 @@ class AutonomousServices:
                 for d in self.gateway.diagnosis_catalog()
             ],
         }
-        result = await asyncio.to_thread(self.model.invoke, ModelPurpose.PLAN, context)
+        result = await self.invoke_model(ModelPurpose.PLAN, context, self.round + 1)
         self.compiled = compile_real_plan(
             result,
             self.registry,
@@ -189,7 +202,7 @@ class AutonomousServices:
             for call in self.compiled.calls
         )
         return PlanNodeResult(
-            f"model-{self.scope}-plan-{self.round}",
+            result.call_id or f"model-{self.scope}-plan-{self.round}",
             self.compiled.plan,
             references,
             tuple(call.query_fingerprint for call in self.compiled.calls),
@@ -254,6 +267,7 @@ class AutonomousServices:
             observed_from=self.start,
             provenance_by_id=provenance,
             existing=self.evidence,
+            tenant=self.principal.tenant_id.value,
         )
         if not self.evidence.records:
             raise ValueError("all telemetry quarantined")
@@ -287,8 +301,7 @@ class AutonomousServices:
                 continue
             observations.append(item)
             used += size
-        result = await asyncio.to_thread(
-            self.model.invoke,
+        result = await self.invoke_model(
             ModelPurpose.DIAGNOSE,
             {
                 "incident_id": self.incident,
@@ -296,11 +309,12 @@ class AutonomousServices:
                 "evidence_ids": [item["id"] for item in observations],
                 "observations": observations,
             },
+            self.round + 1,
         )
         self.report = cast(DiagnosisReport, result.output)
         self.usage.append({"input": result.input_tokens, "output": result.output_tokens})
         return HypothesisNodeResult(
-            f"model-{self.scope}-diagnosis-{self.round}",
+            result.call_id or f"model-{self.scope}-diagnosis-{self.round}",
             result.input_tokens + result.output_tokens,
             result.cost_upper_bound_nanousd,
         )
@@ -356,9 +370,14 @@ async def investigate(
     checkpointer: BaseCheckpointSaver[Any] | None = None,
     evidence_store: WorkflowEvidenceStore | None = None,
     max_replans: int = 1,
+    model_invoker: RegisteredModelInvoker | None = None,
 ) -> tuple[DiagnosisGraphState, AutonomousServices]:
     if max_replans not in (0, 1):
         raise ValueError("autonomous investigation permits zero or one replan")
+    if model_invoker is not None and model_invoker.model is not model:
+        raise ValueError("registered model adapter does not match workflow adapter")
+    if model_invoker is not None and model_invoker.incident.value != incident:
+        raise ValueError("registered model incident does not match workflow incident")
     definitions = local_definitions()
     registry = ToolRegistry(definitions)
     gateway = ToolGateway(
@@ -368,16 +387,18 @@ async def investigate(
         audit_id_factory=lambda: f"audit-{uuid4().hex}",
     )
     services = AutonomousServices(
-        model, gateway, registry, incident, alert, root, start, evidence_store
+        model, gateway, registry, incident, alert, root, start, evidence_store, model_invoker
     )
     state = DiagnosisGraphState(
         state_schema_version="1.3.0",
         graph_version="1.0.0",
-        tenant_id="local-evaluation",
+        tenant_id=services.principal.tenant_id.value,
         incident_id=incident,
-        workflow_run_id=f"workflow-{incident}",
-        correlation_id=f"correlation-{incident}",
-        causation_id=f"causation-{incident}",
+        workflow_run_id=model_invoker.workflow.value if model_invoker else f"workflow-{incident}",
+        correlation_id=model_invoker.correlation.value
+        if model_invoker
+        else f"correlation-{incident}",
+        causation_id=model_invoker.causation.value if model_invoker else f"causation-{incident}",
         phase=GraphPhase.CONTEXT_LOADING,
         budgets=GraphBudgetState(
             max_steps=12,
@@ -393,7 +414,9 @@ async def investigate(
             max_cost_nanounits=1000000000,
             used_cost_nanounits=0,
         ),
-        prompt=GraphPromptReference(
+        prompt=await model_invoker.workflow_reference()
+        if model_invoker
+        else GraphPromptReference(
             prompt_id="real-investigation-evaluation",
             version="1.0.0",
             content_fingerprint=fingerprint(INSTRUCTIONS),
@@ -405,7 +428,11 @@ async def investigate(
     graph = build_diagnosis_graph(checkpointer=saver)
     outcome = await DiagnosisWorkflowRunner(graph).run_or_resume(
         state,
-        DiagnosisRuntimeContext(services, FixedPromptReference(), _Progress()),
+        DiagnosisRuntimeContext(
+            services,
+            model_invoker.workflow_authorizer() if model_invoker else FixedPromptReference(),
+            _Progress(),
+        ),
     )
     services.resumed = outcome.resumed
     return outcome.state, services

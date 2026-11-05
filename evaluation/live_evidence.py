@@ -56,10 +56,13 @@ class ExperimentEvidence:
         observed_from: datetime,
         provenance_by_id: dict[str, dict[str, Any]] | None = None,
         existing: ExperimentEvidence | None = None,
+        tenant: str = "local-evaluation",
     ) -> None:
-        self.tenant = TenantId("local-evaluation")
+        self.tenant = TenantId(tenant)
         self.incident = IncidentId(incident)
-        if existing is not None and existing.incident != self.incident:
+        if existing is not None and (
+            existing.incident != self.incident or existing.tenant != self.tenant
+        ):
             raise ValueError("cannot merge evidence across incidents")
         self.records: dict[EvidenceId, Evidence] = dict(existing.records) if existing else {}
         self.storage: LocalArtifactStorage = (

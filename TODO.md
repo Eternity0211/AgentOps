@@ -554,6 +554,12 @@ This index is an omission check, not a second task list. The referenced phases c
   denominators and separate recovery/operator tracks. JSON and sample arithmetic verified.
   Dataset capture, protocol validator, scoring and provider runs remain open under C5/C6.
 
+- [x] C5b: strict evaluator-only paired-result and exact-count scorer.
+  Requires 27 unique labels across frozen strata and all 81 mode outcomes; rejects missing,
+  duplicate, unknown, protocol-hash or paired-input mismatches. Failures score zero without
+  changing denominators. Six scoring/negative tests and Ruff/mypy pass. Artifact ingestion,
+  confidence intervals, resource distributions and captures remain open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

@@ -611,6 +611,11 @@ This index is an omission check, not a second task list. The referenced phases c
   modes remain explicitly marked. Forty-seven related tests pass; real SQL history source
   and nonempty memory-provider comparison remain open.
 
+- [x] C5h: audit capture records and source availability before evaluation.
+  Reject duplicate identities and unverified baseline/cleanup; retain failed captures, verify
+  snapshot hashes/catalogs and expose per-source failures. Complete mode requires all 21
+  expected real instances. Three negative tests and Ruff/mypy pass.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

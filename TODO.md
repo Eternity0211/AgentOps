@@ -671,6 +671,12 @@ This index is an omission check, not a second task list. The referenced phases c
   status. Scorer cannot treat its 81-result matrix as completion of real-memory protocol.
   Related scoring/ledger/provider/memory tests pass; simulated bank and runs remain open.
 
+- [x] C6i: freeze explicit simulated history bank and label-free deterministic retrieval.
+  Six fictional examples, eight-term normalized vectors, max three references, fixture origin
+  in every context and stored selected-context hashes. Three source/provider tests pass plus
+  Ruff/mypy. Supplemental exploration is not a real closed-Incident or untouched held-out
+  memory benchmark. Twenty-seven provider runs remain pending.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

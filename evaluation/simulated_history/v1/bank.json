@@ -1,0 +1,49 @@
+{
+  "closed_at": "2026-10-01T00:00:00+00:00",
+  "origin": "SIMULATED_FIXTURE",
+  "records": [
+    {
+      "incident_id": "simulated-history-001",
+      "outcome": "SIMULATED_REFERENCE",
+      "outcome_summary": "Illustrative history only; no actual approval or recovery is asserted.",
+      "root_cause_summary": "Simulated example: Checkout returned HTTP 500 after a service deployment regression.",
+      "service": "order"
+    },
+    {
+      "incident_id": "simulated-history-002",
+      "outcome": "SIMULATED_REFERENCE",
+      "outcome_summary": "Illustrative history only; no actual approval or recovery is asserted.",
+      "root_cause_summary": "Simulated example: Checkout failed while database connection acquisition waited on an exhausted pool.",
+      "service": "order"
+    },
+    {
+      "incident_id": "simulated-history-003",
+      "outcome": "SIMULATED_REFERENCE",
+      "outcome_summary": "Illustrative history only; no actual approval or recovery is asserted.",
+      "root_cause_summary": "Simulated example: Checkout failed when Redis operations timed out.",
+      "service": "inventory"
+    },
+    {
+      "incident_id": "simulated-history-004",
+      "outcome": "SIMULATED_REFERENCE",
+      "outcome_summary": "Illustrative history only; no actual approval or recovery is asserted.",
+      "root_cause_summary": "Simulated example: Checkout latency increased because downstream payment requests were slow.",
+      "service": "payment"
+    },
+    {
+      "incident_id": "simulated-history-005",
+      "outcome": "SIMULATED_REFERENCE",
+      "outcome_summary": "Illustrative history only; no actual approval or recovery is asserted.",
+      "root_cause_summary": "Simulated example: Checkout degraded while process memory increased over time.",
+      "service": "order"
+    },
+    {
+      "incident_id": "simulated-history-006",
+      "outcome": "SIMULATED_REFERENCE",
+      "outcome_summary": "Illustrative history only; no actual approval or recovery is asserted.",
+      "root_cause_summary": "Simulated example: Checkout failed with an invalid payment configuration despite a live process.",
+      "service": "payment"
+    }
+  ],
+  "schema_version": "1.0.0"
+}

@@ -126,6 +126,8 @@ def run_snapshot(
             if memory_source.origin != expected_origin:
                 raise ValueError("memory source origin does not match mode")
             model.history = asyncio.run(memory_source.for_incident(identity))
+            with (run_root / "memory-context.json").open("x", encoding="utf-8") as stream:
+                json.dump(model.history, stream, sort_keys=True)
             (run_root / "mode.json").write_text(
                 json.dumps(
                     {
@@ -133,6 +135,7 @@ def run_snapshot(
                         "historical_reference_count": len(model.history),
                         "memory_status": "AUTHORIZED_RETRIEVAL",
                         "history_origin": memory_source.origin,
+                        "history_context_hash": fingerprint(model.history),
                         "quality_comparison_eligible": memory_source.origin == "CONFIRMED_DATABASE",
                     }
                 ),

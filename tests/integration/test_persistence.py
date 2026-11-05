@@ -8206,6 +8206,9 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
     from evaluation.structured_model import StructuredEvaluationModel
     from httpx import MockTransport, Response
 
+    from agentops_incident_commander.infrastructure.persistence.diagnosis_progress import (
+        PostgresDiagnosisProgressRecorder,
+    )
     from agentops_incident_commander.infrastructure.persistence.runtime_ports import (
         PostgresWorkflowEvidenceStore,
     )
@@ -8305,6 +8308,7 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
             lambda e: None,
             adapters=adapters,
             evidence_store=store,
+            progress_recorder=PostgresDiagnosisProgressRecorder(sessions),
             max_replans=0,
         )
 
@@ -8323,6 +8327,15 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
             )
         assert calls == ["PLAN", "DIAGNOSE"]
         assert services.gates[0].outcome is EvidenceGateOutcome.PASS
+        async with sessions() as session:
+            row = await session.get(DiagnosisProgressRow, state.workflow_run_id)
+            assert row is not None
+            progress = diagnosis_progress_from_row(row)
+        assert progress.phase == state.phase
+        assert progress.checkpoint_sequence == state.checkpoint_sequence
+        assert progress.budgets == state.budgets
+        assert len(progress.plans) == 1
+        assert all(step.status is ToolProgressStatus.SUCCEEDED for step in progress.plans[0].steps)
 
 
 @pytest.mark.anyio

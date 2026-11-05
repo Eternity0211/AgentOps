@@ -465,6 +465,11 @@ This index is an omission check, not a second task list. The referenced phases c
   tests also pass, including report-write failure. Ruff/mypy/architecture/Compose/supply-chain
   and planning checks pass. C3 remains open for job composition and mid-run reconstruction.
 - [ ] C4: gate-bound real remediation, deterministic policy and actual pending approval records.
+- [x] C3e: inject PostgreSQL progress recorder into autonomous evaluation.
+  Acceptance/tests: existing graph boundaries call the supplied recorder; actual PostgreSQL
+  integration reads terminal phase, sequence, budgets and successful tool states from a fresh
+  session; Evidence write refusal remains fail-closed. Both integration cases pass; no claim
+  of mid-run effect reconstruction or complete worker composition.
 - [ ] C5: frozen holdout/counter-evidence/normal/insufficient-evidence datasets and predeclared scoring.
 - [ ] C6: complete automatic regression, load/resilience/failure distributions and consolidated results.
 - [ ] C7: simulated-operator protocol and evaluation, explicitly separate from real human labor/approval.

@@ -45,6 +45,7 @@ from agentops_incident_commander.infrastructure.diagnosis_runtime import Diagnos
 from agentops_incident_commander.workflows import (
     ContextLoadResult,
     DiagnosisGraphState,
+    DiagnosisProgressRecorder,
     DiagnosisReport,
     DiagnosisRuntimeContext,
     EvidencePersistenceResult,
@@ -371,6 +372,7 @@ async def investigate(
     evidence_store: WorkflowEvidenceStore | None = None,
     max_replans: int = 1,
     model_invoker: RegisteredModelInvoker | None = None,
+    progress_recorder: DiagnosisProgressRecorder | None = None,
 ) -> tuple[DiagnosisGraphState, AutonomousServices]:
     if max_replans not in (0, 1):
         raise ValueError("autonomous investigation permits zero or one replan")
@@ -431,7 +433,7 @@ async def investigate(
         DiagnosisRuntimeContext(
             services,
             model_invoker.workflow_authorizer() if model_invoker else FixedPromptReference(),
-            _Progress(),
+            progress_recorder if progress_recorder is not None else _Progress(),
         ),
     )
     services.resumed = outcome.resumed

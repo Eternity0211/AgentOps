@@ -137,3 +137,9 @@ Phase 12's closed workflow gate selects the compiled pass, bounded-replan, typed
 explicit/budget-exhausted handoff, pause-to-cancel, and every pre-effect cancellation route. The
 gate runs the real parameterized node tests rather than a second simulated router, so a renamed,
 removed, or newly unreviewed path makes the allowlisted command fail collection.
+
+The autonomous real-model evaluation entry point accepts an explicit
+`DiagnosisProgressRecorder`, including the existing PostgreSQL implementation. Its projection
+is committed at the graph's existing plan/tool/state boundaries; recorder errors propagate.
+The default offline evaluator retains its in-memory/no-op progress behavior. This projection
+is observational and does not reconstruct provider effects or authorize recovery.

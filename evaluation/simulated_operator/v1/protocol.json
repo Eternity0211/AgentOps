@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "simulated-operator-review-v1",
+  "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+  "tasks": [
+    "Load persisted diagnosis report and validate workflow/model-call binding",
+    "Resolve each supporting/counter Evidence through tenant/Incident scoped store and validate Artifact integrity/expiry",
+    "Re-evaluate evidence sufficiency with deterministic Gate",
+    "For a proposal, inspect exact proposal/Policy review snapshot and observe pending Approval without deciding it"
+  ],
+  "success_rule": "Every required task has observed success; missing records, mismatched fingerprints, unavailable stores, expired Evidence and unresolved citations fail rather than being inferred",
+  "metrics": [
+    "task successes/required tasks",
+    "unresolved citations/declared citations",
+    "invalid bindings/checked bindings",
+    "observed evaluator wall-clock ms"
+  ],
+  "timing_scope": "Local scripted backend review only, not human comprehension, UI usability, active labor or incident MTTR",
+  "forbidden_actions": [
+    "approve",
+    "execute recovery",
+    "close Incident",
+    "declare recovered",
+    "edit model output or evidence"
+  ],
+  "semantic_quality": "Use the separately isolated diagnosis scoring track; deterministic resolvability does not prove semantic root-cause correctness",
+  "publication_rule": "Always label simulated; no conversion to human time saved or human approval success; report raw denominators and failures"
+}

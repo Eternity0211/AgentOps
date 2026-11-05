@@ -616,6 +616,11 @@ This index is an omission check, not a second task list. The referenced phases c
   snapshot hashes/catalogs and expose per-source failures. Complete mode requires all 21
   expected real instances. Three negative tests and Ruff/mypy pass.
 
+- [x] C7a: freeze deterministic simulated-operator review protocol.
+  Four read-only review tasks, explicit denominators/failure handling and backend-only
+  timings; no approve/execute/close authority and no human labor/MTTR conversion. JSON and
+  task/forbidden-action checks pass. Reviewer implementation and measured runs remain open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

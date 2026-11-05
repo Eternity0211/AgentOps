@@ -35,3 +35,9 @@ loaded by model adapters. Six derived insufficient/counter-evidence controls rem
 instance/mode writes; aggregate export remains create-only. Snapshot loading verifies bounded
 bytes, hash, closed fields, aware windows and the exact local read catalog before replay.
 These files carry no evaluator labels. Failed capture/source records remain visible.
+
+Single-agent comparison uses `investigate(single_pass=True)`: one compiled PLAN, bounded
+read batches, Evidence normalization, one DIAGNOSE and deterministic Gate, without a
+LangGraph or replan. The graph mode may use its single bounded replan. Both share catalogs,
+model and aggregate ceilings; actual usage is reported. Single-pass does not provide durable
+production runtime/checkpoint composition and cannot accept a registered invoker.

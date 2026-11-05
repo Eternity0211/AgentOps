@@ -236,10 +236,10 @@ class AutonomousServices:
             tool_name=selected.tool_name,
             tool_version=selected.tool_version,
             incident_id=IncidentId(self.incident),
-            workflow_run_id=WorkflowRunId(f"workflow-{self.incident}"),
+            workflow_run_id=WorkflowRunId(state.workflow_run_id),
             principal=self.principal,
-            correlation_id=CorrelationId(f"correlation-{self.incident}"),
-            causation_id=CausationId(f"causation-{self.incident}"),
+            correlation_id=CorrelationId(state.correlation_id),
+            causation_id=CausationId(state.causation_id),
             arguments_json=selected.arguments_json,
         )
         result = await self.gateway.invoke_diagnosis(request)
@@ -415,6 +415,7 @@ async def investigate(
     max_replans: int = 1,
     model_invoker: RegisteredModelInvoker | None = None,
     progress_recorder: DiagnosisProgressRecorder | None = None,
+    single_pass: bool = False,
 ) -> tuple[DiagnosisGraphState, AutonomousServices]:
     if max_replans not in (0, 1):
         raise ValueError("autonomous investigation permits zero or one replan")
@@ -468,6 +469,43 @@ async def investigate(
         checkpoint_sequence=0,
         updated_at=datetime.now(UTC),
     )
+    if single_pass:
+        if checkpointer is not None or model_invoker is not None:
+            raise ValueError("single-pass comparison does not support durable runtime composition")
+        await services.load_context(state, operation_id="single-context")
+        plan = await services.plan(state, operation_id="single-plan")
+        state = state.model_copy(update={"tool_call_ids": plan.tool_call_ids})
+        for batch in await services.load_tool_batches(state, operation_id="single-batches"):
+            await asyncio.gather(
+                *(
+                    services.execute_read_tool(state, call, operation_id="single-read")
+                    for call in batch
+                )
+            )
+        evidence = await services.persist_evidence(state, operation_id="single-evidence")
+        state = state.model_copy(update={"evidence_ids": evidence.evidence_ids})
+        hypothesis = await services.hypothesize(state, operation_id="single-hypothesis")
+        gate = await services.evaluate_evidence_gate(state, operation_id="single-gate")
+        budgets = state.budgets.model_copy(
+            update={
+                "used_model_calls": 2,
+                "used_tool_calls": len(plan.tool_call_ids),
+                "used_steps": plan.used_steps,
+                "used_tokens": plan.model_tokens + hypothesis.model_tokens,
+                "used_cost_nanounits": plan.cost_nanounits + hypothesis.cost_nanounits,
+            }
+        )
+        state = state.model_copy(
+            update={
+                "budgets": GraphBudgetState.model_validate(budgets.model_dump()),
+                "model_call_ids": (plan.model_call_id, hypothesis.model_call_id),
+                "tool_query_fingerprints": plan.query_fingerprints,
+                "phase": GraphPhase.COMPLETE
+                if gate.route is GateRoute.PASS
+                else GraphPhase.HUMAN_HANDOFF,
+            }
+        )
+        return state, services
     saver = checkpointer or InMemorySaver(serde=diagnosis_checkpoint_serializer())
     graph = build_diagnosis_graph(checkpointer=saver)
     outcome = await DiagnosisWorkflowRunner(graph).run_or_resume(

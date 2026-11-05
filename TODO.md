@@ -592,6 +592,12 @@ This index is an omission check, not a second task list. The referenced phases c
   immutable parents, unchanged counter observations and no label fields in model snapshots.
   Controls still need generation from completed real normal captures.
 
+- [x] C6a: independent single-pass orchestration over shared compiler/Gateway/Evidence/Gate.
+  Single-pass uses one PLAN, bounded read batches and one DIAGNOSE without LangGraph/replan;
+  both modes share deterministic safety components. Twelve autonomous tests pass plus
+  Ruff/mypy. Also bind Gateway workflow/correlation/causation to actual graph identities.
+  Full snapshot-mode runner and provider comparison remain open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

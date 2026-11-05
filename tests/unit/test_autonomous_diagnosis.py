@@ -68,8 +68,10 @@ def diagnosis() -> dict[str, Any]:
     }
 
 
-@pytest.mark.parametrize("replan", [False, True])
-def test_autonomous_plan_gateway_evidence_and_gate(tmp_path: Path, replan: bool) -> None:
+@pytest.mark.parametrize("replan,single_pass", [(False, False), (True, False), (False, True)])
+def test_autonomous_plan_gateway_evidence_and_gate(
+    tmp_path: Path, replan: bool, single_pass: bool
+) -> None:
     events: list[dict[str, Any]] = []
     dispatched = []
 
@@ -162,7 +164,8 @@ def test_autonomous_plan_gateway_evidence_and_gate(tmp_path: Path, replan: bool)
             now,
             events.append,
             adapters=adapters,
-            checkpointer=saver,
+            checkpointer=None if single_pass else saver,
+            single_pass=single_pass,
         )
     )
     assert state.phase.value == "COMPLETE"
@@ -173,6 +176,8 @@ def test_autonomous_plan_gateway_evidence_and_gate(tmp_path: Path, replan: bool)
     assert services.gates[0].outcome.value == "PASS"
     assert len([event for event in events if event.get("kind") == "tool-audit"]) >= 4
     assert services.evidence is not None
+    if single_pass:
+        return
     calls_before_replay = len(dispatched)
     journal_before_replay = len(events)
     replay_state, replay_services = asyncio.run(

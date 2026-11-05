@@ -16,3 +16,10 @@ scoring. It requires all 81 outcomes with equal per-instance initial-input hashe
 expected protocol hash; failures remain in denominators. It does not yet load immutable run
 artifacts or produce confidence intervals/resource distributions. No experiment result is
 created by its synthetic unit tests.
+
+The scorer now includes nominal Wilson 95% binomial intervals and observed resource
+distributions with missing-value counts, raw sorted values, median and nearest-rank P95.
+Actual billed cost remains unknown. Repeated local scenarios may be dependent; intervals
+are descriptive under a binomial assumption, not production reliability evidence. Bounded
+file ingestion verifies externally supplied raw SHA-256 hashes before scoring and validates
+outputs before loading labels. Hashes bind bytes; they do not authenticate who produced them.

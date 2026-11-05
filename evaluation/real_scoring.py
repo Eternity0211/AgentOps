@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import math
+import statistics
 from collections import Counter
 from pathlib import Path
 from typing import Annotated, Literal
@@ -45,6 +47,10 @@ class Outcome(StrictRecord):
     gate_pass: bool = False
     proposal_created: bool = False
     counter_evidence_addressed: bool = False
+    duration_ms: int | None = Field(default=None, ge=0)
+    input_tokens: int | None = Field(default=None, ge=0)
+    output_tokens: int | None = Field(default=None, ge=0)
+    cost_upper_bound_nanousd: int | None = Field(default=None, ge=0)
 
 
 def protocol_hash(path: Path) -> str:
@@ -112,4 +118,81 @@ def score(
         "labels_hash": fingerprint([x.model_dump(mode="json") for x in labels]),
         "outputs_hash": fingerprint([x.model_dump(mode="json") for x in outcomes]),
         "modes": totals,
+        "intervals": {
+            mode: {
+                "top1": wilson(counts["top1"], 18),
+                "top3": wilson(counts["top3"], 18),
+                "safe_controls": wilson(counts["safe_controls"], 9),
+            }
+            for mode, counts in totals.items()
+        },
+        "resources": {
+            mode: {
+                "success_duration_ms": distribution(
+                    [r.duration_ms for r in outcomes if r.mode == mode and r.status == "SUCCEEDED"]
+                ),
+                "failure_duration_ms": distribution(
+                    [r.duration_ms for r in outcomes if r.mode == mode and r.status == "FAILED"]
+                ),
+                "input_tokens": distribution([r.input_tokens for r in outcomes if r.mode == mode]),
+                "output_tokens": distribution(
+                    [r.output_tokens for r in outcomes if r.mode == mode]
+                ),
+                "cost_upper_bound_nanousd": distribution(
+                    [r.cost_upper_bound_nanousd for r in outcomes if r.mode == mode]
+                ),
+                "actual_billed_cost": None,
+            }
+            for mode in MODES
+        },
     }
+
+
+def wilson(successes: int, count: int) -> tuple[float, float]:
+    if not 0 <= successes <= count or count <= 0:
+        raise ValueError("invalid binomial counts")
+    z = 1.959963984540054
+    p = successes / count
+    denominator = 1 + z * z / count
+    center = (p + z * z / (2 * count)) / denominator
+    half = z * math.sqrt(p * (1 - p) / count + z * z / (4 * count * count)) / denominator
+    return max(0.0, center - half), min(1.0, center + half)
+
+
+def distribution(values: list[int | None]) -> dict[str, object]:
+    known = sorted(value for value in values if value is not None)
+    return {
+        "known": len(known),
+        "missing": len(values) - len(known),
+        "raw": known,
+        "median": statistics.median(known) if known else None,
+        "p95_nearest_rank": known[math.ceil(0.95 * len(known)) - 1] if known else None,
+    }
+
+
+def score_files(
+    labels_path: Path,
+    outcomes_path: Path,
+    protocol_path: Path,
+    *,
+    labels_sha256: str,
+    outcomes_sha256: str,
+) -> dict[str, object]:
+    from pydantic import TypeAdapter
+
+    def read_verified(path: Path, expected: str) -> bytes:
+        with path.open("rb") as stream:
+            data = stream.read(4_194_305)
+        if len(data) > 4_194_304 or hashlib.sha256(data).hexdigest() != expected:
+            raise ValueError("artifact size/hash mismatch")
+        return data
+
+    # Validate all immutable outputs before reading evaluator-only labels.
+    raw_outputs = read_verified(outcomes_path, outcomes_sha256)
+    outcomes = TypeAdapter(tuple[Outcome, ...]).validate_json(raw_outputs)
+    raw_labels = read_verified(labels_path, labels_sha256)
+    labels = TypeAdapter(tuple[Label, ...]).validate_json(raw_labels)
+    result = score(labels, outcomes, expected_protocol_hash=protocol_hash(protocol_path))
+    result["raw_outputs_sha256"] = outcomes_sha256
+    result["raw_labels_sha256"] = labels_sha256
+    return result

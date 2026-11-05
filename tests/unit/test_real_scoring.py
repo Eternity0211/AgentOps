@@ -58,3 +58,49 @@ def test_scoring_rejects_incomplete_or_unfair_results(mode: str) -> None:
         labels = labels[:-1]
     with pytest.raises(ValueError):
         score(labels, rows, expected_protocol_hash="a" * 64)
+
+
+def test_wilson_and_missing_resource_values() -> None:
+    from evaluation.real_scoring import distribution, wilson
+
+    assert wilson(0, 18)[0] == 0
+    assert wilson(18, 18)[1] == 1
+    lower, upper = wilson(9, 18)
+    assert lower == pytest.approx(1 - upper)
+    assert distribution([None, 0, 10, 20]) == {
+        "known": 3,
+        "missing": 1,
+        "raw": [0, 10, 20],
+        "median": 10,
+        "p95_nearest_rank": 20,
+    }
+    assert distribution([None])["median"] is None
+    with pytest.raises(ValueError):
+        wilson(1, 0)
+
+
+def test_score_files_verifies_original_bytes(tmp_path: Any) -> None:
+    import hashlib
+    import json
+
+    from evaluation.real_scoring import score_files
+
+    labels, rows = fixture()
+    protocol = tmp_path / "protocol.json"
+    protocol.write_bytes(b"{}")
+    digest = hashlib.sha256(b"{}").hexdigest()
+    rows = tuple(row.model_copy(update={"protocol_hash": digest}) for row in rows)
+    label_path, output_path = tmp_path / "labels.json", tmp_path / "outputs.json"
+    label_path.write_text(json.dumps([x.model_dump(mode="json") for x in labels]), encoding="utf-8")
+    output_path.write_text(json.dumps([x.model_dump(mode="json") for x in rows]), encoding="utf-8")
+    label_hash = hashlib.sha256(label_path.read_bytes()).hexdigest()
+    output_hash = hashlib.sha256(output_path.read_bytes()).hexdigest()
+    result = score_files(
+        label_path, output_path, protocol, labels_sha256=label_hash, outcomes_sha256=output_hash
+    )
+    assert result["raw_outputs_sha256"] == output_hash
+    output_path.write_bytes(output_path.read_bytes() + b" ")
+    with pytest.raises(ValueError, match="hash mismatch"):
+        score_files(
+            label_path, output_path, protocol, labels_sha256=label_hash, outcomes_sha256=output_hash
+        )

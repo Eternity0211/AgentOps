@@ -560,6 +560,12 @@ This index is an omission check, not a second task list. The referenced phases c
   changing denominators. Six scoring/negative tests and Ruff/mypy pass. Artifact ingestion,
   confidence intervals, resource distributions and captures remain open.
 
+- [x] C5c: hashed artifact ingestion, nominal Wilson intervals and resource distributions.
+  Bounded reads verify original label/output bytes; outputs validate before labels load.
+  Reports separate success/failure latency, raw distributions, nearest-rank P95 and unknown
+  token/cost values. Eight scorer tests pass; local repeated samples imply no production claim.
+  Dataset capture, durable result writer and real provider runs remain open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

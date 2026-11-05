@@ -30,3 +30,8 @@ as evaluator-owned read collectors. Snapshots have fixed source windows and quer
 model-selected replay still goes through the Tool Gateway. Redaction/quarantine precedes
 export. The evaluator manifest contains labels and cleanup observations and must never be
 loaded by model adapters. Six derived insufficient/counter-evidence controls remain pending.
+
+`OutcomeLedger` writes/fsyncs each typed result independently and refuses repeated
+instance/mode writes; aggregate export remains create-only. Snapshot loading verifies bounded
+bytes, hash, closed fields, aware windows and the exact local read catalog before replay.
+These files carry no evaluator labels. Failed capture/source records remain visible.

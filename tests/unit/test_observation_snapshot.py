@@ -70,3 +70,28 @@ def test_fault_capture_cleans_up_after_source_failure(
     assert cleaned == [True]
     record = json.loads((output / "evaluator-manifest.jsonl").read_text(encoding="utf-8"))
     assert record["status"] == "FAILED" and record["after_cleanup_status"] == 200
+
+
+def test_snapshot_loader_checks_hash_catalog_and_extra_labels(tmp_path: Path) -> None:
+    import hashlib
+    import json
+
+    from evaluation.live_gateway import SERVICES, local_definitions
+    from evaluation.observation_snapshot import load_snapshot
+
+    reads = {
+        f"{d.name}:{service}": {"status": "FAILED", "error_code": "CAPTURE_FAILED"}
+        for d in local_definitions()
+        for service in SERVICES
+    }
+    path = tmp_path / "snapshot.json"
+    now = datetime.now(UTC)
+    digest = write_snapshot(path, "instance-0000000000000001", now, now, reads, "observations")
+    assert load_snapshot(path, expected_hash=digest)["reads"] == reads
+    with pytest.raises(ValueError, match="hash/size"):
+        load_snapshot(path, expected_hash="0" * 64)
+    body = json.loads(path.read_bytes())
+    body["ground_truth"] = "label"
+    path.write_text(json.dumps(body), encoding="utf-8")
+    with pytest.raises(ValueError, match="schema"):
+        load_snapshot(path, expected_hash=hashlib.sha256(path.read_bytes()).hexdigest())

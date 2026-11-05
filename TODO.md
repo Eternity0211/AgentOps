@@ -579,6 +579,12 @@ This index is an omission check, not a second task list. The referenced phases c
   not diagnosis quality. Added baseline/protocol-hash manifest bindings; three tests/mypy pass.
   Full 21-instance capture and derived controls remain open.
 
+- [x] C5f: create-only outcome ledger and verified snapshot loader.
+  Each outcome commits/fsyncs independently under a hashed instance/mode identity; duplicate
+  writes refuse, collection checks protocol and file identity. Snapshot loads verify bounded
+  bytes/hash, closed fields, opaque ID, aware window and full read catalog; extra label fields
+  refuse. Five related tests plus Ruff/mypy pass. Full capture is running independently.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

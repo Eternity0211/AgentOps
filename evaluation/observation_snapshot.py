@@ -85,3 +85,37 @@ def sanitize_output(output: dict[str, Any]) -> dict[str, Any]:
     if inspection.status is PromptInjectionStatus.SUSPECTED:
         raise ValueError("capture prompt injection quarantined")
     return result
+
+
+def load_snapshot(path: Path, *, expected_hash: str) -> dict[str, Any]:
+    import hashlib
+    import re
+
+    with path.open("rb") as stream:
+        raw = stream.read(4_194_305)
+    if len(raw) > 4_194_304 or hashlib.sha256(raw).hexdigest() != expected_hash:
+        raise ValueError("snapshot hash/size mismatch")
+    snapshot = json.loads(raw)
+    expected_fields = {
+        "schema_version",
+        "instance_id",
+        "window_start",
+        "window_end",
+        "alert",
+        "reads",
+    }
+    if not isinstance(snapshot, dict) or set(snapshot) != expected_fields:
+        raise ValueError("snapshot schema mismatch")
+    if snapshot["schema_version"] != "1.0.0" or not re.fullmatch(
+        r"instance-[0-9a-f]{16}", snapshot["instance_id"]
+    ):
+        raise ValueError("snapshot identity/version mismatch")
+    start, end = (datetime.fromisoformat(snapshot[key]) for key in ("window_start", "window_end"))
+    if start.utcoffset() is None or end.utcoffset() is None or start > end:
+        raise ValueError("snapshot window mismatch")
+    if not isinstance(snapshot["alert"], str) or len(snapshot["alert"]) > 16000:
+        raise ValueError("snapshot alert invalid")
+    keys = {f"{d.name}:{service}" for d in local_definitions() for service in SERVICES}
+    if not isinstance(snapshot["reads"], dict) or set(snapshot["reads"]) != keys:
+        raise ValueError("snapshot read catalog mismatch")
+    return dict(snapshot)

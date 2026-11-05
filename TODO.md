@@ -621,6 +621,13 @@ This index is an omission check, not a second task list. The referenced phases c
   timings; no approve/execute/close authority and no human labor/MTTR conversion. JSON and
   task/forbidden-action checks pass. Reviewer implementation and measured runs remain open.
 
+- [x] C7b: read-only scripted diagnosis and pending-approval review implementation.
+  Verify report/trace hashes and identities, resolve scoped Evidence/Artifacts, re-evaluate
+  Gate, inspect pending approval/review binding and expiry. Distinguish task completion from
+  Gate outcome; no approval or execution capability. Six PostgreSQL combined cases and two
+  missing/wrong-workflow negatives pass; Ruff/mypy pass. Published measured review artifacts
+  on real provider outputs and complete simulated-operator report remain open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

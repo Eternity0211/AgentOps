@@ -3522,6 +3522,17 @@ async def test_remediation_admission_requires_exact_stored_passing_gate_decision
             causation_id=invoker.causation,
         )
     assert pending is not None and pending.status is ApprovalStatus.PENDING
+    from evaluation.simulated_review import review_pending_approval
+
+    async with sessions() as session:
+        simulated = await review_pending_approval(
+            ApprovalLifecycleRepository(session),
+            pending.id,
+            principal=invoker.principal,
+            incident=claim.incident_id,
+            at=NOW + timedelta(minutes=5),
+        )
+    assert simulated["task_successes"] == 1 and simulated["approval_decided"] is False
     async with sessions() as session:
         review = await ApprovalLifecycleRepository(session).get_review_snapshot(
             pending.id, tenant_id=TenantId("tenant-1")
@@ -8614,6 +8625,24 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
             progress_row is not None
             and diagnosis_progress_from_row(progress_row).phase.value == "COMPLETE"
         )
+        from evaluation.simulated_review import review_diagnosis
+
+        from agentops_incident_commander.infrastructure.artifacts import LocalArtifactStorage
+
+        review_result = await review_diagnosis(
+            PostgresWorkflowDiagnosisReportStore(sessions),
+            PostgresWorkflowModelTraceStore(sessions),
+            store,
+            LocalArtifactStorage(tmp_path),
+            principal=invoker.principal,
+            incident=IncidentId(incident),
+            workflow_id=combined_workflow,
+        )
+        assert review_result["task_successes"] == review_result["required_tasks"] == 3
+        assert (
+            review_result["declared_citations"] == 2 and review_result["unresolved_citations"] == 0
+        )
+        assert review_result["approval_decided"] is False
         assert calls == ["PLAN", "DIAGNOSE"]
         return
 

@@ -573,6 +573,12 @@ This index is an omission check, not a second task list. The referenced phases c
   replay, sanitation/quarantine and cleanup on failure; Ruff/mypy pass. Live smoke/capture and
   six explicitly derived control instances remain open; no 27-instance dataset claim yet.
 
+- [x] C5e-smoke: execute real fixed-window capture smoke and retain failures.
+  First run fails baseline and remains recorded; second captures 20 tool/service combinations,
+  19 successful and one trace-source failure, then checkout 200. This is capture validation,
+  not diagnosis quality. Added baseline/protocol-hash manifest bindings; three tests/mypy pass.
+  Full 21-instance capture and derived controls remain open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

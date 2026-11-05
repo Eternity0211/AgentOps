@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import os
 import subprocess
@@ -44,10 +45,15 @@ def capture(output: Path, *, smoke: bool = False) -> None:
                 "stratum": scenario or "normal",
                 "revision": revision,
                 "product_recovery_credit": False,
+                "protocol_sha256": hashlib.sha256(
+                    (ROOT / "evaluation/real_protocol/v1/plan.json").read_bytes()
+                ).hexdigest(),
             }
             active = False
             try:
-                if checkout(client, sku=sku)["status"] != 200:
+                baseline = checkout(client, sku=sku)
+                record["baseline"] = baseline
+                if baseline["status"] != 200:
                     raise RuntimeError("capture baseline unavailable")
                 if scenario is not None:
                     active = True

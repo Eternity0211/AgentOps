@@ -7,7 +7,7 @@ import json
 import os
 from pathlib import Path
 
-from evaluation.real_scoring import MODES, Outcome
+from evaluation.real_scoring import RUN_MODES, Outcome
 
 
 class OutcomeLedger:
@@ -16,7 +16,7 @@ class OutcomeLedger:
         root.mkdir(parents=True, exist_ok=True)
 
     def append(self, outcome: Outcome) -> str:
-        if outcome.mode not in MODES:
+        if outcome.mode not in RUN_MODES:
             raise ValueError("unknown evaluation mode")
         identity = hashlib.sha256(f"{outcome.instance_id}:{outcome.mode}".encode()).hexdigest()
         encoded = outcome.model_dump_json().encode()

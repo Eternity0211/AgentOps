@@ -665,6 +665,12 @@ This index is an omission check, not a second task list. The referenced phases c
   pass; added report-file binding assertion passes. Initial real batch stopped after 27
   committed outcomes; one uncertain result will be FAILED without repeating its model call.
 
+- [x] C6h: isolate simulated history mode from real confirmed-history comparison.
+  User reports no real history and requests separate unmeasured/simulation reporting. Add
+  controlled-graph-simulated-memory with explicit fixture origin and ineligible real-history
+  status. Scorer cannot treat its 81-result matrix as completion of real-memory protocol.
+  Related scoring/ledger/provider/memory tests pass; simulated bank and runs remain open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

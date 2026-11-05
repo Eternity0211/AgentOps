@@ -19,7 +19,7 @@ from evaluation.historical_context import MemoryReplaySource
 from evaluation.live_gateway import local_definitions
 from evaluation.observation_snapshot import SnapshotReadAdapter, load_snapshot, sanitize_output
 from evaluation.outcome_ledger import OutcomeLedger
-from evaluation.real_scoring import CAUSES, MODES, Outcome
+from evaluation.real_scoring import CAUSES, RUN_MODES, SIMULATED_MEMORY_MODE, Outcome
 from evaluation.structured_model import (
     ModelPurpose,
     StructuredEvaluationModel,
@@ -64,7 +64,7 @@ def run_snapshot(
     transport: Any = None,
     memory_source: MemoryReplaySource | None = None,
 ) -> Outcome:
-    if mode not in MODES:
+    if mode not in RUN_MODES:
         raise ValueError("unknown comparison mode")
     snapshot = load_snapshot(path, expected_hash=expected_hash)
     identity = snapshot["instance_id"]
@@ -76,7 +76,8 @@ def run_snapshot(
                 "mode": mode,
                 "historical_reference_count": 0,
                 "memory_status": "NO_HISTORY_SUPPLIED",
-                "quality_comparison_eligible": mode != "controlled-graph-memory",
+                "quality_comparison_eligible": mode
+                not in ("controlled-graph-memory", SIMULATED_MEMORY_MODE),
             }
         ),
         encoding="utf-8",
@@ -117,8 +118,13 @@ def run_snapshot(
     values: dict[str, Any] = {}
     try:
         if memory_source is not None:
-            if mode != "controlled-graph-memory":
+            if mode not in ("controlled-graph-memory", SIMULATED_MEMORY_MODE):
                 raise ValueError("history is exclusive to memory comparison")
+            expected_origin = (
+                "SIMULATED_FIXTURE" if mode == SIMULATED_MEMORY_MODE else "CONFIRMED_DATABASE"
+            )
+            if memory_source.origin != expected_origin:
+                raise ValueError("memory source origin does not match mode")
             model.history = asyncio.run(memory_source.for_incident(identity))
             (run_root / "mode.json").write_text(
                 json.dumps(
@@ -126,7 +132,8 @@ def run_snapshot(
                         "mode": mode,
                         "historical_reference_count": len(model.history),
                         "memory_status": "AUTHORIZED_RETRIEVAL",
-                        "quality_comparison_eligible": True,
+                        "history_origin": memory_source.origin,
+                        "quality_comparison_eligible": memory_source.origin == "CONFIRMED_DATABASE",
                     }
                 ),
                 encoding="utf-8",

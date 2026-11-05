@@ -70,3 +70,8 @@ completed diagnosis); it must be reported as a development case, not an unseen h
 The scorer can publish complete per-mode subsets with explicit `evaluated_modes`. Such a
 report sets `comparison_complete=false` and lists missing modes. Default scoring still
 requires all 81 records; partial reports do not establish completion of the frozen protocol.
+
+At user direction, absent real history is reported unmeasured and simulated-history tests
+are separate. The distinct `controlled-graph-simulated-memory` mode requires fixture origin,
+never counts as the real confirmed-history mode, and leaves the frozen protocol explicitly
+incomplete even when a supplementary three-mode simulation report contains 81 outcomes.

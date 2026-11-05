@@ -139,3 +139,25 @@ def test_all_valid_report_dispositions_can_be_retained(disposition: str) -> None
         }
     )
     assert row.disposition == disposition
+
+
+def test_simulated_memory_never_completes_real_history_protocol() -> None:
+    from evaluation.real_scoring import SIMULATED_MEMORY_MODE
+
+    labels, rows = fixture()
+    simulated = tuple(
+        row.model_copy(update={"mode": SIMULATED_MEMORY_MODE})
+        if row.mode == "controlled-graph-memory"
+        else row
+        for row in rows
+    )
+    result = score(
+        labels,
+        simulated,
+        expected_protocol_hash="a" * 64,
+        evaluated_modes=("single-agent", "controlled-graph", SIMULATED_MEMORY_MODE),
+    )
+    assert result["comparison_complete"] is False
+    assert result["missing_modes"] == ["controlled-graph-memory"]
+    with pytest.raises(ValueError):
+        score(labels, simulated, expected_protocol_hash="a" * 64)

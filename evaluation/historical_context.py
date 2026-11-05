@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from agentops_incident_commander.application.memory_retrieval import SimilarIncidentRetriever
 from agentops_incident_commander.domain import IncidentMemorySearchQuery, Principal
@@ -55,13 +55,17 @@ class MemoryReplaySource:
         principal: Principal,
         query: IncidentMemorySearchQuery,
         excluded_incident_ids: frozenset[str],
+        *,
+        origin: Literal["CONFIRMED_DATABASE", "SIMULATED_FIXTURE"] = "CONFIRMED_DATABASE",
     ) -> None:
         self.retriever, self.principal, self.query = retriever, principal, query
         self.excluded = excluded_incident_ids
+        self.origin = origin
 
     async def for_incident(self, incident_id: str) -> tuple[dict[str, Any], ...]:
         if self.query.current_incident_id.value != incident_id:
             raise ValueError("memory query does not match snapshot incident")
-        return await historical_context(
+        references = await historical_context(
             self.retriever, self.principal, self.query, excluded_incident_ids=self.excluded
         )
+        return tuple({**item, "history_origin": self.origin} for item in references)

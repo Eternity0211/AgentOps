@@ -14,7 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from .diagnosis import InvestigationPlan
 from .state import DiagnosisGraphState, GraphBudgetState, GraphPhase
 
-DIAGNOSIS_PROGRESS_SCHEMA_VERSION: Final[Literal["1.0.0"]] = "1.0.0"
+DIAGNOSIS_PROGRESS_SCHEMA_VERSION: Final[Literal["1.1.0"]] = "1.1.0"
 MAX_PLAN_ATTEMPTS = 17
 _ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
 _TOOL_PATTERN = r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
@@ -52,6 +52,24 @@ class PlanToolCallReference(StrictProgressModel):
     tool_version: str = Field(pattern=_VERSION_PATTERN)
 
 
+class ToolAttemptProgress(StrictProgressModel):
+    status: Literal["FAILED", "CANCELLED"]
+    failure_code: Identifier
+    started_at: datetime
+    completed_at: datetime
+
+    @field_validator("started_at", "completed_at")
+    @classmethod
+    def require_utc(cls, value: datetime) -> datetime:
+        return _as_utc(value)
+
+    @model_validator(mode="after")
+    def validate_times(self) -> ToolAttemptProgress:
+        if self.completed_at < self.started_at:
+            raise ValueError("attempt completion precedes its start")
+        return self
+
+
 class InvestigationStepProgress(StrictProgressModel):
     position: int = Field(ge=1, le=16)
     step_id: Identifier
@@ -66,6 +84,7 @@ class InvestigationStepProgress(StrictProgressModel):
     failure_code: Identifier | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
+    previous_attempts: tuple[ToolAttemptProgress, ...] = Field(default=(), max_length=3)
 
     @field_validator("started_at", "completed_at")
     @classmethod
@@ -141,7 +160,7 @@ class ReplanProgress(StrictProgressModel):
 
 
 class DiagnosisProgressSnapshot(StrictProgressModel):
-    schema_version: Literal["1.0.0"]
+    schema_version: Literal["1.0.0", "1.1.0"]
     tenant_id: Identifier
     incident_id: Identifier
     workflow_run_id: Identifier
@@ -162,6 +181,10 @@ class DiagnosisProgressSnapshot(StrictProgressModel):
 
     @model_validator(mode="after")
     def validate_history(self) -> DiagnosisProgressSnapshot:
+        if self.schema_version == "1.0.0" and any(
+            step.previous_attempts for plan in self.plans for step in plan.steps
+        ):
+            raise ValueError("legacy progress cannot contain retry history")
         attempts = tuple(plan.attempt for plan in self.plans)
         if attempts != tuple(range(1, len(self.plans) + 1)):
             raise ValueError("investigation plan attempts must be consecutive")
@@ -264,8 +287,13 @@ def progress_status_for_phase(phase: GraphPhase) -> DiagnosisProgressStatus:
 
 
 def canonical_progress_bytes(snapshot: DiagnosisProgressSnapshot) -> bytes:
+    payload = snapshot.model_dump(mode="json", exclude_none=False)
+    if snapshot.schema_version == "1.0.0":
+        for plan in payload["plans"]:
+            for step in plan["steps"]:
+                del step["previous_attempts"]
     return json.dumps(
-        snapshot.model_dump(mode="json", exclude_none=False),
+        payload,
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")

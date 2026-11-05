@@ -8360,6 +8360,10 @@ async def test_workflow_model_budget_serializes_concurrent_replacement_workers(
         (False, True, 5),
         (False, True, 6),
         (False, True, 7),
+        (False, True, 8),
+        (False, True, 9),
+        (False, True, 10),
+        (False, True, 11),
     ],
 )
 async def test_autonomous_gate_uses_committed_postgres_evidence(
@@ -8392,6 +8396,8 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
     store = PostgresWorkflowEvidenceStore(sessions)
     calls: list[str] = []
     tool_calls: list[str] = []
+    replan_case = crash in (8, 9)
+    uncertain_entered = asyncio.Event()
 
     class Adapter:
         def __init__(self, name: str) -> None:
@@ -8399,6 +8405,9 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
 
         async def invoke(self, context: Any, arguments: Any) -> dict[str, Any]:
             tool_calls.append(self.name)
+            if crash == 11 and self.name == "query_logs":
+                uncertain_entered.set()
+                await asyncio.Event().wait()
             return {
                 "source": SOURCES[self.name],
                 "summary": "Observed current error status 500",
@@ -8411,11 +8420,20 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
         payload = json.loads(request.content)
         body = json.loads(payload["messages"][1]["content"])
         if "plan" in body["output_schema"]["properties"]:
+            second_plan = replan_case and "DIAGNOSE" in calls
+            if second_plan:
+                assert "deployment linkage" in body["context"]["previous_missing_evidence"]
+                assert len(body["context"]["previous_evidence"]) == 2
             calls.append("PLAN")
+            sources = (
+                (("deployments", "DEPLOYMENT"),)
+                if second_plan
+                else (("metrics", "METRIC"), ("logs", "LOG"))
+            )
             output: dict[str, Any] = {
                 "plan": {
                     "schema_version": "1.0.0",
-                    "plan_id": "plan",
+                    "plan_id": "supplemental-plan" if second_plan else "plan",
                     "summary": "Inspect independent sources",
                     "steps": [
                         {
@@ -8424,7 +8442,7 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
                             "expected_source": kind,
                             "parallel_group": 0,
                         }
-                        for source, kind in (("metrics", "METRIC"), ("logs", "LOG"))
+                        for source, kind in sources
                     ],
                 },
                 "tool_calls": [
@@ -8434,7 +8452,7 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
                         "tool_version": "2.0.0",
                         "arguments": {"service": "order"},
                     }
-                    for source in ("metrics", "logs")
+                    for source, _ in sources
                 ],
             }
         else:
@@ -8452,7 +8470,9 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
                         "counter_evidence_ids": [],
                         "counter_evidence_treatment": "NOT_APPLICABLE",
                         "counter_evidence_explanation": None,
-                        "missing_evidence": [],
+                        "missing_evidence": ["deployment linkage"]
+                        if replan_case and calls.count("DIAGNOSE") == 1
+                        else [],
                         "uncertainty": "Local test",
                         "confidence_basis_points": 5000,
                     }
@@ -8596,7 +8616,7 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
                 factory,
                 saver,
                 store,
-                PostgresDiagnosisProgressRecorder(sessions),
+                PostgresDiagnosisProgressRecorder(sessions, max_tool_retries=2),
                 lambda e: None,
                 adapters=adapters,
                 effects=SqlInvestigationEffects(
@@ -8615,31 +8635,105 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
                     5: "persist_evidence",
                     6: "plan",
                     7: "hypothesize",
+                    8: "plan",
+                    9: "persist_evidence",
+                    10: "execute_read_tool",
+                    11: "execute_read_tool",
                 }[crash]
                 original_hypothesis = getattr(AutonomousServices, target_node)
 
                 async def fail_hypothesis(self: Any, state: Any, *, operation_id: str) -> Any:
+                    if replan_case and state.budgets.used_replans == 0:
+                        return await original_hypothesis(self, state, operation_id=operation_id)
                     if crash in (5, 6, 7):
                         await original_hypothesis(self, state, operation_id=operation_id)
                     raise RuntimeError("injected before hypothesis")
 
-                monkeypatch.setattr(AutonomousServices, target_node, fail_hypothesis)
-                with pytest.raises(RuntimeError, match="injected before hypothesis"):
-                    await worker.run_once()
-                assert calls == (["PLAN", "DIAGNOSE"] if crash in (2, 7) else ["PLAN"])
-                assert len(tool_calls) == (0 if crash in (3, 6) else 2)
+                completed = asyncio.Event()
+
+                async def partial_read(
+                    self: Any, state: Any, tool_call_id: str, *, operation_id: str
+                ) -> Any:
+                    if tool_call_id.endswith("-logs") and crash == 10:
+                        await completed.wait()
+                        raise RuntimeError("injected partial parallel interruption")
+                    if tool_call_id.endswith("-logs"):
+                        return await original_hypothesis(
+                            self, state, tool_call_id, operation_id=operation_id
+                        )
+                    value = await original_hypothesis(
+                        self, state, tool_call_id, operation_id=operation_id
+                    )
+                    completed.set()
+                    if crash == 11:
+                        await uncertain_entered.wait()
+                        raise RuntimeError("injected partial parallel interruption")
+                    return value
+
+                monkeypatch.setattr(
+                    AutonomousServices,
+                    target_node,
+                    partial_read if crash in (10, 11) else fail_hypothesis,
+                )
+                if crash in (10, 11):
+                    with pytest.raises(ExceptionGroup):
+                        await worker.run_once()
+                else:
+                    with pytest.raises(RuntimeError, match="injected before hypothesis"):
+                        await worker.run_once()
+                expected_before = (
+                    ["PLAN", "DIAGNOSE", "PLAN"]
+                    if crash == 9
+                    else (["PLAN", "DIAGNOSE"] if crash in (2, 7, 8) else ["PLAN"])
+                )
+                assert calls == expected_before
+                assert len(tool_calls) == (
+                    0 if crash in (3, 6) else 1 if crash == 10 else 3 if crash == 9 else 2
+                )
                 monkeypatch.setattr(AutonomousServices, target_node, original_hypothesis)
                 async with postgres_diagnosis_checkpointer(connection_url) as replacement:
                     handler.checkpointer = replacement
                     replacement_worker = LeasedEvaluationWorker(
                         sessions, OpaqueIdentifier("replacement-combined"), handler
                     )
+                    if crash == 11:
+                        with pytest.raises(ExceptionGroup):
+                            await replacement_worker.run_once()
+                        assert calls == ["PLAN"]
+                        assert sorted(tool_calls) == ["query_logs", "query_metrics"]
+                        async with sessions() as session:
+                            pending = await session.scalar(
+                                select(JobRow).where(JobRow.id == queued.id.value)
+                            )
+                            assert pending is not None and pending.status != "COMPLETED"
+                            partial = await session.get(DiagnosisProgressRow, combined_workflow)
+                            assert partial is not None
+                            partial_snapshot = diagnosis_progress_from_row(partial)
+                            assert partial_snapshot.status.value == "FAILED"
+                            assert all(
+                                step.previous_attempts for step in partial_snapshot.plans[0].steps
+                            )
+                        with pytest.raises(ExceptionGroup):
+                            await replacement_worker.run_once()
+                        assert await replacement_worker.run_once() == 0
+                        assert calls == ["PLAN"]
+                        assert sorted(tool_calls) == ["query_logs", "query_metrics"]
+                        async with sessions() as session:
+                            exhausted = await session.scalar(
+                                select(JobRow).where(JobRow.id == queued.id.value)
+                            )
+                            assert (
+                                exhausted is not None
+                                and exhausted.status == "DEAD_LETTER"
+                                and exhausted.attempt_count == 3
+                            )
+                        return
                     assert await replacement_worker.run_once() == 1
                     assert await replacement_worker.run_once() == 0
             else:
                 assert await worker.run_once() == 1
                 assert await worker.run_once() == 0
-            assert len(tool_calls) == 2
+            assert len(tool_calls) == (3 if replan_case else 2)
         async with sessions() as session:
             queued_row = await session.scalar(select(JobRow).where(JobRow.id == queued.id.value))
             persisted_report = await DiagnosisReportRepository(session).latest(
@@ -8655,6 +8749,17 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
             progress_row is not None
             and diagnosis_progress_from_row(progress_row).phase.value == "COMPLETE"
         )
+        if crash == 10:
+            assert progress_row is not None
+            completed_snapshot = diagnosis_progress_from_row(progress_row)
+            retried_logs = next(
+                step for step in completed_snapshot.plans[0].steps if step.step_id == "logs"
+            )
+            assert retried_logs.status is ToolProgressStatus.SUCCEEDED
+            assert len(retried_logs.previous_attempts) == 1
+            assert retried_logs.previous_attempts[0].status == "FAILED"
+        if replan_case:
+            assert (tmp_path / "evidence-records-1.json").is_file()
         from evaluation.simulated_review import review_diagnosis
 
         from agentops_incident_commander.infrastructure.artifacts import LocalArtifactStorage
@@ -8670,10 +8775,11 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
         )
         assert review_result["task_successes"] == review_result["required_tasks"] == 3
         assert (
-            review_result["declared_citations"] == 2 and review_result["unresolved_citations"] == 0
+            review_result["declared_citations"] == (3 if replan_case else 2)
+            and review_result["unresolved_citations"] == 0
         )
         assert review_result["approval_decided"] is False
-        assert calls == ["PLAN", "DIAGNOSE"]
+        assert calls == ["PLAN", "DIAGNOSE"] * (2 if replan_case else 1)
         return
 
     if write_failure:

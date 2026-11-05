@@ -256,6 +256,18 @@ provider guarantee and does not guarantee recovery from arbitrary instruction-le
 
 PostgreSQL tests exercise before-dispatch/before-Evidence boundaries and completion-before-graph
 transition failures for PLAN, Evidence and DIAGNOSE. These use controlled provider fixtures,
-not actual DeepSeek responses. Full replan/partial-parallel interruption measurements and
-production startup composition remain separate requirements. Default local comparison runners
+not actual DeepSeek responses. Additional tests cover replacement before a supplementary plan
+and before its Evidence creation: first-round feedback and Evidence remain present, with four
+model calls and three total reads. A partially completed parallel wave reuses the finished read
+and dispatches only the pending one. An uncertain dispatched read is refused on subsequent
+attempts and cannot produce a successful Job. Production startup composition remains separate.
+Default local comparison runners
 retain their original behavior; the published 54+27 real-model outcomes are never rewritten.
+
+Progress schema 1.1.0 retains up to three previous FAILED/CANCELLED attempt summaries in its
+persisted step projection. The recorder's default remains terminal-immutable; the audited
+evaluation fixture explicitly enables two retries. These progress retries do not authorize
+dispatch: the effect store separately checks committed/uncertain outcomes. Legacy 1.0.0 rows
+must pass their original hash/ownership checks before migration. See
+[ADR 0009](ADR/0009-bounded-tool-progress-retries.md). This is backend progress history; the
+administration view still shows the current step status rather than a retry-history UI.

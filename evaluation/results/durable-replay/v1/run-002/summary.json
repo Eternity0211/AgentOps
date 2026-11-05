@@ -1,0 +1,30 @@
+{
+  "actual_provider_cost": null,
+  "approval_decisions": 0,
+  "base_revision": "97d664b704fa6f7a04bb084bf8042894c1c41cab",
+  "counts_source": "exact in-test assertions, passing source-bound tests",
+  "human_time_saved": null,
+  "partial_pending_read_asserted_model_calls": 2,
+  "partial_pending_read_asserted_tool_calls": 2,
+  "postgres_cases_passed": 14,
+  "progress_schema": "1.1.0",
+  "provider_kind": "CONTROLLED_HTTP_MOCK_TRANSPORT_NOT_REAL_PROVIDER",
+  "recovery_executions": 0,
+  "replan_asserted_model_calls": 4,
+  "replan_asserted_tool_calls": 3,
+  "replan_replacement_fixtures": 2,
+  "replan_resolved_evidence_ids": 3,
+  "schema_version": "1.0.0",
+  "successful_registered_completion_fixtures": 11,
+  "successful_worker_replacement_fixtures": 10,
+  "uncertain_dispatch_asserted_model_calls": 1,
+  "uncertain_dispatch_asserted_tool_calls": 2,
+  "uncertain_dispatch_refusal_fixtures": 1,
+  "uncertain_job_attempts": 3,
+  "uncertain_job_final_status": "DEAD_LETTER",
+  "unverified": [
+    "actual-provider SQL composition",
+    "production startup",
+    "arbitrary instruction-level crash success"
+  ]
+}

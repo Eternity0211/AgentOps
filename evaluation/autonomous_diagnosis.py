@@ -248,7 +248,7 @@ class AutonomousServices:
     async def plan(self, state: DiagnosisGraphState, *, operation_id: str) -> PlanNodeResult:
         self.round = state.budgets.used_replans
         if state.evidence_ids and self.evidence is None:
-            await self.restore_evidence(state)
+            await self.restore_evidence(state, completed_round=self.round - 1)
         if state.budgets.used_replans and self.report is None:
             await self.restore_report(state, self.round - 1)
         remaining = 12 - state.budgets.used_tool_calls
@@ -366,6 +366,8 @@ class AutonomousServices:
         self, state: DiagnosisGraphState, *, operation_id: str
     ) -> EvidencePersistenceResult:
         await self.restore_plan(state)
+        if state.evidence_ids and self.evidence is None:
+            await self.restore_evidence(state, completed_round=self.round - 1)
         for call in self.compiled.calls:
             identifier = self.call_id(call.step_id)
             if identifier not in self.results:
@@ -445,7 +447,9 @@ class AutonomousServices:
             )
         )
 
-    async def restore_evidence(self, state: DiagnosisGraphState) -> None:
+    async def restore_evidence(
+        self, state: DiagnosisGraphState, *, completed_round: int | None = None
+    ) -> None:
         if self.evidence is None and self.persisted_evidence is not None:
             records = []
             for identifier in state.evidence_ids:
@@ -463,7 +467,7 @@ class AutonomousServices:
                 principal=self.principal,
                 incident=self.incident,
                 workflow=state.workflow_run_id,
-                batch=state.budgets.used_replans,
+                batch=state.budgets.used_replans if completed_round is None else completed_round,
                 at=self.clock(),
             )
         assert self.evidence is not None

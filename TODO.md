@@ -713,6 +713,16 @@ This index is an omission check, not a second task list. The referenced phases c
   100% source statement/branch coverage;
   partial-parallel/replan replacement and actual-provider SQL composition remain open.
 
+- [x] C3p: retain replan Evidence and bounded parallel retry history on replacement.
+  Restore the completed prior round before new Evidence persistence. Progress schema 1.1.0
+  preserves failed/cancelled attempt summaries; default terminal behavior remains unchanged,
+  opt-in retries are bounded, legacy rows are fingerprint-verified before migration.
+  Tests cover two replan boundaries, partial completion without redispatch and refusal of
+  ambiguous dispatched reads. Fourteen PostgreSQL cases and 51 targeted tests pass; full
+  regression: 2,947 passed with 100% source statement/branch coverage. The final uncertain
+  dispatch fixture reaches DEAD_LETTER after three attempts with no extra external calls.
+  Versioned case records, source hashes and exploratory failures are in durable-replay/v1/run-002.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

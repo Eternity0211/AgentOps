@@ -448,6 +448,113 @@ def test_tool_progress_transition_helper_is_replay_safe_and_fail_closed() -> Non
         assert terminal.failure_code == "TOOL_TIMEOUT"
 
 
+@pytest.mark.parametrize(
+    "terminal_status", [ToolProgressStatus.FAILED, ToolProgressStatus.CANCELLED]
+)
+def test_opt_in_tool_retry_retains_prior_attempt_and_enforces_bound(
+    terminal_status: ToolProgressStatus,
+) -> None:
+    from agentops_incident_commander.workflows.diagnosis_progress import ToolAttemptProgress
+
+    running = _advance_tool_step(
+        progress_plan().steps[0],
+        status=ToolProgressStatus.RUNNING,
+        failure_code=None,
+        occurred_at=NOW,
+    )
+    failed = _advance_tool_step(
+        running,
+        status=terminal_status,
+        failure_code="INTERRUPTED",
+        occurred_at=NOW + timedelta(seconds=1),
+    )
+    assert (
+        _advance_tool_step(
+            failed,
+            status=ToolProgressStatus.RUNNING,
+            failure_code=None,
+            occurred_at=NOW + timedelta(seconds=2),
+        )
+        is failed
+    )
+    retried = _advance_tool_step(
+        failed,
+        status=ToolProgressStatus.RUNNING,
+        failure_code=None,
+        occurred_at=NOW + timedelta(seconds=2),
+        max_retries=1,
+    )
+    assert retried.status is ToolProgressStatus.RUNNING and retried.failure_code is None
+    assert len(retried.previous_attempts) == 1
+    assert retried.previous_attempts[0] == ToolAttemptProgress.model_validate(
+        {
+            "status": terminal_status.value,
+            "failure_code": "INTERRUPTED",
+            "started_at": NOW,
+            "completed_at": NOW + timedelta(seconds=1),
+        }
+    )
+    terminal = _advance_tool_step(
+        retried,
+        status=ToolProgressStatus.FAILED,
+        failure_code="UNCERTAIN",
+        occurred_at=NOW + timedelta(seconds=3),
+    )
+    with pytest.raises(InvalidDomainValueError, match="retry bound exhausted"):
+        _advance_tool_step(
+            terminal,
+            status=ToolProgressStatus.RUNNING,
+            failure_code=None,
+            occurred_at=NOW + timedelta(seconds=4),
+            max_retries=1,
+        )
+    assert failed.previous_attempts == ()
+    with pytest.raises(ValidationError, match="completion precedes"):
+        ToolAttemptProgress(
+            status="FAILED",
+            failure_code="INVALID",
+            started_at=NOW,
+            completed_at=NOW - timedelta(seconds=1),
+        )
+    with pytest.raises(ValidationError, match="legacy progress"):
+        snapshot(
+            schema_version="1.0.0",
+            plans=(progress_plan().model_copy(update={"steps": (retried,)}),),
+        )
+
+
+@pytest.mark.parametrize("bound", [-1, 4, True])
+def test_tool_progress_retry_configuration_is_bounded(bound: int) -> None:
+    with pytest.raises(InvalidDomainValueError, match="retry bound"):
+        PostgresDiagnosisProgressRecorder(cast(Any, NullSessionFactory()), max_tool_retries=bound)
+
+
+def test_legacy_progress_is_hash_verified_before_upgrade() -> None:
+    import hashlib
+    import json
+
+    current = snapshot()
+    raw = current.model_dump(mode="json")
+    raw["schema_version"] = "1.0.0"
+    for stored_plan in raw["plans"]:
+        for step in stored_plan["steps"]:
+            del step["previous_attempts"]
+    row = DiagnosisProgressRow(workflow_run_id=current.workflow_run_id)
+    _save(row, current)
+    row.schema_version, row.snapshot = "1.0.0", raw
+    row.snapshot_fingerprint = hashlib.sha256(
+        json.dumps(raw, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    upgraded = _snapshot(row)
+    assert upgraded.schema_version == "1.1.0"
+    assert upgraded.plans[0].steps[0].previous_attempts == ()
+    row.snapshot_fingerprint = "0" * 64
+    with pytest.raises(InvalidDomainValueError, match="binding"):
+        _snapshot(row)
+    _save(row, upgraded)
+    assert _snapshot(row) == upgraded
+
+
 def test_persistence_binding_and_state_transition_helpers_are_strict() -> None:
     stored = snapshot()
     row = DiagnosisProgressRow(workflow_run_id=stored.workflow_run_id)

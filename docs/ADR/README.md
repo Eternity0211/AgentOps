@@ -12,5 +12,6 @@ ADRs capture decisions that constrain implementation. Accepted ADRs are immutabl
 | [0006](0006-least-privilege-runtime-boundaries.md) | Separate runtime identities and enforce exact topology allowlists | Accepted |
 | [0007](0007-real-model-evaluation-boundaries.md) | Bound local real-model evaluation and distinguish simulated operators | Accepted |
 | [0008](0008-evaluation-effect-replay.md) | Commit and verify evaluation effects independently of graph checkpoints | Accepted |
+| [0009](0009-bounded-tool-progress-retries.md) | Preserve bounded prior tool attempts when resuming read progress | Accepted |
 
 New ADRs use `NNNN-short-title.md` and contain context, decision, consequences, alternatives, and verification.

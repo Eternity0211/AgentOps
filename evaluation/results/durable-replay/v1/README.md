@@ -9,3 +9,5 @@
 `run-001/test-results.json` 从通过的 JUnit 记录提取，移除了机器名；时长包含测试与环境开销，不是事件诊断耗时。`source-hashes.json` 记录本次源码，随同当前提交版本保存；`file-hashes.json` 绑定归档文件。归档提交的父版本见 summary，源码以本次记录的哈希为准。
 
 复现：在本报告所在提交运行 `python -m pytest tests/integration/test_persistence.py -k "autonomous_gate_uses_committed_postgres_evidence or durable_investigation_effects" --no-cov`，需要 Docker。
+
+补充验证见 [run-002](run-002/README.md)：两项重规划替换、部分并行完成后的续跑及未知结果拒绝，并保留有界重试历史。run-001 是原始范围，不据此改写旧结果。

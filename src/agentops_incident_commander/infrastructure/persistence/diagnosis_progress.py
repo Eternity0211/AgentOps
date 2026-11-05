@@ -25,6 +25,7 @@ from agentops_incident_commander.workflows import (
     progress_fingerprint,
     progress_status_for_phase,
 )
+from agentops_incident_commander.workflows.diagnosis_progress import ToolAttemptProgress
 
 from .models import DiagnosisProgressRow
 
@@ -32,8 +33,15 @@ from .models import DiagnosisProgressRow
 class PostgresDiagnosisProgressRecorder:
     """Persist one bounded read model without making it workflow authority."""
 
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
+    def __init__(
+        self, session_factory: async_sessionmaker[AsyncSession], *, max_tool_retries: int = 0
+    ) -> None:
+        if type(max_tool_retries) is not int or not 0 <= max_tool_retries <= 3:
+            raise InvalidDomainValueError(
+                "tool progress retry bound must be between zero and three"
+            )
         self._session_factory = session_factory
+        self._max_tool_retries = max_tool_retries
 
     async def record_plan(
         self,
@@ -146,6 +154,7 @@ class PostgresDiagnosisProgressRecorder:
                 status=status,
                 failure_code=failure_code,
                 occurred_at=occurred_at,
+                max_retries=self._max_tool_retries,
             )
             if updated_step == step:
                 return
@@ -260,7 +269,7 @@ def _snapshot(row: DiagnosisProgressRow) -> DiagnosisProgressSnapshot:
         or progress_fingerprint(snapshot) != row.snapshot_fingerprint
     ):
         raise InvalidDomainValueError("persisted diagnosis progress binding is invalid")
-    return snapshot
+    return snapshot.model_copy(update={"schema_version": DIAGNOSIS_PROGRESS_SCHEMA_VERSION})
 
 
 def _save(row: DiagnosisProgressRow, snapshot: DiagnosisProgressSnapshot) -> None:
@@ -305,6 +314,7 @@ def _advance_tool_step(
     status: ToolProgressStatus,
     failure_code: str | None,
     occurred_at: datetime,
+    max_retries: int = 0,
 ) -> InvestigationStepProgress:
     if not isinstance(status, ToolProgressStatus):
         raise InvalidDomainValueError("diagnosis tool progress status is invalid")
@@ -313,6 +323,31 @@ def _advance_tool_step(
         ToolProgressStatus.FAILED,
         ToolProgressStatus.CANCELLED,
     }:
+        if (
+            status is ToolProgressStatus.RUNNING
+            and step.status is not ToolProgressStatus.SUCCEEDED
+            and max_retries
+        ):
+            if len(step.previous_attempts) >= max_retries:
+                raise InvalidDomainValueError("tool progress retry bound exhausted")
+            prior = ToolAttemptProgress.model_validate(
+                {
+                    "status": step.status.value,
+                    "failure_code": step.failure_code,
+                    "started_at": step.started_at,
+                    "completed_at": step.completed_at,
+                }
+            )
+            return InvestigationStepProgress.model_validate(
+                {
+                    **step.model_dump(mode="python"),
+                    "status": status,
+                    "failure_code": None,
+                    "started_at": occurred_at,
+                    "completed_at": None,
+                    "previous_attempts": (*step.previous_attempts, prior),
+                }
+            )
         if status is ToolProgressStatus.RUNNING:
             return step
         if step.status is status and step.failure_code == failure_code:

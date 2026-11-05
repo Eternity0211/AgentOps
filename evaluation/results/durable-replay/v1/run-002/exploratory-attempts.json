@@ -1,0 +1,23 @@
+[
+  {
+    "failures": 1,
+    "reason": "Terminal progress prevented safe pending-read restart.",
+    "run_number": 1,
+    "source_binding": "NOT_RECORDED_EXPLORATORY_ONLY",
+    "tests": 14
+  },
+  {
+    "failures": 0,
+    "reason": "First fixed smoke, before additional history/exhaustion assertions.",
+    "run_number": 2,
+    "source_binding": "NOT_RECORDED_EXPLORATORY_ONLY",
+    "tests": 14
+  },
+  {
+    "failures": 1,
+    "reason": "Test expected FAILED; actual bounded queue terminal state was DEAD_LETTER.",
+    "run_number": 3,
+    "source_binding": "NOT_RECORDED_EXPLORATORY_ONLY",
+    "tests": 14
+  }
+]

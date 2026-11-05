@@ -1,0 +1,79 @@
+{
+  "cases": [
+    {
+      "duration_seconds": 10.948,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-False-False-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "duration_seconds": 0.277,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[True-False-False-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "duration_seconds": 1.947,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-False-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "duration_seconds": 1.969,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-True-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "duration_seconds": 1.719,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-2-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "duration_seconds": 1.636,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-3-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "duration_seconds": 1.58,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-4-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "duration_seconds": 1.667,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-5-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "duration_seconds": 1.777,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-6-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "duration_seconds": 2.037,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-7-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "duration_seconds": 4.718,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-8-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "duration_seconds": 5.207,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-9-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "duration_seconds": 1.824,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-10-anyio_backend0]",
+      "passed": true
+    },
+    {
+      "duration_seconds": 4.239,
+      "name": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-11-anyio_backend0]",
+      "passed": true
+    }
+  ],
+  "errors": 0,
+  "failures": 0,
+  "suite_time_seconds": 53.157,
+  "tests": 14,
+  "timestamp": "2026-11-05T22:11:20.957730+08:00"
+}

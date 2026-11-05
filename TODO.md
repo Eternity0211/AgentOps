@@ -598,6 +598,12 @@ This index is an omission check, not a second task list. The referenced phases c
   Ruff/mypy. Also bind Gateway workflow/correlation/causation to actual graph identities.
   Full snapshot-mode runner and provider comparison remain open.
 
+- [x] C6b: run a verified snapshot through real-provider transport and durable outcome ledger.
+  Shared public taxonomy, independent single-pass/graph paths, bounded calls, fsynced hash-only
+  journal and failure-preserving resource aggregation; two transport success/failure tests
+  and Ruff/mypy pass. Memory mode metadata explicitly says NO_HISTORY_SUPPLIED and is
+  ineligible for quality comparison; confirmed-memory composition and full runs remain open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

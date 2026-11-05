@@ -41,3 +41,9 @@ read batches, Evidence normalization, one DIAGNOSE and deterministic Gate, witho
 LangGraph or replan. The graph mode may use its single bounded replan. Both share catalogs,
 model and aggregate ceilings; actual usage is reported. Single-pass does not provide durable
 production runtime/checkpoint composition and cannot accept a registered invoker.
+
+`run_snapshot_comparison.run_snapshot` invokes the bounded provider transport using verified
+read replay and writes one durable outcome plus content-free events. Public taxonomy is
+shared across modes. Current historical references are empty; mode metadata explicitly marks
+controlled-graph-memory as ineligible for quality comparison until confirmed history is wired.
+Do not treat its empty-history execution as a completed memory baseline or claim a memory gain.

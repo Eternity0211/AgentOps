@@ -8195,6 +8195,9 @@ async def test_workflow_model_budget_serializes_concurrent_replacement_workers(
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize(
+    "anyio_backend", [("asyncio", {"loop_factory": asyncio.SelectorEventLoop})], indirect=True
+)
 @pytest.mark.parametrize("write_failure,registered", [(False, False), (True, False), (False, True)])
 async def test_autonomous_gate_uses_committed_postgres_evidence(
     engine: AsyncEngine,
@@ -8383,9 +8386,8 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
             RegisteredInvestigationJobHandler,
         )
         from evaluation.leased_worker import LeasedEvaluationWorker
-        from langgraph.checkpoint.memory import InMemorySaver
 
-        from agentops_incident_commander.infrastructure import diagnosis_checkpoint_serializer
+        from agentops_incident_commander.infrastructure import postgres_diagnosis_checkpointer
 
         assert invoker is not None
         registered_invoker = invoker
@@ -8402,29 +8404,33 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
         )
         async with sessions.begin() as session:
             await JobRepository(session).enqueue(queued)
-        handler = RegisteredInvestigationJobHandler(
-            InvestigationJobInput(
-                queued.payload_ref.value,
-                "tenant-1",
-                incident,
-                "combined-workflow",
-                "combined-corr",
-                "combined-command",
-                "Observed checkout error",
-                NOW - timedelta(minutes=1),
-                NOW,
-                tmp_path,
-            ),
-            factory,
-            InMemorySaver(serde=diagnosis_checkpoint_serializer()),
-            store,
-            PostgresDiagnosisProgressRecorder(sessions),
-            lambda e: None,
-            adapters=adapters,
+        connection_url = engine.url.render_as_string(hide_password=False).replace(
+            "postgresql+asyncpg://", "postgresql://"
         )
-        worker = LeasedEvaluationWorker(sessions, OpaqueIdentifier("combined-worker"), handler)
-        assert await worker.run_once() == 1
-        assert await worker.run_once() == 0
+        async with postgres_diagnosis_checkpointer(connection_url) as saver:
+            handler = RegisteredInvestigationJobHandler(
+                InvestigationJobInput(
+                    queued.payload_ref.value,
+                    "tenant-1",
+                    incident,
+                    "combined-workflow",
+                    "combined-corr",
+                    "combined-command",
+                    "Observed checkout error",
+                    NOW - timedelta(minutes=1),
+                    NOW,
+                    tmp_path,
+                ),
+                factory,
+                saver,
+                store,
+                PostgresDiagnosisProgressRecorder(sessions),
+                lambda e: None,
+                adapters=adapters,
+            )
+            worker = LeasedEvaluationWorker(sessions, OpaqueIdentifier("combined-worker"), handler)
+            assert await worker.run_once() == 1
+            assert await worker.run_once() == 0
         async with sessions() as session:
             queued_row = await session.scalar(select(JobRow).where(JobRow.id == queued.id.value))
             persisted_report = await DiagnosisReportRepository(session).latest(

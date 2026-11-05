@@ -511,6 +511,12 @@ This index is an omission check, not a second task list. The referenced phases c
   Three PostgreSQL cases pass; Ruff/mypy pass. Checkpoint is in-memory in this combined
   case; official PostgreSQL checkpoint replacement remains independently tested.
 
+- [x] C3l: official PostgreSQL checkpoint in the combined SQL leased investigation.
+  Combined registered case now uses the official saver against the same PostgreSQL database
+  as queue, prompts, traces, Evidence, reports and progress. Three integration cases pass.
+  Selector event-loop configuration makes psycopg behavior explicit on Windows. This proves
+  successful composition, not every crash boundary; full regression currently running.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

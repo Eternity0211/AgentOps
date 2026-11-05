@@ -72,3 +72,8 @@ investigation handler, SQL Evidence/traces/reports/progress, successful completi
 empty second claim. Read adapters are server-injected controlled fixtures; provider transport
 and checkpoint are controlled/in-memory in this case. It establishes composition, not live
 provider quality or complete crash recovery across all effects.
+
+The registered leased-investigation integration now uses the official PostgreSQL saver in
+the same database as its SQL queue and domain ports. Its explicit Selector event loop supports
+Windows psycopg. Success composition is verified separately from failure-boundary tests;
+provider responses remain fixtures and no live quality measurement is implied.

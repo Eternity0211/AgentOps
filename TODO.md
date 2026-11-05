@@ -479,6 +479,12 @@ This index is an omission check, not a second task list. The referenced phases c
   cancellation/stale takeover: three PostgreSQL tests pass; Ruff/mypy/architecture pass.
   Real-model handler wiring and effect reconstruction remain open. Commit f530c7b.
 
+- [x] C3g: registered investigation job handler identity binding.
+  Acceptance: exact job schema/payload/tenant/incident/workflow/correlation/causation before
+  provider construction; registered invoker must match all identities; forward durable ports
+  to investigation. Ten positive/tamper tests, Ruff/mypy/architecture pass. Combined real
+  PostgreSQL/provider composition and mid-run restoration remain open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

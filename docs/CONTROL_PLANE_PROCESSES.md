@@ -59,3 +59,10 @@ renewal failure cancels the handler without changing queue authority. A failed b
 sibling handlers. This does not yet wire real-model startup or cancel already dispatched
 synchronous provider requests. Three PostgreSQL cases cover completion, failure and
 heartbeat/cancel/stale takeover.
+
+`RegisteredInvestigationJobHandler` binds `workflow.investigate` / `workflow/v1` leases
+to server-owned frozen input and a registered invoker factory. Payload reference, tenant,
+Incident, workflow, correlation and causation must match before factory invocation; the
+returned invoker must match again before investigation. PostgreSQL evidence/progress and
+checkpoint ports are forwarded explicitly. This is an evaluation composition adapter, not
+a claim that production startup or mid-investigation restoration is complete.

@@ -498,6 +498,13 @@ This index is an omission check, not a second task list. The referenced phases c
   Evidence port in this checkpoint test is in-memory; SQL Evidence is tested separately.
   Fully combined registered-prompt/SQL/queue composition remains open.
 
+- [x] C3j: combined registered investigation with SQL Evidence, traces, reports and progress.
+  Three PostgreSQL cases pass including active PLAN/DIAGNOSE registrations, exact custom
+  workflow lineage, Gate PASS, cross-session report equality and Evidence-write refusal.
+  Provider uses MockTransport and Prompt promotion uses test fixtures: integration evidence
+  only, not real-model quality or production Prompt promotion. Queue/checkpoint combination
+  and remaining crash boundaries are still open. Ruff/mypy pass.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

@@ -8195,11 +8195,12 @@ async def test_workflow_model_budget_serializes_concurrent_replacement_workers(
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("write_failure", [False, True])
+@pytest.mark.parametrize("write_failure,registered", [(False, False), (True, False), (False, True)])
 async def test_autonomous_gate_uses_committed_postgres_evidence(
     engine: AsyncEngine,
     tmp_path: Path,
     write_failure: bool,
+    registered: bool,
 ) -> None:
     from evaluation.autonomous_diagnosis import investigate
     from evaluation.live_gateway import SOURCES, local_definitions
@@ -8215,7 +8216,9 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
 
     incident = "postgres-autonomous"
     if not write_failure:
-        await add_incident(engine, incident, tenant="local-evaluation")
+        await add_incident(
+            engine, incident, tenant="tenant-1" if registered else "local-evaluation"
+        )
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     store = PostgresWorkflowEvidenceStore(sessions)
     calls: list[str] = []
@@ -8297,6 +8300,65 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
     model = StructuredEvaluationModel("test-only", lambda e: None, transport=MockTransport(respond))
     adapters = {definition.identity: Adapter(definition.name) for definition in local_definitions()}
 
+    invoker = None
+    if registered:
+        from evaluation.registered_model import RegisteredModelInvoker
+        from evaluation.structured_model import ModelPurpose
+
+        from agentops_incident_commander.infrastructure.persistence.runtime_ports import (
+            PostgresWorkflowDiagnosisReportStore,
+            PostgresWorkflowModelTraceStore,
+            PostgresWorkflowPromptStore,
+        )
+
+        references = {}
+        for purpose in (ModelPurpose.PLAN, ModelPurpose.DIAGNOSE):
+            content = model.request_payload(purpose, {"incident_id": incident})["messages"][0][
+                "content"
+            ]
+            definition = PromptDefinition.create(
+                prompt_id=PromptId("combined-" + purpose.value.lower()),
+                version=SemanticVersion("1.0.0"),
+                purpose=PromptPurpose.DIAGNOSIS,
+                content=content,
+                model_parameters=PromptModelParameters(
+                    "deepseek", "deepseek-flash", 0, 10000, 2048
+                ),
+                schema_compatibility=PromptSchemaCompatibility(
+                    SemanticVersion("1.0.0"), SemanticVersion("1.0.0")
+                ),
+                trace=PromptTraceLink(
+                    ActorId("admin-model"),
+                    CorrelationId("combined-corr"),
+                    CausationId("combined-command"),
+                    NOW,
+                ),
+            )
+            active = await activate_prompt_for_model_call(
+                sessions, definition=definition, audit_prefix="combined-" + purpose.value
+            )
+            references[purpose] = PromptVersionReference(active.prompt_id, active.version)
+        ids = count(1)
+        invoker = RegisteredModelInvoker(
+            model,
+            PostgresWorkflowPromptStore(sessions),
+            ModelCallTraceManager(
+                PostgresWorkflowModelTraceStore(sessions),
+                clock=lambda: NOW,
+                id_factory=lambda: f"combined-call-{next(ids)}",
+            ),
+            references,
+            Principal(
+                ActorId("combined-operator"), TenantId("tenant-1"), frozenset({Role.OPERATOR})
+            ),
+            IncidentId(incident),
+            WorkflowRunId("combined-workflow"),
+            CorrelationId("combined-corr"),
+            CausationId("combined-command"),
+            lambda e: None,
+            report_writer=PostgresWorkflowDiagnosisReportStore(sessions),
+        )
+
     async def execute() -> Any:
         return await investigate(
             model,
@@ -8310,6 +8372,7 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
             evidence_store=store,
             progress_recorder=PostgresDiagnosisProgressRecorder(sessions),
             max_replans=0,
+            model_invoker=invoker,
         )
 
     if write_failure:
@@ -8336,6 +8399,14 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
         assert progress.budgets == state.budgets
         assert len(progress.plans) == 1
         assert all(step.status is ToolProgressStatus.SUCCEEDED for step in progress.plans[0].steps)
+        if registered:
+            async with sessions() as session:
+                persisted_report = await DiagnosisReportRepository(session).latest(
+                    tenant_id=TenantId("tenant-1"), incident_id=IncidentId(incident)
+                )
+            assert persisted_report is not None
+            assert persisted_report.workflow_run_id.value == "combined-workflow"
+            assert services.report == persisted_report.report
 
 
 @pytest.mark.anyio

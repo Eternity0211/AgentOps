@@ -150,3 +150,10 @@ and expiry, then rebuilds the original bounded observations without rewriting ma
 A PostgreSQL-checkpoint fault test replaces the saver and services before hypothesis and
 observes two total model calls and one read call. Its Evidence port is in-memory; combined
 SQL Evidence, registered prompts and leased-worker recovery remains a separate acceptance.
+
+A combined PostgreSQL integration case now runs the autonomous graph with separately
+registered active PLAN/DIAGNOSE prompts, durable call traces, Evidence, report publication
+and progress, using a custom workflow identity. It verifies cross-session report equality
+and Gate PASS. Provider responses and Prompt regression results are controlled test fixtures;
+this does not measure provider quality or authorize real Prompt promotion. Queue and
+PostgreSQL checkpoint combination remains separate work.

@@ -293,6 +293,25 @@ class AutonomousServices:
     async def hypothesize(
         self, state: DiagnosisGraphState, *, operation_id: str
     ) -> HypothesisNodeResult:
+        if self.evidence is None and self.persisted_evidence is not None:
+            records = []
+            for identifier in state.evidence_ids:
+                record = await self.persisted_evidence.get(
+                    EvidenceId(identifier),
+                    tenant_id=self.principal.tenant_id,
+                    incident_id=IncidentId(self.incident),
+                )
+                if record is None:
+                    raise ValueError("checkpoint evidence is unavailable")
+                records.append(record)
+            self.evidence = ExperimentEvidence.restore(
+                self.root,
+                records,
+                principal=self.principal,
+                incident=self.incident,
+                workflow=state.workflow_run_id,
+                batch=state.budgets.used_replans,
+            )
         assert self.evidence is not None
         # Preserve whole records under an aggregate budget; never slice JSON mid-record.
         observations = []

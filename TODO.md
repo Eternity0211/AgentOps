@@ -490,6 +490,14 @@ This index is an omission check, not a second task list. The referenced phases c
   tenant/workflow changes. Nine Evidence/autonomous tests plus Ruff/mypy/architecture pass.
   Mid-investigation restoration is still open.
 
+- [x] C3i: restore committed Evidence before hypothesis after worker replacement.
+  Loader implemented: checkpoint IDs resolve through scoped SQL port, Artifact integrity,
+  expiry and workflow bindings checked, context reconstructed without writing manifests.
+  Ten relevant unit tests pass; two real PostgreSQL checkpoint tests pass including injected
+  pre-hypothesis failure and saver/service replacement: exactly two model and one tool calls.
+  Evidence port in this checkpoint test is in-memory; SQL Evidence is tested separately.
+  Fully combined registered-prompt/SQL/queue composition remains open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

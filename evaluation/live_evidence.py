@@ -47,6 +47,53 @@ from agentops_incident_commander.workflows import DiagnosisReport
 
 
 class ExperimentEvidence:
+    @classmethod
+    def restore(
+        cls,
+        root: Path,
+        records: list[Evidence],
+        *,
+        principal: Principal,
+        incident: str,
+        workflow: str,
+        batch: int,
+    ) -> ExperimentEvidence:
+        restored = cls.__new__(cls)
+        restored.tenant = principal.tenant_id
+        restored.incident = IncidentId(incident)
+        restored.workflow = WorkflowRunId(workflow)
+        restored.storage = LocalArtifactStorage(root)
+        restored.records = {}
+        restored.observations = []
+        restored.batch = batch
+        for item in records:
+            if (
+                item.tenant_id != restored.tenant
+                or item.incident_id != restored.incident
+                or item.lineage.workflow_run_id != restored.workflow
+                or item.id in restored.records
+            ):
+                raise ValueError("restored evidence identity mismatch")
+            content = restored.storage.retrieve(
+                item.artifact_id,
+                incident_id=restored.incident,
+                principal=principal,
+                at=datetime.now(UTC),
+            )
+            item.verify_artifact(content.artifact)
+            if item.is_expired(at=datetime.now(UTC)):
+                raise ValueError("restored evidence has expired")
+            payload = json.loads(content.content)
+            restored.records[item.id] = item
+            restored.observations.append(
+                {
+                    "id": item.id.value,
+                    "source": item.normalized_query.as_dict()["source"],
+                    "summary": payload["summary"],
+                }
+            )
+        return restored
+
     def __init__(
         self,
         root: Path,

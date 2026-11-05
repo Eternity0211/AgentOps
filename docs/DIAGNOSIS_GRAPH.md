@@ -143,3 +143,10 @@ The autonomous real-model evaluation entry point accepts an explicit
 is committed at the graph's existing plan/tool/state boundaries; recorder errors propagate.
 The default offline evaluator retains its in-memory/no-op progress behavior. This projection
 is observational and does not reconstruct provider effects or authorize recovery.
+
+At a pre-hypothesis replacement boundary, autonomous evaluation resolves checkpoint Evidence
+IDs through its scoped store, validates workflow/tenant/Incident, Artifact binding/integrity
+and expiry, then rebuilds the original bounded observations without rewriting manifests.
+A PostgreSQL-checkpoint fault test replaces the saver and services before hypothesis and
+observes two total model calls and one read call. Its Evidence port is in-memory; combined
+SQL Evidence, registered prompts and leased-worker recovery remains a separate acceptance.

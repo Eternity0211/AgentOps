@@ -150,3 +150,36 @@ def test_registered_evidence_scope_cannot_merge(tmp_path: Path, scope: str) -> N
         workflow="registered-workflow",
     )
     assert next(iter(other.records.values())).artifact_id != item.artifact_id
+
+
+def test_restore_evidence_preserves_bytes_and_refuses_wrong_workflow(tmp_path: Path) -> None:
+    from agentops_incident_commander.domain import ActorId, Principal, Role
+
+    now = datetime.now(UTC)
+    original = ExperimentEvidence(
+        tmp_path,
+        "incident",
+        [{"id": "e1", "source": "logs", "summary": "Observed failure"}],
+        observed_from=now,
+    )
+    principal = Principal(ActorId("reader"), original.tenant, frozenset({Role.VIEWER}))
+    before = (tmp_path / "evidence-records.json").read_bytes()
+    restored = ExperimentEvidence.restore(
+        tmp_path,
+        list(original.records.values()),
+        principal=principal,
+        incident="incident",
+        workflow="workflow-incident",
+        batch=0,
+    )
+    assert restored.records == original.records and restored.observations == original.observations
+    assert (tmp_path / "evidence-records.json").read_bytes() == before
+    with pytest.raises(ValueError, match="identity mismatch"):
+        ExperimentEvidence.restore(
+            tmp_path,
+            list(original.records.values()),
+            principal=principal,
+            incident="incident",
+            workflow="other",
+            batch=0,
+        )

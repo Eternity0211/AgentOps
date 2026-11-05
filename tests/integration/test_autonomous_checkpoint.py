@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from evaluation.autonomous_diagnosis import investigate
+import pytest
+from evaluation.autonomous_diagnosis import AutonomousServices, investigate
 from evaluation.live_gateway import SOURCES, local_definitions
 from evaluation.structured_model import StructuredEvaluationModel
 from testcontainers.community.postgres import PostgresContainer
@@ -18,7 +19,10 @@ from testcontainers.community.postgres import PostgresContainer
 from agentops_incident_commander.infrastructure import postgres_diagnosis_checkpointer
 
 
-def test_completed_autonomous_run_replays_after_postgres_saver_replacement(tmp_path: Path) -> None:
+@pytest.mark.parametrize("crash", [False, True])
+def test_completed_autonomous_run_replays_after_postgres_saver_replacement(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, crash: bool
+) -> None:
     effects = {"model": 0, "tool": 0}
     plan = {
         "plan": {
@@ -79,6 +83,28 @@ def test_completed_autonomous_run_replays_after_postgres_saver_replacement(tmp_p
                 "records_seen": 1,
             }
 
+    class EvidenceStore:
+        def __init__(self) -> None:
+            self.records: dict[Any, Any] = {}
+
+        async def add(self, evidence: Any, artifact: Any) -> None:
+            self.records[evidence.id] = evidence
+
+        async def get(self, evidence_id: Any, *, tenant_id: Any, incident_id: Any) -> Any:
+            item = self.records.get(evidence_id)
+            return (
+                item
+                if item and item.tenant_id == tenant_id and item.incident_id == incident_id
+                else None
+            )
+
+    evidence_store = EvidenceStore()
+    original = AutonomousServices.hypothesize
+
+    async def fail_before_report(self: Any, state: Any, *, operation_id: str) -> Any:
+        assert self.evidence is not None
+        raise RuntimeError("injected worker failure before hypothesis")
+
     async def run(url: str) -> None:
         now = datetime.now(UTC)
         adapters = {
@@ -88,18 +114,36 @@ def test_completed_autonomous_run_replays_after_postgres_saver_replacement(tmp_p
             "test-only", lambda e: None, transport=httpx.MockTransport(respond)
         )
         async with postgres_diagnosis_checkpointer(url) as saver:
-            first, services = await investigate(
-                first_model,
-                "checkpoint-incident",
-                "Observed errors",
-                tmp_path,
-                now - timedelta(minutes=1),
-                now,
-                lambda e: None,
-                adapters=adapters,
-                checkpointer=saver,
-            )
-            assert not services.resumed
+            if crash:
+                monkeypatch.setattr(AutonomousServices, "hypothesize", fail_before_report)
+                with pytest.raises(RuntimeError, match="injected worker failure"):
+                    await investigate(
+                        first_model,
+                        "checkpoint-incident",
+                        "Observed errors",
+                        tmp_path,
+                        now - timedelta(minutes=1),
+                        now,
+                        lambda e: None,
+                        adapters=adapters,
+                        checkpointer=saver,
+                        evidence_store=evidence_store,
+                    )
+                assert effects == {"model": 1, "tool": 1}
+                monkeypatch.setattr(AutonomousServices, "hypothesize", original)
+            else:
+                first, services = await investigate(
+                    first_model,
+                    "checkpoint-incident",
+                    "Observed errors",
+                    tmp_path,
+                    now - timedelta(minutes=1),
+                    now,
+                    lambda e: None,
+                    adapters=adapters,
+                    checkpointer=saver,
+                )
+                assert not services.resumed
         before = dict(effects)
         second_model = StructuredEvaluationModel(
             "test-only", lambda e: None, transport=httpx.MockTransport(respond)
@@ -115,10 +159,15 @@ def test_completed_autonomous_run_replays_after_postgres_saver_replacement(tmp_p
                 lambda e: None,
                 adapters=adapters,
                 checkpointer=replacement,
+                evidence_store=evidence_store,
             )
-        assert first == second and services.resumed
-        assert first.phase.value == "HUMAN_HANDOFF"
-        assert effects == before == {"model": 2, "tool": 1}
+        assert services.resumed
+        if not crash:
+            assert first == second
+        assert second.phase.value == "HUMAN_HANDOFF"
+        assert effects == {"model": 2, "tool": 1}
+        if not crash:
+            assert effects == before
 
     with PostgresContainer("pgvector/pgvector:0.8.6-pg18", driver="psycopg") as postgres:
         url = postgres.get_connection_url().replace("postgresql+psycopg://", "postgresql://")

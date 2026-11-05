@@ -542,6 +542,12 @@ This index is an omission check, not a second task list. The referenced phases c
   no human decision or execution is dispatched. Gate/proposal inputs are controlled fixtures;
   registered-provider-to-stored-Gate-to-approval composition remains open.
 
+- [x] C4c: registered remediation, stored SQL Gate and pending SQL approval combined.
+  Integration runs an ACTIVE remediation prompt with bounded MockTransport provider output,
+  durable call trace, exact SQL Gate pre/post admission, deterministic Policy and committed
+  PENDING Approval/review snapshot. Fresh-session snapshot equality passes; Ruff/mypy pass.
+  This is controlled integration evidence; live-provider diagnosis/remediation runs remain open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

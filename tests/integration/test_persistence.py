@@ -3405,6 +3405,133 @@ async def test_remediation_admission_requires_exact_stored_passing_gate_decision
         with pytest.raises(InvalidDomainValueError, match="stored passing"):
             await gate.admit(proposal, tenant_id=TenantId("tenant-2"))
 
+    from evaluation.registered_model import RegisteredModelInvoker
+    from evaluation.registered_remediation import propose_registered_remediation
+    from evaluation.structured_model import ModelPurpose, StructuredEvaluationModel
+    from httpx import MockTransport, Response
+
+    from agentops_incident_commander.infrastructure.persistence.runtime_ports import (
+        PostgresWorkflowModelTraceStore,
+        PostgresWorkflowPromptStore,
+    )
+
+    context = {"incident_id": claim.incident_id.value}
+    content = StructuredEvaluationModel.request_payload(ModelPurpose.REMEDIATE, context)[
+        "messages"
+    ][0]["content"]
+    definition = PromptDefinition.create(
+        prompt_id=PromptId("registered-remediation-sql"),
+        version=SemanticVersion("1.0.0"),
+        purpose=PromptPurpose.REMEDIATION,
+        content=content,
+        model_parameters=PromptModelParameters("deepseek", "deepseek-flash", 0, 10000, 2048),
+        schema_compatibility=PromptSchemaCompatibility(
+            SemanticVersion("1.0.0"), SemanticVersion("1.0.0")
+        ),
+        trace=PromptTraceLink(
+            ActorId("admin-model"),
+            CorrelationId("remediation-sql-corr"),
+            CausationId("remediation-sql-command"),
+            NOW,
+        ),
+    )
+    active = await activate_prompt_for_model_call(
+        sessions, definition=definition, audit_prefix="remediation-sql"
+    )
+    calls = []
+
+    def respond(request: Any) -> Response:
+        calls.append(True)
+        return Response(
+            200,
+            json={
+                "usage": {"prompt_tokens": 10, "completion_tokens": 10, "total_tokens": 20},
+                "choices": [
+                    {"finish_reason": "stop", "message": {"content": proposal.model_dump_json()}}
+                ],
+            },
+        )
+
+    ids = count(1)
+    traces = PostgresWorkflowModelTraceStore(sessions)
+    invoker = RegisteredModelInvoker(
+        StructuredEvaluationModel("test-only", lambda e: None, transport=MockTransport(respond)),
+        PostgresWorkflowPromptStore(sessions),
+        ModelCallTraceManager(
+            traces, clock=lambda: NOW, id_factory=lambda: f"remediation-sql-call-{next(ids)}"
+        ),
+        {ModelPurpose.REMEDIATE: PromptVersionReference(active.prompt_id, active.version)},
+        Principal(
+            ActorId("remediation-operator"), TenantId("tenant-1"), frozenset({Role.OPERATOR})
+        ),
+        claim.incident_id,
+        WorkflowRunId("remediation-sql-workflow"),
+        CorrelationId("remediation-sql-corr"),
+        CausationId("remediation-sql-command"),
+        lambda e: None,
+    )
+
+    class GateReader:
+        async def get(self, **scope: Any) -> EvidenceGateDecision | None:
+            async with sessions() as session:
+                return await EvidenceGateRepository(session).get(**scope)
+
+    admitted = await propose_registered_remediation(invoker, GateReader(), decision, context)
+    assert admitted.proposal == proposal and calls == [True]
+    trace = await traces.get(TenantId("tenant-1"), ModelCallId("remediation-sql-call-1"))
+    assert trace is not None and trace.status is ModelCallStatus.SUCCEEDED
+    from evaluation.registered_remediation import request_remediation_review
+
+    from agentops_incident_commander.application import PolicyRules
+
+    policy_value = replace(
+        approval_policy_input(),
+        incident_id=claim.incident_id,
+        proposal_id=OpaqueIdentifier(proposal.proposal_id),
+        proposal_fingerprint=proposal.fingerprint,
+        evidence_gate_decision_fingerprint=evidence_gate_decision_fingerprint(decision),
+        requester_actor_id=invoker.principal.actor_id,
+        requester_roles=invoker.principal.roles,
+    )
+    policy_rules = PolicyRules(
+        SemanticVersion("1.0.0"),
+        frozenset({PolicyEnvironment.PRODUCTION}),
+        frozenset({Role.OPERATOR}),
+        frozenset({PolicyAction.ROLLBACK_SERVICE}),
+        frozenset({"orders"}),
+        frozenset({PolicyBlastRadius.SINGLE_SERVICE}),
+        True,
+        True,
+        timedelta(minutes=30),
+    )
+    async with sessions.begin() as session:
+        policy_decision, pending = await request_remediation_review(
+            admitted,
+            policy_value,
+            rules=policy_rules,
+            decision_id=OpaqueIdentifier("registered-remediation-policy"),
+            evaluated_at=NOW + timedelta(minutes=4),
+            approvals=approval_manager(
+                session,
+                at=NOW + timedelta(minutes=5),
+                approval_id="registered-remediation-pending",
+                audit_id="registered-remediation-pending-audit",
+            ),
+            principal=invoker.principal,
+            correlation_id=invoker.correlation,
+            causation_id=invoker.causation,
+        )
+    assert pending is not None and pending.status is ApprovalStatus.PENDING
+    async with sessions() as session:
+        review = await ApprovalLifecycleRepository(session).get_review_snapshot(
+            pending.id, tenant_id=TenantId("tenant-1")
+        )
+    assert (
+        review is not None
+        and review.proposal == proposal
+        and review.policy_decision == policy_decision
+    )
+
 
 def approval_review_proposal(value: PolicyEvaluationInput | None = None) -> RemediationProposal:
     incident_id = "incident-approval-storage" if value is None else value.incident_id.value

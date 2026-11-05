@@ -68,3 +68,8 @@ A PostgreSQL integration now verifies the evaluation Policy-to-review function u
 actual Approval lifecycle repository: pending state and exact proposal/Policy review snapshot
 commit and survive a fresh session. Inputs are controlled Gate/proposal fixtures, so this is
 persistence evidence, not provider-quality, real human approval or recovery evidence.
+
+The combined PostgreSQL test now binds an ACTIVE remediation Prompt, a bounded controlled
+provider response, durable model trace, stored PASS admission before/after model output,
+deterministic Policy and a committed PENDING Approval with an exact review snapshot.
+The snapshot is re-read from another session. No approval decision or execution occurs.

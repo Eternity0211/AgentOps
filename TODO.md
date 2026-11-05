@@ -435,6 +435,11 @@ This index is an omission check, not a second task list. The referenced phases c
   Verification: 63 relevant transport/compiler/regression tests pass; Ruff and strict mypy pass.
 - [x] C2a: local read catalog, real model-selected Gateway investigation and exact provenance;
   25 relevant tests, Ruff/mypy and normal-baseline real smoke pass.
+- [x] C2b: bounded evidence-driven replan with immutable incremental Evidence.
+  Acceptance: at most one replan, 12 aggregate reads and four model calls; missing-evidence
+  feedback reaches planner, equivalent queries refuse before dispatch, old Evidence remains
+  immutable, terminal checkpoint replay adds no calls. Verification: 23 relevant tests pass,
+  including real PostgreSQL terminal replay, two-round Gate success and query reconstruction.
 - [ ] C2: autonomous read investigation through the gateway, discriminating telemetry and exact provenance.
 - [x] C3a: inject the official PostgreSQL checkpointer and use the existing resume-aware runner.
   Verification: replacement PostgreSQL saver restores a completed autonomous investigation;

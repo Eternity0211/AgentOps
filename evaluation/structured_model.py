@@ -294,7 +294,11 @@ class StructuredEvaluationModel:
 
 
 def compile_real_plan(
-    result: StructuredResult, registry: ToolRegistry, budgets: PlanningBudgets
+    result: StructuredResult,
+    registry: ToolRegistry,
+    budgets: PlanningBudgets,
+    *,
+    prior_query_fingerprints: frozenset[str] = frozenset(),
 ) -> CompiledInvestigationPlan:
     if not isinstance(result.output, InvestigationProposal):
         raise ValueError("planning requires an InvestigationProposal")
@@ -328,4 +332,5 @@ def compile_real_plan(
         usage=PlanningUsage(
             result.input_tokens + result.output_tokens, result.cost_upper_bound_nanousd
         ),
+        prior_query_fingerprints=prior_query_fingerprints,
     )

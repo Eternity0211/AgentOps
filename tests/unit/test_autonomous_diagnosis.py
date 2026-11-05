@@ -54,7 +54,7 @@ def diagnosis() -> dict[str, Any]:
                 "candidate_id": "deployment-regression",
                 "rank": 1,
                 "statement": "Observed errors",
-                "supporting_evidence_ids": ["evidence-metrics", "evidence-logs"],
+                "supporting_evidence_ids": ["evidence-r0-metrics", "evidence-r0-logs"],
                 "counter_evidence_ids": [],
                 "counter_evidence_treatment": "NOT_APPLICABLE",
                 "counter_evidence_explanation": None,
@@ -68,7 +68,8 @@ def diagnosis() -> dict[str, Any]:
     }
 
 
-def test_autonomous_plan_gateway_evidence_and_gate(tmp_path: Path) -> None:
+@pytest.mark.parametrize("replan", [False, True])
+def test_autonomous_plan_gateway_evidence_and_gate(tmp_path: Path, replan: bool) -> None:
     events: list[dict[str, Any]] = []
     dispatched = []
 
@@ -92,10 +93,44 @@ def test_autonomous_plan_gateway_evidence_and_gate(tmp_path: Path) -> None:
                 "records_seen": 1,
             }
 
+    model_requests: list[bool] = []
+
     def respond(request: httpx.Request) -> httpx.Response:
+        model_requests.append(True)
         payload = json.loads(request.content)
         schema = json.loads(payload["messages"][1]["content"])["output_schema"]
         output = plan() if "plan" in schema["properties"] else diagnosis()
+        if replan and len(model_requests) == 2:
+            output["candidates"][0]["missing_evidence"] = ["deployment evidence"]
+        if replan and len(model_requests) == 3:
+            output = {
+                "plan": {
+                    "schema_version": "1.0.0",
+                    "plan_id": "replan",
+                    "summary": "Inspect missing deployment evidence",
+                    "steps": [
+                        {
+                            "step_id": "deployment",
+                            "objective": "Inspect deployment",
+                            "expected_source": "DEPLOYMENT",
+                            "parallel_group": 0,
+                        }
+                    ],
+                },
+                "tool_calls": [
+                    {
+                        "step_id": "deployment",
+                        "tool_name": "query_deployments",
+                        "tool_version": "2.0.0",
+                        "arguments": {"service": "order"},
+                    }
+                ],
+            }
+        if replan and len(model_requests) == 4:
+            output["candidates"][0]["supporting_evidence_ids"] = [
+                "evidence-r0-metrics",
+                "evidence-r1-deployment",
+            ]
         return httpx.Response(
             200,
             json={
@@ -124,9 +159,10 @@ def test_autonomous_plan_gateway_evidence_and_gate(tmp_path: Path) -> None:
         )
     )
     assert state.phase.value == "COMPLETE"
-    assert len(dispatched) == 2
-    assert state.budgets.used_tool_calls == 2
-    assert state.budgets.used_model_calls == 2
+    assert len(dispatched) == (3 if replan else 2)
+    assert state.budgets.used_tool_calls == (3 if replan else 2)
+    assert state.budgets.used_model_calls == (4 if replan else 2)
+    assert state.budgets.used_replans == (1 if replan else 0)
     assert services.gates[0].outcome.value == "PASS"
     assert len([event for event in events if event.get("kind") == "tool-audit"]) >= 4
     assert services.evidence is not None

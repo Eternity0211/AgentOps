@@ -110,6 +110,7 @@ class AutonomousServices:
         )
         self.usage: list[dict[str, int]] = []
         self.resumed = False
+        self.round = 0
 
     async def load_context(
         self, state: DiagnosisGraphState, *, operation_id: str
@@ -117,12 +118,20 @@ class AutonomousServices:
         return ContextLoadResult()
 
     async def plan(self, state: DiagnosisGraphState, *, operation_id: str) -> PlanNodeResult:
+        self.round = state.budgets.used_replans
+        remaining = 12 - state.budgets.used_tool_calls
         context = {
             "incident_id": self.incident,
             "alert": self.alert,
             "environment": "local",
             "read_only": True,
-            "budgets": {"steps": 8, "parallelism": 4, "calls": 8},
+            "budgets": {"steps": min(8, remaining), "parallelism": 4, "calls": remaining},
+            "previous_missing_evidence": list(self.report.missing_evidence)
+            + [m for c in self.report.candidates for m in c.missing_evidence]
+            if self.report
+            else [],
+            "previous_evidence": self.evidence.observations[:2] if self.evidence else [],
+            "prior_queries": [call for call in state.tool_query_fingerprints],
             "catalog": [
                 {
                     "name": d.name,
@@ -141,12 +150,15 @@ class AutonomousServices:
         }
         result = await asyncio.to_thread(self.model.invoke, ModelPurpose.PLAN, context)
         self.compiled = compile_real_plan(
-            result, self.registry, PlanningBudgets(8, 4, 160000, 32000, 1000000000)
+            result,
+            self.registry,
+            PlanningBudgets(min(8, remaining), 4, 160000, 32000, 1000000000),
+            prior_query_fingerprints=frozenset(state.tool_query_fingerprints),
         )
         self.usage.append({"input": result.input_tokens, "output": result.output_tokens})
         references = tuple(
             PlanToolCallReference(
-                call_id=f"call-{call.step_id}",
+                call_id=f"call-r{self.round}-{call.step_id}",
                 step_id=call.step_id,
                 tool_name=call.tool_name,
                 tool_version=call.tool_version.value,
@@ -154,7 +166,7 @@ class AutonomousServices:
             for call in self.compiled.calls
         )
         return PlanNodeResult(
-            "real-plan",
+            f"real-plan-{self.round}",
             self.compiled.plan,
             references,
             tuple(call.query_fingerprint for call in self.compiled.calls),
@@ -169,7 +181,7 @@ class AutonomousServices:
         groups = sorted({call.parallel_group for call in self.compiled.calls})
         return tuple(
             tuple(
-                f"call-{call.step_id}"
+                f"call-r{self.round}-{call.step_id}"
                 for call in self.compiled.calls
                 if call.parallel_group == group
             )
@@ -180,7 +192,9 @@ class AutonomousServices:
         self, state: DiagnosisGraphState, tool_call_id: str, *, operation_id: str
     ) -> None:
         selected = next(
-            call for call in self.compiled.calls if f"call-{call.step_id}" == tool_call_id
+            call
+            for call in self.compiled.calls
+            if f"call-r{self.round}-{call.step_id}" == tool_call_id
         )
         request = ToolCallRequest(
             call_id=ToolCallId(tool_call_id),
@@ -201,8 +215,8 @@ class AutonomousServices:
     ) -> EvidencePersistenceResult:
         observations, provenance = [], {}
         for call in self.compiled.calls:
-            record = self.results[f"call-{call.step_id}"]
-            identifier = f"evidence-{call.step_id}"
+            record = self.results[f"call-r{self.round}-{call.step_id}"]
+            identifier = f"evidence-r{self.round}-{call.step_id}"
             observations.append(
                 {"id": identifier, "source": record["source"], "summary": record["summary"]}
             )
@@ -216,10 +230,15 @@ class AutonomousServices:
             observations,
             observed_from=self.start,
             provenance_by_id=provenance,
+            existing=self.evidence,
         )
         if not self.evidence.records:
             raise ValueError("all telemetry quarantined")
-        return EvidencePersistenceResult(tuple(item.value for item in self.evidence.records))
+        return EvidencePersistenceResult(
+            tuple(
+                item.value for item in self.evidence.records if item.value not in state.evidence_ids
+            )
+        )
 
     async def hypothesize(
         self, state: DiagnosisGraphState, *, operation_id: str
@@ -247,7 +266,7 @@ class AutonomousServices:
         self.report = cast(DiagnosisReport, result.output)
         self.usage.append({"input": result.input_tokens, "output": result.output_tokens})
         return HypothesisNodeResult(
-            "real-diagnosis",
+            f"real-diagnosis-{self.round}",
             result.input_tokens + result.output_tokens,
             result.cost_upper_bound_nanousd,
         )
@@ -256,6 +275,7 @@ class AutonomousServices:
         self, state: DiagnosisGraphState, *, operation_id: str
     ) -> GateNodeResult:
         assert self.evidence is not None and self.report is not None
+        self.gates = []
         for candidate in self.report.candidates:
             claim = self.report.evidence_gate_claim(candidate.candidate_id)
             now = datetime.now(UTC)
@@ -273,7 +293,15 @@ class AutonomousServices:
         passed = any(item.outcome is EvidenceGateOutcome.PASS for item in self.gates)
         return GateNodeResult(
             fingerprint([str(item) for item in self.gates]),
-            GateRoute.PASS if passed else GateRoute.HUMAN_HANDOFF,
+            GateRoute.PASS
+            if passed
+            else (
+                GateRoute.REPLAN
+                if bool(self.report.candidates)
+                and state.budgets.used_replans < state.budgets.max_replans
+                and state.budgets.used_tool_calls < state.budgets.max_tool_calls
+                else GateRoute.HUMAN_HANDOFF
+            ),
             None if passed else "EVIDENCE_GATE_NOT_PASSED",
         )
 
@@ -313,11 +341,11 @@ async def investigate(
         causation_id=f"causation-{incident}",
         phase=GraphPhase.CONTEXT_LOADING,
         budgets=GraphBudgetState(
-            max_steps=8,
+            max_steps=12,
             used_steps=0,
-            max_replans=0,
+            max_replans=1,
             used_replans=0,
-            max_tool_calls=8,
+            max_tool_calls=12,
             used_tool_calls=0,
             max_model_calls=4,
             used_model_calls=0,

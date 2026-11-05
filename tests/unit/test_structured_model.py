@@ -203,6 +203,13 @@ def test_real_plan_compiles_against_registry_and_rejects_arbitrary_targets() -> 
     compiled = compile_real_plan(result, registry, budgets)
     assert compiled.calls[0].tool_name == "query_metrics"
     assert len(compiled.calls[0].query_fingerprint) == 64
+    with pytest.raises(InvalidDomainValueError):
+        compile_real_plan(
+            result,
+            registry,
+            budgets,
+            prior_query_fingerprints=frozenset({compiled.calls[0].query_fingerprint}),
+        )
     output["tool_calls"][0]["arguments"]["service"] = "https://untrusted.invalid"
     malicious = client(output, []).invoke(ModelPurpose.PLAN, {})
     with pytest.raises(ToolPayloadValidationError):

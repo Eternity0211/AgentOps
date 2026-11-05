@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import secrets
 from dataclasses import asdict
@@ -53,12 +54,18 @@ class ExperimentEvidence:
         *,
         observed_from: datetime,
         provenance_by_id: dict[str, dict[str, Any]] | None = None,
+        existing: ExperimentEvidence | None = None,
     ) -> None:
         self.tenant = TenantId("local-evaluation")
         self.incident = IncidentId(incident)
-        self.records: dict[EvidenceId, Evidence] = {}
-        self.storage = LocalArtifactStorage(root)
-        self.observations: list[dict[str, str]] = []
+        if existing is not None and existing.incident != self.incident:
+            raise ValueError("cannot merge evidence across incidents")
+        self.records: dict[EvidenceId, Evidence] = dict(existing.records) if existing else {}
+        self.storage: LocalArtifactStorage = (
+            existing.storage if existing else LocalArtifactStorage(root)
+        )
+        self.observations: list[dict[str, str]] = list(existing.observations) if existing else []
+        self.batch: int = existing.batch + 1 if existing else 0
         now = datetime.now(UTC)
         source_types = {
             "metrics": EvidenceSourceType.METRIC,
@@ -71,13 +78,17 @@ class ExperimentEvidence:
         manifest = []
         for observation in observations:
             identifier = observation["id"]
+            if EvidenceId(identifier) in self.records:
+                raise ValueError("evidence identity is immutable across investigation rounds")
             provenance = (provenance_by_id or {}).get(identifier, {})
             query_text = json.dumps(provenance, sort_keys=True, separators=(",", ":"))
+            query_encoding = base64.urlsafe_b64encode(query_text.encode()).decode()
             query_fields = [QueryParameter("source", observation["source"])]
             if provenance:
+                query_fields.append(QueryParameter("request_spec_encoding", "base64url-json-v1"))
                 query_fields.extend(
-                    QueryParameter(f"request_spec_{n:02d}", query_text[pos : pos + 480])
-                    for n, pos in enumerate(range(0, len(query_text), 480))
+                    QueryParameter(f"request_spec_{n:02d}", query_encoding[pos : pos + 480])
+                    for n, pos in enumerate(range(0, len(query_encoding), 480))
                 )
             artifact_id = ArtifactId(f"artifact-{incident}-{identifier}")
             redaction = redact_sensitive_data(
@@ -132,7 +143,8 @@ class ExperimentEvidence:
             manifest.append(
                 {"evidence": asdict(normalized.evidence), "artifact": asdict(normalized.artifact)}
             )
-        with (root / "evidence-records.json").open("x", encoding="utf-8") as stream:
+        name = "evidence-records.json" if self.batch == 0 else f"evidence-records-{self.batch}.json"
+        with (root / name).open("x", encoding="utf-8") as stream:
             json.dump(manifest, stream, default=str, indent=2)
 
     async def get(

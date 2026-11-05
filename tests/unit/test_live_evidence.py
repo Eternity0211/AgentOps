@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import base64
 import json
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
 from evaluation.live_evidence import ExperimentEvidence
 
 from agentops_incident_commander.workflows import DiagnosisReport
@@ -69,3 +71,48 @@ def test_prompt_injection_is_excluded_before_model_context(tmp_path: Path) -> No
     )
     assert evidence.observations == []
     assert evidence.records == {}
+
+
+def test_incremental_evidence_retains_original_records_and_exact_query(tmp_path: Path) -> None:
+    now = datetime.now(UTC)
+    provenance = {
+        "tool": "query_metrics",
+        "version": "2.0.0",
+        "query": ("meaningful spaces " * 40) + "tail",
+        "records_seen": 1,
+    }
+    first = ExperimentEvidence(
+        tmp_path,
+        "incident-1",
+        [{"id": "e1", "source": "metrics", "summary": "Observed error rate"}],
+        observed_from=now,
+        provenance_by_id={"e1": provenance},
+    )
+    original = (tmp_path / "evidence-records.json").read_bytes()
+    second = ExperimentEvidence(
+        tmp_path,
+        "incident-1",
+        [{"id": "e2", "source": "logs", "summary": "Observed errors"}],
+        observed_from=now,
+        existing=first,
+    )
+    assert (tmp_path / "evidence-records.json").read_bytes() == original
+    assert (tmp_path / "evidence-records-1.json").exists()
+    assert len(first.records) == 1 and len(second.records) == 2
+    query = next(iter(first.records.values())).normalized_query.as_dict()
+    chunks = "".join(
+        query[key]
+        for key in sorted(query)
+        if key.startswith("request_spec_") and key != "request_spec_encoding"
+    )
+    assert json.loads(base64.urlsafe_b64decode(chunks)) == provenance
+    with pytest.raises(ValueError):
+        ExperimentEvidence(
+            tmp_path,
+            "incident-1",
+            [{"id": "e1", "source": "logs", "summary": "Substitution"}],
+            observed_from=now,
+            existing=first,
+        )
+    with pytest.raises(ValueError):
+        ExperimentEvidence(tmp_path, "other-incident", [], observed_from=now, existing=first)

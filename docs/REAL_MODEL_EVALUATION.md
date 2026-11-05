@@ -220,3 +220,14 @@ atomic repository audit. Integration tests verify cross-session reads, tenant is
 committed lifecycle transitions and rejected duplicate Evidence/trace completion without
 corruption. Full regression: 2,844 tests and 100% source statement/branch coverage. These ports
 are integration building blocks; complete durable autonomous-worker composition remains open.
+
+## Bounded supplementary investigation
+
+The autonomous graph now permits one evidence-driven replan under 12 aggregate read calls
+and four aggregate model calls. A candidate's declared missing evidence is returned to the
+planner. Equivalent earlier queries are rejected by the same compiler before dispatch.
+Round-specific identities keep calls and Evidence unique; incremental stores retain original
+immutable records and append a separate manifest. Explicit model handoff/refusal does not
+force another investigation. Tests cover first-round PASS, second-round PASS after missing
+evidence, aggregate accounting and terminal replay without further effects. Query specifications
+use base64url JSON chunks to preserve spaces exactly across bounded query fields.

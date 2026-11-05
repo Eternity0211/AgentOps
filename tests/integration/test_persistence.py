@@ -8198,12 +8198,17 @@ async def test_workflow_model_budget_serializes_concurrent_replacement_workers(
 @pytest.mark.parametrize(
     "anyio_backend", [("asyncio", {"loop_factory": asyncio.SelectorEventLoop})], indirect=True
 )
-@pytest.mark.parametrize("write_failure,registered", [(False, False), (True, False), (False, True)])
+@pytest.mark.parametrize(
+    "write_failure,registered,crash",
+    [(False, False, False), (True, False, False), (False, True, False), (False, True, True)],
+)
 async def test_autonomous_gate_uses_committed_postgres_evidence(
     engine: AsyncEngine,
     tmp_path: Path,
     write_failure: bool,
     registered: bool,
+    crash: bool,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from evaluation.autonomous_diagnosis import investigate
     from evaluation.live_gateway import SOURCES, local_definitions
@@ -8218,6 +8223,7 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
     )
 
     incident = "postgres-autonomous"
+    combined_workflow = f"combined-workflow-{int(crash)}"
     if not write_failure:
         await add_incident(
             engine, incident, tenant="tenant-1" if registered else "local-evaluation"
@@ -8225,12 +8231,14 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     store = PostgresWorkflowEvidenceStore(sessions)
     calls: list[str] = []
+    tool_calls: list[str] = []
 
     class Adapter:
         def __init__(self, name: str) -> None:
             self.name = name
 
         async def invoke(self, context: Any, arguments: Any) -> dict[str, Any]:
+            tool_calls.append(self.name)
             return {
                 "source": SOURCES[self.name],
                 "summary": "Observed current error status 500",
@@ -8338,7 +8346,9 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
                 ),
             )
             active = await activate_prompt_for_model_call(
-                sessions, definition=definition, audit_prefix="combined-" + purpose.value
+                sessions,
+                definition=definition,
+                audit_prefix=f"combined-{int(crash)}-" + purpose.value,
             )
             references[purpose] = PromptVersionReference(active.prompt_id, active.version)
         ids = count(1)
@@ -8348,14 +8358,14 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
             ModelCallTraceManager(
                 PostgresWorkflowModelTraceStore(sessions),
                 clock=lambda: NOW,
-                id_factory=lambda: f"combined-call-{next(ids)}",
+                id_factory=lambda: f"combined-{int(crash)}-call-{next(ids)}",
             ),
             references,
             Principal(
                 ActorId("combined-operator"), TenantId("tenant-1"), frozenset({Role.OPERATOR})
             ),
             IncidentId(incident),
-            WorkflowRunId("combined-workflow"),
+            WorkflowRunId(combined_workflow),
             CorrelationId("combined-corr"),
             CausationId("combined-command"),
             lambda e: None,
@@ -8398,7 +8408,7 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
         queued = replace(
             job("combined-job"),
             incident_id=IncidentId(incident),
-            workflow_run_id=WorkflowRunId("combined-workflow"),
+            workflow_run_id=WorkflowRunId(combined_workflow),
             correlation_id=CorrelationId("combined-corr"),
             causation_id=CausationId("combined-command"),
         )
@@ -8413,7 +8423,7 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
                     queued.payload_ref.value,
                     "tenant-1",
                     incident,
-                    "combined-workflow",
+                    combined_workflow,
                     "combined-corr",
                     "combined-command",
                     "Observed checkout error",
@@ -8429,18 +8439,40 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
                 adapters=adapters,
             )
             worker = LeasedEvaluationWorker(sessions, OpaqueIdentifier("combined-worker"), handler)
-            assert await worker.run_once() == 1
-            assert await worker.run_once() == 0
+            if crash:
+                from evaluation.autonomous_diagnosis import AutonomousServices
+
+                original_hypothesis = AutonomousServices.hypothesize
+
+                async def fail_hypothesis(self: Any, state: Any, *, operation_id: str) -> Any:
+                    raise RuntimeError("injected before hypothesis")
+
+                monkeypatch.setattr(AutonomousServices, "hypothesize", fail_hypothesis)
+                with pytest.raises(RuntimeError, match="injected before hypothesis"):
+                    await worker.run_once()
+                assert calls == ["PLAN"] and len(tool_calls) == 2
+                monkeypatch.setattr(AutonomousServices, "hypothesize", original_hypothesis)
+                async with postgres_diagnosis_checkpointer(connection_url) as replacement:
+                    handler.checkpointer = replacement
+                    replacement_worker = LeasedEvaluationWorker(
+                        sessions, OpaqueIdentifier("replacement-combined"), handler
+                    )
+                    assert await replacement_worker.run_once() == 1
+                    assert await replacement_worker.run_once() == 0
+            else:
+                assert await worker.run_once() == 1
+                assert await worker.run_once() == 0
+            assert len(tool_calls) == 2
         async with sessions() as session:
             queued_row = await session.scalar(select(JobRow).where(JobRow.id == queued.id.value))
             persisted_report = await DiagnosisReportRepository(session).latest(
                 tenant_id=TenantId("tenant-1"), incident_id=IncidentId(incident)
             )
-            progress_row = await session.get(DiagnosisProgressRow, "combined-workflow")
+            progress_row = await session.get(DiagnosisProgressRow, combined_workflow)
         assert queued_row is not None and queued_row.status == "COMPLETED"
         assert (
             persisted_report is not None
-            and persisted_report.workflow_run_id.value == "combined-workflow"
+            and persisted_report.workflow_run_id.value == combined_workflow
         )
         assert (
             progress_row is not None

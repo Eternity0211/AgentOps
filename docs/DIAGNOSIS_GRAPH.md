@@ -157,3 +157,9 @@ and progress, using a custom workflow identity. It verifies cross-session report
 and Gate PASS. Provider responses and Prompt regression results are controlled test fixtures;
 this does not measure provider quality or authorize real Prompt promotion. Queue and
 PostgreSQL checkpoint combination remains separate work.
+
+The combined SQL leased test now injects a pre-hypothesis failure, then reclaims through a
+replacement worker and a new official PostgreSQL saver connection. SQL Evidence, registered
+Prompt versions and persisted progress survive; total calls remain PLAN+DIAGNOSE and two
+read tools. This covers a bounded retry after failure, not abrupt OS-process termination or
+every possible node-effect/checkpoint gap.

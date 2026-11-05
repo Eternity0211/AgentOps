@@ -517,6 +517,12 @@ This index is an omission check, not a second task list. The referenced phases c
   Selector event-loop configuration makes psycopg behavior explicit on Windows. This proves
   successful composition, not every crash boundary; full regression currently running.
 
+- [x] C3m: combined SQL leased investigation recovers before hypothesis.
+  Inject failure after Evidence persistence, re-claim with a replacement worker and open a new
+  official PostgreSQL saver; reuse SQL Evidence and registered prompts. Four integration cases
+  pass; exactly PLAN+DIAGNOSE and two reads, no duplicate collection. Full regression before
+  this final extra case: 2,878 passed, 100% source statement/branch coverage. Ruff/mypy pass.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

@@ -659,6 +659,12 @@ This index is an omission check, not a second task list. The referenced phases c
   audit-scope-fix regression: 2,922 passed with 100% source statement/branch coverage.
   Single/graph real-provider batch is running; valid memory data remains unavailable.
 
+- [x] C6g: retain every valid diagnosis disposition and structured report hashes.
+  Add NEEDS_MORE_EVIDENCE/REFUSED to Outcome, preserve validated-output hash in model trace
+  journal, and fsync a sanitized report with original/stored hashes. Thirty-one targeted tests
+  pass; added report-file binding assertion passes. Initial real batch stopped after 27
+  committed outcomes; one uncertain result will be FAILED without repeating its model call.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

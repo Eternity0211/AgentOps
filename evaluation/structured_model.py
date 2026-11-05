@@ -266,7 +266,11 @@ class StructuredEvaluationModel:
                 }
                 if not references <= {item.value for item in gate.evaluated_evidence_ids}:
                     raise StructuredModelFailure("UNKNOWN_REFERENCE")
-            event.update(status="SUCCEEDED", response_hash=hashlib.sha256(data).hexdigest())
+            event.update(
+                status="SUCCEEDED",
+                response_hash=hashlib.sha256(data).hexdigest(),
+                validated_output_hash=fingerprint(output.model_dump(mode="json")),
+            )
             return StructuredResult(
                 output,
                 usage["prompt_tokens"],

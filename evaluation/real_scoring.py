@@ -43,7 +43,9 @@ class Outcome(StrictRecord):
     input_hash: Digest
     status: Literal["SUCCEEDED", "FAILED"]
     candidates: tuple[str, ...] = ()
-    disposition: Literal["CANDIDATES", "HUMAN_HANDOFF"] | None = None
+    disposition: Literal["CANDIDATES", "NEEDS_MORE_EVIDENCE", "REFUSED", "HUMAN_HANDOFF"] | None = (
+        None
+    )
     missing_evidence_count: int = Field(default=0, ge=0)
     gate_pass: bool = False
     proposal_created: bool = False

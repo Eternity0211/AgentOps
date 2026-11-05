@@ -114,3 +114,7 @@ def test_snapshot_success_uses_read_replay_and_retains_usage(tmp_path: Path) -> 
     )
     assert outcome.status == "SUCCEEDED" and outcome.disposition == "HUMAN_HANDOFF"
     assert outcome.input_tokens == outcome.output_tokens == 20
+    report_file = tmp_path / "run/single-agent/instance-0000000000000001/diagnosis-report.json"
+    stored = json.loads(report_file.read_text(encoding="utf-8"))
+    assert stored["report"]["disposition"] == "HUMAN_HANDOFF"
+    assert stored["validated_report_hash"] == stored["stored_report_hash"]

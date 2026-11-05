@@ -124,3 +124,18 @@ def test_partial_modes_are_explicitly_incomplete() -> None:
     assert result["missing_modes"] == ["controlled-graph-memory"]
     with pytest.raises(ValueError):
         score(labels, subset, expected_protocol_hash="a" * 64)
+
+
+@pytest.mark.parametrize("disposition", ["NEEDS_MORE_EVIDENCE", "REFUSED"])
+def test_all_valid_report_dispositions_can_be_retained(disposition: str) -> None:
+    row = Outcome.model_validate(
+        {
+            "instance_id": "instance-0000000000000001",
+            "mode": "single-agent",
+            "protocol_hash": "a" * 64,
+            "input_hash": "b" * 64,
+            "status": "SUCCEEDED",
+            "disposition": disposition,
+        }
+    )
+    assert row.disposition == disposition

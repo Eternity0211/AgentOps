@@ -17,10 +17,15 @@ from agentops_incident_commander.domain import EvidenceGateDecision
 from evaluation.autonomous_diagnosis import investigate
 from evaluation.historical_context import MemoryReplaySource
 from evaluation.live_gateway import local_definitions
-from evaluation.observation_snapshot import SnapshotReadAdapter, load_snapshot
+from evaluation.observation_snapshot import SnapshotReadAdapter, load_snapshot, sanitize_output
 from evaluation.outcome_ledger import OutcomeLedger
 from evaluation.real_scoring import CAUSES, MODES, Outcome
-from evaluation.structured_model import ModelPurpose, StructuredEvaluationModel, StructuredResult
+from evaluation.structured_model import (
+    ModelPurpose,
+    StructuredEvaluationModel,
+    StructuredResult,
+    fingerprint,
+)
 
 
 class ComparisonModel(StructuredEvaluationModel):
@@ -146,6 +151,21 @@ def run_snapshot(
         if services.report is None:
             raise ValueError("no completed report")
         report = services.report
+        original = report.model_dump(mode="json")
+        sanitized = sanitize_output(original)
+        with (run_root / "diagnosis-report.json").open("x", encoding="utf-8") as stream:
+            json.dump(
+                {
+                    "report": sanitized,
+                    "validated_report_hash": fingerprint(original),
+                    "stored_report_hash": fingerprint(sanitized),
+                    "redaction_applied": sanitized != original,
+                },
+                stream,
+                sort_keys=True,
+            )
+            stream.flush()
+            os.fsync(stream.fileno())
         values = {
             "status": "SUCCEEDED",
             "candidates": tuple(c.candidate_id for c in report.candidates),

@@ -585,6 +585,13 @@ This index is an omission check, not a second task list. The referenced phases c
   bytes/hash, closed fields, opaque ID, aware window and full read catalog; extra label fields
   refuse. Five related tests plus Ruff/mypy pass. Full capture is running independently.
 
+- [x] C5g: freeze and implement explicit derived control transforms.
+  Three normal parents will each yield withheld-source and unsupported-operator-hypothesis
+  controls. Counter control preserves telemetry; insufficient control exposes unavailable
+  sources. Parent/transform hashes and derived origin stay evaluator-only. Two tests verify
+  immutable parents, unchanged counter observations and no label fields in model snapshots.
+  Controls still need generation from completed real normal captures.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

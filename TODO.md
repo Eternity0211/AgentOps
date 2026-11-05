@@ -548,6 +548,12 @@ This index is an omission check, not a second task list. The referenced phases c
   PENDING Approval/review snapshot. Fresh-session snapshot equality passes; Ruff/mypy pass.
   This is controlled integration evidence; live-provider diagnosis/remediation runs remain open.
 
+- [x] C5a: predeclare real-provider comparison protocol before new capture.
+  Frozen v1 plan: 27 instances/mode, three model modes, 81 provider instances, explicit
+  taxonomy, known-family limitation, paired inputs/budgets, memory isolation, failure-inclusive
+  denominators and separate recovery/operator tracks. JSON and sample arithmetic verified.
+  Dataset capture, protocol validator, scoring and provider runs remain open under C5/C6.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

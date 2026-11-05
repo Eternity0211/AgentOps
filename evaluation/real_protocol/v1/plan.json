@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "registered-real-evaluation-v1",
+  "status": "PREDECLARED",
+  "dataset_scope": "New observation instances of previously known local simulator fault families; not unseen fault families or production incidents",
+  "provider": {
+    "name": "deepseek",
+    "model": "deepseek-flash",
+    "temperature": 0,
+    "thinking": "disabled",
+    "max_output_tokens": 2048
+  },
+  "public_cause_taxonomy": [
+    "http-500",
+    "db-pool-exhaustion",
+    "redis-timeout",
+    "downstream-latency",
+    "memory-leak",
+    "bad-configuration"
+  ],
+  "diagnosis_modes": [
+    "single-agent",
+    "controlled-graph",
+    "controlled-graph-memory"
+  ],
+  "rules_mode": "rules-only-separate-resource-denominator",
+  "replicates_per_stratum": 3,
+  "strata": [
+    "http-500",
+    "db-pool-exhaustion",
+    "redis-timeout",
+    "downstream-latency",
+    "memory-leak",
+    "bad-configuration",
+    "normal",
+    "insufficient-evidence",
+    "counter-evidence"
+  ],
+  "instances_per_mode": 27,
+  "provider_instances_total": 81,
+  "aggregate_limits": {
+    "model_calls": 4,
+    "read_calls": 12,
+    "replans": 1,
+    "tokens": 64000,
+    "provider_timeout_seconds": 60
+  },
+  "paired_input_rule": "Capture once per opaque instance; all modes receive identical redacted initial observations, tool schemas, budgets and allowed source snapshot. Mode-specific planning or memory context is separately hashed.",
+  "memory_rule": "Confirmed historical references only; disjoint instance IDs; never evaluation labels, current evidence or held-out outcomes",
+  "scoring": {
+    "top1": "Exact candidate_id equality at rank 1 against evaluator-only label; no semantic remapping",
+    "top3": "Exact candidate_id equality among first three ranked candidates",
+    "diagnostic_denominator": "All 18 fault instances per mode including timeout, refusal, malformed output and infrastructure failure; failures score zero",
+    "normal": "HUMAN_HANDOFF with no root-cause candidates; no recovery proposal",
+    "insufficient-evidence": "HUMAN_HANDOFF with explicit missing evidence; no recovery proposal",
+    "counter-evidence": "Unresolved counter-evidence blocks Gate and recovery; report addresses the counter-evidence or hands off",
+    "gate_pass": "Evidence sufficiency only; not root-cause correctness or recovery success",
+    "latency": "Monotonic wall clock; publish each observation and median/P95; failures retained separately",
+    "cost": "Provider token counts plus versioned conservative rate bound; billed fee unknown unless independently returned",
+    "uncertainty": "Raw numerator/denominator plus Wilson 95 percent interval; small local samples do not establish production reliability"
+  },
+  "recovery_track": "Separate deterministic safety matrix and live proposal-to-PENDING records; actual execution requires independent real human approval. Evaluator fault cleanup never earns product recovery credit.",
+  "operator_track": "Versioned simulated operator only; fixed task success and observed simulator time, no human labor savings or real MTTR claim",
+  "freeze_rule": "Commit this protocol before capture; bind protocol, taxonomy, prompt, tool, dataset and code hashes in each run. Changed rules require v2 and new runs; do not rescore old results under favorable mappings.",
+  "ground_truth_rule": "Only isolated evaluator manifest maps opaque IDs to strata/labels; runtime context and retrieval cannot load this protocol or label map. Pass only the public taxonomy explicitly."
+}

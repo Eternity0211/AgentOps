@@ -40,10 +40,13 @@ class RegisteredInvestigationJobHandler:
         evidence: WorkflowEvidenceStore,
         progress: DiagnosisProgressRecorder,
         journal: Callable[[dict[str, Any]], None],
+        *,
+        adapters: dict[Any, Any] | None = None,
     ) -> None:
         self.payload, self.factory = payload, invoker_factory
         self.checkpointer, self.evidence, self.progress = checkpointer, evidence, progress
         self.journal = journal
+        self.adapters = dict(adapters) if adapters is not None else None
 
     async def __call__(self, lease: JobLease) -> None:
         job, payload = lease.job, self.payload
@@ -88,4 +91,5 @@ class RegisteredInvestigationJobHandler:
             evidence_store=self.evidence,
             progress_recorder=self.progress,
             model_invoker=invoker,
+            adapters=self.adapters,
         )

@@ -505,6 +505,12 @@ This index is an omission check, not a second task list. The referenced phases c
   only, not real-model quality or production Prompt promotion. Queue/checkpoint combination
   and remaining crash boundaries are still open. Ruff/mypy pass.
 
+- [x] C3k: SQL queue consumes a registered investigation through the real handler.
+  Combined test enqueues/claims a Job, runs the handler with controlled read adapters and
+  provider transport, persists report/progress and verifies COMPLETED plus zero second claim.
+  Three PostgreSQL cases pass; Ruff/mypy pass. Checkpoint is in-memory in this combined
+  case; official PostgreSQL checkpoint replacement remains independently tested.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

@@ -8375,6 +8375,74 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
             model_invoker=invoker,
         )
 
+    if registered:
+        from dataclasses import replace
+
+        from evaluation.investigation_job import (
+            InvestigationJobInput,
+            RegisteredInvestigationJobHandler,
+        )
+        from evaluation.leased_worker import LeasedEvaluationWorker
+        from langgraph.checkpoint.memory import InMemorySaver
+
+        from agentops_incident_commander.infrastructure import diagnosis_checkpoint_serializer
+
+        assert invoker is not None
+        registered_invoker = invoker
+
+        async def factory() -> RegisteredModelInvoker:
+            return registered_invoker
+
+        queued = replace(
+            job("combined-job"),
+            incident_id=IncidentId(incident),
+            workflow_run_id=WorkflowRunId("combined-workflow"),
+            correlation_id=CorrelationId("combined-corr"),
+            causation_id=CausationId("combined-command"),
+        )
+        async with sessions.begin() as session:
+            await JobRepository(session).enqueue(queued)
+        handler = RegisteredInvestigationJobHandler(
+            InvestigationJobInput(
+                queued.payload_ref.value,
+                "tenant-1",
+                incident,
+                "combined-workflow",
+                "combined-corr",
+                "combined-command",
+                "Observed checkout error",
+                NOW - timedelta(minutes=1),
+                NOW,
+                tmp_path,
+            ),
+            factory,
+            InMemorySaver(serde=diagnosis_checkpoint_serializer()),
+            store,
+            PostgresDiagnosisProgressRecorder(sessions),
+            lambda e: None,
+            adapters=adapters,
+        )
+        worker = LeasedEvaluationWorker(sessions, OpaqueIdentifier("combined-worker"), handler)
+        assert await worker.run_once() == 1
+        assert await worker.run_once() == 0
+        async with sessions() as session:
+            queued_row = await session.scalar(select(JobRow).where(JobRow.id == queued.id.value))
+            persisted_report = await DiagnosisReportRepository(session).latest(
+                tenant_id=TenantId("tenant-1"), incident_id=IncidentId(incident)
+            )
+            progress_row = await session.get(DiagnosisProgressRow, "combined-workflow")
+        assert queued_row is not None and queued_row.status == "COMPLETED"
+        assert (
+            persisted_report is not None
+            and persisted_report.workflow_run_id.value == "combined-workflow"
+        )
+        assert (
+            progress_row is not None
+            and diagnosis_progress_from_row(progress_row).phase.value == "COMPLETE"
+        )
+        assert calls == ["PLAN", "DIAGNOSE"]
+        return
+
     if write_failure:
         with pytest.raises(IntegrityError):
             await execute()
@@ -8399,14 +8467,6 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
         assert progress.budgets == state.budgets
         assert len(progress.plans) == 1
         assert all(step.status is ToolProgressStatus.SUCCEEDED for step in progress.plans[0].steps)
-        if registered:
-            async with sessions() as session:
-                persisted_report = await DiagnosisReportRepository(session).latest(
-                    tenant_id=TenantId("tenant-1"), incident_id=IncidentId(incident)
-                )
-            assert persisted_report is not None
-            assert persisted_report.workflow_run_id.value == "combined-workflow"
-            assert services.report == persisted_report.report
 
 
 @pytest.mark.anyio

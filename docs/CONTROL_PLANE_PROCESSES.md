@@ -66,3 +66,9 @@ Incident, workflow, correlation and causation must match before factory invocati
 returned invoker must match again before investigation. PostgreSQL evidence/progress and
 checkpoint ports are forwarded explicitly. This is an evaluation composition adapter, not
 a claim that production startup or mid-investigation restoration is complete.
+
+The combined queue integration now exercises enqueue, committed claim, the registered
+investigation handler, SQL Evidence/traces/reports/progress, successful completion and an
+empty second claim. Read adapters are server-injected controlled fixtures; provider transport
+and checkpoint are controlled/in-memory in this case. It establishes composition, not live
+provider quality or complete crash recovery across all effects.

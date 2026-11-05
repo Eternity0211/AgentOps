@@ -474,6 +474,11 @@ This index is an omission check, not a second task list. The referenced phases c
 - [ ] C6: complete automatic regression, load/resilience/failure distributions and consolidated results.
 - [ ] C7: simulated-operator protocol and evaluation, explicitly separate from real human labor/approval.
 
+- [x] C3f: leased evaluation consumer with injectable workflow handler.
+  Committed claim, periodic heartbeat, success/failure completion, fixed failure code and
+  cancellation/stale takeover: three PostgreSQL tests pass; Ruff/mypy/architecture pass.
+  Real-model handler wiring and effect reconstruction remain open. Commit f530c7b.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

@@ -50,3 +50,12 @@ work, capacity-contract violation, cooperative signal shutdown, grace-period exp
 entry points, keyboard interruption, default-off recovery configuration, malformed/unsafe setting
 rejection, single observer creation/injection/bounded shutdown, fail-open exporter shutdown,
 transaction-owned PASS/FAIL routing, and the explicitly enabled full rollback chain.
+
+## Leased evaluation consumer
+
+`evaluation/leased_worker.py` commits claims before invoking an injected workflow handler,
+renews leases, and persists only fixed failure codes. Cancellation leaves leases reclaimable;
+renewal failure cancels the handler without changing queue authority. A failed batch cancels
+sibling handlers. This does not yet wire real-model startup or cancel already dispatched
+synchronous provider requests. Three PostgreSQL cases cover completion, failure and
+heartbeat/cancel/stale takeover.

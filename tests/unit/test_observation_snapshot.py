@@ -3,13 +3,16 @@
 import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 from evaluation.observation_snapshot import SnapshotReadAdapter, write_snapshot
 
 
 def test_snapshot_replay_copies_output_and_refuses_unavailable_source(tmp_path: Path) -> None:
-    reads = {"query_logs:order": {"status": "SUCCEEDED", "output": {"summary": "observed failure"}}}
+    reads: dict[str, Any] = {
+        "query_logs:order": {"status": "SUCCEEDED", "output": {"summary": "observed failure"}}
+    }
     adapter = SnapshotReadAdapter("query_logs", reads)
     reads["query_logs:order"]["output"]["summary"] = "mutated"
     result = asyncio.run(adapter.invoke(None, {"service": "order"}))
@@ -49,8 +52,13 @@ def test_fault_capture_cleans_up_after_source_failure(
     monkeypatch.setattr(runner, "checkout", lambda c, **k: {"status": 200})
     monkeypatch.setattr(runner, "inject", lambda *a, **k: 0)
     monkeypatch.setattr(runner, "wait_target", lambda *a: None)
-    monkeypatch.setattr(runner, "clean", lambda **k: cleaned.append(True) or 0)
-    monkeypatch.setattr(runner.time, "sleep", lambda s: None)
+
+    def clean(**kwargs: Any) -> int:
+        cleaned.append(True)
+        return 0
+
+    monkeypatch.setattr(runner, "clean", clean)
+    monkeypatch.setattr("time.sleep", lambda s: None)
 
     async def fail(*args: object) -> dict[str, object]:
         raise RuntimeError("source unavailable")

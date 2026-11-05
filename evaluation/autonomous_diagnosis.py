@@ -290,9 +290,7 @@ class AutonomousServices:
             )
         )
 
-    async def hypothesize(
-        self, state: DiagnosisGraphState, *, operation_id: str
-    ) -> HypothesisNodeResult:
+    async def restore_evidence(self, state: DiagnosisGraphState) -> None:
         if self.evidence is None and self.persisted_evidence is not None:
             records = []
             for identifier in state.evidence_ids:
@@ -312,6 +310,12 @@ class AutonomousServices:
                 workflow=state.workflow_run_id,
                 batch=state.budgets.used_replans,
             )
+        assert self.evidence is not None
+
+    async def hypothesize(
+        self, state: DiagnosisGraphState, *, operation_id: str
+    ) -> HypothesisNodeResult:
+        await self.restore_evidence(state)
         assert self.evidence is not None
         # Preserve whole records under an aggregate budget; never slice JSON mid-record.
         observations = []
@@ -343,6 +347,24 @@ class AutonomousServices:
     async def evaluate_evidence_gate(
         self, state: DiagnosisGraphState, *, operation_id: str
     ) -> GateNodeResult:
+        await self.restore_evidence(state)
+        if self.report is None and self.model_invoker is not None:
+            reader = self.model_invoker.report_reader
+            if reader is None:
+                raise ValueError("report reader required for Gate restoration")
+            record = await reader.latest(
+                tenant_id=self.principal.tenant_id, incident_id=IncidentId(self.incident)
+            )
+            if (
+                record is None
+                or record.workflow_run_id.value != state.workflow_run_id
+                or not state.model_call_ids
+                or record.model_call_id.value != state.model_call_ids[-1]
+                or record.tenant_id != self.principal.tenant_id
+                or record.incident_id != IncidentId(self.incident)
+            ):
+                raise ValueError("checkpoint report binding mismatch")
+            self.report = record.report
         assert self.evidence is not None and self.report is not None
         self.gates = []
         for candidate in self.report.candidates:

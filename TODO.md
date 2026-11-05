@@ -523,6 +523,13 @@ This index is an omission check, not a second task list. The referenced phases c
   pass; exactly PLAN+DIAGNOSE and two reads, no duplicate collection. Full regression before
   this final extra case: 2,878 passed, 100% source statement/branch coverage. Ruff/mypy pass.
 
+- [x] C3n: restore persisted report before Gate after replacement.
+  Implemented scoped report read port, checkpoint call/workflow/tenant/incident checks and
+  shared Evidence restoration. Five combined PostgreSQL cases pass including pre-hypothesis
+  and pre-Gate failure/reclaim; final 11 autonomous tests pass including negative bindings.
+  Full regression: 2,880 passed, 100% source statement/branch coverage. Ruff/mypy and
+  architecture pass.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

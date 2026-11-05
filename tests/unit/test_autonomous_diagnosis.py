@@ -246,3 +246,47 @@ def test_local_gateway_refuses_unknown_service_or_window() -> None:
     adapter = LocalReadAdapter("query_logs", now - timedelta(minutes=1), now)
     with pytest.raises(ValueError):
         asyncio.run(adapter.invoke(None, {"service": "arbitrary"}))  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "mode", ["missing", "workflow", "call", "empty_calls", "reader", "tenant", "incident"]
+)
+def test_gate_restore_rejects_unbound_report(mode: str) -> None:
+    from types import SimpleNamespace
+    from typing import cast
+
+    from evaluation.autonomous_diagnosis import AutonomousServices
+
+    from agentops_incident_commander.domain import ActorId, IncidentId, Principal, Role, TenantId
+
+    async def latest(**kwargs: Any) -> Any:
+        return (
+            None
+            if mode == "missing"
+            else SimpleNamespace(
+                workflow_run_id=SimpleNamespace(
+                    value="other" if mode == "workflow" else "workflow"
+                ),
+                model_call_id=SimpleNamespace(value="other" if mode == "call" else "call"),
+                tenant_id=TenantId("other" if mode == "tenant" else "tenant"),
+                incident_id=IncidentId("other" if mode == "incident" else "incident"),
+            )
+        )
+
+    service = AutonomousServices.__new__(AutonomousServices)
+    service.evidence = cast(Any, object())
+    service.report = None
+    service.incident = "incident"
+    service.principal = Principal(ActorId("reader"), TenantId("tenant"), frozenset({Role.OPERATOR}))
+    service.model_invoker = cast(
+        Any,
+        SimpleNamespace(report_reader=None if mode == "reader" else SimpleNamespace(latest=latest)),
+    )
+    state = cast(
+        Any,
+        SimpleNamespace(
+            workflow_run_id="workflow", model_call_ids=() if mode == "empty_calls" else ("call",)
+        ),
+    )
+    with pytest.raises(ValueError, match=r"report reader|report binding"):
+        asyncio.run(service.evaluate_evidence_gate(state, operation_id="operation"))

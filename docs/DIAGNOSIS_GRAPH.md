@@ -163,3 +163,9 @@ replacement worker and a new official PostgreSQL saver connection. SQL Evidence,
 Prompt versions and persisted progress survive; total calls remain PLAN+DIAGNOSE and two
 read tools. This covers a bounded retry after failure, not abrupt OS-process termination or
 every possible node-effect/checkpoint gap.
+
+Before a resumed Gate, registered evaluation can reload its persisted report via a scoped
+reader. It requires the exact checkpoint workflow and final model-call identity, tenant and
+Incident; absent readers/records or mismatches fail closed. Evidence restoration validates
+immutable Artifacts before Gate use. Combined SQL retry tests cover both pre-hypothesis and
+pre-Gate failures without additional model or tool calls.

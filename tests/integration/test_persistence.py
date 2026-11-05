@@ -8200,14 +8200,20 @@ async def test_workflow_model_budget_serializes_concurrent_replacement_workers(
 )
 @pytest.mark.parametrize(
     "write_failure,registered,crash",
-    [(False, False, False), (True, False, False), (False, True, False), (False, True, True)],
+    [
+        (False, False, False),
+        (True, False, False),
+        (False, True, False),
+        (False, True, True),
+        (False, True, 2),
+    ],
 )
 async def test_autonomous_gate_uses_committed_postgres_evidence(
     engine: AsyncEngine,
     tmp_path: Path,
     write_failure: bool,
     registered: bool,
-    crash: bool,
+    crash: int,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from evaluation.autonomous_diagnosis import investigate
@@ -8370,6 +8376,7 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
             CausationId("combined-command"),
             lambda e: None,
             report_writer=PostgresWorkflowDiagnosisReportStore(sessions),
+            report_reader=PostgresWorkflowDiagnosisReportStore(sessions),
         )
 
     async def execute() -> Any:
@@ -8442,16 +8449,18 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
             if crash:
                 from evaluation.autonomous_diagnosis import AutonomousServices
 
-                original_hypothesis = AutonomousServices.hypothesize
+                target_node = "evaluate_evidence_gate" if crash == 2 else "hypothesize"
+                original_hypothesis = getattr(AutonomousServices, target_node)
 
                 async def fail_hypothesis(self: Any, state: Any, *, operation_id: str) -> Any:
                     raise RuntimeError("injected before hypothesis")
 
-                monkeypatch.setattr(AutonomousServices, "hypothesize", fail_hypothesis)
+                monkeypatch.setattr(AutonomousServices, target_node, fail_hypothesis)
                 with pytest.raises(RuntimeError, match="injected before hypothesis"):
                     await worker.run_once()
-                assert calls == ["PLAN"] and len(tool_calls) == 2
-                monkeypatch.setattr(AutonomousServices, "hypothesize", original_hypothesis)
+                assert calls == (["PLAN", "DIAGNOSE"] if crash == 2 else ["PLAN"])
+                assert len(tool_calls) == 2
+                monkeypatch.setattr(AutonomousServices, target_node, original_hypothesis)
                 async with postgres_diagnosis_checkpointer(connection_url) as replacement:
                     handler.checkpointer = replacement
                     replacement_worker = LeasedEvaluationWorker(
@@ -8589,6 +8598,7 @@ async def test_registered_model_trace_and_report_commit_together_across_ports(
         CausationId("registered-command"),
         observed.append,
         report_writer=PostgresWorkflowDiagnosisReportStore(sessions),
+        report_reader=PostgresWorkflowDiagnosisReportStore(sessions),
     )
     if bad_prompt:
         with pytest.raises(StructuredModelFailure, match="PROMPT_CONTENT_MISMATCH"):

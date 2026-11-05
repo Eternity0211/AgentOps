@@ -34,6 +34,7 @@ from agentops_incident_commander.domain import (
     PromptPurpose,
     PromptVersionReference,
     Sha256Digest,
+    TenantId,
     WorkflowRunId,
     require_permission,
 )
@@ -58,6 +59,12 @@ class DiagnosisReportWriter(Protocol):
     ) -> DiagnosisReportRecord: ...
 
 
+class DiagnosisReportReader(Protocol):
+    async def latest(
+        self, *, tenant_id: TenantId, incident_id: IncidentId
+    ) -> DiagnosisReportRecord | None: ...
+
+
 class RegisteredModelInvoker:
     """No provider dispatch before registration, RBAC and durable model-call start succeed."""
 
@@ -74,12 +81,14 @@ class RegisteredModelInvoker:
         causation: CausationId,
         usage_observer: Callable[[dict[str, Any]], None],
         report_writer: DiagnosisReportWriter | None = None,
+        report_reader: DiagnosisReportReader | None = None,
     ) -> None:
         self.model, self.prompts, self.traces = model, prompts, traces
         self.references = dict(references)
         self.principal, self.incident, self.workflow = principal, incident, workflow
         self.correlation, self.causation, self.observe = correlation, causation, usage_observer
         self.report_writer = report_writer
+        self.report_reader = report_reader
 
     async def workflow_reference(self) -> GraphPromptReference:
         require_permission(

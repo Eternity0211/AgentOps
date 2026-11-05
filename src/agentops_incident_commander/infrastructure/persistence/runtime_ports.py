@@ -119,6 +119,14 @@ class PostgresWorkflowDiagnosisReportStore:
     def __init__(self, sessions: async_sessionmaker[AsyncSession]) -> None:
         self._sessions = sessions
 
+    async def latest(
+        self, *, tenant_id: TenantId, incident_id: IncidentId
+    ) -> DiagnosisReportRecord | None:
+        async with self._sessions() as session:
+            return await DiagnosisReportRepository(session).latest(
+                tenant_id=tenant_id, incident_id=incident_id
+            )
+
     async def record(
         self, record: DiagnosisReportRecord, audit_event: AuditEvent
     ) -> DiagnosisReportRecord:

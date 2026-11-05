@@ -635,6 +635,12 @@ This index is an omission check, not a second task list. The referenced phases c
   counts; bounded credential scan clean. Archive about 1.88 MB with explicit limitations.
   Provider calls, valid memory baseline and full scoring remain open.
 
+- [x] C6d: label-free batch preflight and failure-preserving resume for single/graph.
+  Verify all 27 snapshots before dispatch, refuse missing credential/unsupported memory
+  composition, skip existing hash-matching outcomes and mark uncertain prior effects FAILED
+  without retry. Two transport tests and Ruff/mypy pass. Full regression has a failure under
+  investigation; no full-regression acceptance is claimed. Real provider batch remains pending.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

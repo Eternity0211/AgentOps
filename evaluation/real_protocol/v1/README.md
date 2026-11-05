@@ -53,3 +53,9 @@ SimilarIncidentRetriever. Query Incident must match the snapshot; all evaluation
 excluded. Fresh, unique references are redacted/quarantined and remain advisory. Metadata
 distinguishes authorized retrieval (including zero matches) from no supplied history. Actual
 confirmed SQL records are still required for a nonempty-memory comparison.
+
+Batch entry: `python -m evaluation.run_real_batch --output PATH` after loading the provider
+credential into the process environment. It preflights all 27 snapshots, runs single/graph,
+and resumes only from committed hash-matching outcomes. A prior run directory without an
+outcome is recorded FAILED rather than silently repeating uncertain provider effects.
+Memory comparison still requires its separately configured authorized history source.

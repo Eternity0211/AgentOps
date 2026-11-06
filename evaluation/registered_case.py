@@ -27,6 +27,7 @@ from agentops_incident_commander.domain import (
     Job,
     JobFailureRoute,
     JobId,
+    JobLease,
     MaintenanceWindowStatus,
     OpaqueIdentifier,
     PolicyAction,
@@ -162,8 +163,24 @@ async def run_registered_case(
         ),
         adapters=adapters,
     )
+    queue_measurements: dict[str, int] = {}
+
+    async def measured_handler(lease: JobLease) -> None:
+        queue_measurements.update(
+            queue_creation_to_claim_ms=int(
+                (lease.leased_at - lease.job.created_at).total_seconds() * 1000
+            ),
+            queue_ready_to_claim_ms=int(
+                (lease.leased_at - lease.job.available_at).total_seconds() * 1000
+            ),
+        )
+        journal(
+            {"event": "evaluation.job_claimed", "job_id": lease.job.id.value, **queue_measurements}
+        )
+        await handler(lease)
+
     worker = LeasedEvaluationWorker(
-        sessions, OpaqueIdentifier(f"lab-worker-{uuid4().hex}"), handler
+        sessions, OpaqueIdentifier(f"lab-worker-{uuid4().hex}"), measured_handler
     )
     result: dict[str, Any] = {
         "incident_id": payload.incident_id,
@@ -192,6 +209,7 @@ async def run_registered_case(
         if passing is None:
             await transition(IncidentState.NEEDS_HUMAN)
             result["status"] = "HUMAN_HANDOFF"
+            result.update(queue_measurements)
             return result
         record = await reports.latest(tenant_id=principal.tenant_id, incident_id=incident_id)
         assert record is not None
@@ -277,4 +295,5 @@ async def run_registered_case(
         if stage is IncidentState.INVESTIGATING:
             await transition(IncidentState.EVIDENCE_REVIEW)
         await transition(IncidentState.NEEDS_HUMAN)
+    result.update(queue_measurements)
     return result

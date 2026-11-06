@@ -397,3 +397,14 @@ for the mixed PostgreSQL suite, named tests. Missing expected modules/tests refu
 Failure, error or skip never earns VERIFIED_TESTS. Group counts may overlap and are not summed
 as independent trials. This is deterministic test and archive-integrity evidence; actual-model
 archives remain separate and no human approval, recovery or production reliability is inferred.
+
+
+Registered live schema 2.1 adds exact queue creation/ready-to-claim durations from the committed
+JobLease, emitted before handler invocation. Workflow-local observations capture process CPU
+and Python traced-heap current/peak bytes even on exceptions. They exclude native allocations,
+child containers, database and provider resources; an existing trace is explicitly cumulative.
+The frozen live-v2 full matrix uses all six fault scenarios plus normal, concurrency one,
+eight probes and 20-second settling, at most 38 provider calls including bootstrap. It exposes
+`--full-matrix`; invalid/duplicate/oversized case lists refuse before output or fault injection.
+Full-matrix metadata binds the protocol hash. These are bounded local distributions, not
+production capacity, human MTTR, total RAM or an automatic recovery measurement.

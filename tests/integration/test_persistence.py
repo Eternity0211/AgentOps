@@ -9459,6 +9459,10 @@ async def test_lab_prompts_require_measured_mechanical_regression_before_activat
             adapters={d.identity: Read(d.name) for d in local_definitions()},
         )
         assert result["status"] == "PENDING_APPROVAL", result
+        claim_events = [e for e in observed if e.get("event") == "evaluation.job_claimed"]
+        assert len(claim_events) == 1
+        for key in ("queue_creation_to_claim_ms", "queue_ready_to_claim_ms"):
+            assert result[key] == claim_events[0][key] and result[key] >= 0
         assert result["approval_decided"] is result["recovery_executed"] is False
         async with async_sessionmaker(engine)() as session:
             stored_incident = await IncidentRepository(session).get(IncidentId("registered-case"))

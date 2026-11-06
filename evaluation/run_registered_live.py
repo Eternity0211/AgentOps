@@ -38,14 +38,33 @@ from evaluation.registered_case import run_registered_case
 from evaluation.run_lab_bootstrap import write
 from evaluation.run_live_diagnosis import ENVIRONMENT, ROOT, checkout, ready, wait_target
 from evaluation.structured_model import VERSION, StructuredEvaluationModel
+from evaluation.workflow_resources import measure_workflow
 
 CASES: tuple[ScenarioName | None, ...] = (None, "http-500", "memory-leak")
 
 
-def run(output: Path, key: str) -> dict[str, Any]:
+FULL_CASES: tuple[ScenarioName | None, ...] = (
+    None,
+    "http-500",
+    "db-pool-exhaustion",
+    "redis-timeout",
+    "downstream-latency",
+    "memory-leak",
+    "bad-configuration",
+)
+
+
+def run(
+    output: Path, key: str, *, cases: tuple[ScenarioName | None, ...] = CASES
+) -> dict[str, Any]:
     if not key or key.strip() != key:
         raise ValueError("DEEPSEEK_API_KEY is required")
-    if any(s is not None and s not in SCENARIO_TARGETS for s in CASES):
+    if (
+        not cases
+        or len(cases) > 7
+        or len(set(cases)) != len(cases)
+        or any(s is not None and s not in SCENARIO_TARGETS for s in cases)
+    ):
         raise ValueError("registered live protocol contains an unknown scenario")
     output.mkdir(parents=True, exist_ok=False)
     events: list[dict[str, Any]] = []
@@ -61,7 +80,11 @@ def run(output: Path, key: str) -> dict[str, Any]:
     write(
         output / "metadata.json",
         {
-            "schema_version": "registered-live/2.0.0",
+            "schema_version": "registered-live/2.1.0",
+            "resource_scope": (
+                "Process CPU and Python traced heap only; excludes native allocations, "
+                "child containers, database and provider"
+            ),
             "transport_version": VERSION,
             "base_revision": subprocess.check_output(
                 ["git", "-c", f"safe.directory={ROOT.as_posix()}", "rev-parse", "HEAD"],
@@ -72,7 +95,14 @@ def run(output: Path, key: str) -> dict[str, Any]:
             "observation_origin": "LIVE_COMPOSE_TELEMETRY",
             "bootstrap_origin": "SEPARATE_SYNTHETIC_SAFETY_FIXTURE",
             "concurrency": 1,
-            "cases": list(CASES),
+            "cases": list(cases),
+            "full_matrix_protocol_sha256": (
+                hashlib.sha256(
+                    (ROOT / "evaluation/registered_protocol/live-v2.json").read_bytes()
+                ).hexdigest()
+                if cases == FULL_CASES
+                else None
+            ),
             "max_bootstrap_calls": 3,
             "max_calls_per_case": 5,
             "source_hashes": {
@@ -103,7 +133,7 @@ def run(output: Path, key: str) -> dict[str, Any]:
                 with httpx.Client(timeout=15, trust_env=False) as client:
                     ready(client)
                     sku = f"evaluation-{uuid4().hex[:16]}"
-                    for index, scenario in enumerate(CASES):
+                    for index, scenario in enumerate(cases):
                         active = False
                         identifier = f"registered-{uuid4().hex[:20]}"
                         record: dict[str, Any] = {
@@ -112,6 +142,7 @@ def run(output: Path, key: str) -> dict[str, Any]:
                             "approval_decided": False,
                             "recovery_executed": False,
                         }
+                        measurements: dict[str, int | str] = {}
                         try:
                             record["baseline"] = checkout(client, sku=sku)
                             if record["baseline"]["status"] != 200:
@@ -141,16 +172,17 @@ def run(output: Path, key: str) -> dict[str, Any]:
                             )
                             before = len(events)
                             started = time.monotonic_ns()
-                            record.update(
-                                await run_registered_case(
-                                    sessions,
-                                    saver,
-                                    StructuredEvaluationModel(key, journal, max_calls=5),
-                                    references,
-                                    payload,
-                                    journal,
+                            with measure_workflow() as measurements:
+                                record.update(
+                                    await run_registered_case(
+                                        sessions,
+                                        saver,
+                                        StructuredEvaluationModel(key, journal, max_calls=5),
+                                        references,
+                                        payload,
+                                        journal,
+                                    )
                                 )
-                            )
                             record["workflow_ms"] = (time.monotonic_ns() - started) // 1_000_000
                             record["provider_starts"] = sum(
                                 e.get("status") == "STARTED" for e in events[before:]
@@ -158,6 +190,7 @@ def run(output: Path, key: str) -> dict[str, Any]:
                         except Exception as error:
                             record.update(status="FAILED", error_type=type(error).__name__)
                         finally:
+                            record.update(measurements)
                             if active and scenario is not None:
                                 record["cleanup_exit"] = clean(root=ROOT, environment=environment)
                                 wait_target(SCENARIO_TARGETS[scenario], environment)
@@ -244,8 +277,15 @@ def run(output: Path, key: str) -> dict[str, Any]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", required=True, type=Path)
+    parser.add_argument("--full-matrix", action="store_true")
     args = parser.parse_args()
-    print(run(args.output_dir, os.environ.get("DEEPSEEK_API_KEY", "")))
+    print(
+        run(
+            args.output_dir,
+            os.environ.get("DEEPSEEK_API_KEY", ""),
+            cases=FULL_CASES if args.full_matrix else CASES,
+        )
+    )
 
 
 if __name__ == "__main__":  # pragma: no cover

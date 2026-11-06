@@ -1,0 +1,22 @@
+{
+  "schema_version": "2.0.0",
+  "protocol_id": "registered-live-full-resource-v2",
+  "cases": [
+    null,
+    "http-500",
+    "db-pool-exhaustion",
+    "redis-timeout",
+    "downstream-latency",
+    "memory-leak",
+    "bad-configuration"
+  ],
+  "concurrency": 1,
+  "probes_per_case": 8,
+  "settle_seconds": 20,
+  "max_bootstrap_calls": 3,
+  "max_calls_per_case": 5,
+  "max_total_calls": 38,
+  "resource_scope": "Exact SQL lease queue waits; monotonic workflow elapsed; process CPU and Python traced heap only. Not total RAM, CPU, container or provider resources.",
+  "outcome_rule": "Keep every failure; Gate PASS is not root-cause accuracy; no approval decisions or recovery execution; cleanup no recovery credit.",
+  "labels": "Case labels are evaluator-only; pass only measured alert, opaque IDs and query time windows into workflow."
+}

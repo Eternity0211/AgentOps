@@ -835,6 +835,12 @@ This index is an omission check, not a second task list. The referenced phases c
   Full regression 2,991 passed with 100% src statement/branch coverage; four generator tests
   separately pass. Thirteen groups verify exact passing members; Ruff/mypy/architecture pass.
 
+- [x] C6t-adapter: add committed-lease queue waits and workflow process CPU/Python heap
+  observations, including exception retention and trace ownership. Thirteen focused
+  SQL/resource/entry tests pass; four additional full-matrix entry cases pass.
+- [ ] C6t: run frozen live-v2 seven-case actual-model matrix and publish queue/timing/resource
+  distributions. Concurrency one; do not label process heap as total RAM or cleanup as recovery.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

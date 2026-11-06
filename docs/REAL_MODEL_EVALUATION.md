@@ -428,3 +428,14 @@ SHARED_BATCH_QUEUE and does not manufacture a zero duplicate count. A two-Incide
 test checks committed LEASED state, peak two active handlers and exactly one completion each.
 These handlers are controlled test fixtures; real model/report/Evidence isolation and batch
 resource measurements remain a separate open load experiment.
+
+
+The concurrent-v1 protocol freezes one two-case and one four-case batch, with at most
+33 provider calls including separate synthetic registration preflight. Each batch captures
+fresh actual Compose observations once, replays them through the Gateway for distinct Incident
+workflows, and shares an isolated PostgreSQL queue/checkpointer. This measures registered
+workflow concurrency, not live-source query throughput or clean-normal diagnostic accuracy.
+Batch CPU/Python heap is measured once around all tasks to avoid overlapping trace ownership.
+Per-case wall time includes preparation and the batch queue barrier. Failures and unfinished
+cases are retained, and SQL export runs even when preflight refuses; unavailable checkpoint
+tables are explicitly listed. No fault injection, approval decision or executor is provided.

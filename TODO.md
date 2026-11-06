@@ -853,6 +853,9 @@ This index is an omission check, not a second task list. The referenced phases c
   Verify committed leases, exact Job bindings, two Incident handlers concurrent, one completion
   each, refusal before unknown dispatch, and unchanged default pending-review composition.
   Fourteen focused unit/SQL cases pass; Ruff/mypy/architecture/planning pass.
+- [x] C6v-runner: freeze concurrent-v1 and bounded actual-provider entry for two/four cases,
+  batch resources, unfinished-result retention and SQL export on preflight refusal.
+  Eight entry/batch unit checks pass; Ruff/mypy/architecture/planning verified.
 - [ ] C6v: actual registered-model concurrent batches with shared SQL/checkpoints, per-Incident
   artifact/report ownership and queue/elapsed/batch-resource distributions. No recovery writes.
 

@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "registered-concurrent-v1",
+  "batch_sizes": [
+    2,
+    4
+  ],
+  "worker_concurrency": [
+    2,
+    4
+  ],
+  "max_bootstrap_calls": 3,
+  "max_calls_per_case": 5,
+  "max_total_calls": 33,
+  "observation_origin": "Fresh actual local Compose capture per batch; no fault injection and no claim of clean normal controls",
+  "capture": "8 checkout probes, 20s settle, fixed 20 source/service snapshots; failures retained",
+  "storage": "Shared isolated PostgreSQL, official checkpoints, exact per-Incident Evidence/report/trace ownership",
+  "resource_scope": "Batch elapsed, process CPU and Python heap; per-case elapsed and SQL lease queue waits; excludes capture/bootstrap/provider/container resources",
+  "authority": "No approval decisions or execution; Pending allowed only through existing guarded Policy path",
+  "scoring": "Resource/integration experiment, no retrospective root-cause scoring; one small batch per concurrency, no capacity or human savings claim"
+}

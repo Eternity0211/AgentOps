@@ -1,6 +1,6 @@
 """Compose registered remediation and a committed SQL human review request."""
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
@@ -43,6 +43,7 @@ async def propose_and_request_sql_review(
     rules: PolicyRules,
     *,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+    before_policy: Callable[[], Awaitable[None]] | None = None,
 ) -> tuple[EvidenceBoundRemediationProposal, PolicyDecision, Approval | None]:
     """Server owns Policy inputs; provider work never holds a SQL transaction.
 
@@ -57,6 +58,8 @@ async def propose_and_request_sql_review(
 
     admitted = await propose_registered_remediation(invoker, GateReader(), gate, context)
     value = policy_input(admitted)
+    if before_policy is not None:
+        await before_policy()
     async with sessions.begin() as session:
         policy, approval = await request_remediation_review(
             admitted,

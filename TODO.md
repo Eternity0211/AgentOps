@@ -762,6 +762,13 @@ This index is an omission check, not a second task list. The referenced phases c
   Ruff/mypy/architecture/planning pass. No approval or executor capability.
   Actual-provider live composition remains open.
 
+- [x] C4h: complete registered SQL case composition through PENDING review.
+  Real Incident transitions and queue/lease, trace-bound Gate, registered proposal, server
+  Policy, audited PENDING approval; no approve/execute capability. Controlled provider/read
+  fixtures reach AWAITING_APPROVAL for all three bootstrap versions. Six PostgreSQL tests,
+  Ruff/mypy/architecture pass. Checkpointer is in-memory in these cases; actual-provider
+  live telemetry run with official PostgreSQL saver remains open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

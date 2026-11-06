@@ -320,3 +320,12 @@ hash-bound audit events; an eligible request commits its PENDING Approval/review
 atomically with the Policy audit. It provides no approve/execute capability. The combined
 PostgreSQL test uses controlled provider responses and separately checks Policy denial;
 actual-provider live composition remains a separate evaluation requirement.
+
+
+`run_registered_case` composes SQL Incident transitions, Job claim/lease, registered model
+traces, durable effects, Evidence/report persistence, deterministic stored Gate, remediation,
+Policy and PENDING review. A server callback advances POLICY_REVIEW only after proposal
+admission. Failure routes to NEEDS_HUMAN; no approver/executor capability is present. Controlled
+PostgreSQL tests reach AWAITING_APPROVAL across all three bootstrap fixture versions, with
+in-memory checkpoints in these particular cases. Earlier tests separately exercise official
+PostgreSQL checkpoints. A live telemetry CLI and actual-provider combined run remain open.

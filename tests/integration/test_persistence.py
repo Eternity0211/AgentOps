@@ -9223,7 +9223,9 @@ async def test_lab_prompts_require_measured_mechanical_regression_before_activat
     def respond(request: Any) -> Response:
         body = json.loads(json.loads(request.content)["messages"][1]["content"])
         context, schema = body["context"], body["output_schema"]
-        assert context["observation_origin"] == "SYNTHETIC_SAFETY_FIXTURE_NOT_HISTORY"
+        output: dict[str, Any]
+        if "observation_origin" in context:
+            assert context["observation_origin"] == "SYNTHETIC_SAFETY_FIXTURE_NOT_HISTORY"
         if "plan" in schema["properties"]:
             calls.append("PLAN")
             output = {
@@ -9299,6 +9301,33 @@ async def test_lab_prompts_require_measured_mechanical_regression_before_activat
                 ),
                 risk_assumptions=("Synthetic regression only",),
             ).model_dump(mode="json")
+        if "observation_origin" not in context:
+            if calls[-1] == "PLAN":
+                output["plan"]["steps"] = [
+                    {
+                        "step_id": s,
+                        "objective": "Inspect current source",
+                        "expected_source": k,
+                        "parallel_group": 0,
+                    }
+                    for s, k in (("metrics", "METRIC"), ("deployments", "DEPLOYMENT"))
+                ]
+                output["tool_calls"] = [
+                    {
+                        "step_id": s,
+                        "tool_name": "query_" + s,
+                        "tool_version": "2.0.0",
+                        "arguments": {"service": "order"},
+                    }
+                    for s in ("metrics", "deployments")
+                ]
+            elif calls[-1] == "REMEDIATE":
+                output["parameters"]["introducing_deployment_evidence_id"] = next(
+                    x["id"] for x in context["observations"] if x["source"] == "DEPLOYMENT"
+                )
+                output["prerequisites"]["current_version_evidence_id"] = next(
+                    x["id"] for x in context["observations"] if x["source"] == "METRIC"
+                )
         return Response(
             200,
             json={
@@ -9334,3 +9363,56 @@ async def test_lab_prompts_require_measured_mechanical_regression_before_activat
     assert {e["purpose"] for e in observed if e.get("event") == "lab.prompt_regression"} == {
         p.value for p in ModelPurpose
     }
+
+    if not bad_reference:
+        from evaluation.investigation_job import InvestigationJobInput
+        from evaluation.live_gateway import SOURCES, local_definitions
+        from evaluation.registered_case import run_registered_case
+        from langgraph.checkpoint.memory import InMemorySaver
+
+        from agentops_incident_commander.infrastructure import diagnosis_checkpoint_serializer
+
+        class Read:
+            def __init__(self, name: str) -> None:
+                self.name = name
+
+            async def invoke(self, context: Any, arguments: Any) -> dict[str, Any]:
+                return {
+                    "source": SOURCES[self.name],
+                    "summary": "Order v2 errors after deployment; v1 stable",
+                    "provenance": json.dumps({"tool": self.name, "version": "2.0.0"}),
+                    "complete_window": False,
+                    "records_seen": 1,
+                }
+
+        at = datetime.now(UTC)
+        result = await run_registered_case(
+            async_sessionmaker(engine, expire_on_commit=False),
+            InMemorySaver(serde=diagnosis_checkpoint_serializer()),
+            StructuredEvaluationModel(
+                "test-only", observed.append, transport=MockTransport(respond), max_calls=5
+            ),
+            references,
+            InvestigationJobInput(
+                "case-payload",
+                LAB_TENANT.value,
+                "registered-case",
+                "case-workflow",
+                "case-correlation",
+                "case-causation",
+                "Observed checkout errors",
+                at - timedelta(minutes=1),
+                at,
+                tmp_path / "case-evidence",
+            ),
+            observed.append,
+            adapters={d.identity: Read(d.name) for d in local_definitions()},
+        )
+        assert result["status"] == "PENDING_APPROVAL", result
+        assert result["approval_decided"] is result["recovery_executed"] is False
+        async with async_sessionmaker(engine)() as session:
+            stored_incident = await IncidentRepository(session).get(IncidentId("registered-case"))
+            assert (
+                stored_incident is not None
+                and stored_incident.state is IncidentState.AWAITING_APPROVAL
+            )

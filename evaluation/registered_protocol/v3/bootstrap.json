@@ -1,0 +1,20 @@
+{
+  "schema_version": "3.0.0",
+  "scope": "isolated registered-evaluation-lab tenant only",
+  "provider": "deepseek",
+  "model": "deepseek-flash",
+  "maximum_provider_calls": 3,
+  "observation_origin": "SYNTHETIC_SAFETY_FIXTURE_NOT_HISTORY",
+  "purposes": ["PLAN", "DIAGNOSE", "REMEDIATE"],
+  "predecessor": "evaluation/registered_protocol/v2/bootstrap.json",
+  "change": "Same six v2 observations. Diagnosis instruction version 1.1.0 / transport 1.3.0 distinguishes required candidate support from optional follow-up details. No Gate/compiler/admission threshold changes; real missing requirements must never be omitted for admission.",
+  "checks": {
+    "PLAN": "Strict output schema and shared compiler; four-step/four-parallel budget, registered local read tools only.",
+    "DIAGNOSE": "Strict current references; nonempty candidates; every candidate must pass deterministic Evidence/Artifact Gate.",
+    "REMEDIATE": "Strict schema and exact synthetic Gate binding; order service; distinct introducing-deployment and current-version Evidence; 300-second stability window; deterministic proposal admission."
+  },
+  "activation": "Draft all three first. Activate none unless all three actual calls pass the declared mechanical checks. Use ordinary lifecycle evaluate/promote with append-only audit.",
+  "not_measured": ["semantic diagnosis correctness", "human review", "production robustness", "real historical memory", "recovery execution", "provider billing"],
+  "counts": "Exposed calibration after v1/v2 refusals, not unseen evaluation. Preserve previous results. Mechanical checks only; no semantic accuracy or production promotion claim.",
+  "failure_policy": "Keep failures DRAFT. Never invent provider successes or suppress missing evidence."
+}

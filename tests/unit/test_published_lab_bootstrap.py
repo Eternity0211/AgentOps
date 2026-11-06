@@ -10,7 +10,7 @@ from evaluation.structured_model import fingerprint
 def test_published_lab_bootstrap_retains_real_refusals_and_bindings() -> None:
     base = Path("evaluation/results/lab-prompt-bootstrap")
     starts = metered = bound = 0
-    for root in sorted(base.glob("v*/run-*")):
+    for root in sorted(base.glob("v[12]/run-*")):
         hashes = json.loads((root / "file-hashes.json").read_text(encoding="utf-8"))
         for name, digest in hashes.items():
             assert hashlib.sha256((root / name).read_bytes()).hexdigest() == digest
@@ -48,3 +48,27 @@ def test_published_lab_bootstrap_retains_real_refusals_and_bindings() -> None:
     published = json.loads((base / "summary.json").read_text(encoding="utf-8"))
     assert sum(r["provider_starts"] for r in published) == starts
     assert sum(r["metered_responses"] for r in published) == metered
+
+
+def test_published_v3_activation_preserves_actual_output_and_audit_bindings() -> None:
+    root = Path("evaluation/results/lab-prompt-bootstrap/v3/run-001")
+    hashes = json.loads((root / "file-hashes.json").read_text(encoding="utf-8"))
+    for name, digest in hashes.items():
+        assert hashlib.sha256((root / name).read_bytes()).hexdigest() == digest
+    events = [
+        json.loads(s) for s in (root / "events.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert sum(e.get("status") == "STARTED" for e in events) == 3
+    for purpose in ("plan", "diagnose", "remediate"):
+        row = json.loads((root / "regression" / f"{purpose}.json").read_text(encoding="utf-8"))
+        assert row["passed"] is True
+        assert any(
+            e.get("validated_output_hash") == fingerprint(row["validated_output"]) for e in events
+        )
+    registry = json.loads((root / "registry.json").read_text(encoding="utf-8"))
+    assert len(registry) == 3 and {r["status"] for r in registry} == {"ACTIVE"}
+    audit = json.loads((root / "audit.json").read_text(encoding="utf-8"))
+    assert len(audit) == 9
+    summary = json.loads((root / "summary.json").read_text(encoding="utf-8"))
+    assert summary["activated_count"] == 3
+    assert summary["approval_decisions"] == summary["recovery_executions"] == 0

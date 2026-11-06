@@ -34,7 +34,7 @@ from agentops_incident_commander.workflows import (
     RemediationProposal,
 )
 
-VERSION = "real-structured-evaluation/1.2.0"
+VERSION = "real-structured-evaluation/1.3.0"
 
 
 class ModelPurpose(StrEnum):
@@ -82,7 +82,11 @@ INSTRUCTIONS = {
     "candidates; every other disposition requires candidates=[]. Ranks start at 1, consecutive; "
     "IDs unique. Empty counter_evidence_ids requires NOT_APPLICABLE and null explanation. "
     "Present counter evidence requires RESOLVED/UNRESOLVED and an explanation. Never use the "
-    "same ID as support and counter. Explicitly list genuinely missing evidence; confidence "
+    "same ID as support and counter. Scope each candidate to what current observations establish. "
+    "missing_evidence lists observations still REQUIRED to substantiate that bounded candidate "
+    "or rule out material alternatives. Optional implementation details or follow-up useful only "
+    "for a different repair belong in uncertainty. Never omit a real requirement to pass Gate. "
+    "If current facts are insufficient, declare the missing requirements or hand off. Confidence "
     "does not grant authority. Use short text below all schema length limits.",
     ModelPurpose.REMEDIATE: "Propose only typed rollback_service after the supplied Gate PASS. "
     "Copy incident, candidate and both gate fingerprints exactly. Use only supplied current "

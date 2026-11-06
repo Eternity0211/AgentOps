@@ -1,0 +1,20 @@
+[
+  {
+    "content_fingerprint": "0eaad7115dfba2074e747acb4391a2a2ee7a598c1a60ca24ca8455b3bc72fa23",
+    "prompt_id": "lab-real-diagnose",
+    "status": "ACTIVE",
+    "version": "1.1.0"
+  },
+  {
+    "content_fingerprint": "36ef2b401763c2d7ff2bb0006eaa903861fce396518b7be1ab56b1f896d0e441",
+    "prompt_id": "lab-real-plan",
+    "status": "ACTIVE",
+    "version": "1.0.0"
+  },
+  {
+    "content_fingerprint": "931b32f8ad1d8e54e8e27312dadc127f6ca05361a18bed42553de2e6397c3fc8",
+    "prompt_id": "lab-real-remediate",
+    "status": "ACTIVE",
+    "version": "1.0.0"
+  }
+]

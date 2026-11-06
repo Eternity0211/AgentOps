@@ -741,6 +741,13 @@ This index is an omission check, not a second task list. The referenced phases c
   Full regression: 2,953 passed, 100% source statement/branch coverage; publication
   regression passes separately. Actual registered live workflow/pending approval remains open.
 
+- [x] C4e: version diagnosis scope instructions and verify actual v3 lab activation.
+  Same v2 synthetic observations; unchanged Gate/compiler. Three real calls pass and three
+  lab registrations activate with nine SQL lifecycle events. Prior refusals remain archived.
+  Ten focused integration/publication checks and 19 unit checks pass; Ruff/mypy,
+  architecture and planning pass. Actual registered live investigation and pending approval
+  remain open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

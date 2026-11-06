@@ -24,7 +24,7 @@ from agentops_incident_commander.domain import CorrelationId
 from agentops_incident_commander.infrastructure.persistence.models import PromptVersionRow
 from agentops_incident_commander.infrastructure.persistence.repositories import AuditRepository
 from evaluation.lab_prompts import LAB_TENANT, prepare_lab_prompts
-from evaluation.structured_model import StructuredEvaluationModel
+from evaluation.structured_model import VERSION, StructuredEvaluationModel
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -37,10 +37,10 @@ def write(path: Path, value: Any) -> None:
         os.fsync(stream.fileno())
 
 
-def run(root: Path, key: str, *, fixture_version: str = "2.0.0") -> dict[str, Any]:
+def run(root: Path, key: str, *, fixture_version: str = "3.0.0") -> dict[str, Any]:
     if not key or key.strip() != key:
         raise ValueError("DEEPSEEK_API_KEY is required")
-    if fixture_version not in {"1.0.0", "2.0.0"}:
+    if fixture_version not in {"1.0.0", "2.0.0", "3.0.0"}:
         raise ValueError("unknown lab regression fixture version")
     root.mkdir(parents=True, exist_ok=False)
     events: list[dict[str, Any]] = []
@@ -75,6 +75,7 @@ def run(root: Path, key: str, *, fixture_version: str = "2.0.0") -> dict[str, An
             "platform": platform.platform(),
             "logical_cpus": os.cpu_count(),
             "fixture_version": fixture_version,
+            "transport_version": VERSION,
             "source_hashes": {
                 name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
                 for name in (
@@ -189,7 +190,7 @@ def run(root: Path, key: str, *, fixture_version: str = "2.0.0") -> dict[str, An
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--fixture-version", choices=("1.0.0", "2.0.0"), default="2.0.0")
+    parser.add_argument("--fixture-version", choices=("1.0.0", "2.0.0", "3.0.0"), default="3.0.0")
     args = parser.parse_args()
     result = run(
         args.output_dir,

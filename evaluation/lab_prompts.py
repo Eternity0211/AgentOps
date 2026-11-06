@@ -119,7 +119,7 @@ async def prepare_lab_prompts(
     """
     if tenant != LAB_TENANT:
         raise ValueError("lab Prompt bootstrap cannot target another tenant")
-    if fixture_version not in {"1.0.0", "2.0.0"}:
+    if fixture_version not in {"1.0.0", "2.0.0", "3.0.0"}:
         raise ValueError("unknown lab regression fixture version")
     root.mkdir(parents=True, exist_ok=False)
     now = datetime.now(UTC)
@@ -132,7 +132,7 @@ async def prepare_lab_prompts(
     definitions = {
         purpose: PromptDefinition.create(
             prompt_id=PromptId(f"lab-real-{purpose.value.lower()}"),
-            version=SemanticVersion("1.0.0"),
+            version=SemanticVersion("1.1.0" if purpose is ModelPurpose.DIAGNOSE else "1.0.0"),
             purpose=PromptPurpose.REMEDIATION
             if purpose is ModelPurpose.REMEDIATE
             else PromptPurpose.DIAGNOSIS,
@@ -176,7 +176,7 @@ async def prepare_lab_prompts(
             "summary": "Independent current order version probe reports running v2.",
         },
     ]
-    if fixture_version == "2.0.0":
+    if fixture_version in {"2.0.0", "3.0.0"}:
         observations.extend(
             [
                 {

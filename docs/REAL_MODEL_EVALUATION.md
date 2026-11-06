@@ -295,3 +295,11 @@ missing Evidence and fails Gate; PLAN and REMEDIATE mechanical checks pass. Cons
 Prompt remains DRAFT (zero activations), with SQL lifecycle audit exported before container
 cleanup. The v2 fixture was designed after seeing v1 and is not an unseen test. No pending
 approval, real fault recovery, or production promotion is claimed by these preflights.
+
+
+The separately versioned v3 calibration uses the same six v2 observations and diagnosis
+instruction 1.1.0 (transport 1.3.0). It distinguishes required candidate support from optional
+follow-up details while explicitly forbidding omission of real requirements. Gate/compiler
+rules remain unchanged. Three actual calls pass and three lab registrations become ACTIVE;
+SQL exports contain nine lifecycle audit events. This is exposed synthetic calibration, not
+unseen quality evaluation, production promotion, human approval or recovery execution.

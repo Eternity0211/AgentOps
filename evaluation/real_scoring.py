@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from evaluation.structured_model import fingerprint
 
 MODES = ("single-agent", "controlled-graph", "controlled-graph-memory")
+RULES_MODE = "rules-only"
 SIMULATED_MEMORY_MODE = "controlled-graph-simulated-memory"
 RUN_MODES = (*MODES, SIMULATED_MEMORY_MODE)
 CAUSES = (
@@ -77,7 +78,7 @@ def score(
     if (
         not evaluated_modes
         or len(set(evaluated_modes)) != len(evaluated_modes)
-        or not set(evaluated_modes) <= set(RUN_MODES)
+        or not set(evaluated_modes) <= {*RUN_MODES, RULES_MODE}
     ):
         raise ValueError("invalid evaluated modes")
     expected = {(x.instance_id, mode) for x in labels for mode in evaluated_modes}

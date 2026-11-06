@@ -380,3 +380,13 @@ model call. In-process runs verify the existing compiled plan the same way. Exis
 repeated-query refusal and total budgets remain unchanged. PostgreSQL worker-replacement
 replan cases assert the same readable tool/argument list after restoration. This fixes available
 planning information; it does not claim the model will always avoid repeated queries.
+
+
+The frozen `rules-snapshot-supplement-v1` executes unchanged rules 1.0.0 against the same
+27 snapshot hashes. Its 12 fixed snapshot lookups and 1000-character-per-query summaries are
+separate resource denominators, not runtime Gateway calls or a causal planning comparison.
+Unavailable requested sources score FAILED. The runner never loads evaluator labels; outputs
+are written create-only before separate scoring. `rules-only` is admitted by the scorer alone,
+not by provider batch or model replay routing. Original control and exact-cause scoring rules
+remain unchanged. Rules emit no ranked causes and were designed for older narrative inputs;
+this domain mismatch is reported rather than tuned to known answers.

@@ -820,6 +820,9 @@ This index is an omission check, not a second task list. The referenced phases c
   refusal, normal also refuses, memory hands off. Four reports, two Gates/refusal audits,
   zero approvals/executions; both cleanup exits zero, final checkout 200.
 
+- [x] C6r-adapter: frozen same-snapshot rules runner and scorer-only rules mode.
+  Sixteen unit/scoring cases pass, including frozen-input refusal and unavailable sources;
+  Ruff/mypy/architecture/planning pass. Measured publication remains below.
 - [ ] C6r: execute frozen rules-snapshot-supplement-v1 on the same 27 hash-bound inputs.
   Unchanged conservative rules; fixed 12 reads, no labels at runtime, preserve failures,
   separate resource denominator and explicit narrative/raw-summary domain mismatch.

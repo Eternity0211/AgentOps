@@ -1,0 +1,132 @@
+{
+  "schema_version": "1.0.0",
+  "scope": "Deterministic test evidence and archive-integrity tests only; not live human approval or production recovery",
+  "groups": [
+    {
+      "id": "evidence-gate",
+      "requirement": "证据归属、不可变绑定、时效、反证与置信度非授权",
+      "modules": [
+        "tests.unit.test_evidence_gate",
+        "tests.unit.test_evidence_gate_resolution"
+      ],
+      "names": []
+    },
+    {
+      "id": "tool-boundary",
+      "requirement": "只读工具、参数白名单、预算、超时与审计失败",
+      "modules": [
+        "tests.unit.test_tool_gateway",
+        "tests.unit.test_planning"
+      ],
+      "names": []
+    },
+    {
+      "id": "redaction",
+      "requirement": "密钥脱敏、输入隔离与有界上下文",
+      "modules": [
+        "tests.unit.test_redaction",
+        "tests.unit.test_context_builder"
+      ],
+      "names": []
+    },
+    {
+      "id": "policy",
+      "requirement": "确定性策略与强制审批",
+      "modules": [
+        "tests.unit.test_policy_engine",
+        "tests.unit.test_policy_contracts"
+      ],
+      "names": []
+    },
+    {
+      "id": "approval",
+      "requirement": "拒绝、过期、权限、独立审批和绑定",
+      "modules": [
+        "tests.unit.test_approvals",
+        "tests.unit.test_approval_graph"
+      ],
+      "names": []
+    },
+    {
+      "id": "execution-preflight",
+      "requirement": "重新加载权限、审批、策略与服务端目标",
+      "modules": [
+        "tests.unit.test_action_execution_preflight"
+      ],
+      "names": []
+    },
+    {
+      "id": "execution-replay",
+      "requirement": "持久化执行、未知结果、重试与防重放",
+      "modules": [
+        "tests.unit.test_action_executor",
+        "tests.unit.test_action_executions"
+      ],
+      "names": []
+    },
+    {
+      "id": "health-verifier",
+      "requirement": "稳定窗口、错误率/延迟/版本与中间波动",
+      "modules": [
+        "tests.unit.test_health_verification",
+        "tests.unit.test_health_verification_evidence",
+        "tests.unit.test_live_health_verification_collection"
+      ],
+      "names": []
+    },
+    {
+      "id": "failure-handoff",
+      "requirement": "不可补偿失败的有界再诊断与人工接手",
+      "modules": [
+        "tests.unit.test_health_verification_failure_routing",
+        "tests.unit.test_health_verification_routing",
+        "tests.unit.test_persisted_health_verification"
+      ],
+      "names": []
+    },
+    {
+      "id": "registered-model",
+      "requirement": "注册模型前置校验、追踪和调用预算",
+      "modules": [
+        "tests.unit.test_registered_model"
+      ],
+      "names": []
+    },
+    {
+      "id": "action-role",
+      "requirement": "回滚动作证据角色与捕获负例",
+      "modules": [
+        "tests.unit.test_rollback_roles"
+      ],
+      "names": []
+    },
+    {
+      "id": "real-archives",
+      "requirement": "真实失败、门禁拒绝、重规划与零审批执行归档",
+      "modules": [
+        "tests.unit.test_published_registered_live"
+      ],
+      "names": []
+    },
+    {
+      "id": "postgres-concurrency-resume",
+      "requirement": "真实 PostgreSQL 并发审批、一次执行、租约接管与调查替换续跑",
+      "modules": [
+        "tests.integration.test_persistence"
+      ],
+      "names": [
+        "test_concurrent_approval_decisions_have_exactly_one_winner",
+        "test_concurrent_approval_terminal_races_have_one_winner",
+        "test_executor_concurrent_duplicate_delivery_dispatches_exactly_once",
+        "test_job_stale_lease_has_one_concurrent_recovery_owner",
+        "test_autonomous_gate_uses_committed_postgres_evidence",
+        "test_captured_rollback_without_deployment_never_calls_model_or_creates_approval"
+      ]
+    }
+  ],
+  "unmeasured": [
+    "real human decision quality and labor",
+    "real authorized recovery and recurrence",
+    "production-scale reliability"
+  ]
+}

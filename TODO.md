@@ -829,6 +829,12 @@ This index is an omission check, not a second task list. The referenced phases c
   Published 27 measured outcomes: Top-1/3 0/18, safe controls 6/9, failures 3/27;
   324 snapshot reads, zero live tools/models/tokens. Retain raw results/source/file hashes.
 
+- [x] C6s: publish current full-regression safety matrix with exact JUnit membership.
+  Thirteen explicit groups; missing mappings refuse and failures/errors/skips never earn
+  credit. Preserve sanitized raw XML, member counts, hashes and unmeasured human boundaries.
+  Full regression 2,991 passed with 100% src statement/branch coverage; four generator tests
+  separately pass. Thirteen groups verify exact passing members; Ruff/mypy/architecture pass.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

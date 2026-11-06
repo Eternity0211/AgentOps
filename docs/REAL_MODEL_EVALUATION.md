@@ -390,3 +390,10 @@ are written create-only before separate scoring. `rules-only` is admitted by the
 not by provider batch or model replay routing. Original control and exact-cause scoring rules
 remain unchanged. Rules emit no ranked causes and were designed for older narrative inputs;
 this domain mismatch is reported rather than tuned to known answers.
+
+
+The versioned safety matrix binds 13 explicit requirement groups to exact JUnit modules and,
+for the mixed PostgreSQL suite, named tests. Missing expected modules/tests refuse generation.
+Failure, error or skip never earns VERIFIED_TESTS. Group counts may overlap and are not summed
+as independent trials. This is deterministic test and archive-integrity evidence; actual-model
+archives remain separate and no human approval, recovery or production reliability is inferred.

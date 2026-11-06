@@ -810,8 +810,10 @@ This index is an omission check, not a second task list. The referenced phases c
 
 - [x] C2d: replay captured v4 memory plans; equivalent gateway topology query deterministically
   reproduces InvalidDomainValueError without any provider/read dispatch. Original raw retained.
-- [ ] C2e: give replanning readable, server-verified prior tool queries alongside fingerprints,
+- [x] C2e: give replanning readable, server-verified prior tool queries alongside fingerprints,
   including crash restoration; retain equivalent-query refusal and bounded budgets.
+  38 autonomous unit/PostgreSQL cases pass, plus 27 final unit cases including three
+  missing/mismatched prior-plan refusals. Ruff/mypy/architecture/planning verified.
 
 ## Explicit non-goal guardrails for the core version
 

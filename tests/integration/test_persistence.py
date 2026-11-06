@@ -8469,6 +8469,14 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
             second_plan = replan_case and "DIAGNOSE" in calls
             if second_plan:
                 assert "deployment linkage" in body["context"]["previous_missing_evidence"]
+                previous = body["context"]["prior_tool_queries"]
+                assert [q["query_fingerprint"] for q in previous] == body["context"][
+                    "prior_queries"
+                ]
+                assert [(q["tool_name"], q["arguments"]) for q in previous] == [
+                    ("query_metrics", {"service": "order"}),
+                    ("query_logs", {"service": "order"}),
+                ]
                 assert len(body["context"]["previous_evidence"]) == 2
             calls.append("PLAN")
             sources = (

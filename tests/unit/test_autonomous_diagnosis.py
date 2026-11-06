@@ -105,6 +105,14 @@ def test_autonomous_plan_gateway_evidence_and_gate(
         if replan and len(model_requests) == 2:
             output["candidates"][0]["missing_evidence"] = ["deployment evidence"]
         if replan and len(model_requests) == 3:
+            context = json.loads(payload["messages"][1]["content"])["context"]
+            assert [(q["tool_name"], q["arguments"]) for q in context["prior_tool_queries"]] == [
+                ("query_metrics", {"service": "order"}),
+                ("query_logs", {"service": "order"}),
+            ]
+            assert [q["query_fingerprint"] for q in context["prior_tool_queries"]] == context[
+                "prior_queries"
+            ]
             output = {
                 "plan": {
                     "schema_version": "1.0.0",
@@ -333,3 +341,24 @@ def test_tempo_invalid_trace_ids_never_dispatch_detail(trace_id: Any) -> None:
     with pytest.raises(ValueError, match="invalid telemetry trace identity"):
         asyncio.run(adapter.invoke(None, {"service": "gateway"}))  # type: ignore[arg-type]
     assert paths == ["/api/search"]
+
+
+@pytest.mark.parametrize("mode", ["missing_effect", "changed_checkpoint", "missing_compiled"])
+def test_replan_prior_queries_refuse_missing_or_changed_bindings(mode: str) -> None:
+    from types import SimpleNamespace
+
+    from evaluation.autonomous_diagnosis import AutonomousServices
+
+    async def load(*args: Any) -> None:
+        return None
+
+    fake: Any = SimpleNamespace(
+        compiled=None if mode != "changed_checkpoint" else SimpleNamespace(calls=()),
+        effects=SimpleNamespace(load=load) if mode == "missing_effect" else None,
+        effect_binding=lambda state: {},
+    )
+    state: Any = SimpleNamespace(
+        budgets=SimpleNamespace(used_replans=1), tool_query_fingerprints=("changed",)
+    )
+    with pytest.raises(ValueError, match="prior plan"):
+        asyncio.run(AutonomousServices.prior_tool_queries(fake, state))

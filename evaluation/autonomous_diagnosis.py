@@ -245,6 +245,33 @@ class AutonomousServices:
     ) -> ContextLoadResult:
         return ContextLoadResult()
 
+    async def prior_tool_queries(self, state: DiagnosisGraphState) -> list[dict[str, Any]]:
+        if not state.budgets.used_replans:
+            return []
+        compiled = self.compiled
+        if self.effects is not None:
+            saved = await self.effects.load("model:PLAN:r0", self.effect_binding(state))
+            if saved is None:
+                raise ValueError("prior plan effect missing for replanning")
+            compiled = compile_real_plan(
+                StoredModelResult.model_validate_json(json.dumps(saved)).restore(ModelPurpose.PLAN),
+                self.registry,
+                PlanningBudgets(8, 4, 160000, 32000, 1000000000),
+            )
+        if compiled is None or tuple(c.query_fingerprint for c in compiled.calls) != tuple(
+            state.tool_query_fingerprints
+        ):
+            raise ValueError("prior plan queries do not match checkpoint")
+        return [
+            {
+                "tool_name": c.tool_name,
+                "tool_version": c.tool_version.value,
+                "arguments": json.loads(c.arguments_json),
+                "query_fingerprint": c.query_fingerprint,
+            }
+            for c in compiled.calls
+        ]
+
     async def plan(self, state: DiagnosisGraphState, *, operation_id: str) -> PlanNodeResult:
         self.round = state.budgets.used_replans
         if state.evidence_ids and self.evidence is None:
@@ -264,6 +291,11 @@ class AutonomousServices:
             else [],
             "previous_evidence": self.evidence.observations[:2] if self.evidence else [],
             "prior_queries": [call for call in state.tool_query_fingerprints],
+            "prior_tool_queries": await self.prior_tool_queries(state),
+            "replan_instruction": (
+                "Do not repeat prior tool/version/argument combinations. "
+                "Request only missing evidence."
+            ),
             "catalog": [
                 {
                     "name": d.name,

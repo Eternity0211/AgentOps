@@ -370,3 +370,13 @@ A live local read completed one search plus eight detail requests, but retained 
 after readiness filtering. Transport success is not useful evidence completeness; bounded
 search sampling can still select readiness-only traces. Raw check: artifacts/tempo-short-id-live-verification.json
 (local verification, not a published diagnosis-quality dataset).
+
+
+Replanning now includes readable `prior_tool_queries` (tool/version/arguments/fingerprint),
+not only opaque hashes. In durable runs the prior typed PLAN is loaded from the hash/audit-bound
+SQL effect record and recompiled, then every query fingerprint is matched in order against the
+checkpoint before context construction. Missing or mismatched records refuse before another
+model call. In-process runs verify the existing compiled plan the same way. Existing compiler
+repeated-query refusal and total budgets remain unchanged. PostgreSQL worker-replacement
+replan cases assert the same readable tool/argument list after restoration. This fixes available
+planning information; it does not claim the model will always avoid repeated queries.

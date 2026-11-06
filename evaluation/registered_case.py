@@ -1,6 +1,6 @@
 """Run a registered SQL-backed lab investigation and stop before human approval."""
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
@@ -73,6 +73,7 @@ async def run_registered_case(
     journal: Callable[[dict[str, Any]], None],
     *,
     adapters: dict[Any, Any] | None = None,
+    consume: Callable[[Job, Callable[[JobLease], Awaitable[None]]], Awaitable[None]] | None = None,
 ) -> dict[str, Any]:
     """Inputs contain observations only; evaluator fault labels are not accepted."""
     principal = Principal(
@@ -190,8 +191,13 @@ async def run_registered_case(
     }
     stage = IncidentState.INVESTIGATING
     try:
-        await worker.run_once()
-        result["second_claim_count"] = await worker.run_once()
+        if consume is None:
+            await worker.run_once()
+            result["second_claim_count"] = await worker.run_once()
+        else:
+            await consume(queued, measured_handler)
+            result["execution_mode"] = "SHARED_BATCH_QUEUE"
+
         await transition(IncidentState.EVIDENCE_REVIEW)
         stage = IncidentState.EVIDENCE_REVIEW
         gates = await persist_registered_report_gates(

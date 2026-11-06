@@ -9532,3 +9532,52 @@ async def test_captured_rollback_without_deployment_never_calls_model_or_creates
         assert await session.scalar(select(func.count()).select_from(ApprovalRow)) == 0
         events = await AuditRepository(session).by_correlation(CorrelationId("role-check"))
     assert len(events) == 1 and events[0].event.type == "evaluation.rollback_evidence_refused"
+
+
+@pytest.mark.anyio
+async def test_isolated_batch_dispatches_two_incidents_with_committed_leases(
+    engine: AsyncEngine,
+) -> None:
+    from dataclasses import replace
+
+    from evaluation.batch_queue import BatchQueue
+
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    jobs = (job("batch-one"), replace(job("batch-two"), incident_id=IncidentId("incident-2")))
+    async with sessions.begin() as session:
+        await add_job_incident(session)
+        await IncidentRepository(session).add(
+            Incident.open(
+                IncidentId("incident-2"),
+                TenantId("tenant-1"),
+                IncidentSeverity.SEV2,
+                "orders",
+                opened_at=NOW,
+            )
+        )
+        for queued in jobs:
+            await JobRepository(session).enqueue(queued)
+    batch = BatchQueue(sessions, expected=2, concurrency=2, timeout=30)
+    seen: list[str] = []
+    both = asyncio.Event()
+
+    def handler_for(expected: Job) -> Any:
+        async def handle(lease: JobLease) -> None:
+            assert lease.job == expected
+            async with sessions() as session:
+                row = await session.scalar(select(JobRow).where(JobRow.id == expected.id.value))
+                assert row is not None and row.status == "LEASED"
+            seen.append(expected.incident_id.value)
+            if len(seen) == 2:
+                both.set()
+            await asyncio.wait_for(both.wait(), 10)
+
+        return handle
+
+    results = await asyncio.gather(*(batch.consume(j, handler_for(j)) for j in jobs), batch.run())
+    assert results[-1] == 2 and batch.peak == 2 and batch.active == 0
+    assert set(seen) == {"incident-1", "incident-2"}
+    async with sessions() as session:
+        for queued in jobs:
+            row = await session.scalar(select(JobRow).where(JobRow.id == queued.id.value))
+            assert row is not None and row.status == "COMPLETED" and row.attempt_count == 1

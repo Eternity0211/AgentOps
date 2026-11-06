@@ -416,3 +416,15 @@ not checkout bytes, and detects missing objects or mismatched manifests. A 1057-
 found five .gitattributes-only newline mismatches in v3/v4/v5, rules-snapshots and safety-matrix.
 Only those control files were normalized to LF and their manifest entries updated; model
 outputs, measurements, failures and other raw-file hashes were unchanged. History is retained.
+
+
+An isolated evaluation BatchQueue can dispatch a bounded server-owned Job-to-handler map
+through the existing PostgreSQL lease worker. Exact Job identity is checked before invocation;
+unknown or cancelled entries cannot start a handler. Batch completion releases registered case
+continuations only after workers commit terminal jobs. The registered-case adapter accepts
+this optional deterministic consumer without changing Gate, Policy or approval authority.
+The default single-case path retains its actual duplicate-claim probe; shared mode records
+SHARED_BATCH_QUEUE and does not manufacture a zero duplicate count. A two-Incident PostgreSQL
+test checks committed LEASED state, peak two active handlers and exactly one completion each.
+These handlers are controlled test fixtures; real model/report/Evidence isolation and batch
+resource measurements remain a separate open load experiment.

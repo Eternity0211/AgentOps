@@ -849,6 +849,13 @@ This index is an omission check, not a second task list. The referenced phases c
   Seventeen manifests/1,057 Git blobs verified with zero discrepancies; thirteen focused
   archive/audit tests pass, including working-tree independence. Ruff/mypy pass.
 
+- [x] C6v-adapter: bounded isolated batch dispatch and optional registered-case queue consumer.
+  Verify committed leases, exact Job bindings, two Incident handlers concurrent, one completion
+  each, refusal before unknown dispatch, and unchanged default pending-review composition.
+  Fourteen focused unit/SQL cases pass; Ruff/mypy/architecture/planning pass.
+- [ ] C6v: actual registered-model concurrent batches with shared SQL/checkpoints, per-Incident
+  artifact/report ownership and queue/elapsed/batch-resource distributions. No recovery writes.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

@@ -755,6 +755,13 @@ This index is an omission check, not a second task list. The referenced phases c
   Fourteen PostgreSQL cases, Ruff/mypy, architecture and planning pass. Complete
   live-provider SQL pending-approval composition remains open.
 
+- [x] C4g: compose registered remediation and committed SQL human review request.
+  Stored Gate pre/post checks, server-owned Policy factory, provider work outside transaction;
+  audit all Policy outcomes, atomically commit eligible PENDING snapshot and policy audit.
+  Two controlled PostgreSQL cases pass, including success and denial branches;
+  Ruff/mypy/architecture/planning pass. No approval or executor capability.
+  Actual-provider live composition remains open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

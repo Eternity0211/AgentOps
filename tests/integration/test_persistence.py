@@ -3480,8 +3480,6 @@ async def test_remediation_admission_requires_exact_stored_passing_gate_decision
     assert admitted.proposal == proposal and calls == [True]
     trace = await traces.get(TenantId("tenant-1"), ModelCallId("remediation-sql-call-1"))
     assert trace is not None and trace.status is ModelCallStatus.SUCCEEDED
-    from evaluation.registered_remediation import request_remediation_review
-
     from agentops_incident_commander.application import PolicyRules
 
     policy_value = replace(
@@ -3504,23 +3502,29 @@ async def test_remediation_admission_requires_exact_stored_passing_gate_decision
         True,
         timedelta(minutes=30),
     )
-    async with sessions.begin() as session:
-        policy_decision, pending = await request_remediation_review(
-            admitted,
-            policy_value,
-            rules=policy_rules,
-            decision_id=OpaqueIdentifier("registered-remediation-policy"),
-            evaluated_at=NOW + timedelta(minutes=4),
-            approvals=approval_manager(
-                session,
-                at=NOW + timedelta(minutes=5),
-                approval_id="registered-remediation-pending",
-                audit_id="registered-remediation-pending-audit",
-            ),
-            principal=invoker.principal,
-            correlation_id=invoker.correlation,
-            causation_id=invoker.causation,
-        )
+    from evaluation.registered_review import propose_and_request_sql_review
+
+    admitted_again, policy_decision, pending = await propose_and_request_sql_review(
+        sessions,
+        invoker,
+        decision,
+        context,
+        lambda current: replace(policy_value, proposal_fingerprint=current.proposal.fingerprint),
+        policy_rules,
+        clock=lambda: NOW + timedelta(minutes=4),
+    )
+    assert admitted_again.proposal == proposal and calls == [True, True]
+    _, denied_policy, no_approval = await propose_and_request_sql_review(
+        sessions,
+        invoker,
+        decision,
+        context,
+        lambda current: replace(policy_value, proposal_fingerprint=current.proposal.fingerprint),
+        replace(policy_rules, allowed_services=frozenset({"different-service"})),
+        clock=lambda: NOW + timedelta(minutes=4),
+    )
+    assert denied_policy.outcome is PolicyOutcome.DENY and no_approval is None
+    assert calls == [True, True, True]
     assert pending is not None and pending.status is ApprovalStatus.PENDING
     from evaluation.simulated_review import review_pending_approval
 

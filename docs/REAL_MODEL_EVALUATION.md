@@ -311,3 +311,12 @@ fingerprint, resolves current Evidence/Artifacts, and atomically records each de
 Gate decision with its audit. Caller-supplied candidate reports or PASS booleans are not inputs.
 This step does not request approval or dispatch recovery; the existing registered remediation
 adapter subsequently requires the exact stored PASS before and after model invocation.
+
+
+`propose_and_request_sql_review` composes the stored Gate pre/post checks, registered
+remediation invocation, server-owned Policy input factory and committed Approval request.
+Provider work runs outside SQL transactions. Policy decisions, including refusals, have
+hash-bound audit events; an eligible request commits its PENDING Approval/review snapshot
+atomically with the Policy audit. It provides no approve/execute capability. The combined
+PostgreSQL test uses controlled provider responses and separately checks Policy denial;
+actual-provider live composition remains a separate evaluation requirement.

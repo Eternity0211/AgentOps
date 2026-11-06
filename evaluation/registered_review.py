@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from agentops_incident_commander.application import ApprovalLifecycleManager, PolicyRules
@@ -19,9 +20,13 @@ from agentops_incident_commander.domain import (
     AuditTarget,
     EvidenceGateDecision,
     OpaqueIdentifier,
+    Permission,
     PolicyDecision,
     PolicyEvaluationInput,
+    Sha256Digest,
+    require_permission,
 )
+from agentops_incident_commander.infrastructure.persistence.models import EvidenceGateDecisionRow
 from agentops_incident_commander.infrastructure.persistence.repositories import (
     ApprovalLifecycleRepository,
     AuditRepository,
@@ -32,6 +37,8 @@ from evaluation.registered_remediation import (
     propose_registered_remediation,
     request_remediation_review,
 )
+from evaluation.rollback_roles import rollback_roles, validate_rollback_roles
+from evaluation.structured_model import fingerprint
 
 
 async def propose_and_request_sql_review(
@@ -56,7 +63,68 @@ async def propose_and_request_sql_review(
             async with sessions() as session:
                 return await EvidenceGateRepository(session).get(**scope)
 
-    admitted = await propose_registered_remediation(invoker, GateReader(), gate, context)
+    require_permission(
+        invoker.principal, Permission.REMEDIATION_REQUEST, tenant_id=invoker.principal.tenant_id
+    )
+
+    async def refuse(reason: str) -> None:
+        async with sessions.begin() as session:
+            await AuditRepository(session).append(
+                AuditEvent(
+                    id=AuditEventId(f"rollback-role-audit-{uuid4().hex}"),
+                    tenant_id=invoker.principal.tenant_id,
+                    type="evaluation.rollback_evidence_refused",
+                    event_version=1,
+                    payload_schema_version="rollback_roles/v1",
+                    actor_id=invoker.principal.actor_id,
+                    correlation_id=invoker.correlation,
+                    causation_id=invoker.causation,
+                    target=AuditTarget(
+                        "evidence.gate_decision", OpaqueIdentifier(gate.input_fingerprint.value)
+                    ),
+                    occurred_at=clock(),
+                    request_hash=gate.input_fingerprint,
+                    result_hash=Sha256Digest(fingerprint(reason)),
+                )
+            )
+        raise ValueError(reason)
+
+    async with sessions() as session:
+        stored = await EvidenceGateRepository(session).get(
+            tenant_id=invoker.principal.tenant_id,
+            incident_id=invoker.incident,
+            candidate_id=gate.candidate_id,
+            input_fingerprint=gate.input_fingerprint,
+        )
+        row = await session.scalar(
+            select(EvidenceGateDecisionRow).where(
+                EvidenceGateDecisionRow.tenant_id == invoker.principal.tenant_id.value,
+                EvidenceGateDecisionRow.incident_id == invoker.incident.value,
+                EvidenceGateDecisionRow.candidate_id == gate.candidate_id,
+                EvidenceGateDecisionRow.input_fingerprint == gate.input_fingerprint.value,
+            )
+        )
+        if (
+            stored != gate
+            or row is None
+            or fingerprint(row.input_snapshot) != gate.input_fingerprint.value
+        ):
+            raise ValueError("ROLLBACK_GATE_SNAPSHOT_BINDING_INVALID")
+        roles = rollback_roles(row.input_snapshot)
+    introducing = [identifier for identifier, role in roles.items() if role == "DEPLOYMENT"]
+    current = [identifier for identifier, role in roles.items() if role in {"METRIC", "DEPLOYMENT"}]
+    if not any(a != b for a in introducing for b in current):
+        await refuse("ROLLBACK_DISTINCT_VERSION_EVIDENCE_REQUIRED")
+    bound_context = {
+        **context,
+        "allowed_introducing_deployment_evidence_ids": introducing,
+        "allowed_current_version_evidence_ids": current,
+    }
+    admitted = await propose_registered_remediation(invoker, GateReader(), gate, bound_context)
+    try:
+        validate_rollback_roles(admitted.proposal, roles)
+    except ValueError as error:
+        await refuse(str(error))
     value = policy_input(admitted)
     if before_policy is not None:
         await before_policy()

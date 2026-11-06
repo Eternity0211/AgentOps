@@ -783,11 +783,14 @@ This index is an omission check, not a second task list. The referenced phases c
   execution. Preserve negative findings, full rows/checkpoints and previous v1 failures.
   Nine focused PostgreSQL/publication cases pass; full regression 2,963 passed
   with 100% source statement/branch coverage.
-- [ ] C4k: enforce deterministic rollback evidence roles before Policy/approval creation.
+- [x] C4k: enforce deterministic rollback evidence roles before Policy/approval creation.
   The v2 snapshot demonstrates a LOG reference admitted as introducing deployment. Add
   source-role/ownership checks and refuse absent deployment evidence; verify the captured
   negative case and valid deployment/current-version fixtures. Do not reinterpret the
   existing pending request as correct or safe recovery.
+  Captured no-deployment case refuses before provider dispatch and creates zero approvals;
+  valid deployment fixtures pass and swapped roles refuse before Policy. Full regression:
+  2,968 passed, 100% source statement/branch coverage; Ruff/mypy/architecture/planning pass.
 
 ## Explicit non-goal guardrails for the core version
 

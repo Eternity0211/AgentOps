@@ -350,3 +350,14 @@ review finds LOG used as introducing-deployment Evidence and recommends rejectio
 an actual approval decision. The snapshot preserves that unsafe recommendation and empty
 execution tables. Pending persistence is demonstrated, but recommendation correctness is not.
 A deterministic action-evidence-role guard remains required before claiming safe remediation.
+
+
+The registered SQL review composition now validates rollback reference roles against the
+same-tenant/Incident/candidate immutable Gate input snapshot and its canonical hash. No distinct
+deployment/current-version pair means refusal before provider dispatch. After model admission,
+the introducing reference must be DEPLOYMENT and the distinct current-version reference must
+be METRIC or DEPLOYMENT; wrong roles refuse before Policy and Approval creation. Allowed ID
+sets are server-owned and refusal audit commits independently. The captured v2 negative fixture
+now proves zero provider calls and zero approvals; valid declared deployment fixtures still pass.
+These necessary type/ownership checks do not establish causal diagnosis or deployment semantics.
+The old v2 pending snapshot remains unchanged and its adverse review is not regraded.

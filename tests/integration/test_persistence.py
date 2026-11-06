@@ -3348,7 +3348,18 @@ async def test_remediation_admission_requires_exact_stored_passing_gate_decision
 ) -> None:
     await add_incident(engine, "incident-gate-storage", tenant="tenant-1")
     original_claim, evidence, rules, _ = gate_evaluation()
-    claim = replace(original_claim, missing_evidence=())
+    evidence = (
+        replace(
+            evidence[0],
+            source_type=EvidenceSourceType.DEPLOYMENT,
+            source_instance="deployment-registry",
+            tool_name="query_deployments",
+        ),
+        evidence[1],
+    )
+    claim = replace(
+        original_claim, candidate_id="candidate-deployment-regression", missing_evidence=()
+    )
     decision = evaluate_evidence_gate(
         claim,
         EvidenceReferenceResolution(evidence, ()),
@@ -3525,6 +3536,37 @@ async def test_remediation_admission_requires_exact_stored_passing_gate_decision
     )
     assert denied_policy.outcome is PolicyOutcome.DENY and no_approval is None
     assert calls == [True, True, True]
+    valid_proposal = proposal
+    proposal = proposal.model_copy(
+        update={
+            "parameters": RollbackServiceParameters(
+                service="orders", introducing_deployment_evidence_id=evidence[1].id.value
+            ),
+            "prerequisites": RollbackPrerequisites(
+                current_version_evidence_id=evidence[0].id.value
+            ),
+        }
+    )
+    factory_calls: list[bool] = []
+
+    def forbidden_factory(current: Any) -> PolicyEvaluationInput:
+        factory_calls.append(True)
+        raise AssertionError("Policy must not run for invalid evidence roles")
+
+    try:
+        with pytest.raises(ValueError, match="INTRODUCING_REFERENCE_NOT_DEPLOYMENT"):
+            await propose_and_request_sql_review(
+                sessions,
+                invoker,
+                decision,
+                context,
+                forbidden_factory,
+                policy_rules,
+                clock=lambda: NOW + timedelta(minutes=4),
+            )
+        assert not factory_calls and calls == [True, True, True, True]
+    finally:
+        proposal = valid_proposal
     assert pending is not None and pending.status is ApprovalStatus.PENDING
     from evaluation.simulated_review import review_pending_approval
 
@@ -9416,3 +9458,65 @@ async def test_lab_prompts_require_measured_mechanical_regression_before_activat
                 stored_incident is not None
                 and stored_incident.state is IncidentState.AWAITING_APPROVAL
             )
+
+
+@pytest.mark.anyio
+async def test_captured_rollback_without_deployment_never_calls_model_or_creates_approval(
+    engine: AsyncEngine,
+) -> None:
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from evaluation.registered_review import propose_and_request_sql_review
+
+    from agentops_incident_commander.infrastructure.persistence.models import (
+        EvidenceGateDecisionRow,
+    )
+
+    data = json.loads(
+        Path("evaluation/results/registered-live/v2/run-001/sql-records.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    raw = dict(data["evidence_gate_decisions"][0])
+    raw.pop("sequence")
+    raw["evaluated_at"] = datetime.fromisoformat(raw["evaluated_at"])
+    await add_incident(engine, raw["incident_id"], tenant=raw["tenant_id"])
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        session.add(EvidenceGateDecisionRow(**raw))
+    async with sessions() as session:
+        gate = await EvidenceGateRepository(session).get(
+            tenant_id=TenantId(raw["tenant_id"]),
+            incident_id=IncidentId(raw["incident_id"]),
+            candidate_id=raw["candidate_id"],
+            input_fingerprint=Sha256Digest(raw["input_fingerprint"]),
+        )
+    assert gate is not None
+    invoke = AsyncMock()
+    invoker = SimpleNamespace(
+        principal=Principal(
+            ActorId("role-check-operator"), TenantId(raw["tenant_id"]), frozenset({Role.OPERATOR})
+        ),
+        incident=gate.incident_id,
+        correlation=CorrelationId("role-check"),
+        causation=CausationId("role-check-command"),
+        invoke=invoke,
+    )
+    with pytest.raises(ValueError, match="DISTINCT_VERSION_EVIDENCE_REQUIRED"):
+        await propose_and_request_sql_review(
+            sessions, cast(Any, invoker), gate, {}, cast(Any, None), cast(Any, None)
+        )
+    invoke.assert_not_awaited()
+    invoker.principal = Principal(
+        ActorId("role-check-operator"), TenantId("another-tenant"), frozenset({Role.OPERATOR})
+    )
+    with pytest.raises(ValueError, match="SNAPSHOT_BINDING_INVALID"):
+        await propose_and_request_sql_review(
+            sessions, cast(Any, invoker), gate, {}, cast(Any, None), cast(Any, None)
+        )
+    invoke.assert_not_awaited()
+    async with sessions() as session:
+        assert await session.scalar(select(func.count()).select_from(ApprovalRow)) == 0
+        events = await AuditRepository(session).by_correlation(CorrelationId("role-check"))
+    assert len(events) == 1 and events[0].event.type == "evaluation.rollback_evidence_refused"

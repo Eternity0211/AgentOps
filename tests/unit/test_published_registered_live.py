@@ -84,3 +84,34 @@ def test_registered_v4_real_gate_role_refusal_without_remediation_dispatch() -> 
     assert all(r["cleanup_exit"] == 0 for r in cases[1:])
     summary = json.loads((root / "summary.json").read_text(encoding="utf-8"))
     assert summary["provider_starts"] == 10 and summary["approval_decisions"] == 0
+
+
+def test_captured_v4_memory_replan_repeats_gateway_topology_and_is_refused() -> None:
+    import pytest
+    from evaluation.durable_effects import StoredModelResult
+    from evaluation.live_gateway import local_definitions
+    from evaluation.structured_model import ModelPurpose, compile_real_plan
+
+    from agentops_incident_commander.application import PlanningBudgets
+    from agentops_incident_commander.domain import InvalidDomainValueError, ToolRegistry
+
+    root = Path("evaluation/results/registered-live/v4/run-001")
+    rows = json.loads((root / "sql-records.json").read_text(encoding="utf-8"))
+    ids = ["lab-call-18d81a87ef524e568ba3af05c7bad44a", "lab-call-2bba403dad8143e1b03ebf7d0c29a471"]
+    outputs = {}
+    for row in rows["idempotency_records"]:
+        payload = (row.get("response_body") or {}).get("payload", {})
+        if payload.get("call_id") in ids:
+            outputs[payload["call_id"]] = StoredModelResult.model_validate(payload).restore(
+                ModelPurpose.PLAN
+            )
+    registry = ToolRegistry(local_definitions())
+    budget = PlanningBudgets(8, 4, 160000, 32000, 1000000000)
+    first = compile_real_plan(outputs[ids[0]], registry, budget)
+    with pytest.raises(InvalidDomainValueError, match="repeats an equivalent tool query"):
+        compile_real_plan(
+            outputs[ids[1]],
+            registry,
+            budget,
+            prior_query_fingerprints=frozenset(c.query_fingerprint for c in first.calls),
+        )

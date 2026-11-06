@@ -808,6 +808,11 @@ This index is an omission check, not a second task list. The referenced phases c
   refusal before remediation provider; memory InvalidDomainValueError retained. Three reports,
   one Gate, zero approvals/executions, both cleanups zero and final checkout 200.
 
+- [x] C2d: replay captured v4 memory plans; equivalent gateway topology query deterministically
+  reproduces InvalidDomainValueError without any provider/read dispatch. Original raw retained.
+- [ ] C2e: give replanning readable, server-verified prior tool queries alongside fingerprints,
+  including crash restoration; retain equivalent-query refusal and bounded budgets.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

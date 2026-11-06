@@ -1,0 +1,93 @@
+{
+  "schema_version": "1.0.0",
+  "concurrency": 1,
+  "failure_denominator": 7,
+  "failed_cases": 7,
+  "missing_rule": "Absent measurement remains null/unknown, never zero",
+  "metrics": {
+    "queue_creation_to_claim_ms": {
+      "known": 6,
+      "missing": 1,
+      "raw": [
+        55,
+        62,
+        63,
+        81,
+        89,
+        124
+      ],
+      "median": 72.0,
+      "p95_nearest_rank": 124
+    },
+    "queue_ready_to_claim_ms": {
+      "known": 6,
+      "missing": 1,
+      "raw": [
+        55,
+        62,
+        63,
+        81,
+        89,
+        124
+      ],
+      "median": 72.0,
+      "p95_nearest_rank": 124
+    },
+    "workflow_ms": {
+      "known": 6,
+      "missing": 1,
+      "raw": [
+        7328,
+        7703,
+        7734,
+        8438,
+        9844,
+        10032
+      ],
+      "median": 8086.0,
+      "p95_nearest_rank": 10032
+    },
+    "process_cpu_ms": {
+      "known": 6,
+      "missing": 1,
+      "raw": [
+        1546,
+        1671,
+        1671,
+        1765,
+        1906,
+        2671
+      ],
+      "median": 1718.0,
+      "p95_nearest_rank": 2671
+    },
+    "python_heap_current_bytes": {
+      "known": 6,
+      "missing": 1,
+      "raw": [
+        177556,
+        190141,
+        199586,
+        229539,
+        414256,
+        3635930
+      ],
+      "median": 214562.5,
+      "p95_nearest_rank": 3635930
+    },
+    "python_heap_peak_bytes": {
+      "known": 6,
+      "missing": 1,
+      "raw": [
+        799152,
+        845816,
+        847632,
+        862482,
+        881566,
+        4009966
+      ],
+      "median": 855057.0,
+      "p95_nearest_rank": 4009966
+    }
+  }
+}

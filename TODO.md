@@ -838,8 +838,11 @@ This index is an omission check, not a second task list. The referenced phases c
 - [x] C6t-adapter: add committed-lease queue waits and workflow process CPU/Python heap
   observations, including exception retention and trace ownership. Thirteen focused
   SQL/resource/entry tests pass; four additional full-matrix entry cases pass.
-- [ ] C6t: run frozen live-v2 seven-case actual-model matrix and publish queue/timing/resource
+- [x] C6t: run frozen live-v2 seven-case actual-model matrix and publish queue/timing/resource
   distributions. Concurrency one; do not label process heap as total RAM or cleanup as recovery.
+  v6: 15 real calls, baseline normal 502 (one missing resource sample), six fault Gate PASS
+  then missing-deployment refusals, zero approvals/executions. Queue median/P95 72/124ms;
+  workflow 8086/10032ms. Six cleanups exit zero, all final checkout 200; failures preserved.
 
 ## Explicit non-goal guardrails for the core version
 

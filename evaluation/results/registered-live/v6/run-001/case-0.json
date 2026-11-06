@@ -1,0 +1,16 @@
+{
+  "after_checkout": {
+    "duration_ms": 719,
+    "status": 200
+  },
+  "approval_decided": false,
+  "baseline": {
+    "duration_ms": 2735,
+    "status": 502
+  },
+  "error_type": "RuntimeError",
+  "evaluator_scenario": null,
+  "instance_id": "registered-16032cb0e01f4f4cae90",
+  "recovery_executed": false,
+  "status": "FAILED"
+}

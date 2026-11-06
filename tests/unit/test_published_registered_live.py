@@ -144,3 +144,40 @@ def test_registered_v5_preserves_real_replan_and_role_refusals() -> None:
     assert all(r["after_checkout"]["status"] == 200 for r in cases)
     assert all(r["cleanup_exit"] == 0 for r in cases[1:])
     assert json.loads((root / "summary.json").read_text(encoding="utf-8"))["provider_starts"] == 11
+
+
+def test_registered_v6_preserves_all_fault_failures_and_missing_resource_sample() -> None:
+    from evaluation.structured_model import fingerprint
+
+    root = Path("evaluation/results/registered-live/v6/run-001")
+    for name, digest in json.loads((root / "file-hashes.json").read_text(encoding="utf-8")).items():
+        assert hashlib.sha256((root / name).read_bytes()).hexdigest() == digest
+    cases = [json.loads((root / f"case-{n}.json").read_text(encoding="utf-8")) for n in range(7)]
+    assert all(c["status"] == "FAILED" for c in cases)
+    assert cases[0]["baseline"]["status"] == 502 and "workflow_ms" not in cases[0]
+    assert all(c["cleanup_exit"] == 0 for c in cases[1:])
+    assert all(c["after_checkout"]["status"] == 200 for c in cases)
+    assert all(c["provider_starts"] == 2 for c in cases[1:])
+    rows = json.loads((root / "sql-records.json").read_text(encoding="utf-8"))
+    assert len(rows["diagnosis_reports"]) == len(rows["evidence_gate_decisions"]) == 6
+    assert rows["approvals"] == rows["action_executions"] == []
+    refusals = [
+        r for r in rows["audit_events"] if r["event_type"] == "evaluation.rollback_evidence_refused"
+    ]
+    assert len(refusals) == 6
+    assert all(
+        r["result_hash"] == fingerprint("ROLLBACK_DISTINCT_VERSION_EVIDENCE_REQUIRED")
+        for r in refusals
+    )
+    metrics = json.loads((root / "resource-distributions.json").read_text(encoding="utf-8"))[
+        "metrics"
+    ]
+    assert all(v["known"] == 6 and v["missing"] == 1 for v in metrics.values())
+    assert metrics["queue_ready_to_claim_ms"]["median"] == 72
+    assert metrics["workflow_ms"]["p95_nearest_rank"] == 10032
+    summary = json.loads((root / "summary.json").read_text(encoding="utf-8"))
+    assert summary["provider_starts"] == 15 and summary["cases"] == 7
+    events = [
+        json.loads(s) for s in (root / "events.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert sum(e.get("event") == "evaluation.job_claimed" for e in events) == 6

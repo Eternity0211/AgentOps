@@ -820,6 +820,10 @@ This index is an omission check, not a second task list. The referenced phases c
   refusal, normal also refuses, memory hands off. Four reports, two Gates/refusal audits,
   zero approvals/executions; both cleanup exits zero, final checkout 200.
 
+- [ ] C6r: execute frozen rules-snapshot-supplement-v1 on the same 27 hash-bound inputs.
+  Unchanged conservative rules; fixed 12 reads, no labels at runtime, preserve failures,
+  separate resource denominator and explicit narrative/raw-summary domain mismatch.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

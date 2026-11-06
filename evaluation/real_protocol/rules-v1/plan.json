@@ -1,0 +1,68 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "rules-snapshot-supplement-v1",
+  "scope": "Exploratory same-27-input rules-only supplementary resource denominator; not a retroactive change to real-v1 scoring or a causal orchestration comparison",
+  "dataset_index_sha256": "99315b151bdb6361f3e1f3b75a5c339284ec8826991b9c4749b920ed0a59c1e3",
+  "rules_source_sha256": "57a1e40d3f30b3ace1b2ad4f044bcecf5d47ed3ade791ed28dc62cc982d8e918",
+  "rules_version": "1.0.0",
+  "rule_changes_allowed": false,
+  "queries": [
+    {
+      "tool": "query_metrics",
+      "service": "gateway"
+    },
+    {
+      "tool": "query_logs",
+      "service": "gateway"
+    },
+    {
+      "tool": "query_deployments",
+      "service": "gateway"
+    },
+    {
+      "tool": "query_metrics",
+      "service": "order"
+    },
+    {
+      "tool": "query_logs",
+      "service": "order"
+    },
+    {
+      "tool": "query_deployments",
+      "service": "order"
+    },
+    {
+      "tool": "query_metrics",
+      "service": "inventory"
+    },
+    {
+      "tool": "query_logs",
+      "service": "inventory"
+    },
+    {
+      "tool": "query_deployments",
+      "service": "inventory"
+    },
+    {
+      "tool": "query_metrics",
+      "service": "payment"
+    },
+    {
+      "tool": "query_logs",
+      "service": "payment"
+    },
+    {
+      "tool": "query_deployments",
+      "service": "payment"
+    }
+  ],
+  "query_limit": 12,
+  "retry_limit": 0,
+  "summary_char_limit_per_query": 1000,
+  "source_failure": "Any requested source failure records FAILED with zero credit; no inferred replacement",
+  "candidate_mapping": "Reuse unchanged conservative RulesDiagnosisSystem; it emits no ranked root-cause candidates. Reason codes retained, not remapped to causes.",
+  "controls": "Handoff with no candidates/proposal/Gate PASS; EVIDENCE_INSUFFICIENT reason explicitly supplies missing evidence. Counter control handoff is safe under original scoring rule.",
+  "scoring": "All 18 fault and 9 control denominators include failures; exact original control conditions; Wilson intervals and measured monotonic durations; zero model calls/tokens/provider cost.",
+  "labels": "Runtime runner reads only hash-verified snapshot/index; evaluator labels loaded only after immutable outputs written.",
+  "limits": "Uses same allowed snapshots but fixed collection policy differs from model planning; old rules were designed for older narrative summaries. No production capacity, human efficiency or improved root-cause claim."
+}

@@ -1,0 +1,15 @@
+{
+  "protocol_hash": "11cc968526ff4c86b35b20b104abde93ef6e1b440f2b986b6d530bc3be66d126",
+  "python": "3.12.14",
+  "platform": "Windows",
+  "concurrency": 1,
+  "model_calls": 0,
+  "snapshot_reads": 324,
+  "live_tool_calls": 0,
+  "source_revision": "686c238e5fd26e749b60b6b3c28aeb8e52eecacc",
+  "source_hashes": {
+    "evaluation/run_rules_snapshots.py": "8b0862b1ce9fd710413958c341986bb0a19311c1c692685b25045b8cd94118c9",
+    "evaluation/baselines/rules.py": "57a1e40d3f30b3ace1b2ad4f044bcecf5d47ed3ade791ed28dc62cc982d8e918",
+    "evaluation/real_scoring.py": "1bde134016f34a1d065e9d27134902dc916038c628e4a4cf69a1eb8fc847df6c"
+  }
+}

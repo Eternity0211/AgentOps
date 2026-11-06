@@ -823,9 +823,11 @@ This index is an omission check, not a second task list. The referenced phases c
 - [x] C6r-adapter: frozen same-snapshot rules runner and scorer-only rules mode.
   Sixteen unit/scoring cases pass, including frozen-input refusal and unavailable sources;
   Ruff/mypy/architecture/planning pass. Measured publication remains below.
-- [ ] C6r: execute frozen rules-snapshot-supplement-v1 on the same 27 hash-bound inputs.
+- [x] C6r: execute frozen rules-snapshot-supplement-v1 on the same 27 hash-bound inputs.
   Unchanged conservative rules; fixed 12 reads, no labels at runtime, preserve failures,
   separate resource denominator and explicit narrative/raw-summary domain mismatch.
+  Published 27 measured outcomes: Top-1/3 0/18, safe controls 6/9, failures 3/27;
+  324 snapshot reads, zero live tools/models/tokens. Retain raw results/source/file hashes.
 
 ## Explicit non-goal guardrails for the core version
 

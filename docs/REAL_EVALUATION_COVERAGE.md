@@ -17,7 +17,7 @@
 | 实际复测失败 | [v3](../evaluation/results/registered-live/v3/README.md) 6 调用、3 场均 trace 失败 | 零报告/门禁/审批/执行；正常观测有一次 502；故障清理不计恢复 |
 | 中断/重放/未知结果 | [14 项 PostgreSQL 组合](../evaluation/results/durable-replay/v1/run-002/README.md)，重规划与并行续跑有精确调用计数 | 真实数据库、受控模型/工具；不冒充真实模型准确率 |
 | 并发/吞吐 | [旧版局部负载](../evaluation/results/load/v1/run-001/README.md)，API/SQL/租约/进程内 worker 各有独立分母 | 不是当前真实模型端到端容量；当前排队、CPU/内存分布仍缺 |
-| 规则公平基线 | 旧六样本规则结果存在 | 与当前 27 快照协议不相同，不能直接比较；同集规则补充仍缺 |
+| 规则公平基线 | [同 27 快照规则补充](../evaluation/results/rules-snapshots/v1/README.md)：Top-1/3 0/18、控制 6/9、失败 3/27 | 固定 324 快照读取、无模型；旧规则与原始遥测存在输入域差异，不作为单变量因果比较 |
 | 安全/拒绝/过期/越权/并发审批 | 核心回归 2968 项通过，src 语句与分支 100% | 测试覆盖率不是指标覆盖率；当前统一逐项安全映射仍需补齐 |
 | 人工流程 | [模拟操作员](../evaluation/results/simulated-operator/README.md) 与实际审批分离 | 模拟不能证明真人工时、UX 或授权；真实审批/人工收益未测 |
 | 产品恢复/稳定窗口/复发 | 实验没有真实人工批准的执行 | 未测；确定性 verifier 测试和评测清理不能替代实测 |

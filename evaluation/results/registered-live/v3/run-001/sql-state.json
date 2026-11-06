@@ -1,0 +1,63 @@
+{
+  "approvals": [],
+  "incidents": [
+    {
+      "id": "registered-2169f36383fa4c6c8faa",
+      "state": "NEEDS_HUMAN",
+      "version": 5
+    },
+    {
+      "id": "registered-9af7c1ade48f40399c2e",
+      "state": "NEEDS_HUMAN",
+      "version": 5
+    },
+    {
+      "id": "registered-f6241fd395c149a9926d",
+      "state": "NEEDS_HUMAN",
+      "version": 5
+    }
+  ],
+  "jobs": [
+    {
+      "attempt_count": 1,
+      "id": "lab-job-dcdb9ff3544447e4b914a1cd2be66fe4",
+      "status": "NEEDS_HUMAN"
+    },
+    {
+      "attempt_count": 1,
+      "id": "lab-job-32e01f034e5544b5a32ce2c4d14e35e0",
+      "status": "NEEDS_HUMAN"
+    },
+    {
+      "attempt_count": 1,
+      "id": "lab-job-78b3f6a7c32b48d18e440c868b60b1ac",
+      "status": "NEEDS_HUMAN"
+    }
+  ],
+  "model_traces": [
+    {
+      "id": "lab-call-e9bddd68e6bd4eb3a54a2e294297228a",
+      "node": "diagnosis.plan",
+      "request_hash": "44c10a40f0d84f4b5b898b64d642f68a7f93d7a851fe16b7c9f0c5a1c015719d",
+      "response_hash": "8e687312b0fc4db8681d2790355abdcb2843c67c2b264c69a50cf0eb73c2944d",
+      "status": "SUCCEEDED",
+      "workflow_run_id": "workflow-registered-2169f36383fa4c6c8faa"
+    },
+    {
+      "id": "lab-call-77645f2d20944dd289f06f4b2eabaf2c",
+      "node": "diagnosis.plan",
+      "request_hash": "5e5ff3cb7b8a781e690b13ceab618410f4b46576f7918a304a3359dd205bff99",
+      "response_hash": "8b76fea59476dd8e09ee7795a7599bc062b7c4d40fb40ab43efac7451792ea75",
+      "status": "SUCCEEDED",
+      "workflow_run_id": "workflow-registered-9af7c1ade48f40399c2e"
+    },
+    {
+      "id": "lab-call-99264fb1bb8f4cff8ad948b3c1b3d8fb",
+      "node": "diagnosis.plan",
+      "request_hash": "c5ac9e409732b62dd01d60d186acee0b3733a582ceb780fc9fc1818f845366cd",
+      "response_hash": "c73d722aaa532a2b915c6a62238abaed189dfd9dfc955b9cc9cba237afce16c6",
+      "status": "SUCCEEDED",
+      "workflow_run_id": "workflow-registered-f6241fd395c149a9926d"
+    }
+  ]
+}

@@ -44,3 +44,19 @@ def test_registered_v2_snapshot_preserves_pending_and_adverse_review() -> None:
     assert review["recommendation"] == "REJECT"
     assert review["violations"] == ["INTRODUCING_REFERENCE_NOT_DEPLOYMENT"]
     assert review["approval_decided"] is review["recovery_executed"] is False
+
+
+def test_registered_v3_preserves_tool_failures_without_guard_success_claim() -> None:
+    root = Path("evaluation/results/registered-live/v3/run-001")
+    for name, digest in json.loads((root / "file-hashes.json").read_text(encoding="utf-8")).items():
+        assert hashlib.sha256((root / name).read_bytes()).hexdigest() == digest
+    summary = json.loads((root / "summary.json").read_text(encoding="utf-8"))
+    assert summary["provider_starts"] == 6 and summary["pending_approvals"] == 0
+    rows = json.loads((root / "sql-records.json").read_text(encoding="utf-8"))
+    assert rows["diagnosis_reports"] == rows["evidence_gate_decisions"] == rows["approvals"] == []
+    assert rows["action_executions"] == [] and rows["checkpoints"]
+    cases = [json.loads((root / f"case-{n}.json").read_text(encoding="utf-8")) for n in range(3)]
+    assert all(r["status"] == "FAILED" and r["error_type"] == "ExceptionGroup" for r in cases)
+    assert all(r["after_checkout"]["status"] == 200 for r in cases)
+    assert all(r["cleanup_exit"] == 0 for r in cases[1:])
+    assert any(p["status"] != 200 for p in cases[0]["probes"])

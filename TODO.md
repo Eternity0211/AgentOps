@@ -15,7 +15,7 @@ Checkboxes are completion claims. Check an item only when its acceptance criteri
 - 模拟历史独立实测 27 次，Top-1 为 2/18；真实已关闭历史按用户要求标记未测。
 - 持久化续跑已有 14 项 PostgreSQL 组合场景；重规划保留证据、部分并行续跑和未知结果拒绝均已验证。
 - C4 v2 实际 SQL/遥测组合三场景共八次调用，保存一条待审批；后置复核发现部署证据引用实际为 LOG，建议拒绝。未批准或执行，必须补齐动作证据角色检查。原始失败均保留。
-- 待审批机械链路已实测，但安全证据角色检查、统一覆盖矩阵及最终报告仍未完成。实际人工审批、人工工时和生产收益未测。
+- 安全证据角色检查已提交（88e3f7c），2,968 项回归通过。v3 三场真实复测均在 trace 工具失败处终止，未触达新校验；6 次实际调用、零审批，故障清理完成。统一覆盖矩阵及最终报告仍未完成。实际人工审批、人工工时和生产收益未测。
 
 ### 已完成并提交
 
@@ -791,6 +791,13 @@ This index is an omission check, not a second task list. The referenced phases c
   Captured no-deployment case refuses before provider dispatch and creates zero approvals;
   valid deployment fixtures pass and swapped roles refuse before Policy. Full regression:
   2,968 passed, 100% source statement/branch coverage; Ruff/mypy/architecture/planning pass.
+
+- [x] C4l: archive guarded actual-provider v3 rehearsal, including all three read-tool failures.
+  Six actual calls, zero reports/Gates/approvals/executions; both cleanup exits zero and final
+  checkout 200. New role guard not reached. Preserve source/file hashes and SQL/checkpoints.
+- [ ] C2c: investigate Tempo short hexadecimal trace IDs and add bounded compatible reads.
+  Acceptance: valid short IDs normalize without accepting arbitrary paths; malformed IDs
+  fail closed; actual trace query succeeds or records a separately classified failure.
 
 ## Explicit non-goal guardrails for the core version
 

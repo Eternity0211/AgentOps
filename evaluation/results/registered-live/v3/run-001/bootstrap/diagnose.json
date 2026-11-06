@@ -1,0 +1,45 @@
+{
+  "check": "DIAGNOSIS_EVIDENCE_GATE",
+  "fixture_version": "4.0.0",
+  "gate_results": [
+    {
+      "candidate_id": "order-v2-checkout-serializer-attributeerror",
+      "outcome": "PASS",
+      "reasons": []
+    }
+  ],
+  "input_tokens": 1441,
+  "origin": "SYNTHETIC_SAFETY_FIXTURE_NOT_HISTORY",
+  "output_tokens": 269,
+  "passed": true,
+  "purpose": "DIAGNOSE",
+  "request_hash": "5737bc07ddf19b2b027db397faba0e1fddd0d54b025aa8352e01a2e8d4f17934",
+  "validated_output": {
+    "candidates": [
+      {
+        "candidate_id": "order-v2-checkout-serializer-attributeerror",
+        "confidence_basis_points": 9700,
+        "counter_evidence_explanation": null,
+        "counter_evidence_ids": [],
+        "counter_evidence_treatment": "NOT_APPLICABLE",
+        "missing_evidence": [],
+        "rank": 1,
+        "statement": "Order v2's checkout serializer raises AttributeError, causing the 20% HTTP 500 rate; v1 does not exhibit this, and reverting to v1 restores 0/100 errors.",
+        "supporting_evidence_ids": [
+          "fixture-metric",
+          "fixture-log",
+          "fixture-deployment",
+          "fixture-current",
+          "fixture-trace",
+          "fixture-comparison"
+        ],
+        "uncertainty": "Synthetic fixture; no production history. Exact code defect and affected request subset not identified."
+      }
+    ],
+    "disposition": "CANDIDATES",
+    "explanation": "Isolated canary with identical requests/config shows v1 0/100 vs v2 20/100 HTTP500, and reverting to v1 restores 0/100; traces localize failures to AttributeError in the v2 checkout serializer with downstream spans succeeding and no dependency timeouts. Single bounded candidate.",
+    "incident_id": "lab-regression-fixture",
+    "missing_evidence": [],
+    "schema_version": "1.0.0"
+  }
+}

@@ -6,7 +6,7 @@
   "src_statement_coverage_percent": 100,
   "src_branch_coverage_percent": 100,
   "raw_junit_sha256": "ef131fb0dbeeb7f075d769761a656cc3649a6cab3b6c116bde3bb3fdb8834778",
-  "sanitization": "Removed hostname attribute only",
+  "sanitization": "Removed hostname; replaced one credential-shaped test-fixture parameter with REDACTED_TEST_FIXTURE. No real provider credential was present.",
   "source_hashes": {
     "src/agentops_incident_commander/architecture.py": "614135d7def95f6ce1f7c335e74422627dd32ae7e8f0a9bca3fc3ebf0f25b6a7",
     "src/agentops_incident_commander/compose_contract.py": "597dfb34c8e3884a8b8eb1c359ad943acec29c7093e1bd255434f23cf244c855",

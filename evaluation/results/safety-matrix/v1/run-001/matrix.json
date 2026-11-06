@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "scope": "Deterministic test evidence and archive-integrity tests only; not live human approval or production recovery",
-  "junit_sha256": "054b8f3c2b52fd5c4f176af36536b90c7d49298ef7728d2f2b62b081644f903b",
+  "junit_sha256": "b5c28f936fa3a0540b6ef36a2ebd98d96cb115cc93ae65a025fca036b95ff872",
   "plan_sha256": "ea5b2d840e76b9628e6031c37e9258f7e597d96513985e0e640440ee87f0ac03",
   "collected_cases": 2991,
   "all_cases_passed": true,

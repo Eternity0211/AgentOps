@@ -13,7 +13,7 @@
 | 实付费用 | provider 未返回实际账单 | 未测，不填零 |
 | 调查时间 | 合法报告样本中位数单次 4773ms、图 4625ms；P95 4859/10312ms | 样本集合不同，不换算提效百分比；失败耗时见原始分布 |
 | 注册/SQL/审批等待 | [v2](../evaluation/results/registered-live/v2/README.md) 8 调用、1 PENDING | 提案将 LOG 当部署证据，复核拒绝；不是正确恢复 |
-| 动作证据角色 | 捕获 v2 负例回归：缺部署证据前置拒绝、零 provider/审批；有效类型夹具通过 | 角色必要检查通过；不等于语义因果证明，真实 guard 路径仍待触达 |
+| 动作证据角色 | 捕获 v2 负例回归：缺部署证据前置拒绝、零 provider/审批；有效类型夹具通过 | [v4 真实路径](../evaluation/results/registered-live/v4/README.md) HTTP500 Gate PASS 后拒绝，零修复模型调用/审批；不等于语义因果证明 |
 | 实际复测失败 | [v3](../evaluation/results/registered-live/v3/README.md) 6 调用、3 场均 trace 失败 | 零报告/门禁/审批/执行；正常观测有一次 502；故障清理不计恢复 |
 | 中断/重放/未知结果 | [14 项 PostgreSQL 组合](../evaluation/results/durable-replay/v1/run-002/README.md)，重规划与并行续跑有精确调用计数 | 真实数据库、受控模型/工具；不冒充真实模型准确率 |
 | 并发/吞吐 | [旧版局部负载](../evaluation/results/load/v1/run-001/README.md)，API/SQL/租约/进程内 worker 各有独立分母 | 不是当前真实模型端到端容量；当前排队、CPU/内存分布仍缺 |

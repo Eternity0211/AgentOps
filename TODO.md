@@ -803,6 +803,11 @@ This index is an omission check, not a second task list. The referenced phases c
   24 focused tests pass, mypy and architecture pass. Actual read completes nine requests
   but retains zero spans after readiness filtering: evidence usefulness remains unresolved.
 
+- [x] C4m: guarded real v4 rehearsal after Tempo compatibility fix.
+  Ten actual calls; normal handoff, HTTP500 Gate PASS then hash-audited missing-deployment
+  refusal before remediation provider; memory InvalidDomainValueError retained. Three reports,
+  one Gate, zero approvals/executions, both cleanups zero and final checkout 200.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

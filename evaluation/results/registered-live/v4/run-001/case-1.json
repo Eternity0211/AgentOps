@@ -1,0 +1,63 @@
+{
+  "actual_bill": null,
+  "after_checkout": {
+    "duration_ms": 329,
+    "status": 200
+  },
+  "approval_decided": false,
+  "baseline": {
+    "duration_ms": 62,
+    "status": 200
+  },
+  "cleanup_exit": 0,
+  "error_type": "ValueError",
+  "evaluator_scenario": "http-500",
+  "gates": [
+    {
+      "candidate_id": "order-service-500-on-orders",
+      "outcome": "PASS",
+      "reasons": []
+    }
+  ],
+  "incident_id": "registered-2c4ef45b5d644715943f",
+  "instance_id": "registered-2c4ef45b5d644715943f",
+  "probes": [
+    {
+      "duration_ms": 31,
+      "status": 502
+    },
+    {
+      "duration_ms": 32,
+      "status": 502
+    },
+    {
+      "duration_ms": 31,
+      "status": 502
+    },
+    {
+      "duration_ms": 62,
+      "status": 502
+    },
+    {
+      "duration_ms": 32,
+      "status": 502
+    },
+    {
+      "duration_ms": 62,
+      "status": 502
+    },
+    {
+      "duration_ms": 78,
+      "status": 502
+    },
+    {
+      "duration_ms": 31,
+      "status": 502
+    }
+  ],
+  "provider_starts": 2,
+  "recovery_executed": false,
+  "second_claim_count": 0,
+  "status": "FAILED",
+  "workflow_ms": 8469
+}

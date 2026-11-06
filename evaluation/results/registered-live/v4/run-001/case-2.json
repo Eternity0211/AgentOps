@@ -1,0 +1,55 @@
+{
+  "actual_bill": null,
+  "after_checkout": {
+    "duration_ms": 296,
+    "status": 200
+  },
+  "approval_decided": false,
+  "baseline": {
+    "duration_ms": 93,
+    "status": 200
+  },
+  "cleanup_exit": 0,
+  "error_type": "InvalidDomainValueError",
+  "evaluator_scenario": "memory-leak",
+  "incident_id": "registered-1969321671ca4950a4c6",
+  "instance_id": "registered-1969321671ca4950a4c6",
+  "probes": [
+    {
+      "duration_ms": 375,
+      "status": 200
+    },
+    {
+      "duration_ms": 63,
+      "status": 200
+    },
+    {
+      "duration_ms": 141,
+      "status": 200
+    },
+    {
+      "duration_ms": 187,
+      "status": 200
+    },
+    {
+      "duration_ms": 297,
+      "status": 200
+    },
+    {
+      "duration_ms": 203,
+      "status": 200
+    },
+    {
+      "duration_ms": 297,
+      "status": 200
+    },
+    {
+      "duration_ms": 297,
+      "status": 200
+    }
+  ],
+  "provider_starts": 3,
+  "recovery_executed": false,
+  "status": "FAILED",
+  "workflow_ms": 10344
+}

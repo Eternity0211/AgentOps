@@ -60,3 +60,27 @@ def test_registered_v3_preserves_tool_failures_without_guard_success_claim() -> 
     assert all(r["after_checkout"]["status"] == 200 for r in cases)
     assert all(r["cleanup_exit"] == 0 for r in cases[1:])
     assert any(p["status"] != 200 for p in cases[0]["probes"])
+
+
+def test_registered_v4_real_gate_role_refusal_without_remediation_dispatch() -> None:
+    from evaluation.structured_model import fingerprint
+
+    root = Path("evaluation/results/registered-live/v4/run-001")
+    for name, digest in json.loads((root / "file-hashes.json").read_text(encoding="utf-8")).items():
+        assert hashlib.sha256((root / name).read_bytes()).hexdigest() == digest
+    rows = json.loads((root / "sql-records.json").read_text(encoding="utf-8"))
+    assert len(rows["diagnosis_reports"]) == 3 and len(rows["evidence_gate_decisions"]) == 1
+    assert rows["approvals"] == rows["action_executions"] == []
+    refusal = [
+        r for r in rows["audit_events"] if r["event_type"] == "evaluation.rollback_evidence_refused"
+    ]
+    assert len(refusal) == 1
+    assert refusal[0]["result_hash"] == fingerprint("ROLLBACK_DISTINCT_VERSION_EVIDENCE_REQUIRED")
+    cases = [json.loads((root / f"case-{n}.json").read_text(encoding="utf-8")) for n in range(3)]
+    assert [r["status"] for r in cases] == ["HUMAN_HANDOFF", "FAILED", "FAILED"]
+    assert cases[1]["provider_starts"] == 2 and cases[1]["gates"][0]["outcome"] == "PASS"
+    assert cases[2]["error_type"] == "InvalidDomainValueError"
+    assert all(r["after_checkout"]["status"] == 200 for r in cases)
+    assert all(r["cleanup_exit"] == 0 for r in cases[1:])
+    summary = json.loads((root / "summary.json").read_text(encoding="utf-8"))
+    assert summary["provider_starts"] == 10 and summary["approval_decisions"] == 0

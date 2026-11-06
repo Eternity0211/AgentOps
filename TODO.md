@@ -856,8 +856,15 @@ This index is an omission check, not a second task list. The referenced phases c
 - [x] C6v-runner: freeze concurrent-v1 and bounded actual-provider entry for two/four cases,
   batch resources, unfinished-result retention and SQL export on preflight refusal.
   Eight entry/batch unit checks pass; Ruff/mypy/architecture/planning verified.
-- [ ] C6v: actual registered-model concurrent batches with shared SQL/checkpoints, per-Incident
+- [x] C6v: actual registered-model concurrent batches with shared SQL/checkpoints, per-Incident
   artifact/report ownership and queue/elapsed/batch-resource distributions. No recovery writes.
+  Actual peaks 2/4, six jobs complete once, 21 calls; nine reports, 36 Evidence/Artifacts
+  and 17 citation occurrences verify same-Incident ownership/content. Two FAILED/four handoff;
+  zero approvals/executions. Full batch/resource/queue data and negative fixtures preserved.
+
+- [ ] C3-metering: bind actual registered provider token counts into SQL model traces.
+  Concurrent v1 has exact provider-event usage for 21 calls, but SQL usage fields remain null;
+  preserve this historical discrepancy and do not substitute missing billed cost with zero.
 
 ## Explicit non-goal guardrails for the core version
 

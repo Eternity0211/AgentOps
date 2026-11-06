@@ -1,0 +1,79 @@
+{
+  "batch_error_type": null,
+  "batch_size": 4,
+  "capture_sha256": "9d293d93b8e50fe5114d5298497309f715e3232a8ce9ef2577a667e8594c0b8e",
+  "cases": [
+    {
+      "actual_bill": null,
+      "approval_decided": false,
+      "batch_size": 4,
+      "case_index": 1,
+      "elapsed_ms": 21328,
+      "execution_mode": "SHARED_BATCH_QUEUE",
+      "gates": [],
+      "incident_id": "concurrent-c34d7781d4884a7e9164",
+      "queue_creation_to_claim_ms": 322,
+      "queue_ready_to_claim_ms": 322,
+      "recovery_executed": false,
+      "status": "HUMAN_HANDOFF"
+    },
+    {
+      "actual_bill": null,
+      "approval_decided": false,
+      "batch_size": 4,
+      "case_index": 0,
+      "elapsed_ms": 21406,
+      "execution_mode": "SHARED_BATCH_QUEUE",
+      "gates": [],
+      "incident_id": "concurrent-04d7fcbe39b641109f8f",
+      "queue_creation_to_claim_ms": 360,
+      "queue_ready_to_claim_ms": 360,
+      "recovery_executed": false,
+      "status": "HUMAN_HANDOFF"
+    },
+    {
+      "actual_bill": null,
+      "approval_decided": false,
+      "batch_size": 4,
+      "case_index": 2,
+      "elapsed_ms": 21328,
+      "execution_mode": "SHARED_BATCH_QUEUE",
+      "gates": [],
+      "incident_id": "concurrent-ae0a2141f7d647778296",
+      "queue_creation_to_claim_ms": 287,
+      "queue_ready_to_claim_ms": 287,
+      "recovery_executed": false,
+      "status": "HUMAN_HANDOFF"
+    },
+    {
+      "actual_bill": null,
+      "approval_decided": false,
+      "batch_size": 4,
+      "case_index": 3,
+      "elapsed_ms": 21375,
+      "execution_mode": "SHARED_BATCH_QUEUE",
+      "gates": [
+        {
+          "candidate_id": "gateway-order-latency-no-failure",
+          "outcome": "FAIL",
+          "reasons": [
+            "MISSING_EVIDENCE_DECLARED"
+          ]
+        }
+      ],
+      "incident_id": "concurrent-142a5eec68c7416b89b7",
+      "queue_creation_to_claim_ms": 248,
+      "queue_ready_to_claim_ms": 248,
+      "recovery_executed": false,
+      "status": "HUMAN_HANDOFF"
+    }
+  ],
+  "completed_jobs": 4,
+  "elapsed_ms": 21516,
+  "heap_scope": "workflow_owned_trace",
+  "peak_investigation_handlers": 4,
+  "process_cpu_ms": 11312,
+  "provider_starts": 10,
+  "python_heap_current_bytes": 3837316,
+  "python_heap_peak_bytes": 4758515
+}

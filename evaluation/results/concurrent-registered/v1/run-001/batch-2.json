@@ -1,0 +1,57 @@
+{
+  "batch_error_type": null,
+  "batch_size": 2,
+  "capture_sha256": "4558d16f2495d0c3b62cbc65f4d3cd808f0258628854a0942aaa1fdc64c25f64",
+  "cases": [
+    {
+      "actual_bill": null,
+      "approval_decided": false,
+      "batch_size": 2,
+      "case_index": 1,
+      "elapsed_ms": 21688,
+      "error_type": "ValueError",
+      "execution_mode": "SHARED_BATCH_QUEUE",
+      "gates": [
+        {
+          "candidate_id": "gateway-checkout-latency-spike",
+          "outcome": "PASS",
+          "reasons": []
+        }
+      ],
+      "incident_id": "concurrent-0562aabb71a54507936b",
+      "queue_creation_to_claim_ms": 440,
+      "queue_ready_to_claim_ms": 440,
+      "recovery_executed": false,
+      "status": "FAILED"
+    },
+    {
+      "actual_bill": null,
+      "approval_decided": false,
+      "batch_size": 2,
+      "case_index": 0,
+      "elapsed_ms": 21750,
+      "error_type": "ValueError",
+      "execution_mode": "SHARED_BATCH_QUEUE",
+      "gates": [
+        {
+          "candidate_id": "gateway-checkout-latency-tail",
+          "outcome": "PASS",
+          "reasons": []
+        }
+      ],
+      "incident_id": "concurrent-d8f8e28c4cc5486c9578",
+      "queue_creation_to_claim_ms": 488,
+      "queue_ready_to_claim_ms": 488,
+      "recovery_executed": false,
+      "status": "FAILED"
+    }
+  ],
+  "completed_jobs": 2,
+  "elapsed_ms": 21781,
+  "heap_scope": "workflow_owned_trace",
+  "peak_investigation_handlers": 2,
+  "process_cpu_ms": 9781,
+  "provider_starts": 8,
+  "python_heap_current_bytes": 4306204,
+  "python_heap_peak_bytes": 4739794
+}

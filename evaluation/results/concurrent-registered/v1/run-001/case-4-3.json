@@ -1,0 +1,22 @@
+{
+  "actual_bill": null,
+  "approval_decided": false,
+  "batch_size": 4,
+  "case_index": 3,
+  "elapsed_ms": 21375,
+  "execution_mode": "SHARED_BATCH_QUEUE",
+  "gates": [
+    {
+      "candidate_id": "gateway-order-latency-no-failure",
+      "outcome": "FAIL",
+      "reasons": [
+        "MISSING_EVIDENCE_DECLARED"
+      ]
+    }
+  ],
+  "incident_id": "concurrent-142a5eec68c7416b89b7",
+  "queue_creation_to_claim_ms": 248,
+  "queue_ready_to_claim_ms": 248,
+  "recovery_executed": false,
+  "status": "HUMAN_HANDOFF"
+}

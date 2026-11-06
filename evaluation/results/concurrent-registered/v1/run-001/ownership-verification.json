@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0.0",
+  "incidents": 6,
+  "jobs_completed_once": 6,
+  "reports_bound": 9,
+  "evidence_artifacts_verified": 36,
+  "citation_occurrences_verified": 17,
+  "approvals": 0,
+  "executions": 0,
+  "ownership_verified": true,
+  "scope": "Structural ownership and content integrity only, not diagnostic correctness or human review",
+  "verifier_source_sha256": "bc0fa43d848da364788520929f86b096a0841e18f58ba57e54450ff51ca83f75"
+}

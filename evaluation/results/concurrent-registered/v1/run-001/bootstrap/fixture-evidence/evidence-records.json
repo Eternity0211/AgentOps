@@ -1,0 +1,512 @@
+[
+  {
+    "evidence": {
+      "id": {
+        "value": "fixture-metric"
+      },
+      "tenant_id": {
+        "value": "registered-evaluation-lab"
+      },
+      "incident_id": {
+        "value": "lab-regression-fixture"
+      },
+      "source_type": "METRIC",
+      "source_instance": "local-metrics",
+      "tool_name": "bounded_live_probe",
+      "tool_version": "1.0.0",
+      "tool_schema_version": "1.0.0",
+      "normalized_query": {
+        "parameters": [
+          {
+            "name": "source",
+            "value": "metrics"
+          }
+        ]
+      },
+      "observed_from": "2026-11-06 08:37:06.182729+00:00",
+      "observed_to": "2026-11-06 08:38:06.182729+00:00",
+      "collected_at": "2026-11-06 08:38:06.182729+00:00",
+      "artifact_id": {
+        "value": "artifact-0ee5457b702a943df033e324fc591b0ee405b101deb58c64be5b5542508d4c39"
+      },
+      "content_hash": {
+        "value": "4685755c591e16a7a637b69bb27c850666034c3eb9967a66c71faf558cdf6d85"
+      },
+      "parser_version": "1.0.0",
+      "normalizer_version": "1.0.0",
+      "quality": {
+        "score_basis_points": 7500,
+        "reasons": [
+          "source-available",
+          "incomplete-window",
+          "records-observed"
+        ]
+      },
+      "lineage": {
+        "tool_call_id": {
+          "value": "call-fixture-metric"
+        },
+        "workflow_run_id": {
+          "value": "lab-regression-only"
+        },
+        "redaction_transform_id": {
+          "value": "redaction-fixture-metric"
+        },
+        "parent_evidence_ids": []
+      },
+      "trust": "DIRECT_OBSERVATION",
+      "prompt_injection_status": "NONE",
+      "expires_at": "2026-11-06 09:38:06.182729+00:00",
+      "schema_version": "1.0.0"
+    },
+    "artifact": {
+      "id": {
+        "value": "artifact-0ee5457b702a943df033e324fc591b0ee405b101deb58c64be5b5542508d4c39"
+      },
+      "tenant_id": {
+        "value": "registered-evaluation-lab"
+      },
+      "incident_id": {
+        "value": "lab-regression-fixture"
+      },
+      "locator": "local-artifact:v1:artifact-0ee5457b702a943df033e324fc591b0ee405b101deb58c64be5b5542508d4c39",
+      "media_type": "application/json",
+      "content_schema_version": "1.0.0",
+      "content_hash": {
+        "value": "4685755c591e16a7a637b69bb27c850666034c3eb9967a66c71faf558cdf6d85"
+      },
+      "size_bytes": 100,
+      "retention_class": "INCIDENT",
+      "created_at": "2026-11-06 08:38:06.182729+00:00",
+      "expires_at": "2026-11-13 08:38:06.182729+00:00",
+      "redaction_status": "NOT_REQUIRED",
+      "encrypted": false,
+      "metadata_schema_version": "1.0.0"
+    }
+  },
+  {
+    "evidence": {
+      "id": {
+        "value": "fixture-log"
+      },
+      "tenant_id": {
+        "value": "registered-evaluation-lab"
+      },
+      "incident_id": {
+        "value": "lab-regression-fixture"
+      },
+      "source_type": "LOG",
+      "source_instance": "local-logs",
+      "tool_name": "bounded_live_probe",
+      "tool_version": "1.0.0",
+      "tool_schema_version": "1.0.0",
+      "normalized_query": {
+        "parameters": [
+          {
+            "name": "source",
+            "value": "logs"
+          }
+        ]
+      },
+      "observed_from": "2026-11-06 08:37:06.182729+00:00",
+      "observed_to": "2026-11-06 08:38:06.182729+00:00",
+      "collected_at": "2026-11-06 08:38:06.182729+00:00",
+      "artifact_id": {
+        "value": "artifact-1d6787b3b146284e9a6f93cb698a3f00414f4ba7e495485742e23954fb62833f"
+      },
+      "content_hash": {
+        "value": "2dfcb766e7661cdbe7cdb975f39a65553544c66b9ce295c02f2026d3f0e05547"
+      },
+      "parser_version": "1.0.0",
+      "normalizer_version": "1.0.0",
+      "quality": {
+        "score_basis_points": 7500,
+        "reasons": [
+          "source-available",
+          "incomplete-window",
+          "records-observed"
+        ]
+      },
+      "lineage": {
+        "tool_call_id": {
+          "value": "call-fixture-log"
+        },
+        "workflow_run_id": {
+          "value": "lab-regression-only"
+        },
+        "redaction_transform_id": {
+          "value": "redaction-fixture-log"
+        },
+        "parent_evidence_ids": []
+      },
+      "trust": "DIRECT_OBSERVATION",
+      "prompt_injection_status": "NONE",
+      "expires_at": "2026-11-06 09:38:06.182729+00:00",
+      "schema_version": "1.0.0"
+    },
+    "artifact": {
+      "id": {
+        "value": "artifact-1d6787b3b146284e9a6f93cb698a3f00414f4ba7e495485742e23954fb62833f"
+      },
+      "tenant_id": {
+        "value": "registered-evaluation-lab"
+      },
+      "incident_id": {
+        "value": "lab-regression-fixture"
+      },
+      "locator": "local-artifact:v1:artifact-1d6787b3b146284e9a6f93cb698a3f00414f4ba7e495485742e23954fb62833f",
+      "media_type": "application/json",
+      "content_schema_version": "1.0.0",
+      "content_hash": {
+        "value": "2dfcb766e7661cdbe7cdb975f39a65553544c66b9ce295c02f2026d3f0e05547"
+      },
+      "size_bytes": 96,
+      "retention_class": "INCIDENT",
+      "created_at": "2026-11-06 08:38:06.182729+00:00",
+      "expires_at": "2026-11-13 08:38:06.182729+00:00",
+      "redaction_status": "NOT_REQUIRED",
+      "encrypted": false,
+      "metadata_schema_version": "1.0.0"
+    }
+  },
+  {
+    "evidence": {
+      "id": {
+        "value": "fixture-deployment"
+      },
+      "tenant_id": {
+        "value": "registered-evaluation-lab"
+      },
+      "incident_id": {
+        "value": "lab-regression-fixture"
+      },
+      "source_type": "DEPLOYMENT",
+      "source_instance": "local-deployments",
+      "tool_name": "bounded_live_probe",
+      "tool_version": "1.0.0",
+      "tool_schema_version": "1.0.0",
+      "normalized_query": {
+        "parameters": [
+          {
+            "name": "source",
+            "value": "deployments"
+          }
+        ]
+      },
+      "observed_from": "2026-11-06 08:37:06.182729+00:00",
+      "observed_to": "2026-11-06 08:38:06.182729+00:00",
+      "collected_at": "2026-11-06 08:38:06.182729+00:00",
+      "artifact_id": {
+        "value": "artifact-1e30816ff5fc7211e57cfdf187b535c79c28c83cf4f897908a8f2dd49d3551af"
+      },
+      "content_hash": {
+        "value": "058d89a28010731299e352e28e3b57b4af8b75cdd6192dd5e70c67bce43687e4"
+      },
+      "parser_version": "1.0.0",
+      "normalizer_version": "1.0.0",
+      "quality": {
+        "score_basis_points": 7500,
+        "reasons": [
+          "source-available",
+          "incomplete-window",
+          "records-observed"
+        ]
+      },
+      "lineage": {
+        "tool_call_id": {
+          "value": "call-fixture-deployment"
+        },
+        "workflow_run_id": {
+          "value": "lab-regression-only"
+        },
+        "redaction_transform_id": {
+          "value": "redaction-fixture-deployment"
+        },
+        "parent_evidence_ids": []
+      },
+      "trust": "DIRECT_OBSERVATION",
+      "prompt_injection_status": "NONE",
+      "expires_at": "2026-11-06 09:38:06.182729+00:00",
+      "schema_version": "1.0.0"
+    },
+    "artifact": {
+      "id": {
+        "value": "artifact-1e30816ff5fc7211e57cfdf187b535c79c28c83cf4f897908a8f2dd49d3551af"
+      },
+      "tenant_id": {
+        "value": "registered-evaluation-lab"
+      },
+      "incident_id": {
+        "value": "lab-regression-fixture"
+      },
+      "locator": "local-artifact:v1:artifact-1e30816ff5fc7211e57cfdf187b535c79c28c83cf4f897908a8f2dd49d3551af",
+      "media_type": "application/json",
+      "content_schema_version": "1.0.0",
+      "content_hash": {
+        "value": "058d89a28010731299e352e28e3b57b4af8b75cdd6192dd5e70c67bce43687e4"
+      },
+      "size_bytes": 93,
+      "retention_class": "INCIDENT",
+      "created_at": "2026-11-06 08:38:06.182729+00:00",
+      "expires_at": "2026-11-13 08:38:06.182729+00:00",
+      "redaction_status": "NOT_REQUIRED",
+      "encrypted": false,
+      "metadata_schema_version": "1.0.0"
+    }
+  },
+  {
+    "evidence": {
+      "id": {
+        "value": "fixture-current"
+      },
+      "tenant_id": {
+        "value": "registered-evaluation-lab"
+      },
+      "incident_id": {
+        "value": "lab-regression-fixture"
+      },
+      "source_type": "METRIC",
+      "source_instance": "local-metrics",
+      "tool_name": "bounded_live_probe",
+      "tool_version": "1.0.0",
+      "tool_schema_version": "1.0.0",
+      "normalized_query": {
+        "parameters": [
+          {
+            "name": "source",
+            "value": "metrics"
+          }
+        ]
+      },
+      "observed_from": "2026-11-06 08:37:06.182729+00:00",
+      "observed_to": "2026-11-06 08:38:06.182729+00:00",
+      "collected_at": "2026-11-06 08:38:06.182729+00:00",
+      "artifact_id": {
+        "value": "artifact-1a1c8a457959e4ddbfaf15aabc63ff34fd7013b19fd725251dfb2f341e8a8867"
+      },
+      "content_hash": {
+        "value": "36ab6cd1fee8f004d32dafd8110d14230e7afbf3db2c8226a40e018e10bcae29"
+      },
+      "parser_version": "1.0.0",
+      "normalizer_version": "1.0.0",
+      "quality": {
+        "score_basis_points": 7500,
+        "reasons": [
+          "source-available",
+          "incomplete-window",
+          "records-observed"
+        ]
+      },
+      "lineage": {
+        "tool_call_id": {
+          "value": "call-fixture-current"
+        },
+        "workflow_run_id": {
+          "value": "lab-regression-only"
+        },
+        "redaction_transform_id": {
+          "value": "redaction-fixture-current"
+        },
+        "parent_evidence_ids": []
+      },
+      "trust": "DIRECT_OBSERVATION",
+      "prompt_injection_status": "NONE",
+      "expires_at": "2026-11-06 09:38:06.182729+00:00",
+      "schema_version": "1.0.0"
+    },
+    "artifact": {
+      "id": {
+        "value": "artifact-1a1c8a457959e4ddbfaf15aabc63ff34fd7013b19fd725251dfb2f341e8a8867"
+      },
+      "tenant_id": {
+        "value": "registered-evaluation-lab"
+      },
+      "incident_id": {
+        "value": "lab-regression-fixture"
+      },
+      "locator": "local-artifact:v1:artifact-1a1c8a457959e4ddbfaf15aabc63ff34fd7013b19fd725251dfb2f341e8a8867",
+      "media_type": "application/json",
+      "content_schema_version": "1.0.0",
+      "content_hash": {
+        "value": "36ab6cd1fee8f004d32dafd8110d14230e7afbf3db2c8226a40e018e10bcae29"
+      },
+      "size_bytes": 91,
+      "retention_class": "INCIDENT",
+      "created_at": "2026-11-06 08:38:06.182729+00:00",
+      "expires_at": "2026-11-13 08:38:06.182729+00:00",
+      "redaction_status": "NOT_REQUIRED",
+      "encrypted": false,
+      "metadata_schema_version": "1.0.0"
+    }
+  },
+  {
+    "evidence": {
+      "id": {
+        "value": "fixture-trace"
+      },
+      "tenant_id": {
+        "value": "registered-evaluation-lab"
+      },
+      "incident_id": {
+        "value": "lab-regression-fixture"
+      },
+      "source_type": "TRACE",
+      "source_instance": "local-traces",
+      "tool_name": "bounded_live_probe",
+      "tool_version": "1.0.0",
+      "tool_schema_version": "1.0.0",
+      "normalized_query": {
+        "parameters": [
+          {
+            "name": "source",
+            "value": "traces"
+          }
+        ]
+      },
+      "observed_from": "2026-11-06 08:37:06.182729+00:00",
+      "observed_to": "2026-11-06 08:38:06.182729+00:00",
+      "collected_at": "2026-11-06 08:38:06.182729+00:00",
+      "artifact_id": {
+        "value": "artifact-44c8d0e07067438bf9f5dd7a58b2d678867804fc29b77830e14ea4c7895eee9b"
+      },
+      "content_hash": {
+        "value": "a62e87484afa243a8576157b5058ff12c42b1ef9b1a5072395e3ccb12d2cdf44"
+      },
+      "parser_version": "1.0.0",
+      "normalizer_version": "1.0.0",
+      "quality": {
+        "score_basis_points": 7500,
+        "reasons": [
+          "source-available",
+          "incomplete-window",
+          "records-observed"
+        ]
+      },
+      "lineage": {
+        "tool_call_id": {
+          "value": "call-fixture-trace"
+        },
+        "workflow_run_id": {
+          "value": "lab-regression-only"
+        },
+        "redaction_transform_id": {
+          "value": "redaction-fixture-trace"
+        },
+        "parent_evidence_ids": []
+      },
+      "trust": "DIRECT_OBSERVATION",
+      "prompt_injection_status": "NONE",
+      "expires_at": "2026-11-06 09:38:06.182729+00:00",
+      "schema_version": "1.0.0"
+    },
+    "artifact": {
+      "id": {
+        "value": "artifact-44c8d0e07067438bf9f5dd7a58b2d678867804fc29b77830e14ea4c7895eee9b"
+      },
+      "tenant_id": {
+        "value": "registered-evaluation-lab"
+      },
+      "incident_id": {
+        "value": "lab-regression-fixture"
+      },
+      "locator": "local-artifact:v1:artifact-44c8d0e07067438bf9f5dd7a58b2d678867804fc29b77830e14ea4c7895eee9b",
+      "media_type": "application/json",
+      "content_schema_version": "1.0.0",
+      "content_hash": {
+        "value": "a62e87484afa243a8576157b5058ff12c42b1ef9b1a5072395e3ccb12d2cdf44"
+      },
+      "size_bytes": 180,
+      "retention_class": "INCIDENT",
+      "created_at": "2026-11-06 08:38:06.182729+00:00",
+      "expires_at": "2026-11-13 08:38:06.182729+00:00",
+      "redaction_status": "NOT_REQUIRED",
+      "encrypted": false,
+      "metadata_schema_version": "1.0.0"
+    }
+  },
+  {
+    "evidence": {
+      "id": {
+        "value": "fixture-comparison"
+      },
+      "tenant_id": {
+        "value": "registered-evaluation-lab"
+      },
+      "incident_id": {
+        "value": "lab-regression-fixture"
+      },
+      "source_type": "METRIC",
+      "source_instance": "local-metrics",
+      "tool_name": "bounded_live_probe",
+      "tool_version": "1.0.0",
+      "tool_schema_version": "1.0.0",
+      "normalized_query": {
+        "parameters": [
+          {
+            "name": "source",
+            "value": "metrics"
+          }
+        ]
+      },
+      "observed_from": "2026-11-06 08:37:06.182729+00:00",
+      "observed_to": "2026-11-06 08:38:06.182729+00:00",
+      "collected_at": "2026-11-06 08:38:06.182729+00:00",
+      "artifact_id": {
+        "value": "artifact-696c1516834f1107ea59fc8615be434bc6a14d61e8ea1b0ad7e78f3a5e813b29"
+      },
+      "content_hash": {
+        "value": "8c7c9df032eeb14950c2f48978aba576731b310fb6189f7e949c214a359f907d"
+      },
+      "parser_version": "1.0.0",
+      "normalizer_version": "1.0.0",
+      "quality": {
+        "score_basis_points": 7500,
+        "reasons": [
+          "source-available",
+          "incomplete-window",
+          "records-observed"
+        ]
+      },
+      "lineage": {
+        "tool_call_id": {
+          "value": "call-fixture-comparison"
+        },
+        "workflow_run_id": {
+          "value": "lab-regression-only"
+        },
+        "redaction_transform_id": {
+          "value": "redaction-fixture-comparison"
+        },
+        "parent_evidence_ids": []
+      },
+      "trust": "DIRECT_OBSERVATION",
+      "prompt_injection_status": "NONE",
+      "expires_at": "2026-11-06 09:38:06.182729+00:00",
+      "schema_version": "1.0.0"
+    },
+    "artifact": {
+      "id": {
+        "value": "artifact-696c1516834f1107ea59fc8615be434bc6a14d61e8ea1b0ad7e78f3a5e813b29"
+      },
+      "tenant_id": {
+        "value": "registered-evaluation-lab"
+      },
+      "incident_id": {
+        "value": "lab-regression-fixture"
+      },
+      "locator": "local-artifact:v1:artifact-696c1516834f1107ea59fc8615be434bc6a14d61e8ea1b0ad7e78f3a5e813b29",
+      "media_type": "application/json",
+      "content_schema_version": "1.0.0",
+      "content_hash": {
+        "value": "8c7c9df032eeb14950c2f48978aba576731b310fb6189f7e949c214a359f907d"
+      },
+      "size_bytes": 238,
+      "retention_class": "INCIDENT",
+      "created_at": "2026-11-06 08:38:06.182729+00:00",
+      "expires_at": "2026-11-13 08:38:06.182729+00:00",
+      "redaction_status": "NOT_REQUIRED",
+      "encrypted": false,
+      "metadata_schema_version": "1.0.0"
+    }
+  }
+]

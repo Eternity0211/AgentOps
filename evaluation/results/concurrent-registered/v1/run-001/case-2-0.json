@@ -1,0 +1,21 @@
+{
+  "actual_bill": null,
+  "approval_decided": false,
+  "batch_size": 2,
+  "case_index": 0,
+  "elapsed_ms": 21750,
+  "error_type": "ValueError",
+  "execution_mode": "SHARED_BATCH_QUEUE",
+  "gates": [
+    {
+      "candidate_id": "gateway-checkout-latency-tail",
+      "outcome": "PASS",
+      "reasons": []
+    }
+  ],
+  "incident_id": "concurrent-d8f8e28c4cc5486c9578",
+  "queue_creation_to_claim_ms": 488,
+  "queue_ready_to_claim_ms": 488,
+  "recovery_executed": false,
+  "status": "FAILED"
+}

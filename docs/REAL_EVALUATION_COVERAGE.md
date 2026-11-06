@@ -16,7 +16,7 @@
 | 动作证据角色 | 捕获 v2 负例回归：缺部署证据前置拒绝、零 provider/审批；有效类型夹具通过 | [v4 真实路径](../evaluation/results/registered-live/v4/README.md) HTTP500 Gate PASS 后拒绝，零修复模型调用/审批；不等于语义因果证明 |
 | 实际复测失败 | [v3](../evaluation/results/registered-live/v3/README.md) 6 调用、3 场均 trace 失败 | 零报告/门禁/审批/执行；正常观测有一次 502；故障清理不计恢复 |
 | 中断/重放/未知结果 | [14 项 PostgreSQL 组合](../evaluation/results/durable-replay/v1/run-002/README.md)，重规划与并行续跑有精确调用计数 | 真实数据库、受控模型/工具；不冒充真实模型准确率 |
-| 并发/吞吐 | [旧版局部负载](../evaluation/results/load/v1/run-001/README.md)，API/SQL/租约/进程内 worker 各有独立分母 | [v6 七场串行实测](../evaluation/results/registered-live/v6/README.md)已有 6 个工作流排队/CPU/Python 堆分布，另 1 个缺测；不是生产容量，当前多工作流并发容量仍缺 |
+| 并发/吞吐 | [旧版局部负载](../evaluation/results/load/v1/run-001/README.md)，API/SQL/租约/进程内 worker 各有独立分母 | [v6 七场串行实测](../evaluation/results/registered-live/v6/README.md)已有 6 个工作流排队/CPU/Python 堆分布，另 1 个缺测；不是生产容量，[并发实测](../evaluation/results/concurrent-registered/v1/README.md)已测 2/4 路共享队列和事件归属；小批次不代表生产容量 |
 | 规则公平基线 | [同 27 快照规则补充](../evaluation/results/rules-snapshots/v1/README.md)：Top-1/3 0/18、控制 6/9、失败 3/27 | 固定 324 快照读取、无模型；旧规则与原始遥测存在输入域差异，不作为单变量因果比较 |
 | 安全/拒绝/过期/越权/并发审批 | [当前安全矩阵](../evaluation/results/safety-matrix/v1/README.md)：2991 项回归通过，src 语句与分支 100%，13 类逐项映射 | 确定性测试与真实归档核验；不等于模型安全成功率、真实人工审批或产品恢复 |
 | 人工流程 | [模拟操作员](../evaluation/results/simulated-operator/README.md) 与实际审批分离 | 模拟不能证明真人工时、UX 或授权；真实审批/人工收益未测 |

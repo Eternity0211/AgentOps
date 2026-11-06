@@ -1,0 +1,14 @@
+{
+  "actual_bill": null,
+  "approval_decided": false,
+  "batch_size": 4,
+  "case_index": 0,
+  "elapsed_ms": 21406,
+  "execution_mode": "SHARED_BATCH_QUEUE",
+  "gates": [],
+  "incident_id": "concurrent-04d7fcbe39b641109f8f",
+  "queue_creation_to_claim_ms": 360,
+  "queue_ready_to_claim_ms": 360,
+  "recovery_executed": false,
+  "status": "HUMAN_HANDOFF"
+}

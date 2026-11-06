@@ -115,3 +115,32 @@ def test_captured_v4_memory_replan_repeats_gateway_topology_and_is_refused() -> 
             budget,
             prior_query_fingerprints=frozenset(c.query_fingerprint for c in first.calls),
         )
+
+
+def test_registered_v5_preserves_real_replan_and_role_refusals() -> None:
+    from evaluation.structured_model import fingerprint
+
+    root = Path("evaluation/results/registered-live/v5/run-001")
+    for name, digest in json.loads((root / "file-hashes.json").read_text(encoding="utf-8")).items():
+        assert hashlib.sha256((root / name).read_bytes()).hexdigest() == digest
+    rows = json.loads((root / "sql-records.json").read_text(encoding="utf-8"))
+    assert len(rows["diagnosis_reports"]) == 4 and len(rows["evidence_gate_decisions"]) == 2
+    assert rows["approvals"] == rows["action_executions"] == []
+    refusals = [
+        r for r in rows["audit_events"] if r["event_type"] == "evaluation.rollback_evidence_refused"
+    ]
+    assert len(refusals) == 2
+    assert all(
+        r["result_hash"] == fingerprint("ROLLBACK_DISTINCT_VERSION_EVIDENCE_REQUIRED")
+        for r in refusals
+    )
+    cases = [json.loads((root / f"case-{n}.json").read_text(encoding="utf-8")) for n in range(3)]
+    assert [r["status"] for r in cases] == ["FAILED", "FAILED", "HUMAN_HANDOFF"]
+    assert [r["provider_starts"] for r in cases] == [2, 4, 2]
+    traces = [
+        r["node"] for r in rows["model_call_traces"] if r["incident_id"] == cases[1]["incident_id"]
+    ]
+    assert traces == ["diagnosis.plan", "diagnosis.hypothesis"] * 2
+    assert all(r["after_checkout"]["status"] == 200 for r in cases)
+    assert all(r["cleanup_exit"] == 0 for r in cases[1:])
+    assert json.loads((root / "summary.json").read_text(encoding="utf-8"))["provider_starts"] == 11

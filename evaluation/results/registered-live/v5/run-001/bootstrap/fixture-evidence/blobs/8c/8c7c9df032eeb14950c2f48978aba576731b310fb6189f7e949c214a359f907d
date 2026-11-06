@@ -1,0 +1,1 @@
+{"provenance":"{}","summary":"Isolated canary with identical requests/config: v1 has 0/100 HTTP500; v2 has 20/100 HTTP500. Reverting that canary to v1 restores 0/100. Only deployed binary differs. This is a synthetic regression fixture."}

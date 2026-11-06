@@ -815,6 +815,11 @@ This index is an omission check, not a second task list. The referenced phases c
   38 autonomous unit/PostgreSQL cases pass, plus 27 final unit cases including three
   missing/mismatched prior-plan refusals. Ruff/mypy/architecture/planning verified.
 
+- [x] C2f: actual v5 registered rehearsal after readable replan context.
+  Eleven actual calls; HTTP500 completes two PLAN/DIAGNOSE rounds then missing-deployment
+  refusal, normal also refuses, memory hands off. Four reports, two Gates/refusal audits,
+  zero approvals/executions; both cleanup exits zero, final checkout 200.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

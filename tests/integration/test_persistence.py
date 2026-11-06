@@ -8779,6 +8779,31 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
             and review_result["unresolved_citations"] == 0
         )
         assert review_result["approval_decided"] is False
+        from evaluation.registered_gate import persist_registered_report_gates
+
+        committed_gates = await persist_registered_report_gates(
+            sessions, invoker, LocalArtifactStorage(tmp_path)
+        )
+        assert len(committed_gates) == 1 and committed_gates[0].outcome is EvidenceGateOutcome.PASS
+        async with sessions() as session:
+            assert (
+                await EvidenceGateRepository(session).get(
+                    tenant_id=invoker.principal.tenant_id,
+                    incident_id=invoker.incident,
+                    candidate_id=committed_gates[0].candidate_id,
+                    input_fingerprint=committed_gates[0].input_fingerprint,
+                )
+                == committed_gates[0]
+            )
+        previous_workflow = invoker.workflow
+        invoker.workflow = WorkflowRunId("unrelated-report-workflow")
+        try:
+            with pytest.raises(ValueError, match="report binding"):
+                await persist_registered_report_gates(
+                    sessions, invoker, LocalArtifactStorage(tmp_path)
+                )
+        finally:
+            invoker.workflow = previous_workflow
         assert calls == ["PLAN", "DIAGNOSE"] * (2 if replan_case else 1)
         return
 

@@ -303,3 +303,11 @@ follow-up details while explicitly forbidding omission of real requirements. Gat
 rules remain unchanged. Three actual calls pass and three lab registrations become ACTIVE;
 SQL exports contain nine lifecycle audit events. This is exposed synthetic calibration, not
 unseen quality evaluation, production promotion, human approval or recovery execution.
+
+
+`persist_registered_report_gates` bridges the registered SQL diagnosis and remediation paths.
+It reloads the stored report, verifies its tenant/Incident/workflow and successful model-trace
+fingerprint, resolves current Evidence/Artifacts, and atomically records each deterministic
+Gate decision with its audit. Caller-supplied candidate reports or PASS booleans are not inputs.
+This step does not request approval or dispatch recovery; the existing registered remediation
+adapter subsequently requires the exact stored PASS before and after model invocation.

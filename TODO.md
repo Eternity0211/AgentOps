@@ -748,6 +748,13 @@ This index is an omission check, not a second task list. The referenced phases c
   architecture and planning pass. Actual registered live investigation and pending approval
   remain open.
 
+- [x] C4f: bind stored registered reports to persisted deterministic Gate decisions.
+  Verify successful trace/report fingerprints and scope; re-resolve current SQL Evidence and
+  immutable Artifacts, commit decisions with audit before remediation admission. Combined
+  PostgreSQL tests verify persisted equality and wrong-workflow refusal without model calls.
+  Fourteen PostgreSQL cases, Ruff/mypy, architecture and planning pass. Complete
+  live-provider SQL pending-approval composition remains open.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

@@ -408,3 +408,11 @@ eight probes and 20-second settling, at most 38 provider calls including bootstr
 `--full-matrix`; invalid/duplicate/oversized case lists refuse before output or fault injection.
 Full-matrix metadata binds the protocol hash. These are bounded local distributions, not
 production capacity, human MTTR, total RAM or an automatic recovery measurement.
+
+
+Archive reproducibility is also checked against committed Git blobs using
+`python -m evaluation.git_archive_audit`. The batch reader hashes raw repository bytes,
+not checkout bytes, and detects missing objects or mismatched manifests. A 1057-file audit
+found five .gitattributes-only newline mismatches in v3/v4/v5, rules-snapshots and safety-matrix.
+Only those control files were normalized to LF and their manifest entries updated; model
+outputs, measurements, failures and other raw-file hashes were unchanged. History is retained.

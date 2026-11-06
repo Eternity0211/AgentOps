@@ -844,6 +844,11 @@ This index is an omission check, not a second task list. The referenced phases c
   then missing-deployment refusals, zero approvals/executions. Queue median/P95 72/124ms;
   workflow 8086/10032ms. Six cleanups exit zero, all final checkout 200; failures preserved.
 
+- [x] C6u: verify all archive hashes against Git objects, repair five control-file-only
+  newline mismatches without changing raw measurements, and provide batch Git-byte audit.
+  Seventeen manifests/1,057 Git blobs verified with zero discrepancies; thirteen focused
+  archive/audit tests pass, including working-tree independence. Ruff/mypy pass.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

@@ -297,3 +297,39 @@ def test_gate_restore_rejects_unbound_report(mode: str) -> None:
     )
     with pytest.raises(ValueError, match=r"report reader|report binding"):
         asyncio.run(service.evaluate_evidence_gate(state, operation_id="operation"))
+
+
+@pytest.mark.parametrize("trace_id", ["a", "336fcab452c224308d894456ed8467e", "A" * 32])
+def test_tempo_short_trace_ids_are_padded_with_bounded_paths(trace_id: str) -> None:
+    paths: list[str] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        paths.append(request.url.path)
+        if request.url.path == "/api/search":
+            return httpx.Response(200, json={"traces": [{"traceID": trace_id}]})
+        return httpx.Response(200, json={"batches": []})
+
+    now = datetime.now(UTC)
+    adapter = LocalReadAdapter(
+        "query_traces", now - timedelta(minutes=1), now, transport=httpx.MockTransport(respond)
+    )
+    result = asyncio.run(adapter.invoke(None, {"service": "gateway"}))  # type: ignore[arg-type]
+    assert paths == ["/api/search", "/api/traces/" + trace_id.lower().zfill(32)]
+    assert len(json.loads(result["provenance"])["requests"]) == 2
+
+
+@pytest.mark.parametrize("trace_id", [None, 1, "", "0", "0" * 32, "a" * 33, "../x", "a?x", "g"])
+def test_tempo_invalid_trace_ids_never_dispatch_detail(trace_id: Any) -> None:
+    paths: list[str] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        paths.append(request.url.path)
+        return httpx.Response(200, json={"traces": [{"traceID": trace_id}]})
+
+    now = datetime.now(UTC)
+    adapter = LocalReadAdapter(
+        "query_traces", now - timedelta(minutes=1), now, transport=httpx.MockTransport(respond)
+    )
+    with pytest.raises(ValueError, match="invalid telemetry trace identity"):
+        asyncio.run(adapter.invoke(None, {"service": "gateway"}))  # type: ignore[arg-type]
+    assert paths == ["/api/search"]

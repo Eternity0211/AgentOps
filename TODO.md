@@ -795,9 +795,11 @@ This index is an omission check, not a second task list. The referenced phases c
 - [x] C4l: archive guarded actual-provider v3 rehearsal, including all three read-tool failures.
   Six actual calls, zero reports/Gates/approvals/executions; both cleanup exits zero and final
   checkout 200. New role guard not reached. Preserve source/file hashes and SQL/checkpoints.
-- [ ] C2c: investigate Tempo short hexadecimal trace IDs and add bounded compatible reads.
+- [x] C2c: investigate Tempo short hexadecimal trace IDs and add bounded compatible reads.
   Acceptance: valid short IDs normalize without accepting arbitrary paths; malformed IDs
   fail closed; actual trace query succeeds or records a separately classified failure.
+  24 focused tests pass, mypy and architecture pass. Actual read completes nine requests
+  but retains zero spans after readiness filtering: evidence usefulness remains unresolved.
 
 ## Explicit non-goal guardrails for the core version
 

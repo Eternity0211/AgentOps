@@ -361,3 +361,12 @@ sets are server-owned and refusal audit commits independently. The captured v2 n
 now proves zero provider calls and zero approvals; valid declared deployment fixtures still pass.
 These necessary type/ownership checks do not establish causal diagnosis or deployment semantics.
 The old v2 pending snapshot remains unchanged and its adverse review is not regraded.
+
+
+The local evaluation trace adapter accepts nonzero 1–32 digit hexadecimal Tempo search IDs,
+left-pads them to 32 lowercase digits, and rejects malformed/path/oversized values before
+trace-detail dispatch. This addresses the upstream [leading-zero search behavior](https://github.com/grafana/tempo/issues/5395).
+A live local read completed one search plus eight detail requests, but retained zero spans
+after readiness filtering. Transport success is not useful evidence completeness; bounded
+search sampling can still select readiness-only traces. Raw check: artifacts/tempo-short-id-live-verification.json
+(local verification, not a published diagnosis-quality dataset).

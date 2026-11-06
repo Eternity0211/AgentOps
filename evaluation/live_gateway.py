@@ -212,9 +212,17 @@ class LocalReadAdapter:
                     body = await self._get(client, endpoint, params)
                     requests.append({"endpoint": endpoint, "parameters": params})
                     for trace in body.get("traces", []):
-                        if not re.fullmatch(r"[0-9a-fA-F]{32}", trace.get("traceID", "")):
+                        trace_id = trace.get("traceID")
+                        if (
+                            not isinstance(trace_id, str)
+                            or not re.fullmatch(r"[0-9a-fA-F]{1,32}", trace_id)
+                            or int(trace_id, 16) == 0
+                        ):
                             raise ValueError("invalid telemetry trace identity")
-                        detail_endpoint = "http://127.0.0.1:13200/api/traces/" + trace["traceID"]
+                        # Tempo search can trim leading zeroes; preserve numeric identity.
+                        detail_endpoint = (
+                            "http://127.0.0.1:13200/api/traces/" + trace_id.lower().zfill(32)
+                        )
                         detail = await self._get(client, detail_endpoint, {})
                         requests.append({"endpoint": detail_endpoint, "parameters": {}})
                         for batch in detail.get("batches", []):

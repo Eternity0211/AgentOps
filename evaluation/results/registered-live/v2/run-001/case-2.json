@@ -1,0 +1,105 @@
+{
+  "actual_bill": null,
+  "after_checkout": {
+    "duration_ms": 375,
+    "status": 200
+  },
+  "approval_decided": false,
+  "approval_id": "lab-review-fac040bc0b4a43f4aee31928914dc464",
+  "baseline": {
+    "duration_ms": 156,
+    "status": 200
+  },
+  "cleanup_exit": 0,
+  "evaluator_scenario": "memory-leak",
+  "gates": [
+    {
+      "candidate_id": "gateway-checkout-latency-order-dependency",
+      "outcome": "PASS",
+      "reasons": []
+    }
+  ],
+  "incident_id": "registered-4f93fc41acbe4ad0a230",
+  "instance_id": "registered-4f93fc41acbe4ad0a230",
+  "policy_outcome": "APPROVAL_REQUIRED",
+  "probes": [
+    {
+      "duration_ms": 656,
+      "status": 200
+    },
+    {
+      "duration_ms": 141,
+      "status": 200
+    },
+    {
+      "duration_ms": 203,
+      "status": 200
+    },
+    {
+      "duration_ms": 156,
+      "status": 200
+    },
+    {
+      "duration_ms": 172,
+      "status": 200
+    },
+    {
+      "duration_ms": 219,
+      "status": 200
+    },
+    {
+      "duration_ms": 125,
+      "status": 200
+    },
+    {
+      "duration_ms": 156,
+      "status": 200
+    }
+  ],
+  "proposal": {
+    "action": "rollback_service",
+    "candidate_id": "gateway-checkout-latency-order-dependency",
+    "compensation_eligible": false,
+    "evidence_gate_decision_fingerprint": "14f8ba4b3e949ea17dc96e7b1b9797e153879910790f055707b2016006e1edb3",
+    "evidence_gate_input_fingerprint": "0811270ff85803e3c03b006a0b3695f42d819ab07227cd01cda222cda0dc2c9f",
+    "failure_handling": {
+      "max_rediagnosis_attempts": 2,
+      "redeploy_faulty_version": false,
+      "route": "BOUNDED_REDIAGNOSIS_THEN_HUMAN_HANDOFF"
+    },
+    "incident_id": "registered-4f93fc41acbe4ad0a230",
+    "parameters": {
+      "introducing_deployment_evidence_id": "ev-d24e3410971c365c-r0-gw_logs",
+      "service": "gateway"
+    },
+    "prerequisites": {
+      "current_version_evidence_id": "ev-d24e3410971c365c-r0-gw_metrics",
+      "require_execution_lock": true,
+      "require_human_approval": true,
+      "require_policy_authorization": true,
+      "require_server_resolved_stable_predecessor": true
+    },
+    "proposal_id": "proposal-registered-4f93fc41acbe4ad0a230-1",
+    "proposal_version": 1,
+    "risk_assumptions": [
+      "Gateway /v1/checkout p95 latency (~650ms) is elevated relative to /readyz (~4.75ms) and may be caused by the order dependency rather than the gateway itself.",
+      "Rollback of gateway to a server-resolved stable predecessor is assumed to reduce checkout latency without affecting order, inventory, payment, or postgresql dependencies.",
+      "No 5xx errors are currently observed (502 count is 0), so rollback is proposed for latency, not error-rate, remediation.",
+      "Verification requires all five signals plus the 300s stability window; a single failed signal triggers bounded rediagnosis then human handoff."
+    ],
+    "schema_version": "1.0.0",
+    "verification_conditions": {
+      "max_error_rate_basis_points": 100,
+      "max_p95_latency_ms": 500,
+      "maximum_new_alerts": 0,
+      "require_healthy_endpoint": true,
+      "require_server_resolved_stable_version": true,
+      "stability_window_seconds": 300
+    }
+  },
+  "provider_starts": 3,
+  "recovery_executed": false,
+  "second_claim_count": 0,
+  "status": "PENDING_APPROVAL",
+  "workflow_ms": 11312
+}

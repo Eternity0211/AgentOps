@@ -1,0 +1,1 @@
+{"provenance":"{}","summary":"Current order v2 traces fail with AttributeError in the v2 checkout serializer; downstream spans succeed; no dependency timeouts in failed requests."}

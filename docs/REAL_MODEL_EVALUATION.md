@@ -340,3 +340,13 @@ return zero and checkout returns 200. SQL task completion is not Incident recove
 Gate SQL snapshots and invalid proposal bodies were not exported in this first run; the record
 states these limitations rather than reconstructing missing outputs. The next integration
 iteration must address the cross-reference contract and retain complete reviewable SQL records.
+
+
+The [v2 rehearsal](../evaluation/results/registered-live/v2/README.md) clarifies the existing
+distinct-reference constraint (transport 1.3.1, remediation Prompt 1.1.0), retaining schema/Gate
+rules. It exports all domain table rows and official checkpoint rows, with binary values base64.
+Eight actual calls yield two read-tool failures and one PENDING review request. Post-hoc role
+review finds LOG used as introducing-deployment Evidence and recommends rejection; this is not
+an actual approval decision. The snapshot preserves that unsafe recommendation and empty
+execution tables. Pending persistence is demonstrated, but recommendation correctness is not.
+A deterministic action-evidence-role guard remains required before claiming safe remediation.

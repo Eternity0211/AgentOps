@@ -9206,7 +9206,7 @@ async def test_durable_investigation_effects_replay_binding_integrity_and_uncert
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("bad_reference", [False, True])
-@pytest.mark.parametrize("fixture_version", ["1.0.0", "2.0.0", "3.0.0"])
+@pytest.mark.parametrize("fixture_version", ["1.0.0", "2.0.0", "3.0.0", "4.0.0"])
 async def test_lab_prompts_require_measured_mechanical_regression_before_activation(
     engine: AsyncEngine,
     tmp_path: Path,

@@ -25,3 +25,22 @@ def test_registered_live_archive_counts_and_failures() -> None:
         "NEEDS_HUMAN"
     }
     assert len(state["model_traces"]) == 8 and state["approvals"] == []
+
+
+def test_registered_v2_snapshot_preserves_pending_and_adverse_review() -> None:
+    root = Path("evaluation/results/registered-live/v2/run-001")
+    for name, digest in json.loads((root / "file-hashes.json").read_text(encoding="utf-8")).items():
+        assert hashlib.sha256((root / name).read_bytes()).hexdigest() == digest
+    rows = json.loads((root / "sql-records.json").read_text(encoding="utf-8"))
+    assert len(rows["approvals"]) == 1 and rows["approvals"][0]["status"] == "PENDING"
+    assert rows["action_executions"] == [] and rows["checkpoints"]
+    assert rows["diagnosis_reports"] and rows["evidence_gate_decisions"]
+    evidence = {e["id"]: e for e in rows["evidence"]}
+    snapshot = rows["approval_review_snapshots"][0]
+    proposal = snapshot["snapshot"]["proposal"]
+    source = evidence[proposal["parameters"]["introducing_deployment_evidence_id"]]
+    assert source["source_type"] == "LOG"
+    review = json.loads((root / "review-findings.json").read_text(encoding="utf-8"))[0]
+    assert review["recommendation"] == "REJECT"
+    assert review["violations"] == ["INTRODUCING_REFERENCE_NOT_DEPLOYMENT"]
+    assert review["approval_decided"] is review["recovery_executed"] is False

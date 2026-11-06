@@ -14,8 +14,8 @@ Checkboxes are completion claims. Check an item only when its acceptance criteri
 - 真实模型单次/图式对照已归档 54 次：故障 Top-1 为 5/18、4/18，控制场景各 0/9；未显示质量或提效收益。
 - 模拟历史独立实测 27 次，Top-1 为 2/18；真实已关闭历史按用户要求标记未测。
 - 持久化续跑已有 14 项 PostgreSQL 组合场景；重规划保留证据、部分并行续跑和未知结果拒绝均已验证。
-- C4 注册预检 v3 已通过并激活三个实验提示词；之前九次调用的拒绝记录保留。首轮实际 SQL/遥测组合三场景共十一调用，两个提案校验失败，待审批为零。
-- 真实模型与 SQL 的完整待审批链路、统一覆盖矩阵及最终报告仍未完成。实际人工审批、人工工时和生产收益未测。
+- C4 v2 实际 SQL/遥测组合三场景共八次调用，保存一条待审批；后置复核发现部署证据引用实际为 LOG，建议拒绝。未批准或执行，必须补齐动作证据角色检查。原始失败均保留。
+- 待审批机械链路已实测，但安全证据角色检查、统一覆盖矩阵及最终报告仍未完成。实际人工审批、人工工时和生产收益未测。
 
 ### 已完成并提交
 
@@ -776,6 +776,18 @@ This index is an omission check, not a second task list. The referenced phases c
   Full regression: 2,960 passed, 100% source statement/branch coverage.
   Complete SQL report export and successful actual pending path
   remain open; no recovery, semantic accuracy, or efficiency gain claimed.
+
+- [x] C4j: explicit distinct-reference instruction and complete SQL/checkpoint snapshot export.
+  Actual v2 rehearsal: eight provider calls, two read-tool failures and one PENDING request.
+  Post-hoc source-role review rejects LOG as deployment evidence; no actual approval or
+  execution. Preserve negative findings, full rows/checkpoints and previous v1 failures.
+  Nine focused PostgreSQL/publication cases pass; full regression 2,963 passed
+  with 100% source statement/branch coverage.
+- [ ] C4k: enforce deterministic rollback evidence roles before Policy/approval creation.
+  The v2 snapshot demonstrates a LOG reference admitted as introducing deployment. Add
+  source-role/ownership checks and refuse absent deployment evidence; verify the captured
+  negative case and valid deployment/current-version fixtures. Do not reinterpret the
+  existing pending request as correct or safe recovery.
 
 ## Explicit non-goal guardrails for the core version
 

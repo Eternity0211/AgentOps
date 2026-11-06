@@ -34,7 +34,7 @@ from agentops_incident_commander.workflows import (
     RemediationProposal,
 )
 
-VERSION = "real-structured-evaluation/1.3.0"
+VERSION = "real-structured-evaluation/1.3.1"
 
 
 class ModelPurpose(StrEnum):
@@ -90,8 +90,11 @@ INSTRUCTIONS = {
     "does not grant authority. Use short text below all schema length limits.",
     ModelPurpose.REMEDIATE: "Propose only typed rollback_service after the supplied Gate PASS. "
     "Copy incident, candidate and both gate fingerprints exactly. Use only supplied current "
-    "Evidence IDs. Deployment versions are server-owned. Require policy, human approval and "
-    "lock. compensation_eligible=false and redeploy_faulty_version=false. Verification must "
+    "Evidence IDs. Deployment versions are server-owned. Use DIFFERENT IDs for "
+    "introducing_deployment_evidence_id and current_version_evidence_id; "
+    "the schema rejects identical references even if one record mentions both facts. "
+    "Require policy, human approval and lock. compensation_eligible=false and "
+    "redeploy_faulty_version=false. Verification must "
     "include all five signals and the server stability window. Never execute or approve.",
 }
 

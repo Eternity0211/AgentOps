@@ -1,0 +1,31 @@
+{
+  "activation": "Draft all three first. Activate none unless all three actual calls pass the declared mechanical checks. Use ordinary lifecycle evaluate/promote with append-only audit.",
+  "change": "Same v3 observations and Gate. Remediation instruction 1.1.0 / transport 1.3.1 explicitly states the existing distinct-reference constraint. No schema or Gate relaxation.",
+  "checks": {
+    "DIAGNOSE": "Strict current references; nonempty candidates; every candidate must pass deterministic Evidence/Artifact Gate.",
+    "PLAN": "Strict output schema and shared compiler; four-step/four-parallel budget, registered local read tools only.",
+    "REMEDIATE": "Strict schema and exact synthetic Gate binding; order service; distinct introducing-deployment and current-version Evidence; 300-second stability window; deterministic proposal admission."
+  },
+  "counts": "Exposed calibration after v1/v2 refusals, not unseen evaluation. Preserve previous results. Mechanical checks only; no semantic accuracy or production promotion claim.",
+  "failure_policy": "Keep failures DRAFT. Never invent provider successes or suppress missing evidence.",
+  "maximum_provider_calls": 3,
+  "model": "deepseek-flash",
+  "not_measured": [
+    "semantic diagnosis correctness",
+    "human review",
+    "production robustness",
+    "real historical memory",
+    "recovery execution",
+    "provider billing"
+  ],
+  "observation_origin": "SYNTHETIC_SAFETY_FIXTURE_NOT_HISTORY",
+  "predecessor": "evaluation/registered_protocol/v3/bootstrap.json",
+  "provider": "deepseek",
+  "purposes": [
+    "PLAN",
+    "DIAGNOSE",
+    "REMEDIATE"
+  ],
+  "schema_version": "4.0.0",
+  "scope": "isolated registered-evaluation-lab tenant only"
+}

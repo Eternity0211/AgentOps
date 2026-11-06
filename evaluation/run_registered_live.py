@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
 import hashlib
 import json
 import os
@@ -18,7 +19,7 @@ from uuid import uuid4
 import httpx
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from testcontainers.community.postgres import PostgresContainer
 
@@ -26,6 +27,7 @@ from agentops_incident_commander.faults import SCENARIO_TARGETS, ScenarioName, c
 from agentops_incident_commander.infrastructure import postgres_diagnosis_checkpointer
 from agentops_incident_commander.infrastructure.persistence.models import (
     ApprovalRow,
+    Base,
     IncidentRow,
     JobRow,
     ModelCallTraceRow,
@@ -59,7 +61,7 @@ def run(output: Path, key: str) -> dict[str, Any]:
     write(
         output / "metadata.json",
         {
-            "schema_version": "registered-live/1.0.0",
+            "schema_version": "registered-live/2.0.0",
             "transport_version": VERSION,
             "base_revision": subprocess.check_output(
                 ["git", "-c", f"safe.directory={ROOT.as_posix()}", "rev-parse", "HEAD"],
@@ -91,7 +93,7 @@ def run(output: Path, key: str) -> dict[str, Any]:
                 StructuredEvaluationModel(key, journal, max_calls=3),
                 output / "bootstrap",
                 journal,
-                fixture_version="3.0.0",
+                fixture_version="4.0.0",
             )
             if len(references) != 3:
                 journal({"event": "registered_live.bootstrap_refused"})
@@ -186,6 +188,28 @@ def run(output: Path, key: str) -> dict[str, Any]:
                     rows = (await session.scalars(select(table))).all()
                     exports[name] = [{f: getattr(row, f) for f in fields} for row in rows]
                 write(output / "sql-state.json", exports)
+                full = {}
+                for name, mapped in Base.metadata.tables.items():
+                    full[name] = [
+                        dict(r) for r in (await session.execute(select(mapped))).mappings()
+                    ]
+                for name in (
+                    "checkpoints",
+                    "checkpoint_blobs",
+                    "checkpoint_writes",
+                    "checkpoint_migrations",
+                ):
+                    full[name] = [
+                        dict(r)
+                        for r in (await session.execute(text(f'SELECT * FROM "{name}"'))).mappings()
+                    ]
+
+                def encode(value: Any) -> Any:
+                    if isinstance(value, bytes):
+                        return {"encoding": "base64", "data": base64.b64encode(value).decode()}
+                    return str(value)
+
+                write(output / "sql-records.json", json.loads(json.dumps(full, default=encode)))
         finally:
             await engine.dispose()
 

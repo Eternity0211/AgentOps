@@ -1,0 +1,14 @@
+[
+  {
+    "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+    "approval_decided": false,
+    "approval_id": "lab-review-fac040bc0b4a43f4aee31928914dc464",
+    "introducing_source_type": "LOG",
+    "recommendation": "REJECT",
+    "recovery_executed": false,
+    "scope": "evidence source role and ownership only",
+    "violations": [
+      "INTRODUCING_REFERENCE_NOT_DEPLOYMENT"
+    ]
+  }
+]

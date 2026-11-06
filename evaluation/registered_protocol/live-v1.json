@@ -1,0 +1,12 @@
+{
+  "schema_version": "registered-live/1.0.0",
+  "cases": [null, "http-500", "memory-leak"],
+  "selection": "normal and both MVP rollback-eligible fault families; one local instance each",
+  "maximum_calls": "3 separate synthetic bootstrap calls, then at most 5 per live workflow",
+  "observations": "8 checkout probes, 20-second collection window, model-selected read Gateway tools",
+  "storage": "isolated PostgreSQL registry, evidence, trace, report, queue, policy/approval and official checkpoints",
+  "authority": "Stop at PENDING human approval. Never approve or execute recovery. Injector cleanup is evaluator infrastructure.",
+  "labels": "scenario and target exist only in outer fault orchestrator/output; workflow receives opaque IDs, measured alert and UTC window",
+  "failure_policy": "Keep failed model/schema/Gate/Policy outcomes and cleanup results; never retry uncertain model effects for a better score",
+  "interpretation": "Integration rehearsal, not paired diagnosis-quality benchmark, production capacity or human efficiency measurement"
+}

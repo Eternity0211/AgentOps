@@ -329,3 +329,14 @@ admission. Failure routes to NEEDS_HUMAN; no approver/executor capability is pre
 PostgreSQL tests reach AWAITING_APPROVAL across all three bootstrap fixture versions, with
 in-memory checkpoints in these particular cases. Earlier tests separately exercise official
 PostgreSQL checkpoints. A live telemetry CLI and actual-provider combined run remain open.
+
+
+The actual [registered live rehearsal](../evaluation/results/registered-live/v1/README.md)
+runs the official PostgreSQL saver plus SQL queue/registry/report/Evidence/traces against
+actual Compose observations and actual provider calls. Three cases finish: normal handoff,
+HTTP500 and memory-leak both refused at remediation schema. Eleven total calls include three
+separate synthetic bootstrap calls; zero PENDING approvals or executions. Both fault cleanups
+return zero and checkout returns 200. SQL task completion is not Incident recovery. Full report/
+Gate SQL snapshots and invalid proposal bodies were not exported in this first run; the record
+states these limitations rather than reconstructing missing outputs. The next integration
+iteration must address the cross-reference contract and retain complete reviewable SQL records.

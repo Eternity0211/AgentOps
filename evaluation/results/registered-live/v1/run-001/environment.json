@@ -1,0 +1,8 @@
+{
+  "captured_at": "2026-11-06T01:31:31.279759+00:00",
+  "concurrency": 1,
+  "logical_cpus": 8,
+  "performance_limit": "Other existing Docker workloads are not controlled; no production capacity or efficiency claim.",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.14"
+}

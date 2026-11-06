@@ -1,0 +1,55 @@
+{
+  "actual_bill": null,
+  "after_checkout": {
+    "duration_ms": 234,
+    "status": 200
+  },
+  "approval_decided": false,
+  "baseline": {
+    "duration_ms": 2906,
+    "status": 200
+  },
+  "evaluator_scenario": null,
+  "gates": [],
+  "incident_id": "registered-0bf74bac26f74b9588f1",
+  "instance_id": "registered-0bf74bac26f74b9588f1",
+  "probes": [
+    {
+      "duration_ms": 63,
+      "status": 200
+    },
+    {
+      "duration_ms": 62,
+      "status": 200
+    },
+    {
+      "duration_ms": 63,
+      "status": 200
+    },
+    {
+      "duration_ms": 78,
+      "status": 200
+    },
+    {
+      "duration_ms": 78,
+      "status": 200
+    },
+    {
+      "duration_ms": 47,
+      "status": 200
+    },
+    {
+      "duration_ms": 78,
+      "status": 200
+    },
+    {
+      "duration_ms": 62,
+      "status": 200
+    }
+  ],
+  "provider_starts": 2,
+  "recovery_executed": false,
+  "second_claim_count": 0,
+  "status": "HUMAN_HANDOFF",
+  "workflow_ms": 6391
+}

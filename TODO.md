@@ -14,7 +14,7 @@ Checkboxes are completion claims. Check an item only when its acceptance criteri
 - 真实模型单次/图式对照已归档 54 次：故障 Top-1 为 5/18、4/18，控制场景各 0/9；未显示质量或提效收益。
 - 模拟历史独立实测 27 次，Top-1 为 2/18；真实已关闭历史按用户要求标记未测。
 - 持久化续跑已有 14 项 PostgreSQL 组合场景；重规划保留证据、部分并行续跑和未知结果拒绝均已验证。
-- 当前在补齐 C4 实验注册前置：三轮共 9 次真实调用均因诊断声明缺失证据而拒绝激活，提示词保留 DRAFT。
+- C4 注册预检 v3 已通过并激活三个实验提示词；之前九次调用的拒绝记录保留。首轮实际 SQL/遥测组合三场景共十一调用，两个提案校验失败，待审批为零。
 - 真实模型与 SQL 的完整待审批链路、统一覆盖矩阵及最终报告仍未完成。实际人工审批、人工工时和生产收益未测。
 
 ### 已完成并提交
@@ -768,6 +768,14 @@ This index is an omission check, not a second task list. The referenced phases c
   fixtures reach AWAITING_APPROVAL for all three bootstrap versions. Six PostgreSQL tests,
   Ruff/mypy/architecture pass. Checkpointer is in-memory in these cases; actual-provider
   live telemetry run with official PostgreSQL saver remains open.
+
+- [x] C4i: actual provider/live Compose/official PostgreSQL saver registered rehearsal.
+  Three cases, eleven calls including bootstrap; normal handoff, both faulty cases refused
+  at remediation schema, zero pending approvals. Cleanup exits zero and checkout 200.
+  Retain raw failures/SQL state/Evidence/hashes; publication and missing-key tests pass.
+  Full regression: 2,960 passed, 100% source statement/branch coverage.
+  Complete SQL report export and successful actual pending path
+  remain open; no recovery, semantic accuracy, or efficiency gain claimed.
 
 ## Explicit non-goal guardrails for the core version
 

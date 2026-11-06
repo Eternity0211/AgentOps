@@ -9,6 +9,8 @@ Checkboxes are completion claims. Check an item only when its acceptance criteri
 目标：补齐真实模型驱动的调查、证据门禁、修复建议、策略与审批等待链路，
 再运行预先定义、可复现的完整测评。报告必须保留失败、缺失指标和实验限制。
 
+阶段覆盖清单见 [真实模型测评覆盖清单](docs/REAL_EVALUATION_COVERAGE.md)，逐项区分实测失败、模拟与未测。
+
 ### 最新实测与剩余边界
 
 - 真实模型单次/图式对照已归档 54 次：故障 Top-1 为 5/18、4/18，控制场景各 0/9；未显示质量或提效收益。

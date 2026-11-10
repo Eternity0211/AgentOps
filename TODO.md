@@ -41,7 +41,7 @@ Checkboxes are completion claims. Check an item only when its acceptance criteri
 - [x] C3：接入真实 Prompt Registry、PostgreSQL 证据/调用审计、检查点及任务租约。
 - [x] C3 验收：工作进程重启可续跑，重复投递不重复产生效果，取消与失败路由正确。
 - [ ] C4：只对门禁 PASS 的候选生成真实修复提案，经策略生成持久化审批请求。
-- [ ] C4 验收：提案变更使旧审批失效；拒绝、过期、越权和重复请求均按既有规则处理。
+- [x] C4 验收：提案变更使旧审批失效；拒绝、过期、越权和重复请求均按既有规则处理。
 - [ ] C5：冻结独立测试集和评分规则，覆盖六类故障变体、正常、证据不足、反证及注入。
 - [ ] C5 验收：标签与 Ground Truth 隔离，评分规则不根据测试答案事后修改。
 - [ ] C6：运行规则/单次模型/受控图/图加记忆对比，记录诊断正确率、移交、证据及失败原因。
@@ -480,6 +480,12 @@ This index is an omission check, not a second task list. The referenced phases c
   tests also pass, including report-write failure. Ruff/mypy/architecture/Compose/supply-chain
   and planning checks pass. C3 remains open for job composition and mid-run reconstruction.
 - [ ] C4: gate-bound real remediation, deterministic policy and actual pending approval records.
+  Approval lifecycle guards verified in safety-matrix v1 JUnit, including
+  test_material_revision_invalidates_and_requires_fresh_approval, preflight refusal for
+  rejected/expired/invalidated approvals, tenant-scoped idempotent review, denied roles,
+  decision replay and four concurrent terminal race cases.
+  A positive actual-provider pending request under the current rollback evidence guard
+  remains open. The historical v2 LOG-reference request is an adverse example.
 - [x] C3e: inject PostgreSQL progress recorder into autonomous evaluation.
   Acceptance/tests: existing graph boundaries call the supplied recorder; actual PostgreSQL
   integration reads terminal phase, sequence, budgets and successful tool states from a fresh

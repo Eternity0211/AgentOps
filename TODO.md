@@ -894,6 +894,10 @@ This index is an omission check, not a second task list. The referenced phases c
   All 21 captures and cleanup checks pass. Freeze 27 inputs and evaluator labels before
   provider exposure. All 420 requested source reads returned. Normal probes 24/24 HTTP 200.
 
+- [x] C6-holdout-rules-plan: bind unchanged v1 rules/query limits to the frozen v2 dataset index.
+- [ ] C6-holdout-rules-run: publish the rules-only result and retain source failures.
+- [ ] C6-holdout-paired: finish and score both provider modes on the frozen v2 input set.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

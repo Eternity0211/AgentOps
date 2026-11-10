@@ -452,3 +452,7 @@ Once capture exits successfully, run
 The freezer verifies the 21-slot schedule, original hashes, one capture revision and observed
 probe counts, then derives six controls. Give the model runner only the dataset directory.
 The evaluator directory contains labels, parent bindings and the capture audit.
+
+The rules holdout uses the same v1 rules source, query list and budgets with the v2 input
+index bound separately. Its outcome and resource denominator are reported independently.
+[Rules holdout plan](../evaluation/real_protocol/rules-v2/plan.json)

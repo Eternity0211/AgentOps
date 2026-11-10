@@ -1,0 +1,18 @@
+{
+  "source": "evaluation/results/registered-live/v2/run-001/sql-records.json",
+  "source_sha256": "e5194c75af3564252e86a9a4c2d43cba24d9339df323e11b25fb3ffdb1ebc199",
+  "reviews": [
+    {
+      "actor_kind": "DETERMINISTIC_EVALUATOR_NOT_HUMAN",
+      "approval_id": "lab-review-fac040bc0b4a43f4aee31928914dc464",
+      "pending_binding_verified": true,
+      "recommendation": "REJECT",
+      "violations": [
+        "ROLLBACK_INTRODUCING_REFERENCE_NOT_DEPLOYMENT"
+      ],
+      "approval_decided": false,
+      "recovery_executed": false,
+      "human_time_saved": null
+    }
+  ]
+}

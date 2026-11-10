@@ -47,7 +47,7 @@ Checkboxes are completion claims. Check an item only when its acceptance criteri
 - [ ] C6：运行规则/单次模型/受控图/图加记忆对比，记录诊断正确率、移交、证据及失败原因。
 - [ ] C6：测量工具/模型调用、token、费用口径、排队/调查/续跑耗时、并发和资源分布。
 - [ ] C6：运行安全、韧性、重放、超时与恢复验证测试，输出逐项覆盖矩阵和原始数据。
-- [ ] C7：自行执行模拟操作员流程与确定性测试审批，报告为模拟数据，不冒充真实审批或真人收益。
+- [x] C7：自行执行模拟操作员流程与确定性测试审批，报告为模拟数据，不冒充真实审批或真人收益。
 - [ ] 发布统一报告：目标、方法、实测结果、局限、未达标项、复现方法及证据链接。
 
 ### 不可混淆的边界
@@ -482,7 +482,10 @@ This index is an omission check, not a second task list. The referenced phases c
   of mid-run effect reconstruction or complete worker composition.
 - [ ] C5: frozen holdout/counter-evidence/normal/insufficient-evidence datasets and predeclared scoring.
 - [ ] C6: complete automatic regression, load/resilience/failure distributions and consolidated results.
-- [ ] C7: simulated-operator protocol and evaluation, explicitly separate from real human labor/approval.
+- [x] C7: simulated-operator protocol and evaluation, explicitly separate from real human labor/approval.
+  Diagnosis archive 20/93 read tasks. Real pending archive 1/1 binding and 0/1 action
+  evidence role, simulated rejection. Five archival and two isolated PostgreSQL tests pass.
+  Real approvals and executions zero. Human labor and benefits remain unmeasured.
 
 - [x] C3f: leased evaluation consumer with injectable workflow handler.
   Committed claim, periodic heartbeat, success/failure completion, fixed failure code and

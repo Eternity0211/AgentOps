@@ -8948,7 +8948,12 @@ async def test_registered_model_trace_and_report_commit_together_across_ports(
         return Response(
             200,
             json={
-                "usage": {"prompt_tokens": 10, "completion_tokens": 10, "total_tokens": 20},
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 10,
+                    "total_tokens": 20,
+                    "prompt_cache_hit_tokens": 4,
+                },
                 "choices": [{"finish_reason": "stop", "message": {"content": json.dumps(report)}}],
             },
         )
@@ -8981,7 +8986,12 @@ async def test_registered_model_trace_and_report_commit_together_across_ports(
         trace = await traces.get(TenantId("tenant-1"), ModelCallId(result.call_id))
         assert trace is not None and trace.status is ModelCallStatus.SUCCEEDED
         assert trace.node == "diagnosis.hypothesis"
-        assert trace.metering is not None and trace.metering.cost is None
+        assert trace.metering is not None
+        usage, cost = trace.metering.token_usage, trace.metering.cost
+        assert usage is not None and cost is not None
+        assert (usage.input_tokens, usage.output_tokens, usage.cached_input_tokens) == (10, 10, 4)
+        assert cost.amount_nanounits == 15000
+        assert cost.source.value == "RATE_CARD_CALCULATED"
         async with sessions() as session:
             stored = await DiagnosisReportRepository(session).latest(
                 tenant_id=TenantId("tenant-1"), incident_id=IncidentId("registered-incident")

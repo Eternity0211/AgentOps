@@ -69,3 +69,11 @@ registered-active Prompt enforcement, all terminal outcomes, duplicate completio
 codes, and the absence of payload fields. PostgreSQL integration tests cover migration round trips,
 Prompt/Incident binding, tenant-scoped reads, exact persisted metering, hash-only data, audit counts,
 Prompt metadata forgery refusal, and stale completion refusal.
+
+Registered evaluation calls with a provider cache count persist input, output, cached input
+and total tokens. Registered requests disable thinking. The existing complete-metering
+contract pairs these counts with the evaluation budget estimate, tagged RATE_CARD_CALCULATED
+and version 1.0.0. The estimate uses 300 USD nanounits per input token and 1200 per output
+token without cache discounts. Actual billed cost remains unknown. When the cache count
+is absent, the provider event retains known counts and SQL marks metering unavailable.
+Historical exports retain their original values.

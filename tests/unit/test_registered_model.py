@@ -44,7 +44,18 @@ from agentops_incident_commander.domain import (
 
 @pytest.mark.parametrize(
     "mode",
-    ["success", "missing", "draft", "content", "settings", "viewer", "audit", "timeout", "report"],
+    [
+        "success",
+        "metered",
+        "missing",
+        "draft",
+        "content",
+        "settings",
+        "viewer",
+        "audit",
+        "timeout",
+        "report",
+    ],
 )
 def test_registered_model_preflight_and_trace_completion(mode: str) -> None:
     now = datetime.now(UTC)
@@ -111,7 +122,12 @@ def test_registered_model_preflight_and_trace_completion(mode: str) -> None:
         return httpx.Response(
             200,
             json={
-                "usage": {"prompt_tokens": 10, "completion_tokens": 10, "total_tokens": 20},
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 10,
+                    "total_tokens": 20,
+                    **({"prompt_cache_hit_tokens": 4} if mode == "metered" else {}),
+                },
                 "choices": [{"finish_reason": "stop", "message": {"content": json.dumps(report)}}],
             },
         )
@@ -147,9 +163,19 @@ def test_registered_model_preflight_and_trace_completion(mode: str) -> None:
         observed.append,
         report_writer=Reports() if mode == "report" else None,
     )
-    if mode == "success":
+    if mode in ("success", "metered"):
         result = asyncio.run(invoker.invoke(ModelPurpose.DIAGNOSE, context))
         assert traces.completed is not None and traces.completed.status.value == "SUCCEEDED"
+        metering = traces.completed.metering
+        assert metering is not None
+        if mode == "metered":
+            assert (
+                metering.token_usage is not None and metering.token_usage.cached_input_tokens == 4
+            )
+            assert metering.cost is not None and metering.cost.amount_nanounits == 15000
+            assert metering.cost.source.value == "RATE_CARD_CALCULATED"
+        else:
+            assert metering.token_usage is None and metering.cost is None
         assert result.call_id == traces.completed.id.value
         assert observed[-1]["input_tokens"] == 10 and observed[-1]["actual_cost"] is None
     else:

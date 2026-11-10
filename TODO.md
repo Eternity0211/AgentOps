@@ -862,9 +862,11 @@ This index is an omission check, not a second task list. The referenced phases c
   and 17 citation occurrences verify same-Incident ownership/content. Two FAILED/four handoff;
   zero approvals/executions. Full batch/resource/queue data and negative fixtures preserved.
 
-- [ ] C3-metering: bind actual registered provider token counts into SQL model traces.
+- [x] C3-metering: bind complete registered provider token counts into SQL model traces.
   Concurrent v1 has exact provider-event usage for 21 calls, but SQL usage fields remain null;
-  preserve this historical discrepancy and do not substitute missing billed cost with zero.
+  Preserve historical exports. Current SQL stores complete usage with a versioned budget
+  estimate. Incomplete provider usage stays in events. Twelve unit/PostgreSQL tests pass.
+- [ ] C3-metering-live: verify token reconciliation against a new actual provider SQL export.
 
 ## Explicit non-goal guardrails for the core version
 

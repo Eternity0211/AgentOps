@@ -25,14 +25,18 @@ from agentops_incident_commander.domain import (
     EvidenceGateOutcome,
     IncidentId,
     ModelCallStatus,
+    ModelCost,
+    ModelCostSource,
     ModelMetering,
     ModelMeteringUnavailableReason,
+    ModelTokenUsage,
     OpaqueIdentifier,
     Permission,
     Principal,
     PromptLifecycleStatus,
     PromptPurpose,
     PromptVersionReference,
+    SemanticVersion,
     Sha256Digest,
     TenantId,
     WorkflowRunId,
@@ -198,6 +202,23 @@ class RegisteredModelInvoker:
             result = await asyncio.to_thread(self.model.invoke, purpose, context, gate=gate)
             if result.request_hash != started.request_hash.value:
                 raise StructuredModelFailure("REQUEST_FINGERPRINT_MISMATCH")
+            metering = unavailable
+            if result.cached_input_tokens is not None:
+                metering = ModelMetering(
+                    ModelTokenUsage(
+                        result.input_tokens,
+                        result.output_tokens,
+                        result.cached_input_tokens,
+                        0,  # Registered requests disable thinking.
+                        result.input_tokens + result.output_tokens,
+                    ),
+                    ModelCost(
+                        result.cost_upper_bound_nanousd,
+                        "USD",
+                        ModelCostSource.RATE_CARD_CALCULATED,
+                        SemanticVersion("1.0.0"),
+                    ),
+                )
             self.observe(
                 {
                     "event": "model.usage_observed",
@@ -230,7 +251,7 @@ class RegisteredModelInvoker:
         completed = await self.traces.finish(
             started,
             status=ModelCallStatus.SUCCEEDED,
-            metering=unavailable,
+            metering=metering,
             actor_id=self.principal.actor_id,
             response_hash=output_hash,
         )

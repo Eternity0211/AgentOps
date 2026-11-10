@@ -95,3 +95,35 @@ def test_snapshot_loader_checks_hash_catalog_and_extra_labels(tmp_path: Path) ->
     path.write_text(json.dumps(body), encoding="utf-8")
     with pytest.raises(ValueError, match="schema"):
         load_snapshot(path, expected_hash=hashlib.sha256(path.read_bytes()).hexdigest())
+
+
+def test_holdout_capture_records_each_frozen_probe_count(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import json
+
+    import evaluation.capture_real_dataset as runner
+
+    monkeypatch.setattr(runner, "SCENARIO_TARGETS", {})
+    monkeypatch.setattr(runner, "ready", lambda client: None)
+    monkeypatch.setattr(runner, "checkout", lambda client, **kwargs: {"status": 200})
+    monkeypatch.setattr("time.sleep", lambda seconds: None)
+
+    async def reads(*args: object) -> dict[str, object]:
+        return {}
+
+    monkeypatch.setattr(runner, "capture_reads", reads)
+    output = tmp_path / "holdout"
+    with pytest.raises(ValueError, match="development smoke"):
+        runner.capture(output, holdout=True, smoke=True)
+    assert not output.exists()
+
+    runner.capture(output, holdout=True)
+    manifest = (output / "evaluator-manifest.jsonl").read_text(encoding="utf-8")
+    rows = [json.loads(line) for line in manifest.splitlines()]
+    assert [row["planned_probe_count"] for row in rows] == [4, 8, 12]
+    for row in rows:
+        snapshot = json.loads((output / f"{row['instance_id']}.json").read_bytes())
+        probes = json.loads(snapshot["alert"].split(": ", 1)[1])
+        assert len(probes) == row["planned_probe_count"]
+        assert "stratum" not in snapshot

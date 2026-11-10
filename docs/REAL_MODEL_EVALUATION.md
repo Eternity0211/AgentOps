@@ -439,3 +439,10 @@ Batch CPU/Python heap is measured once around all tasks to avoid overlapping tra
 Per-case wall time includes preparation and the batch queue barrier. Failures and unfinished
 cases are retained, and SQL export runs even when preflight refuses; unavailable checkpoint
 tables are explicitly listed. No fault injection, approval decision or executor is provided.
+
+The independent holdout capture uses 4, 8 and 12 checkout probes for each known fault family
+and normal. The protocol binds the unchanged v1 scoring plan. The evaluator manifest alone
+contains strata and planned counts. The new IDs are reserved for evaluation after capture
+freeze. Run the capture with `python -m evaluation.capture_real_dataset --holdout --output <new-directory>`.
+Failed attempts remain in the manifest. The separate injection track keeps its own denominator.
+[Holdout capture protocol](../evaluation/real_protocol/v2/capture-plan.json)

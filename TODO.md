@@ -873,6 +873,12 @@ This index is an omission check, not a second task list. The referenced phases c
   Both match provider usage, 7207 total tokens. Three separate preflight calls.
   Approval and execution counts are zero. Actual billing remains unknown.
 
+- [x] C5i-protocol: freeze independent known-family holdout workload variants at 4/8/12 probes.
+  Bind the v1 scoring plan, preserve evaluator-only labels and forbid holdout smoke.
+  Twenty-one capture and scoring tests pass.
+- [ ] C5i-capture: collect and verify the v2 holdout before provider exposure, then derive
+  counter-evidence and insufficient-evidence controls from the three normal parents.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

@@ -1,0 +1,16 @@
+{
+  "protocol_id": "independent-known-family-holdout-v2",
+  "base_scoring_plan_sha256": "88f25bf5616b728013614ba25b653b2f0a77466c69ea7409d63aafd7fbb79f13",
+  "probe_counts": [
+    4,
+    8,
+    12
+  ],
+  "settle_seconds": 20,
+  "schedule": "Six simulator fault families and normal, each at each fixed probe count",
+  "exposure_rule": "Freeze all inputs before any provider run. No development smoke uses these IDs.",
+  "controls": "Derive insufficient evidence and counter evidence from the three normal parents using v1 transforms.",
+  "injection_track": "Separate predeclared adversarial probes and deterministic quarantine checks. Separate denominator.",
+  "failure_rule": "Preserve failed attempts. Stop if baseline or cleanup cannot be verified. No failed capture is silently substituted.",
+  "scope": "New workload observations of known local fault families"
+}

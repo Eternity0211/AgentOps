@@ -1,0 +1,110 @@
+[
+  {
+    "instance_id": "instance-01d9c51d12764e4a",
+    "stratum": "counter-evidence"
+  },
+  {
+    "instance_id": "instance-10ffc297a2a14418",
+    "stratum": "bad-configuration"
+  },
+  {
+    "instance_id": "instance-257a51e2fd9f4811",
+    "stratum": "downstream-latency"
+  },
+  {
+    "instance_id": "instance-2d2e417c7e71412b",
+    "stratum": "http-500"
+  },
+  {
+    "instance_id": "instance-38a4145a0a3f42fc",
+    "stratum": "insufficient-evidence"
+  },
+  {
+    "instance_id": "instance-45fe4dbf240044a1",
+    "stratum": "normal"
+  },
+  {
+    "instance_id": "instance-560c73b239684cb2",
+    "stratum": "insufficient-evidence"
+  },
+  {
+    "instance_id": "instance-5f6606b053ce4622",
+    "stratum": "redis-timeout"
+  },
+  {
+    "instance_id": "instance-60c331d45bdf42c2",
+    "stratum": "memory-leak"
+  },
+  {
+    "instance_id": "instance-6c63085545e6472e",
+    "stratum": "memory-leak"
+  },
+  {
+    "instance_id": "instance-70cb4825ff53415d",
+    "stratum": "insufficient-evidence"
+  },
+  {
+    "instance_id": "instance-71f5c3c0d4024a2a",
+    "stratum": "db-pool-exhaustion"
+  },
+  {
+    "instance_id": "instance-74d467a256844a98",
+    "stratum": "counter-evidence"
+  },
+  {
+    "instance_id": "instance-76a2ace7a4604a40",
+    "stratum": "memory-leak"
+  },
+  {
+    "instance_id": "instance-8290c89457cd4395",
+    "stratum": "redis-timeout"
+  },
+  {
+    "instance_id": "instance-88971346d7a24814",
+    "stratum": "downstream-latency"
+  },
+  {
+    "instance_id": "instance-89e87c0451454367",
+    "stratum": "db-pool-exhaustion"
+  },
+  {
+    "instance_id": "instance-8f7a34e84ab14ebf",
+    "stratum": "bad-configuration"
+  },
+  {
+    "instance_id": "instance-92a74710f53747e7",
+    "stratum": "redis-timeout"
+  },
+  {
+    "instance_id": "instance-964ae1faa75641b2",
+    "stratum": "http-500"
+  },
+  {
+    "instance_id": "instance-a5d49a6587af4b46",
+    "stratum": "downstream-latency"
+  },
+  {
+    "instance_id": "instance-bed9bd414fcc470e",
+    "stratum": "db-pool-exhaustion"
+  },
+  {
+    "instance_id": "instance-c3c5134f2e9f4a63",
+    "stratum": "counter-evidence"
+  },
+  {
+    "instance_id": "instance-d17cfb35589748e8",
+    "stratum": "bad-configuration"
+  },
+  {
+    "instance_id": "instance-d29472aff3af4456",
+    "stratum": "normal"
+  },
+  {
+    "instance_id": "instance-dab8e472b402453a",
+    "stratum": "normal"
+  },
+  {
+    "instance_id": "instance-f91fb68447424355",
+    "stratum": "http-500"
+  }
+]

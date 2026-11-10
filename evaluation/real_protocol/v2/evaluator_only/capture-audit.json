@@ -1,0 +1,15 @@
+{
+  "record_count": 21,
+  "successful_strata": {
+    "http-500": 3,
+    "db-pool-exhaustion": 3,
+    "redis-timeout": 3,
+    "downstream-latency": 3,
+    "memory-leak": 3,
+    "bad-configuration": 3,
+    "normal": 3
+  },
+  "failed_capture_ids": [],
+  "unavailable_sources": {},
+  "product_recovery_credit": false
+}

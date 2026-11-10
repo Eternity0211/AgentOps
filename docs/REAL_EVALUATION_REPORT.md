@@ -39,6 +39,8 @@
 
 [14 项 PostgreSQL 续跑组合](../evaluation/results/durable-replay/v1/run-002/README.md)验证实际注册/证据/报告/追踪、任务租约及官方检查点，但模型与工具为受控替身。未知外部结果不会重新派发；三次尝试后 DEAD_LETTER。两个重规划替换各保持 4 次模型、3 次工具、3 条证据；部分并行续跑保持 2 次模型及工具。测试时间不能作为人工 MTTR。
 
+C3 的实际模型记录和崩溃续跑采用两组证据。实际并发实验归档注册、租约、证据、报告、调用和 PostgreSQL 检查点。两条实际调用的 SQL 用量另经逐条核对。受控 PostgreSQL 测试验证工作进程替换、重复效果复用和未知结果拒绝。安全矩阵 JUnit 中的取消后接管、过期租约单一接管者、重放完整性三个用例均通过。真实 provider 调用中的故障中断未测。[实际并发记录](../evaluation/results/concurrent-registered/v1/README.md) [用量复核](../evaluation/results/registered-metering/v1/README.md) [安全矩阵 JUnit](../evaluation/results/safety-matrix/v1/run-001/junit.xml)
+
 [当前安全矩阵](../evaluation/results/safety-matrix/v1/README.md)关联 13 类检查与实际 JUnit 成员，完整回归 2991 项通过，src 语句和分支 100%；矩阵生成器另有 4 项测试。覆盖率不是模型能力或测评指标覆盖率，组数也不相加为独立实验。
 
 [模拟操作员](../evaluation/results/simulated-operator/README.md)对 81 次归档做只读复核，可执行任务完成 20/93；缺报告等失败保留。它没有真人审批权限，不能测量真人 UX、节省工时或授权恢复。独立的待审批复核核验了真实 v2 快照，1/1 绑定通过，0/1 回滚证据角色通过，模拟建议为拒绝。实际审批决定和执行均为零。[待审批复核](../evaluation/results/simulated-operator/v2/README.md)

@@ -38,8 +38,8 @@ Checkboxes are completion claims. Check an item only when its acceptance criteri
 
 ### 后续按顺序执行
 
-- [ ] C3：接入真实 Prompt Registry、PostgreSQL 证据/调用审计、检查点及任务租约。
-- [ ] C3 验收：工作进程重启可续跑，重复投递不重复产生效果，取消与失败路由正确。
+- [x] C3：接入真实 Prompt Registry、PostgreSQL 证据/调用审计、检查点及任务租约。
+- [x] C3 验收：工作进程重启可续跑，重复投递不重复产生效果，取消与失败路由正确。
 - [ ] C4：只对门禁 PASS 的候选生成真实修复提案，经策略生成持久化审批请求。
 - [ ] C4 验收：提案变更使旧审批失效；拒绝、过期、越权和重复请求均按既有规则处理。
 - [ ] C5：冻结独立测试集和评分规则，覆盖六类故障变体、正常、证据不足、反证及注入。
@@ -464,7 +464,12 @@ This index is an omission check, not a second task list. The referenced phases c
 - [x] C3c: autonomous Evidence commits before report generation and Gate resolves SQL records.
   Tests: actual PostgreSQL success and foreign-key refusal; failed writes prevent DIAGNOSE.
   Incident-scoped identifiers and exact Gateway call lineage prevent cross-incident aliasing.
-- [ ] C3: registered prompts, PostgreSQL evidence/checkpoint/job/call integration and crash/resume measurements.
+- [x] C3: registered prompts, PostgreSQL evidence/checkpoint/job/call integration and crash/resume measurements.
+  Concurrent registered v1 archives real-provider SQL and official checkpoints. Registered
+  metering v1 reconciles the real-provider trace usage. Durable replay run-002 verifies
+  replacement and ambiguous effects with controlled responses. Safety matrix v1 JUnit
+  verifies cancellation/takeover, single stale-lease owner and replay integrity.
+  Provider interruption itself remains outside the controlled replacement measurements.
 - [x] C3d: registered evaluation invoker, durable concurrent call budget and report persistence.
   Acceptance: exact ACTIVE Prompt/content/settings and RBAC before provider;
   durable call start before dispatch; canonical report/trace binding; tenant/workflow budget

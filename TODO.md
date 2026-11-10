@@ -866,7 +866,9 @@ This index is an omission check, not a second task list. The referenced phases c
   Concurrent v1 has exact provider-event usage for 21 calls, but SQL usage fields remain null;
   Preserve historical exports. Current SQL stores complete usage with a versioned budget
   estimate. Incomplete provider usage stays in events. Twelve unit/PostgreSQL tests pass.
-- [ ] C3-metering-live: verify token reconciliation against a new actual provider SQL export.
+- [x] C3-metering-live: reconcile two actual registered traces by call ID and request hash.
+  Both match provider usage, 7207 total tokens. Three separate preflight calls.
+  Approval and execution counts are zero. Actual billing remains unknown.
 
 ## Explicit non-goal guardrails for the core version
 

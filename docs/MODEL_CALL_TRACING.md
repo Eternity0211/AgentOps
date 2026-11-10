@@ -77,3 +77,6 @@ and version 1.0.0. The estimate uses 300 USD nanounits per input token and 1200 
 token without cache discounts. Actual billed cost remains unknown. When the cache count
 is absent, the provider event retains known counts and SQL marks metering unavailable.
 Historical exports retain their original values.
+
+The [registered metering run](../evaluation/results/registered-metering/v1/README.md)
+reconciles two actual provider calls with their SQL rows by call ID and request hash.

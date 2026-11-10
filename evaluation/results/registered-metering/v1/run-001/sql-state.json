@@ -1,0 +1,35 @@
+{
+  "approvals": [],
+  "incidents": [
+    {
+      "id": "registered-ff5bbc019a274f6d8992",
+      "state": "NEEDS_HUMAN",
+      "version": 5
+    }
+  ],
+  "jobs": [
+    {
+      "attempt_count": 1,
+      "id": "lab-job-663ce3db878e47c5af3007a430a09bf6",
+      "status": "COMPLETED"
+    }
+  ],
+  "model_traces": [
+    {
+      "id": "lab-call-28501d30f0664f04821e1d1b478e984b",
+      "node": "diagnosis.plan",
+      "request_hash": "a628681b0bf8471b568a25a42c5942c16d0e2dd6615979e0aa7df6de43126882",
+      "response_hash": "279dcee7d453a2e01452437b97a1fd1dabbdf7681e462282df49cfd6711208d9",
+      "status": "SUCCEEDED",
+      "workflow_run_id": "workflow-registered-ff5bbc019a274f6d8992"
+    },
+    {
+      "id": "lab-call-cb4671e9668f462188cbd37c9ab2ec48",
+      "node": "diagnosis.hypothesis",
+      "request_hash": "f3eda3eda8379021244a2313668493b1531009ac38c0e264fb11e3341442af9b",
+      "response_hash": "d6dd178f799f1a44652fdfde33647b065844d340730a6afc591143ac425bbb69",
+      "status": "SUCCEEDED",
+      "workflow_run_id": "workflow-registered-ff5bbc019a274f6d8992"
+    }
+  ]
+}

@@ -446,3 +446,9 @@ contains strata and planned counts. The new IDs are reserved for evaluation afte
 freeze. Run the capture with `python -m evaluation.capture_real_dataset --holdout --output <new-directory>`.
 Failed attempts remain in the manifest. The separate injection track keeps its own denominator.
 [Holdout capture protocol](../evaluation/real_protocol/v2/capture-plan.json)
+
+Once capture exits successfully, run
+`python -m evaluation.freeze_holdout <capture-directory> <new-dataset-directory> <new-evaluator-directory>`.
+The freezer verifies the 21-slot schedule, original hashes, one capture revision and observed
+probe counts, then derives six controls. Give the model runner only the dataset directory.
+The evaluator directory contains labels, parent bindings and the capture audit.

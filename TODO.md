@@ -876,6 +876,8 @@ This index is an omission check, not a second task list. The referenced phases c
 - [x] C5i-protocol: freeze independent known-family holdout workload variants at 4/8/12 probes.
   Bind the v1 scoring plan, preserve evaluator-only labels and forbid holdout smoke.
   Twenty-one capture and scoring tests pass.
+- [x] C5i-freezer: verify complete schedule, probe counts, capture revision and input hashes.
+  Create 27 preflight-checked inputs and separate evaluator labels. Nine focused tests pass.
 - [ ] C5i-capture: collect and verify the v2 holdout before provider exposure, then derive
   counter-evidence and insufficient-evidence controls from the three normal parents.
 

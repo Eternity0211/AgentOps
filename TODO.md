@@ -895,8 +895,11 @@ This index is an omission check, not a second task list. The referenced phases c
   provider exposure. All 420 requested source reads returned. Normal probes 24/24 HTTP 200.
 
 - [x] C6-holdout-rules-plan: bind unchanged v1 rules/query limits to the frozen v2 dataset index.
-- [ ] C6-holdout-rules-run: publish the rules-only result and retain source failures.
-- [ ] C6-holdout-paired: finish and score both provider modes on the frozen v2 input set.
+- [x] C6-holdout-rules-run: publish the rules-only result and retain source failures.
+- [x] C6-holdout-paired: finish and score both provider modes on the frozen v2 input set.
+  Two modes each 8/18 Top-1, 0/9 controls and 4/27 failures, same source revision.
+  Rules 0/18 Top-1, 6/9 controls and 3/27 unavailable-source failures.
+  Fifteen publication and scoring tests pass. True historical memory remains unmeasured.
 
 ## Explicit non-goal guardrails for the core version
 

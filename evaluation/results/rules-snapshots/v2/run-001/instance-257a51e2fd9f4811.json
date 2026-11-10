@@ -1,0 +1,83 @@
+{
+  "outcome": {
+    "instance_id": "instance-257a51e2fd9f4811",
+    "mode": "rules-only",
+    "protocol_hash": "70f29cb2cb34be794deb82b6becec5ed8b5764d8f4a8b88f0ba0185ab86fd35b",
+    "input_hash": "faf6124fe7fba0682754b1dda7845e26a63a890671c9db73050893c76bf1298a",
+    "status": "SUCCEEDED",
+    "candidates": [],
+    "disposition": "HUMAN_HANDOFF",
+    "missing_evidence_count": 1,
+    "gate_pass": false,
+    "proposal_created": false,
+    "counter_evidence_addressed": false,
+    "duration_ms": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cost_upper_bound_nanousd": 0
+  },
+  "rules_result": {
+    "case_id": "instance-257a51e2fd9f4811",
+    "status": "handoff",
+    "diagnosis_top3": [],
+    "cited_evidence_ids": [],
+    "evidence_gate_outcome": "fail",
+    "outcome_reason_code": "EVIDENCE_INSUFFICIENT",
+    "tool_calls": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cost_microusd": 0,
+    "duration_ms": 0,
+    "error_code": null
+  },
+  "snapshot_reads": [
+    {
+      "key": "query_metrics:gateway",
+      "status": "SUCCEEDED"
+    },
+    {
+      "key": "query_logs:gateway",
+      "status": "SUCCEEDED"
+    },
+    {
+      "key": "query_deployments:gateway",
+      "status": "SUCCEEDED"
+    },
+    {
+      "key": "query_metrics:order",
+      "status": "SUCCEEDED"
+    },
+    {
+      "key": "query_logs:order",
+      "status": "SUCCEEDED"
+    },
+    {
+      "key": "query_deployments:order",
+      "status": "SUCCEEDED"
+    },
+    {
+      "key": "query_metrics:inventory",
+      "status": "SUCCEEDED"
+    },
+    {
+      "key": "query_logs:inventory",
+      "status": "SUCCEEDED"
+    },
+    {
+      "key": "query_deployments:inventory",
+      "status": "SUCCEEDED"
+    },
+    {
+      "key": "query_metrics:payment",
+      "status": "SUCCEEDED"
+    },
+    {
+      "key": "query_logs:payment",
+      "status": "SUCCEEDED"
+    },
+    {
+      "key": "query_deployments:payment",
+      "status": "SUCCEEDED"
+    }
+  ]
+}

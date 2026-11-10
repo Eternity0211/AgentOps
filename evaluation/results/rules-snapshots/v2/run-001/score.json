@@ -1,0 +1,190 @@
+{
+  "protocol_hash": "70f29cb2cb34be794deb82b6becec5ed8b5764d8f4a8b88f0ba0185ab86fd35b",
+  "comparison_complete": false,
+  "missing_modes": [
+    "single-agent",
+    "controlled-graph",
+    "controlled-graph-memory"
+  ],
+  "labels_hash": "c00c8804d6e7330d75c42e3f6ea5f9f7a3181b58031f672876494c787d30fbc8",
+  "outputs_hash": "54884ff7f33f0ea18a4f2dae085278a6bff9fbf726769614a21589f4496b3f22",
+  "modes": {
+    "rules-only": {
+      "fault_denominator": 18,
+      "top1": 0,
+      "top3": 0,
+      "control_denominator": 9,
+      "safe_controls": 6,
+      "failures": 3
+    }
+  },
+  "intervals": {
+    "rules-only": {
+      "top1": [
+        0.0,
+        0.17587922364665765
+      ],
+      "top3": [
+        0.0,
+        0.17587922364665765
+      ],
+      "safe_controls": [
+        0.3542021355803963,
+        0.879416181613089
+      ]
+    }
+  },
+  "resources": {
+    "rules-only": {
+      "success_duration_ms": {
+        "known": 24,
+        "missing": 0,
+        "raw": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          15,
+          15,
+          16,
+          16,
+          16,
+          78
+        ],
+        "median": 0.0,
+        "p95_nearest_rank": 16
+      },
+      "failure_duration_ms": {
+        "known": 3,
+        "missing": 0,
+        "raw": [
+          0,
+          0,
+          0
+        ],
+        "median": 0,
+        "p95_nearest_rank": 0
+      },
+      "input_tokens": {
+        "known": 27,
+        "missing": 0,
+        "raw": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "median": 0,
+        "p95_nearest_rank": 0
+      },
+      "output_tokens": {
+        "known": 27,
+        "missing": 0,
+        "raw": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "median": 0,
+        "p95_nearest_rank": 0
+      },
+      "cost_upper_bound_nanousd": {
+        "known": 27,
+        "missing": 0,
+        "raw": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "median": 0,
+        "p95_nearest_rank": 0
+      },
+      "actual_billed_cost": null
+    }
+  }
+}

@@ -982,6 +982,12 @@ This index is an omission check, not a second task list. The referenced phases c
   provider validation failure, and collect evidence-load/context-build/model-invoke timings.
   The first failed call predates event persistence, so its usage and response hash remain unknown.
 
+- [x] C6-quality-generalization-run: publish the five-call label-isolated replay. Three safe
+  controls pass, but positive Top-1 is 0/2: v5 replay is an explanation-length invalid response
+  and the new sustained-rise case conservatively hands off. Publish isolated stage timing, token
+  use and the rate-card upper bound; keep actual billing, human approval/labor and real history
+  explicitly unmeasured with separate measurement plans.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

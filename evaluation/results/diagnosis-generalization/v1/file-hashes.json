@@ -1,0 +1,11 @@
+{
+  "schema_version": "file-hashes/1.0.0",
+  "algorithm": "sha256",
+  "files": {
+    "README.md": "d8fa9f43c3511c6c580d53c13fb809d8101af4cfba55cd22509b247fe2ae0808",
+    "run-001/attempt.json": "bddeb4a9a4f1f0bfc42c2fd46cb470285db3da5481afb7f05ce6e47486a3fc6c",
+    "run-002/outcomes.jsonl": "e42742c28caf0870421200a088379ecdf2db4c58bff90a69fa43e43aaf6146ca",
+    "run-002/results.json": "1b77b4a5b98cdd88d8a4ccf0c50b549cac8320bbd7dc891af84fa5d416f44fc0",
+    "run-002/score.json": "ad1aa72bc4c95fca4162e33e9474dfc099072938e72f876dc21f1112e45b30b3"
+  }
+}

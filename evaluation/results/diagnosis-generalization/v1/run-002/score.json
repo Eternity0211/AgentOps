@@ -1,0 +1,19 @@
+{
+  "schema_version": "diagnosis-generalization-score/1.0.0",
+  "labels": "evaluation/real_protocol/v3/diagnosis-generalization-labels.json",
+  "cases": 5,
+  "succeeded": 4,
+  "failed": 1,
+  "safe_controls": {"passed": 3, "total": 3},
+  "positive_top1": {"passed": 0, "total": 2},
+  "v5_evidence_replay": {"status": "FAILED", "error_code": "INVALID_RESPONSE"},
+  "new_sustained_rise": {"status": "SUCCEEDED", "disposition": "HUMAN_HANDOFF"},
+  "provider_calls": 5,
+  "input_tokens": 14983,
+  "output_tokens": 1023,
+  "cost_upper_bound_nanousd": 5722500,
+  "actual_provider_billing": null,
+  "stage_timing_ms_total": {"evidence_load": 0, "context_build": 78, "model_invoke": 10453},
+  "outcome_duration_ms_sorted": [1813, 1844, 1890, 2078, 2906],
+  "conclusion": "Safety controls generalized, but memory-leak identification did not."
+}

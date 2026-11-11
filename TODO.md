@@ -457,7 +457,9 @@ This index is an omission check, not a second task list. The referenced phases c
   The summary cap truncated 68/84 trace reads and 27/84 log reads. Next verify whether
   bounded prioritization preserves fault-relevant observations before collecting a new set.
   Trace summary policy now retains explicit OTEL errors first when truncating. Focused
-  adapter and frozen archive checks pass. A fresh live capture is still needed.
+  adapter and frozen archive checks pass. Fresh capture completed 21/21 windows with
+  84/84 trace reads. Error spans appeared in 46/70 truncated summaries. Memory-leak
+  and normal windows both lacked errors in all truncated summaries; discrimination remains open.
 - [x] C3a: inject the official PostgreSQL checkpointer and use the existing resume-aware runner.
   Verification: replacement PostgreSQL saver restores a completed autonomous investigation;
   exactly two model calls and one tool call remain unchanged after replay. This does not yet

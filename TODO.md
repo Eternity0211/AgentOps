@@ -460,6 +460,7 @@ This index is an omission check, not a second task list. The referenced phases c
   adapter and frozen archive checks pass. Fresh capture completed 21/21 windows with
   84/84 trace reads. Error spans appeared in 46/70 truncated summaries. Memory-leak
   and normal windows both lacked errors in all truncated summaries; discrimination remains open.
+  Exact retained-bytes trace attribute present in 3/3 memory windows and 0/3 normal windows.
 - [x] C3a: inject the official PostgreSQL checkpointer and use the existing resume-aware runner.
   Verification: replacement PostgreSQL saver restores a completed autonomous investigation;
   exactly two model calls and one tool call remain unchanged after replay. This does not yet

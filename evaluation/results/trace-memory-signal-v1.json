@@ -1,0 +1,118 @@
+[
+  {
+    "instance_id": "instance-5fe4c57708a6477e",
+    "stratum": "memory-leak",
+    "revision": "796ada5d52b95bab988647b388b3e2ade9628a35",
+    "input_hash": "495dfb9ef902f7838df897bf52c0237b35e36c682f259be1f3416bca87054678",
+    "retained_bytes_by_query": {
+      "query_traces:gateway": [
+        8388608,
+        7340032
+      ],
+      "query_traces:inventory": [
+        8388608,
+        7340032
+      ],
+      "query_traces:order": [
+        8388608,
+        5242880
+      ],
+      "query_traces:payment": [
+        8388608,
+        7340032
+      ]
+    }
+  },
+  {
+    "instance_id": "instance-90af30c4774342fc",
+    "stratum": "memory-leak",
+    "revision": "796ada5d52b95bab988647b388b3e2ade9628a35",
+    "input_hash": "4dbcbfe53d32bf8a290b74a97277369ac99a6c1e93e17faf6e5d8a1d17a353a0",
+    "retained_bytes_by_query": {
+      "query_traces:gateway": [
+        8388608,
+        7340032,
+        6291456
+      ],
+      "query_traces:inventory": [
+        8388608,
+        7340032,
+        6291456
+      ],
+      "query_traces:order": [
+        8388608,
+        7340032,
+        6291456
+      ],
+      "query_traces:payment": [
+        8388608,
+        7340032,
+        6291456
+      ]
+    }
+  },
+  {
+    "instance_id": "instance-b6038eabe0a949ce",
+    "stratum": "memory-leak",
+    "revision": "796ada5d52b95bab988647b388b3e2ade9628a35",
+    "input_hash": "8134088511dcd6d7065c808342cf6fa673d2b75cb3e9d40529cdc5829d4c5a7f",
+    "retained_bytes_by_query": {
+      "query_traces:gateway": [
+        8388608,
+        7340032,
+        6291456
+      ],
+      "query_traces:inventory": [
+        8388608,
+        6291456,
+        5242880
+      ],
+      "query_traces:order": [
+        8388608,
+        7340032,
+        6291456
+      ],
+      "query_traces:payment": [
+        8388608,
+        7340032,
+        6291456
+      ]
+    }
+  },
+  {
+    "instance_id": "instance-8592ab246c0e49a8",
+    "stratum": "normal",
+    "revision": "796ada5d52b95bab988647b388b3e2ade9628a35",
+    "input_hash": "34a0f504e82a84445cd26006ec7c7670623d49392d78b75a0ccdbe96e92da6f7",
+    "retained_bytes_by_query": {
+      "query_traces:gateway": [],
+      "query_traces:inventory": [],
+      "query_traces:order": [],
+      "query_traces:payment": []
+    }
+  },
+  {
+    "instance_id": "instance-05423e4f1ecc4225",
+    "stratum": "normal",
+    "revision": "796ada5d52b95bab988647b388b3e2ade9628a35",
+    "input_hash": "2310d8fa46f79b565445b3713ab10b99d3269a3b13400aeef730406b96bcef41",
+    "retained_bytes_by_query": {
+      "query_traces:gateway": [],
+      "query_traces:inventory": [],
+      "query_traces:order": [],
+      "query_traces:payment": []
+    }
+  },
+  {
+    "instance_id": "instance-6b4cf487ec9e4cb8",
+    "stratum": "normal",
+    "revision": "796ada5d52b95bab988647b388b3e2ade9628a35",
+    "input_hash": "46c1d7070e47303943c02d30cc7906c23d118990baa29a778620e3a76de34ad9",
+    "retained_bytes_by_query": {
+      "query_traces:gateway": [],
+      "query_traces:inventory": [],
+      "query_traces:order": [],
+      "query_traces:payment": []
+    }
+  }
+]

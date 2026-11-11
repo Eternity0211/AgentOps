@@ -81,3 +81,4 @@ v7 两条 SQL 审计结果哈希均匹配 `ROLLBACK_DISTINCT_VERSION_EVIDENCE_RE
 部署核查提示版 `1b78e24` 实测 9 次 DeepSeek 请求。正常和内存泄漏转人工接手。HTTP 500 的门禁快照只含日志、指标和拓扑，SQL 未保存部署证据，拒绝哈希仍匹配 `ROLLBACK_DISTINCT_VERSION_EVIDENCE_REQUIRED`。零待审批、零审批决策、零恢复执行。[演练摘要](../evaluation/results/registered-live/v8/summary.json)
 v8 的三份持久化计划都选择拓扑、日志、指标和链路，均未选择部署查询。因此这轮缺证据发生在工具选择阶段。清理后单独调用固定只读订单版本探针，返回基线部署 `baseline-order-v1`，无上一版本。下一轮正例演练应明确要求核查部署和独立版本观测，并单独记录这一约束；诊断与回滚证据门槛仍按现行规则评估。
 下一版 C4 定向演练明确请求部署与指标查询，服务由模型从 checkout 路径选择。场景标签和版本答案不进入模型输入。评测核对实际读取、门禁快照与审批表，作为受指导的 C4 演练记录。
+定向演练 `5723d76` 发起 11 次真实请求，三场景均转人工接手。四份已保存的调查计划都选择部署、指标、日志和链路，SQL 各保存四条证据。HTTP 500 候选因未解决反证及声明缺少证据未过门禁。三场景最终基线均为 HTTP 200，待审批、审批决策和执行均为 0。[演练摘要](../evaluation/results/registered-live/v9/summary.json)

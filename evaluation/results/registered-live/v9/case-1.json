@@ -1,0 +1,71 @@
+{
+  "actual_bill": null,
+  "after_checkout": {
+    "duration_ms": 485,
+    "status": 200
+  },
+  "approval_decided": false,
+  "baseline": {
+    "duration_ms": 62,
+    "status": 200
+  },
+  "cleanup_exit": 0,
+  "evaluator_scenario": "http-500",
+  "gates": [
+    {
+      "candidate_id": "order-v2-500s",
+      "outcome": "FAIL",
+      "reasons": [
+        "UNRESOLVED_COUNTER_EVIDENCE",
+        "MISSING_EVIDENCE_DECLARED"
+      ]
+    }
+  ],
+  "heap_scope": "workflow_owned_trace",
+  "incident_id": "registered-6f320ec35dae41378487",
+  "instance_id": "registered-6f320ec35dae41378487",
+  "probes": [
+    {
+      "duration_ms": 63,
+      "status": 502
+    },
+    {
+      "duration_ms": 47,
+      "status": 502
+    },
+    {
+      "duration_ms": 15,
+      "status": 502
+    },
+    {
+      "duration_ms": 63,
+      "status": 502
+    },
+    {
+      "duration_ms": 15,
+      "status": 502
+    },
+    {
+      "duration_ms": 78,
+      "status": 502
+    },
+    {
+      "duration_ms": 16,
+      "status": 502
+    },
+    {
+      "duration_ms": 63,
+      "status": 502
+    }
+  ],
+  "process_cpu_ms": 2687,
+  "provider_starts": 4,
+  "python_heap_current_bytes": 764875,
+  "python_heap_peak_bytes": 1314261,
+  "queue_creation_to_claim_ms": 58,
+  "queue_ready_to_claim_ms": 58,
+  "recovery_executed": false,
+  "second_claim_count": 0,
+  "status": "HUMAN_HANDOFF",
+  "workflow_ms": 16265
+}

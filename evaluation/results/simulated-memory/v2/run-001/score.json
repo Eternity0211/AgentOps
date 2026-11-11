@@ -1,0 +1,190 @@
+{
+  "protocol_hash": "88f25bf5616b728013614ba25b653b2f0a77466c69ea7409d63aafd7fbb79f13",
+  "comparison_complete": false,
+  "missing_modes": [
+    "single-agent",
+    "controlled-graph",
+    "controlled-graph-memory"
+  ],
+  "labels_hash": "c00c8804d6e7330d75c42e3f6ea5f9f7a3181b58031f672876494c787d30fbc8",
+  "outputs_hash": "9080de0314557dfe0e4699b786d4c8ffd163d123cc9d304b5ea409010dae9a78",
+  "modes": {
+    "controlled-graph-simulated-memory": {
+      "fault_denominator": 18,
+      "top1": 11,
+      "top3": 11,
+      "control_denominator": 9,
+      "safe_controls": 0,
+      "failures": 4
+    }
+  },
+  "intervals": {
+    "controlled-graph-simulated-memory": {
+      "top1": [
+        0.3861904160223791,
+        0.7969475342783638
+      ],
+      "top3": [
+        0.3861904160223791,
+        0.7969475342783638
+      ],
+      "safe_controls": [
+        0.0,
+        0.2991450484195441
+      ]
+    }
+  },
+  "resources": {
+    "controlled-graph-simulated-memory": {
+      "success_duration_ms": {
+        "known": 23,
+        "missing": 0,
+        "raw": [
+          4203,
+          4282,
+          4921,
+          4937,
+          4953,
+          5016,
+          5094,
+          5094,
+          5094,
+          5203,
+          5281,
+          5312,
+          9640,
+          9890,
+          10188,
+          10469,
+          10484,
+          10594,
+          10813,
+          10813,
+          11093,
+          11172,
+          13672
+        ],
+        "median": 5312,
+        "p95_nearest_rank": 11172
+      },
+      "failure_duration_ms": {
+        "known": 4,
+        "missing": 0,
+        "raw": [
+          2172,
+          2484,
+          2594,
+          9750
+        ],
+        "median": 2539.0,
+        "p95_nearest_rank": 9750
+      },
+      "input_tokens": {
+        "known": 27,
+        "missing": 0,
+        "raw": [
+          2019,
+          2019,
+          2022,
+          2072,
+          8626,
+          8871,
+          9233,
+          9262,
+          9270,
+          9310,
+          9328,
+          9370,
+          10962,
+          10982,
+          11017,
+          11160,
+          22859,
+          23939,
+          24053,
+          24426,
+          24599,
+          25003,
+          25111,
+          25120,
+          25752,
+          29590,
+          29885
+        ],
+        "median": 10982,
+        "p95_nearest_rank": 29590
+      },
+      "output_tokens": {
+        "known": 27,
+        "missing": 0,
+        "raw": [
+          319,
+          320,
+          320,
+          351,
+          537,
+          546,
+          555,
+          558,
+          558,
+          573,
+          576,
+          581,
+          586,
+          686,
+          696,
+          706,
+          1305,
+          1311,
+          1337,
+          1340,
+          1349,
+          1363,
+          1400,
+          1437,
+          1539,
+          1592,
+          1666
+        ],
+        "median": 686,
+        "p95_nearest_rank": 1592
+      },
+      "cost_upper_bound_nanousd": {
+        "known": 27,
+        "missing": 0,
+        "raw": [
+          988500,
+          989700,
+          990600,
+          1042800,
+          3279000,
+          3423000,
+          3436200,
+          3467100,
+          3468000,
+          3484500,
+          3496200,
+          3498600,
+          3964200,
+          3971100,
+          4123800,
+          4195200,
+          8704500,
+          8800500,
+          8823900,
+          8952900,
+          8963400,
+          9099300,
+          9140400,
+          9225300,
+          9636000,
+          10557000,
+          10964700
+        ],
+        "median": 3971100,
+        "p95_nearest_rank": 10557000
+      },
+      "actual_billed_cost": null
+    }
+  }
+}

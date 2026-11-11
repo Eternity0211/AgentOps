@@ -78,3 +78,4 @@ Tempo 按服务搜索可以返回整条跨服务链路。链路摘要现从每�
 恢复凭据后的注册演练绑定 `a93a03e`，实际发起 9 次 DeepSeek 请求。正常场景转人工，HTTP 500 与内存泄漏各有一个候选通过诊断门禁，两个场景随后以 `ValueError` 失败。两次清理后均返回 HTTP 200。待审批、审批决策、恢复执行均为 0，实际账单未知。[演练摘要](../evaluation/results/registered-live/v7/summary.json)
 v7 两条 SQL 审计结果哈希均匹配 `ROLLBACK_DISTINCT_VERSION_EVIDENCE_REQUIRED`。两个诊断门禁快照都没有部署证据，回滚检查在调用修复模型前拒绝。SQL 审批和执行表为空。下一轮应让规划明确考虑核查受影响服务的部署记录，仍由当前证据决定能否提出回滚。
 注册演练的调查输入现提示模型在观测显示服务异常时考虑读取部署记录，并通过独立遥测核对当前版本。提示应用于全部场景，未提供注入标签或预设原因。下一轮实测核对模型选用的工具和门禁实际引用。
+部署核查提示版 `1b78e24` 实测 9 次 DeepSeek 请求。正常和内存泄漏转人工接手。HTTP 500 的门禁快照只含日志、指标和拓扑，SQL 未保存部署证据，拒绝哈希仍匹配 `ROLLBACK_DISTINCT_VERSION_EVIDENCE_REQUIRED`。零待审批、零审批决策、零恢复执行。[演练摘要](../evaluation/results/registered-live/v8/summary.json)

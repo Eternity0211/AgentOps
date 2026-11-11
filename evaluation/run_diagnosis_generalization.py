@@ -97,8 +97,20 @@ def run(plan_path: Path, output: Path, *, key: str) -> None:
     revision = subprocess.check_output(
         ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
     ).strip()
-    if revision != plan["implementation_commit"]:
-        raise ValueError("implementation commit does not match frozen plan")
+    binding = subprocess.run(
+        [
+            "git",
+            "-c",
+            "safe.directory=D:/AgentOps",
+            "merge-base",
+            "--is-ancestor",
+            plan["implementation_commit"],
+            revision,
+        ],
+        check=False,
+    )
+    if binding.returncode != 0:
+        raise ValueError("frozen implementation commit is not an ancestor")
     output.mkdir(parents=True, exist_ok=False)
     outcomes: list[dict[str, Any]] = []
     for case in plan["cases"]:

@@ -1,0 +1,252 @@
+{
+  "schema_version": "autonomous-local-evaluation/1.0.0",
+  "code_revision": "95c836d416043c6e3a5d9d0313f779d3f7d1684a",
+  "smoke": false,
+  "results": [
+    {
+      "incident_id": "autonomous-33cad110c1854545-1",
+      "scenario": "http-500",
+      "product_recovery_executed": false,
+      "baseline": {
+        "status": 200,
+        "duration_ms": 62
+      },
+      "phase": "COMPLETE",
+      "graph_error": null,
+      "tool_calls": 4,
+      "model_calls": 2,
+      "diagnosis_ms": 5875,
+      "candidates": [
+        "order-service-500-on-orders"
+      ],
+      "gate": [
+        {
+          "candidate": "order-service-500-on-orders",
+          "outcome": "PASS",
+          "reasons": []
+        }
+      ],
+      "usage": [
+        {
+          "input": 1691,
+          "output": 340
+        },
+        {
+          "input": 8844,
+          "output": 323
+        }
+      ],
+      "evidence_count": 4,
+      "cleanup_exit": 0,
+      "after_checkout": {
+        "status": 200,
+        "duration_ms": 719
+      }
+    },
+    {
+      "incident_id": "autonomous-33cad110c1854545-2",
+      "scenario": "db-pool-exhaustion",
+      "product_recovery_executed": false,
+      "baseline": {
+        "status": 200,
+        "duration_ms": 109
+      },
+      "phase": "COMPLETE",
+      "graph_error": null,
+      "tool_calls": 4,
+      "model_calls": 2,
+      "diagnosis_ms": 6937,
+      "candidates": [
+        "gateway-order-transport-failure"
+      ],
+      "gate": [
+        {
+          "candidate": "gateway-order-transport-failure",
+          "outcome": "PASS",
+          "reasons": []
+        }
+      ],
+      "usage": [
+        {
+          "input": 1699,
+          "output": 334
+        },
+        {
+          "input": 5588,
+          "output": 368
+        }
+      ],
+      "evidence_count": 4,
+      "cleanup_exit": 0,
+      "after_checkout": {
+        "status": 200,
+        "duration_ms": 344
+      }
+    },
+    {
+      "incident_id": "autonomous-33cad110c1854545-3",
+      "scenario": "redis-timeout",
+      "product_recovery_executed": false,
+      "baseline": {
+        "status": 200,
+        "duration_ms": 78
+      },
+      "phase": "COMPLETE",
+      "graph_error": null,
+      "tool_calls": 4,
+      "model_calls": 2,
+      "diagnosis_ms": 4875,
+      "candidates": [
+        "gateway-order-transport-failure"
+      ],
+      "gate": [
+        {
+          "candidate": "gateway-order-transport-failure",
+          "outcome": "PASS",
+          "reasons": []
+        }
+      ],
+      "usage": [
+        {
+          "input": 1699,
+          "output": 334
+        },
+        {
+          "input": 5601,
+          "output": 296
+        }
+      ],
+      "evidence_count": 4,
+      "cleanup_exit": 0,
+      "after_checkout": {
+        "status": 200,
+        "duration_ms": 266
+      }
+    },
+    {
+      "incident_id": "autonomous-33cad110c1854545-4",
+      "scenario": "downstream-latency",
+      "product_recovery_executed": false,
+      "baseline": {
+        "status": 200,
+        "duration_ms": 297
+      },
+      "phase": "COMPLETE",
+      "graph_error": null,
+      "tool_calls": 4,
+      "model_calls": 2,
+      "diagnosis_ms": 5687,
+      "candidates": [
+        "gateway-order-transport-timeout"
+      ],
+      "gate": [
+        {
+          "candidate": "gateway-order-transport-timeout",
+          "outcome": "PASS",
+          "reasons": []
+        }
+      ],
+      "usage": [
+        {
+          "input": 1699,
+          "output": 341
+        },
+        {
+          "input": 5602,
+          "output": 387
+        }
+      ],
+      "evidence_count": 4,
+      "cleanup_exit": 0,
+      "after_checkout": {
+        "status": 200,
+        "duration_ms": 94
+      }
+    },
+    {
+      "incident_id": "autonomous-33cad110c1854545-5",
+      "scenario": "memory-leak",
+      "product_recovery_executed": false,
+      "baseline": {
+        "status": 200,
+        "duration_ms": 93
+      },
+      "phase": "HUMAN_HANDOFF",
+      "graph_error": "EVIDENCE_GATE_NOT_PASSED",
+      "tool_calls": 4,
+      "model_calls": 2,
+      "diagnosis_ms": 5516,
+      "candidates": [],
+      "gate": [],
+      "usage": [
+        {
+          "input": 1691,
+          "output": 336
+        },
+        {
+          "input": 4744,
+          "output": 204
+        }
+      ],
+      "evidence_count": 4,
+      "cleanup_exit": 0,
+      "after_checkout": {
+        "status": 200,
+        "duration_ms": 609
+      }
+    },
+    {
+      "incident_id": "autonomous-33cad110c1854545-6",
+      "scenario": "bad-configuration",
+      "product_recovery_executed": false,
+      "baseline": {
+        "status": 200,
+        "duration_ms": 141
+      },
+      "phase": "COMPLETE",
+      "graph_error": null,
+      "tool_calls": 8,
+      "model_calls": 4,
+      "diagnosis_ms": 13515,
+      "candidates": [
+        "order-upstream-502"
+      ],
+      "gate": [
+        {
+          "candidate": "order-upstream-502",
+          "outcome": "PASS",
+          "reasons": []
+        }
+      ],
+      "usage": [
+        {
+          "input": 1691,
+          "output": 335
+        },
+        {
+          "input": 4742,
+          "output": 370
+        },
+        {
+          "input": 5562,
+          "output": 368
+        },
+        {
+          "input": 5078,
+          "output": 332
+        }
+      ],
+      "evidence_count": 8,
+      "cleanup_exit": 0,
+      "after_checkout": {
+        "status": 200,
+        "duration_ms": 63
+      }
+    }
+  ],
+  "limitations": [
+    "Local evaluation composition; PostgreSQL/prompt promotion pending C3",
+    "No approvals or product writes; cleanup is evaluator infrastructure",
+    "No memory alert is fabricated if measured gateway requests remain healthy"
+  ]
+}

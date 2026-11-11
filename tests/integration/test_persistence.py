@@ -11,6 +11,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from itertools import count, pairwise
 from pathlib import Path
+from time import perf_counter_ns
 from types import SimpleNamespace
 from typing import Any, cast
 from uuid import uuid4
@@ -8419,6 +8420,7 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
     registered: bool,
     crash: int,
     monkeypatch: pytest.MonkeyPatch,
+    record_property: Callable[[str, int], None],
 ) -> None:
     from evaluation.autonomous_diagnosis import investigate
     from evaluation.live_gateway import SOURCES, local_definitions
@@ -8782,7 +8784,11 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
                                 and exhausted.attempt_count == 3
                             )
                         return
+                    started_ns = perf_counter_ns()
                     assert await replacement_worker.run_once() == 1
+                    record_property(
+                        "replacement_run_to_completion_ns", perf_counter_ns() - started_ns
+                    )
                     assert await replacement_worker.run_once() == 0
             else:
                 assert await worker.run_once() == 1

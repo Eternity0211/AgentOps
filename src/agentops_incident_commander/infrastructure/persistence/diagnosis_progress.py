@@ -353,6 +353,10 @@ def _advance_tool_step(
         if step.status is status and step.failure_code == failure_code:
             return step
         raise InvalidDomainValueError("terminal diagnosis tool progress cannot change")
+    if status is ToolProgressStatus.RUNNING and step.status is ToolProgressStatus.RUNNING:
+        # The progress write can survive an interrupted graph node. The effect ledger
+        # independently decides whether the read can run, replay, or must fail closed.
+        return step
     if status is ToolProgressStatus.RUNNING and step.status is ToolProgressStatus.PLANNED:
         return InvestigationStepProgress.model_validate(
             {

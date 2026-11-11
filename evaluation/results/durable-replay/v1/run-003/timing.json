@@ -1,0 +1,52 @@
+{
+  "tests": 14,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "source_sha256": {
+    "src/agentops_incident_commander/infrastructure/persistence/diagnosis_progress.py": "64d75278389f5d76c530e170cfc69823428d3323e54b8dcbb70dc1437d3cbf65",
+    "tests/integration/test_persistence.py": "96aa34aa01150d121cf8fc93e7a6c6dfdd7d7d8ff00161d845ab4ac6b95fb513"
+  },
+  "samples": [
+    {
+      "test": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-True-anyio_backend0]",
+      "replacement_run_to_completion_ns": 320241900
+    },
+    {
+      "test": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-2-anyio_backend0]",
+      "replacement_run_to_completion_ns": 142579400
+    },
+    {
+      "test": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-3-anyio_backend0]",
+      "replacement_run_to_completion_ns": 748230700
+    },
+    {
+      "test": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-4-anyio_backend0]",
+      "replacement_run_to_completion_ns": 413649800
+    },
+    {
+      "test": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-5-anyio_backend0]",
+      "replacement_run_to_completion_ns": 296782900
+    },
+    {
+      "test": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-6-anyio_backend0]",
+      "replacement_run_to_completion_ns": 526609400
+    },
+    {
+      "test": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-7-anyio_backend0]",
+      "replacement_run_to_completion_ns": 154903500
+    },
+    {
+      "test": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-8-anyio_backend0]",
+      "replacement_run_to_completion_ns": 544945700
+    },
+    {
+      "test": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-9-anyio_backend0]",
+      "replacement_run_to_completion_ns": 458062800
+    },
+    {
+      "test": "test_autonomous_gate_uses_committed_postgres_evidence[False-True-10-anyio_backend0]",
+      "replacement_run_to_completion_ns": 539847000
+    }
+  ]
+}

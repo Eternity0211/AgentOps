@@ -972,6 +972,11 @@ This index is an omission check, not a second task list. The referenced phases c
   excluded records without compact facts non-referenceable, and expose separate admitted,
   compact-fact and excluded audit lists. Direct provider replay remains a later measured batch.
 
+- [x] C6-quality-generalization-freeze: freeze one direct v5 Evidence replay and four new
+  memory/deployment boundary samples before provider calls. Bind the implementation commit and
+  archived manifest hashes; keep evaluator labels in a separate file that the runner never loads.
+  Actual-provider outcomes remain open until the frozen runner completes.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

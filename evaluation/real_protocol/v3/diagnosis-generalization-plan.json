@@ -1,0 +1,56 @@
+{
+  "schema_version": "diagnosis-generalization-plan/1.0.0",
+  "implementation_commit": "2e87bad1316e208480cfce7165bad06e5ed468e0",
+  "provider": {
+    "model": "deepseek-flash",
+    "thinking": "disabled",
+    "temperature": 0,
+    "transport_version": "1.4.0",
+    "max_calls_per_case": 1
+  },
+  "cases": [
+    {
+      "case_id": "v5-memory-evidence-replay",
+      "incident_id": "autonomous-77c1f50432c94e00-5",
+      "source": "ARCHIVED_EVIDENCE",
+      "alert": "Investigate the archived checkout observations using only the incident Evidence.",
+      "archive_root": "evaluation/results/autonomous-live/v5/evidence/autonomous-77c1f50432c94e00-5",
+      "manifests": [
+        {"path": "evidence-records.json", "sha256": "c3924e04b93799edcbdef1640d16875ece785802069a522e12e48cef050a53f2"},
+        {"path": "evidence-records-1.json", "sha256": "41fe2c7ce593bd171bfa1a9dd87bcca216188ee5a32dc0ae6d1b768d7445f553"}
+      ]
+    },
+    {
+      "case_id": "new-normal-no-retention",
+      "incident_id": "generalization-normal-001",
+      "source": "FROZEN_SYNTHETIC",
+      "alert": "Investigate a checkout observation with no established failure.",
+      "retained_bytes": [],
+      "deployment": false
+    },
+    {
+      "case_id": "new-two-sample-rise",
+      "incident_id": "generalization-short-rise-001",
+      "source": "FROZEN_SYNTHETIC",
+      "alert": "Investigate a checkout observation with a short memory sample.",
+      "retained_bytes": [4194304, 5242880],
+      "deployment": false
+    },
+    {
+      "case_id": "new-deployment-only",
+      "incident_id": "generalization-deployment-001",
+      "source": "FROZEN_SYNTHETIC",
+      "alert": "Investigate a checkout observation near a deployment record.",
+      "retained_bytes": [],
+      "deployment": true
+    },
+    {
+      "case_id": "new-three-sample-rise",
+      "incident_id": "generalization-sustained-rise-001",
+      "source": "FROZEN_SYNTHETIC",
+      "alert": "Investigate a checkout observation using the bounded telemetry.",
+      "retained_bytes": [6291456, 9437184, 13631488],
+      "deployment": false
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "schema_version": "diagnosis-generalization-labels/1.0.0",
+  "plan": "diagnosis-generalization-plan.json",
+  "labels": [
+    {"case_id": "v5-memory-evidence-replay", "stratum": "memory-leak", "expected_top1": "memory-leak", "safe_handoff": false},
+    {"case_id": "new-normal-no-retention", "stratum": "normal", "expected_top1": null, "safe_handoff": true},
+    {"case_id": "new-two-sample-rise", "stratum": "short-rise-control", "expected_top1": null, "safe_handoff": true},
+    {"case_id": "new-deployment-only", "stratum": "deployment-only-control", "expected_top1": null, "safe_handoff": true},
+    {"case_id": "new-three-sample-rise", "stratum": "memory-leak", "expected_top1": "memory-leak", "safe_handoff": false}
+  ]
+}

@@ -422,13 +422,15 @@ def test_tool_progress_transition_helper_is_replay_safe_and_fail_closed() -> Non
             failure_code=None,
             occurred_at=NOW,
         )
-    with pytest.raises(InvalidDomainValueError, match="transition"):
+    assert (
         _advance_tool_step(
             running,
             status=ToolProgressStatus.RUNNING,
             failure_code=None,
-            occurred_at=NOW,
+            occurred_at=NOW + timedelta(seconds=2),
         )
+        is running
+    )
     with pytest.raises(InvalidDomainValueError, match="status"):
         _advance_tool_step(
             planned,

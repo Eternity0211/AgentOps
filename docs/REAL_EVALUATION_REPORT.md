@@ -112,3 +112,16 @@ C4 演练可用 `--focus-order` 将订单服务设为操作员指定调查范围
 
 规则的三次失败来自来源不可用。三个模型模式各保存一次 `INVALID_RESPONSE` 调用失败，其余流程失败的归因以逐例记录为准。单次模型和受控图的 101 条支持引用均可在对应 Evidence 批次解析。模拟历史批次使用不同代码版本，真实已关闭历史仍未测。
 自主调查 v5 的 40 条证据均绑定同一案例下的记录，逐条验证内容哈希及对应工具调用，六场景清理后均为 HTTP 200。C2 的只读调查、故障信号及来源验证通过。模型在内存泄漏案例仍未识别具体信号，六场景中的四次人工接手继续计入结果。[逐例证据](../evaluation/results/autonomous-live/v5/evidence)
+
+最终自动回归通过 3,034 项，核心源码 14,287 条语句与 3,904 个分支均已覆盖。默认跳过的两项真实模型进程中断测试已独立通过。首次回归暴露旧断言与 RUNNING 状态幂等语义不一致，修正后全量通过。[回归摘要](../evaluation/results/final-regression/v1/summary.json)
+
+| 验收项 | 对应证据 |
+| --- | --- |
+| C2 只读调查、故障信号与来源 | [自主实测和 40 条证据](../evaluation/results/autonomous-live/v5/results.json) |
+| C3 持久化、队列与检查点 | [并发注册工作流](../evaluation/results/concurrent-registered/v1/README.md)、[完整图受控续跑](../evaluation/results/durable-replay/v1/run-002/README.md) |
+| C4 真实待审批与安全边界 | [门禁、策略及审批绑定](../evaluation/results/registered-live/v12/approval-binding.json) |
+| C5 冻结样本及评分 | [冻结计划](../evaluation/real_protocol/v2/capture-plan.json)、[配对评分](../evaluation/results/real-holdout/v2/README.md) |
+| C6 对照、负载、韧性与失败分布 | 本报告的 v2 对照表、[安全矩阵](../evaluation/results/safety-matrix/v1/README.md)、[真实调用进程中断](../evaluation/results/durable-replay/v1/run-004/summary.json) |
+| C7 模拟操作员 | [归档评审](../evaluation/results/simulated-operator/README.md) |
+
+真实人工审批、人工收益和真实历史记忆未测。隔离实验中的实际审批决策与恢复执行为零。

@@ -534,7 +534,8 @@ This index is an omission check, not a second task list. The referenced phases c
   session; Evidence write refusal remains fail-closed. Both integration cases pass; no claim
   of mid-run effect reconstruction or complete worker composition.
 - [x] C5: frozen holdout/counter-evidence/normal/insufficient-evidence datasets and predeclared scoring.
-- [ ] C6: complete automatic regression, load/resilience/failure distributions and consolidated results.
+- [x] C6: complete automatic regression, load/resilience/failure distributions and consolidated results.
+  Final regression: 3,034 passed, two opt-in provider cases skipped by default and verified separately.
 - [x] C7: simulated-operator protocol and evaluation, explicitly separate from real human labor/approval.
   Diagnosis archive 20/93 read tasks. Real pending archive 1/1 binding and 0/1 action
   evidence role, simulated rejection. Five archival and two isolated PostgreSQL tests pass.

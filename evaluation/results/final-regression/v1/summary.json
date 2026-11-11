@@ -1,0 +1,15 @@
+{
+  "base_revision": "c9465077b85481854d3537191d81c6ba7bcb7efa",
+  "test_source_sha256": "cc970b36c52026e46a2581aa2daaf1c1d5072704034edf7455b1758244b629b0",
+  "raw_junit_sha256": "d1ccaaf3c85dbd86cc93ac24b25293af169defd0bf75aa8052bf25d51f21a942",
+  "passed": 3034,
+  "failed": 0,
+  "skipped": 2,
+  "skipped_cases": [
+    "test_real_provider_effect_replay[asyncio-False]",
+    "test_real_provider_effect_replay[asyncio-True]"
+  ],
+  "src_statements": 14287,
+  "src_branches": 3904,
+  "src_coverage_percent": 100
+}

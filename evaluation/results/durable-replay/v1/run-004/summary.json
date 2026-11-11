@@ -1,0 +1,9 @@
+{
+  "source_commit": "11ffdc6",
+  "test_source_sha256": "af5a870f74937c7552b5a30e107fcd97655bdad8c354635f4f91cc05b4f3c922",
+  "timings": {
+    "queue_replay_ns": 53511500,
+    "queue_refusal_ns": 358887600
+  },
+  "scope": "replacement SQL queue worker and real DeepSeek effect; excludes lease waiting and full diagnosis graph"
+}

@@ -141,7 +141,7 @@ def run_snapshot(
                 ),
                 encoding="utf-8",
             )
-        _state, services = asyncio.run(
+        state, services = asyncio.run(
             investigate(
                 model,
                 identity,
@@ -156,6 +156,7 @@ def run_snapshot(
                 },
                 single_pass=mode == "single-agent",
                 evaluation_at=datetime.fromisoformat(snapshot["window_end"]) + timedelta(seconds=1),
+                allow_incomplete_reads=True,
             )
         )
         if services.report is None:
@@ -179,7 +180,11 @@ def run_snapshot(
         values = {
             "status": "SUCCEEDED",
             "candidates": tuple(c.candidate_id for c in report.candidates),
-            "disposition": report.disposition.value,
+            "disposition": (
+                "HUMAN_HANDOFF"
+                if state.phase.value == "HUMAN_HANDOFF" and not report.candidates
+                else report.disposition.value
+            ),
             "missing_evidence_count": len(report.missing_evidence),
             "gate_pass": any(g.outcome.value == "PASS" for g in services.gates),
             "counter_evidence_addressed": any(

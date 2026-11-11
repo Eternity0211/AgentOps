@@ -10,7 +10,7 @@ from typing import Any
 
 import httpx
 import pytest
-from evaluation.autonomous_diagnosis import investigate
+from evaluation.autonomous_diagnosis import build_diagnosis_context, investigate
 from evaluation.live_gateway import SOURCES, LocalReadAdapter, local_definitions
 from evaluation.structured_model import StructuredEvaluationModel
 from langgraph.checkpoint.memory import InMemorySaver
@@ -66,6 +66,132 @@ def diagnosis() -> dict[str, Any]:
         "missing_evidence": [],
         "explanation": "Current evidence",
     }
+
+
+def memory_span(service: str, timestamp: int, retained: int) -> dict[str, Any]:
+    return {
+        "service": service,
+        "start": str(timestamp - 1),
+        "end": str(timestamp),
+        "attributes": [
+            {
+                "key": "process.memory.retained_bytes",
+                "value": {"intValue": str(retained)},
+            },
+            {
+                "key": "process.memory.retention_limit_bytes",
+                "value": {"intValue": "33554432"},
+            },
+        ],
+    }
+
+
+def test_diagnosis_context_binds_chronological_memory_facts_to_evidence() -> None:
+    observations = [
+        {
+            "id": "evidence-trace-a",
+            "source": "traces",
+            "summary": json.dumps(
+                [
+                    memory_span("order", 30, 8_388_608),
+                    memory_span("order", 10, 5_242_880),
+                    memory_span("order", 20, 7_340_032),
+                ]
+            ),
+        },
+        {
+            "id": "evidence-deployment-a",
+            "source": "deployments",
+            "summary": json.dumps(
+                [{"service": "order", "version": "1.0.0", "previous_version": None}]
+            ),
+        },
+    ]
+
+    context = build_diagnosis_context(observations, {})
+
+    memory = context["memory_retention_by_service"][0]
+    assert memory["service"] == "order"
+    assert [item["retained_bytes"] for item in memory["samples"]] == [
+        5_242_880,
+        7_340_032,
+        8_388_608,
+    ]
+    assert memory["delta_bytes"] == 3_145_728
+    assert memory["direction"] == "INCREASING"
+    assert memory["sustained_increase_observed"] is True
+    assert all(item["evidence_ids"] == ["evidence-trace-a"] for item in memory["samples"])
+    assert context["deployment_facts"] == [
+        {
+            "evidence_id": "evidence-deployment-a",
+            "service": "order",
+            "version": "1.0.0",
+            "previous_version": None,
+            "causal_inference": "NOT_ESTABLISHED_BY_DEPLOYMENT_RECORD",
+        }
+    ]
+
+
+def test_normal_short_rise_and_deployment_only_do_not_claim_sustained_memory_growth() -> None:
+    normal = build_diagnosis_context(
+        [{"id": "trace-normal", "source": "traces", "summary": "[]"}], {}
+    )
+    short_rise = build_diagnosis_context(
+        [
+            {
+                "id": "trace-short",
+                "source": "traces",
+                "summary": json.dumps(
+                    [memory_span("order", 10, 1_048_576), memory_span("order", 20, 2_097_152)]
+                ),
+            }
+        ],
+        {},
+    )
+    deployment_only = build_diagnosis_context(
+        [
+            {
+                "id": "deployment-only",
+                "source": "deployments",
+                "summary": json.dumps(
+                    [{"service": "order", "version": "2.0.0", "previous_version": "1.0.0"}]
+                ),
+            }
+        ],
+        {},
+    )
+
+    assert normal["memory_retention_by_service"] == []
+    assert short_rise["memory_retention_by_service"][0]["sustained_increase_observed"] is False
+    assert deployment_only["memory_retention_by_service"] == []
+    assert deployment_only["deployment_facts"][0]["causal_inference"].startswith(
+        "NOT_ESTABLISHED"
+    )
+
+
+def test_diagnosis_context_records_unavailable_reads_without_evidence_ids() -> None:
+    context = build_diagnosis_context(
+        [],
+        {
+            "call-1": {
+                "source": "metrics",
+                "tool_name": "query_metrics",
+                "error_code": "SNAPSHOT_SOURCE_UNAVAILABLE",
+                "attempts": 1,
+            }
+        },
+    )
+
+    assert context["evidence_ids"] == []
+    assert context["unavailable_reads"] == [
+        {
+            "call_id": "call-1",
+            "source": "metrics",
+            "tool_name": "query_metrics",
+            "error_code": "SNAPSHOT_SOURCE_UNAVAILABLE",
+            "attempts": 1,
+        }
+    ]
 
 
 @pytest.mark.parametrize("replan,single_pass", [(False, False), (True, False), (False, True)])

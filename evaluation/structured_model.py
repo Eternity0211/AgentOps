@@ -34,7 +34,7 @@ from agentops_incident_commander.workflows import (
     RemediationProposal,
 )
 
-VERSION = "real-structured-evaluation/1.3.1"
+VERSION = "real-structured-evaluation/1.4.0"
 
 
 class ModelPurpose(StrEnum):
@@ -86,8 +86,15 @@ INSTRUCTIONS = {
     "missing_evidence lists observations still REQUIRED to substantiate that bounded candidate "
     "or rule out material alternatives. Optional implementation details or follow-up useful only "
     "for a different repair belong in uncertainty. Never omit a real requirement to pass Gate. "
-    "If current facts are insufficient, declare the missing requirements or hand off. Confidence "
-    "does not grant authority. Use short text below all schema length limits.",
+    "If current facts are insufficient, declare the missing requirements and use HUMAN_HANDOFF. "
+    "A NEEDS_MORE_EVIDENCE report is not a terminal disposition in this evaluation. Tool failures "
+    "are missing evidence, never proof that a fault exists. Chronological memory-retention facts "
+    "are grouped by service and retain their Evidence IDs; a short increase alone is insufficient "
+    "to claim a leak. A deployment record proves only the observed version facts and cannot by "
+    "itself establish deployment-caused latency. Treat healthy telemetry that contradicts an "
+    "operator hypothesis as counter-evidence and hand off unless current independent evidence "
+    "establishes a bounded alternative. Confidence does not grant authority. Use short text below "
+    "all schema length limits.",
     ModelPurpose.REMEDIATE: "Propose only typed rollback_service after the supplied Gate PASS. "
     "Copy incident, candidate and both gate fingerprints exactly. Use only supplied current "
     "Evidence IDs. Deployment versions are server-owned. Use DIFFERENT IDs for "

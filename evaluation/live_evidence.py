@@ -181,7 +181,7 @@ class ExperimentEvidence:
                     parser_version="1.0.0",
                     normalizer_version="1.0.0",
                     quality_signals=QualitySignals(
-                        True,
+                        provenance.get("source_available", True),
                         False,
                         provenance.get("records_seen", int(text != "[]")),
                         records_dropped=provenance.get("dropped_records", 0),

@@ -946,6 +946,14 @@ This index is an omission check, not a second task list. The referenced phases c
   Rules 0/18 Top-1, 6/9 controls and 3/27 unavailable-source failures.
   Fifteen publication and scoring tests pass. True historical memory remains unmeasured.
 
+- [x] C6-quality-audit: trace the v2 control failures and v5 memory misclassification to the
+  exact model context and terminal routing. Preserve the old frozen scores. Frozen replay now
+  retains failed reads as immutable unavailable Evidence instead of aborting, exports the actual
+  terminal handoff, and supplies bounded chronological per-service memory/deployment facts with
+  Evidence IDs and explicit budget exclusions. Unit checks cover normal, two-sample increase,
+  sustained increase, deployment-only and all-source-unavailable cases. Same-snapshot provider
+  comparison and independently frozen generalization samples remain a separate measured batch.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

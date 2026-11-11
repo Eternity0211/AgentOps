@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from agentops_incident_commander.application import ToolGatewayError
 from agentops_incident_commander.domain import (
     ArtifactId,
     PromptInjectionStatus,
@@ -66,7 +67,12 @@ class SnapshotReadAdapter:
             raise ValueError("snapshot service refused")
         record = self.reads.get(f"{self.tool}:{arguments['service']}")
         if record is None or record["status"] != "SUCCEEDED":
-            raise RuntimeError("snapshot source unavailable")
+            code = (
+                "SNAPSHOT_CAPTURE_FAILED"
+                if isinstance(record, dict) and record.get("error_code") == "CAPTURE_FAILED"
+                else "SNAPSHOT_SOURCE_UNAVAILABLE"
+            )
+            raise ToolGatewayError(code, "snapshot source unavailable")
         return dict(json.loads(json.dumps(record["output"])))
 
 

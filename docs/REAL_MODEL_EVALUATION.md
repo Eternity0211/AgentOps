@@ -456,3 +456,11 @@ The evaluator directory contains labels, parent bindings and the capture audit.
 The rules holdout uses the same v1 rules source, query list and budgets with the v2 input
 index bound separately. Its outcome and resource denominator are reported independently.
 [Rules holdout plan](../evaluation/real_protocol/rules-v2/plan.json)
+
+Transport 1.4.0 is a later diagnosis-quality revision. It does not relax schemas, the Evidence
+Gate, Policy, approval, or execution authority. It makes unavailable frozen reads explicit missing
+Evidence, records the workflow's terminal handoff disposition, and adds compact chronological
+memory-retention and deployment facts to the bounded diagnosis context. A deployment fact remains
+non-causal without independent abnormal telemetry; two memory samples alone are not labeled as
+sustained growth. Provider measurements for this revision are published only after a separately
+frozen run.

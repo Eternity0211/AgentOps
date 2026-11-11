@@ -11,7 +11,9 @@ from evaluation.outcome_ledger import OutcomeLedger
 from evaluation.run_snapshot_comparison import run_snapshot
 
 
-def test_failed_snapshot_run_is_durably_retained(tmp_path: Path) -> None:
+def test_unavailable_snapshot_sources_route_to_handoff(tmp_path: Path) -> None:
+    import json
+
     reads: dict[str, Any] = {
         f"{d.name}:{s}": {"status": "FAILED", "error_code": "CAPTURE_FAILED"}
         for d in local_definitions()
@@ -23,7 +25,53 @@ def test_failed_snapshot_run_is_durably_retained(tmp_path: Path) -> None:
 
     def respond(request: httpx.Request) -> httpx.Response:
         assert b"public_cause_taxonomy" in request.content
-        return httpx.Response(401)
+        body = json.loads(json.loads(request.content)["messages"][1]["content"])
+        if "plan" in body["output_schema"]["properties"]:
+            output = {
+                "plan": {
+                    "schema_version": "1.0.0",
+                    "plan_id": "plan",
+                    "summary": "Inspect unavailable metrics",
+                    "steps": [
+                        {
+                            "step_id": "metrics",
+                            "objective": "Inspect metrics",
+                            "expected_source": "METRIC",
+                            "parallel_group": 0,
+                        }
+                    ],
+                },
+                "tool_calls": [
+                    {
+                        "step_id": "metrics",
+                        "tool_name": "query_metrics",
+                        "tool_version": "2.0.0",
+                        "arguments": {"service": "order"},
+                    }
+                ],
+            }
+        else:
+            assert len(body["context"]["evidence_ids"]) == 1
+            assert body["context"]["observations"][0]["summary"].startswith("{\"error_code\"")
+            assert (
+                body["context"]["unavailable_reads"][0]["error_code"]
+                == "SNAPSHOT_CAPTURE_FAILED"
+            )
+            output = {
+                "schema_version": "1.0.0",
+                "incident_id": body["context"]["incident_id"],
+                "disposition": "HUMAN_HANDOFF",
+                "candidates": [],
+                "missing_evidence": ["current metrics"],
+                "explanation": "Current evidence source is unavailable",
+            }
+        return httpx.Response(
+            200,
+            json={
+                "usage": {"prompt_tokens": 10, "completion_tokens": 10, "total_tokens": 20},
+                "choices": [{"finish_reason": "stop", "message": {"content": json.dumps(output)}}],
+            },
+        )
 
     outcome = run_snapshot(
         path,
@@ -34,7 +82,9 @@ def test_failed_snapshot_run_is_durably_retained(tmp_path: Path) -> None:
         key="test-only",
         transport=httpx.MockTransport(respond),
     )
-    assert outcome.status == "FAILED" and outcome.input_tokens is None
+    assert outcome.status == "SUCCEEDED"
+    assert outcome.disposition == "HUMAN_HANDOFF"
+    assert outcome.missing_evidence_count == 1
     assert OutcomeLedger(tmp_path / "run/outcomes").collect(protocol_hash="a" * 64) == (outcome,)
 
 

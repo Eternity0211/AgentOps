@@ -8,6 +8,7 @@ import json
 import secrets
 from collections.abc import Callable
 from datetime import UTC, datetime
+from itertools import pairwise
 from pathlib import Path
 from typing import Any, Protocol, cast
 from uuid import uuid4
@@ -20,6 +21,7 @@ from agentops_incident_commander.application import (
     PlanningBudgets,
     ToolCallRequest,
     ToolGateway,
+    ToolGatewayError,
     evaluate_evidence_gate,
     resolve_gate_evidence_references,
 )
@@ -104,6 +106,170 @@ class FixedPromptReference:
             raise ValueError("evaluation prompt fingerprint mismatch")
 
 
+def _attribute_value(attribute: dict[str, Any]) -> object | None:
+    value = attribute.get("value")
+    if not isinstance(value, dict):
+        return None
+    for name in ("intValue", "doubleValue", "stringValue", "boolValue"):
+        if name in value:
+            result: object = value[name]
+            return result
+    return None
+
+
+def memory_retention_by_service(
+    observations: list[dict[str, str]],
+) -> list[dict[str, Any]]:
+    """Extract chronological, Evidence-bound retained-memory facts from trace summaries."""
+    grouped: dict[str, dict[tuple[int, int], dict[str, Any]]] = {}
+    for observation in observations:
+        if observation.get("source") != "traces":
+            continue
+        try:
+            spans = json.loads(observation["summary"])
+        except (KeyError, TypeError, json.JSONDecodeError):
+            continue
+        if not isinstance(spans, list):
+            continue
+        for span in spans:
+            if not isinstance(span, dict) or not isinstance(span.get("attributes"), list):
+                continue
+            attributes = {
+                item.get("key"): _attribute_value(item)
+                for item in span["attributes"]
+                if isinstance(item, dict) and isinstance(item.get("key"), str)
+            }
+            retained = attributes.get("process.memory.retained_bytes")
+            timestamp: object = span.get("end") or span.get("start")
+            service = span.get("service")
+            if (
+                not isinstance(retained, (str, int))
+                or isinstance(retained, bool)
+                or not isinstance(timestamp, (str, int))
+                or isinstance(timestamp, bool)
+            ):
+                continue
+            try:
+                retained_value, timestamp_value = int(retained), int(timestamp)
+            except (TypeError, ValueError):
+                continue
+            if not isinstance(service, str) or not service:
+                continue
+            sample = grouped.setdefault(service, {}).setdefault(
+                (timestamp_value, retained_value),
+                {
+                    "observed_at_unix_nano": timestamp_value,
+                    "retained_bytes": retained_value,
+                    "retention_limit_bytes": attributes.get(
+                        "process.memory.retention_limit_bytes"
+                    ),
+                    "retention_allocations": attributes.get(
+                        "process.memory.retention_allocations"
+                    ),
+                    "evidence_ids": [],
+                },
+            )
+            if observation["id"] not in sample["evidence_ids"]:
+                sample["evidence_ids"].append(observation["id"])
+    result = []
+    for service, keyed_samples in sorted(grouped.items()):
+        samples = sorted(keyed_samples.values(), key=lambda item: item["observed_at_unix_nano"])
+        values = [item["retained_bytes"] for item in samples]
+        changes = [right - left for left, right in pairwise(values)]
+        direction = (
+            "SINGLE_SAMPLE"
+            if not changes
+            else "INCREASING"
+            if all(change > 0 for change in changes)
+            else "DECREASING"
+            if all(change < 0 for change in changes)
+            else "FLAT_OR_MIXED"
+        )
+        result.append(
+            {
+                "service": service,
+                "sample_count": len(samples),
+                "first_retained_bytes": values[0],
+                "last_retained_bytes": values[-1],
+                "delta_bytes": values[-1] - values[0],
+                "direction": direction,
+                "sustained_increase_observed": len(samples) >= 3
+                and all(change > 0 for change in changes),
+                "samples": samples,
+            }
+        )
+    return result
+
+
+def deployment_facts(observations: list[dict[str, str]]) -> list[dict[str, Any]]:
+    """Retain bounded version facts without inferring that deployment caused an incident."""
+    facts: list[dict[str, Any]] = []
+    for observation in observations:
+        if observation.get("source") != "deployments":
+            continue
+        try:
+            rows = json.loads(observation["summary"])
+        except (KeyError, TypeError, json.JSONDecodeError):
+            continue
+        if not isinstance(rows, list):
+            continue
+        for row in rows[:8]:
+            if not isinstance(row, dict):
+                continue
+            facts.append(
+                {
+                    "evidence_id": observation["id"],
+                    "service": row.get("service"),
+                    "version": row.get("version"),
+                    "previous_version": row.get("previous_version"),
+                    "causal_inference": "NOT_ESTABLISHED_BY_DEPLOYMENT_RECORD",
+                }
+            )
+    return facts
+
+
+def build_diagnosis_context(
+    all_observations: list[dict[str, str]],
+    failed_reads: dict[str, dict[str, Any]],
+    *,
+    byte_budget: int = 24_000,
+) -> dict[str, Any]:
+    """Build auditable bounded context while retaining compact cross-record facts."""
+    observations: list[dict[str, str]] = []
+    excluded: list[str] = []
+    used = 0
+    for item in sorted(all_observations, key=lambda value: value["source"] != "traces"):
+        size = len(json.dumps(item, sort_keys=True).encode())
+        if used + size > byte_budget:
+            excluded.append(item["id"])
+            continue
+        observations.append(item)
+        used += size
+    unavailable = [
+        {
+            "call_id": call_id,
+            "source": value["source"],
+            "tool_name": value["tool_name"],
+            "error_code": value["error_code"],
+            "attempts": value["attempts"],
+        }
+        for call_id, value in sorted(failed_reads.items())
+    ]
+    return {
+        "evidence_ids": [item["id"] for item in observations],
+        "observations": observations,
+        "memory_retention_by_service": memory_retention_by_service(all_observations),
+        "deployment_facts": deployment_facts(all_observations),
+        "unavailable_reads": unavailable,
+        "context_budget": {
+            "limit_bytes": byte_budget,
+            "admitted_bytes": used,
+            "admitted_evidence_ids": [item["id"] for item in observations],
+            "excluded_evidence_ids": excluded,
+        },
+    }
+
+
 class WorkflowEvidenceStore(Protocol):
     async def add(self, evidence: Evidence, artifact: Artifact) -> None: ...
 
@@ -126,6 +292,7 @@ class AutonomousServices:
         model_invoker: RegisteredModelInvoker | None = None,
         effects: WorkflowEffectStore | None = None,
         end: datetime | None = None,
+        allow_incomplete_reads: bool = False,
     ) -> None:
         self.model, self.gateway, self.registry = model, gateway, registry
         self.incident, self.alert, self.root, self.start = incident, alert, root, start
@@ -147,6 +314,8 @@ class AutonomousServices:
         self.persisted_evidence = evidence_store
         self.scope = hashlib.sha256(incident.encode()).hexdigest()[:16]
         self.effects = effects
+        self.allow_incomplete_reads = allow_incomplete_reads
+        self.failed_reads: dict[str, dict[str, Any]] = {}
         self.input_hash = fingerprint(
             {
                 "alert": alert,
@@ -373,7 +542,18 @@ class AutonomousServices:
         )
 
         async def invoke() -> dict[str, Any]:
-            result = await self.gateway.invoke_diagnosis(request)
+            try:
+                result = await self.gateway.invoke_diagnosis(request)
+            except ToolGatewayError as error:
+                if not self.allow_incomplete_reads:
+                    raise
+                return {
+                    "tool_failure": True,
+                    "error_code": error.code,
+                    "attempts": error.attempts,
+                    "source": SOURCES[selected.tool_name],
+                    "tool_name": selected.tool_name,
+                }
             value = result.result()
             if self.effects is not None:
                 redaction = redact_sensitive_data(
@@ -384,7 +564,7 @@ class AutonomousServices:
                 return cast(dict[str, Any], redaction.value)
             return value
 
-        self.results[tool_call_id] = (
+        value = (
             await self.effects.execute(
                 f"read:{tool_call_id}",
                 self.effect_binding(state) | {"query_fingerprint": selected.query_fingerprint},
@@ -393,6 +573,10 @@ class AutonomousServices:
             if self.effects is not None
             else await invoke()
         )
+        if value.get("tool_failure") is True:
+            self.failed_reads[tool_call_id] = value
+        else:
+            self.results[tool_call_id] = value
 
     async def persist_evidence(
         self, state: DiagnosisGraphState, *, operation_id: str
@@ -402,6 +586,8 @@ class AutonomousServices:
             await self.restore_evidence(state, completed_round=self.round - 1)
         for call in self.compiled.calls:
             identifier = self.call_id(call.step_id)
+            if identifier in self.failed_reads:
+                continue
             if identifier not in self.results:
                 value = (
                     await self.effects.load(
@@ -413,6 +599,9 @@ class AutonomousServices:
                 )
                 if value is None:
                     raise ValueError("checkpoint read result missing")
+                if value.get("tool_failure") is True and self.allow_incomplete_reads:
+                    self.failed_reads[identifier] = value
+                    continue
                 self.results[identifier] = value
         if self.effects is None:
             return await self._persist_evidence(state)
@@ -438,7 +627,34 @@ class AutonomousServices:
     async def _persist_evidence(self, state: DiagnosisGraphState) -> EvidencePersistenceResult:
         observations, provenance = [], {}
         for call in self.compiled.calls:
-            record = self.results[self.call_id(call.step_id)]
+            call_identifier = self.call_id(call.step_id)
+            if call_identifier in self.failed_reads:
+                failure = self.failed_reads[call_identifier]
+                identifier = f"ev-{self.scope}-r{self.round}-{call.step_id}"
+                observations.append(
+                    {
+                        "id": identifier,
+                        "source": failure["source"],
+                        "summary": json.dumps(
+                            {
+                                "status": "UNAVAILABLE",
+                                "error_code": failure["error_code"],
+                            },
+                            sort_keys=True,
+                        ),
+                    }
+                )
+                provenance[identifier] = {
+                    "tool": failure["tool_name"],
+                    "version": call.tool_version.value,
+                    "records_seen": 0,
+                    "source_available": False,
+                    "error_code": failure["error_code"],
+                    "attempts": failure["attempts"],
+                    "call_id": call_identifier,
+                }
+                continue
+            record = self.results[call_identifier]
             scope = hashlib.sha256(self.incident.encode()).hexdigest()[:16]
             identifier = f"ev-{scope}-r{self.round}-{call.step_id}"
             observations.append(
@@ -460,7 +676,7 @@ class AutonomousServices:
             tenant=self.principal.tenant_id.value,
             workflow=state.workflow_run_id,
         )
-        if not self.evidence.records:
+        if not self.evidence.records and not self.failed_reads:
             raise ValueError("all telemetry quarantined")
         if self.persisted_evidence is not None:
             for item in self.evidence.records.values():
@@ -509,17 +725,7 @@ class AutonomousServices:
     ) -> HypothesisNodeResult:
         await self.restore_evidence(state)
         assert self.evidence is not None
-        # Preserve whole records under an aggregate budget; never slice JSON mid-record.
-        observations = []
-        used = 0
-        # Cross-service traces carry dependency operation and resource attribution.
-        # Admit these before bulky logs compete for the same context budget.
-        for item in sorted(self.evidence.observations, key=lambda item: item["source"] != "traces"):
-            size = len(json.dumps(item).encode())
-            if used + size > 24000:
-                continue
-            observations.append(item)
-            used += size
+        context = build_diagnosis_context(self.evidence.observations, self.failed_reads)
         self.round = state.budgets.used_replans
         result = await self.invoke_model_effect(
             state,
@@ -527,8 +733,7 @@ class AutonomousServices:
             {
                 "incident_id": self.incident,
                 "alert": self.alert,
-                "evidence_ids": [item["id"] for item in observations],
-                "observations": observations,
+                **context,
             },
         )
         self.report = cast(DiagnosisReport, result.output)
@@ -634,6 +839,7 @@ async def investigate(
     single_pass: bool = False,
     evaluation_at: datetime | None = None,
     effects: WorkflowEffectStore | None = None,
+    allow_incomplete_reads: bool = False,
 ) -> tuple[DiagnosisGraphState, AutonomousServices]:
     if max_replans not in (0, 1):
         raise ValueError("autonomous investigation permits zero or one replan")
@@ -665,6 +871,7 @@ async def investigate(
         model_invoker,
         effects,
         end,
+        allow_incomplete_reads,
     )
     if evaluation_at is not None:
         services.clock = lambda: evaluation_at

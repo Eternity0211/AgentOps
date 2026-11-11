@@ -9165,8 +9165,9 @@ async def test_evaluation_policy_creates_only_pending_sql_review(engine: AsyncEn
 @pytest.mark.skipif(
     os.environ.get("AGENTOPS_REAL_EFFECT_REPLAY") != "1", reason="explicit real provider run only"
 )
+@pytest.mark.parametrize("interrupt_before_commit", [False, True])
 async def test_real_provider_effect_replay(
-    engine: AsyncEngine, record_property: Callable[[str, int], None]
+    engine: AsyncEngine, record_property: Callable[[str, int], None], interrupt_before_commit: bool
 ) -> None:
     from evaluation.durable_effects import SqlInvestigationEffects
     from evaluation.structured_model import ModelPurpose, StructuredEvaluationModel
@@ -9200,17 +9201,28 @@ async def test_real_provider_effect_replay(
                 "alert": "Controlled replay probe without telemetry. Report insufficient evidence.",
             },
         )
+        if interrupt_before_commit:
+            raise RuntimeError("injected before effect commit")
         return {
             "report": result.output.model_dump(mode="json"),
             "request_hash": result.request_hash,
         }
 
     initial = SqlInvestigationEffects(sessions, principal, "replay-corr", "replay-command")
-    saved = await initial.execute("model:DIAGNOSE:r0", binding, effect)
+    if interrupt_before_commit:
+        with pytest.raises(RuntimeError, match="injected before effect commit"):
+            await initial.execute("model:DIAGNOSE:r0", binding, effect)
+    else:
+        saved = await initial.execute("model:DIAGNOSE:r0", binding, effect)
     replacement = SqlInvestigationEffects(sessions, principal, "replay-corr", "replay-command")
     started = perf_counter_ns()
-    assert await replacement.execute("model:DIAGNOSE:r0", binding, effect) == saved
-    record_property("effect_replay_ns", perf_counter_ns() - started)
+    if interrupt_before_commit:
+        with pytest.raises(ValueError, match="outcome uncertain"):
+            await replacement.execute("model:DIAGNOSE:r0", binding, effect)
+        record_property("effect_refusal_ns", perf_counter_ns() - started)
+    else:
+        assert await replacement.execute("model:DIAGNOSE:r0", binding, effect) == saved
+        record_property("effect_replay_ns", perf_counter_ns() - started)
     assert sum(event.get("status") == "STARTED" for event in events) == 1
 
 

@@ -7,6 +7,7 @@ import base64
 import hashlib
 import json
 import os
+import sys
 from collections.abc import AsyncIterator, Callable, Iterator, Mapping
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -9161,6 +9162,67 @@ async def test_evaluation_policy_creates_only_pending_sql_review(engine: AsyncEn
         )
 
 
+async def _real_replay_child(binding: dict[str, Any], interrupt_before_commit: bool) -> None:
+    from threading import Event
+
+    import httpx
+    from evaluation.durable_effects import SqlInvestigationEffects
+    from evaluation.leased_worker import LeasedEvaluationWorker
+    from evaluation.structured_model import ModelPurpose, StructuredEvaluationModel
+
+    class ObservedTransport(httpx.HTTPTransport):
+        def handle_request(self, request: httpx.Request) -> httpx.Response:
+            def trace(name: str, info: dict[str, Any]) -> None:
+                if name == "http11.send_request_body.complete":
+                    print("REQUEST_SENT", flush=True)
+                    if interrupt_before_commit:
+                        Event().wait(60)
+
+            request.extensions["trace"] = trace
+            return super().handle_request(request)
+
+    engine = create_async_engine(os.environ["AGENTOPS_REPLAY_DB_URL"])
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    principal = Principal(
+        ActorId(binding["actor_id"]), TenantId(binding["tenant_id"]), frozenset({Role.OPERATOR})
+    )
+    effects = SqlInvestigationEffects(
+        sessions, principal, binding["correlation_id"], binding["causation_id"]
+    )
+    model = StructuredEvaluationModel(
+        os.environ["DEEPSEEK_API_KEY"], lambda _: None, max_calls=1, transport=ObservedTransport()
+    )
+
+    async def effect() -> dict[str, Any]:
+        result = await asyncio.to_thread(
+            model.invoke,
+            ModelPurpose.DIAGNOSE,
+            {
+                "incident_id": binding["incident_id"],
+                "evidence_ids": [],
+                "observations": [],
+                "alert": "Controlled replay probe without telemetry. Report insufficient evidence.",
+            },
+        )
+        return {
+            "report": result.output.model_dump(mode="json"),
+            "request_hash": result.request_hash,
+        }
+
+    async def handle(lease: JobLease) -> None:
+        assert lease.attempt == 1 and lease.job.incident_id.value == binding["incident_id"]
+        await effects.execute("model:DIAGNOSE:r0", binding, effect)
+        print("EFFECT_COMMITTED", flush=True)
+        await asyncio.Event().wait()
+
+    try:
+        await LeasedEvaluationWorker(
+            sessions, OpaqueIdentifier("child"), handle, lease_seconds=3
+        ).run_once()
+    finally:
+        await engine.dispose()
+
+
 @pytest.mark.anyio
 @pytest.mark.skipif(
     os.environ.get("AGENTOPS_REAL_EFFECT_REPLAY") != "1", reason="explicit real provider run only"
@@ -9171,7 +9233,6 @@ async def test_real_provider_effect_replay(
 ) -> None:
     from evaluation.durable_effects import SqlInvestigationEffects
     from evaluation.leased_worker import LeasedEvaluationWorker
-    from evaluation.structured_model import ModelPurpose, StructuredEvaluationModel
 
     incident = "real-effect-replay"
     await add_incident(engine, incident, tenant="tenant-1")
@@ -9188,30 +9249,6 @@ async def test_real_provider_effect_replay(
         "correlation_id": "replay-corr",
         "causation_id": "replay-command",
     }
-    events: list[dict[str, Any]] = []
-    model = StructuredEvaluationModel(os.environ["DEEPSEEK_API_KEY"], events.append, max_calls=1)
-    interrupted = asyncio.Event()
-
-    async def effect() -> dict[str, Any]:
-        result = await asyncio.to_thread(
-            model.invoke,
-            ModelPurpose.DIAGNOSE,
-            {
-                "incident_id": incident,
-                "evidence_ids": [],
-                "observations": [],
-                "alert": "Controlled replay probe without telemetry. Report insufficient evidence.",
-            },
-        )
-        if interrupt_before_commit:
-            interrupted.set()
-            await asyncio.Event().wait()
-        return {
-            "report": result.output.model_dump(mode="json"),
-            "request_hash": result.request_hash,
-        }
-
-    initial = SqlInvestigationEffects(sessions, principal, "replay-corr", "replay-command")
     replacement = SqlInvestigationEffects(sessions, principal, "replay-corr", "replay-command")
     queued = replace(
         job("real-effect-replay", max_attempts=2),
@@ -9221,30 +9258,46 @@ async def test_real_provider_effect_replay(
     async with sessions.begin() as session:
         await JobRepository(session).enqueue(queued)
 
-    saved: dict[str, Any] | None = None
-
-    async def first_handler(lease: JobLease) -> None:
-        nonlocal saved
-        assert lease.attempt == 1 and lease.job.id == queued.id
-        saved = await initial.execute("model:DIAGNOSE:r0", binding, effect)
-        interrupted.set()
-        await asyncio.Event().wait()
+    async def refuse_dispatch() -> dict[str, Any]:
+        pytest.fail("replacement dispatched the original request again")
 
     async def replacement_handler(lease: JobLease) -> None:
         assert lease.attempt == 2 and lease.job.id == queued.id
-        assert await replacement.execute("model:DIAGNOSE:r0", binding, effect) == saved
+        actual = await replacement.execute("model:DIAGNOSE:r0", binding, refuse_dispatch)
+        assert actual == saved and actual["request_hash"]
 
-    first = LeasedEvaluationWorker(
-        sessions, OpaqueIdentifier("first"), first_handler, lease_seconds=3
+    child = await asyncio.create_subprocess_exec(
+        sys.executable,
+        "-c",
+        "import asyncio,json,runpy,sys; "
+        "ns=runpy.run_path(sys.argv[1]); "
+        "asyncio.run(ns['_real_replay_child'](json.loads(sys.argv[2]),sys.argv[3]=='1'))",
+        str(Path(__file__).resolve()),
+        json.dumps(binding),
+        str(int(interrupt_before_commit)),
+        env={
+            **os.environ,
+            "AGENTOPS_REPLAY_DB_URL": engine.url.render_as_string(hide_password=False),
+        },
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
+    )
+    try:
+        assert child.stdout is not None
+        assert (await asyncio.wait_for(child.stdout.readline(), 45)).strip() == b"REQUEST_SENT"
+        if not interrupt_before_commit:
+            assert (
+                await asyncio.wait_for(child.stdout.readline(), 45)
+            ).strip() == b"EFFECT_COMMITTED"
+    finally:
+        if child.returncode is None:
+            child.kill()
+        await child.wait()
+    assert child.returncode != 0
+    saved = (
+        None if interrupt_before_commit else await replacement.load("model:DIAGNOSE:r0", binding)
     )
     second = LeasedEvaluationWorker(sessions, OpaqueIdentifier("second"), replacement_handler)
-    task = asyncio.create_task(first.run_once())
-    try:
-        await asyncio.wait_for(interrupted.wait(), timeout=45)
-    finally:
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
     await asyncio.sleep(3.1)
     started = perf_counter_ns()
     if interrupt_before_commit:
@@ -9259,7 +9312,6 @@ async def test_real_provider_effect_replay(
         row = await session.scalar(select(JobRow).where(JobRow.id == queued.id.value))
         assert row is not None and row.attempt_count == 2
         assert row.status == ("DEAD_LETTER" if interrupt_before_commit else "COMPLETED")
-    assert sum(event.get("status") == "STARTED" for event in events) == 1
 
 
 @pytest.mark.anyio

@@ -250,6 +250,22 @@ def test_loki_status_and_dependency_metadata_are_preserved() -> None:
     assert provenance["requests"][0]["parameters"]["limit"] == "40"
 
 
+def test_metric_queries_use_the_observation_window() -> None:
+    def respond(request: httpx.Request) -> httpx.Response:
+        assert "[20375ms]" in request.url.params["query"]
+        return httpx.Response(200, json={"data": {"result": []}})
+
+    now = datetime.now(UTC)
+    adapter = LocalReadAdapter(
+        "query_metrics",
+        now - timedelta(milliseconds=20375),
+        now,
+        transport=httpx.MockTransport(respond),
+    )
+    result = asyncio.run(adapter.invoke(None, {"service": "order"}))  # type: ignore[arg-type]
+    assert len(json.loads(result["provenance"])["requests"]) == 3
+
+
 def test_local_gateway_refuses_unknown_service_or_window() -> None:
     now = datetime.now(UTC)
     with pytest.raises(ValueError):

@@ -8,7 +8,7 @@ import os
 import re
 import subprocess
 from collections.abc import Callable, Mapping
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import httpx
@@ -158,15 +158,24 @@ class LocalReadAdapter:
             ) as client:
                 if source == "metrics":
                     selector = f'{{service_name="agentops-simulator-{service}"}}'
+                    window_ms = max(1, (self.end - self.start) // timedelta(milliseconds=1))
+                    metric_window = f"[{window_ms}ms]"
                     queries = [
                         "sum by (route,status,service_version) "
-                        "(increase(simulator_http_server_requests_total" + selector + "[60s]))",
+                        "(increase(simulator_http_server_requests_total"
+                        + selector
+                        + metric_window
+                        + "))",
                         "sum by (dependency,operation,outcome) "
-                        "(increase(simulator_dependency_operations_total" + selector + "[60s]))",
+                        "(increase(simulator_dependency_operations_total"
+                        + selector
+                        + metric_window
+                        + "))",
                         "histogram_quantile(0.95,sum by(le,route) "
                         "(rate(simulator_http_server_duration_milliseconds_bucket"
                         + selector
-                        + "[60s])))",
+                        + metric_window
+                        + ")))",
                     ]
                     for query in queries:
                         params = {"query": query, "time": str(self.end.timestamp())}

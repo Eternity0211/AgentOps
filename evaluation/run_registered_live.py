@@ -153,7 +153,9 @@ def run(
                                     raise RuntimeError("fault injection failed")
                                 wait_target(SCENARIO_TARGETS[scenario], environment)
                             start = datetime.now(UTC)
-                            probes = [checkout(client, sku=sku) for _ in range(8)]
+                            probes = [checkout(client, sku=sku) for _ in range(4)]
+                            await asyncio.sleep(20)
+                            probes.extend(checkout(client, sku=sku) for _ in range(4))
                             await asyncio.sleep(20)
                             end = datetime.now(UTC)
                             record["probes"] = probes
@@ -168,7 +170,8 @@ def run(
                                 "Gateway checkout observations: "
                                 + json.dumps(probes)
                                 + " Rehearsal checklist: use query_deployments and query_metrics "
-                                "for a service selected from the checkout path to check deployment "
+                                "for the suspected failing service, including downstream services "
+                                "when the gateway reports an upstream failure. Check deployment "
                                 "history and independently observed version. Also collect evidence "
                                 "for the symptom. Report uncertainty when observations do not "
                                 "support a cause or version claim.",

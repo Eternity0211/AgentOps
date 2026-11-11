@@ -506,6 +506,8 @@ This index is an omission check, not a second task list. The referenced phases c
   Targeted live run persisted four deployment records, but HTTP 500 Gate failed on counter and missing evidence.
   Align metric selectors with the declared observation window; verify live scrape sufficiency.
   Window-aligned run passed HTTP 500 diagnosis Gate with LOG/TRACE only; rollback refused.
+  V10 queried gateway deployment and empty metrics. Rehearsal now separates probe waves
+  across scrape intervals and directs version checks toward the suspected failing service.
   Approval lifecycle guards verified in safety-matrix v1 JUnit, including
   test_material_revision_invalidates_and_requires_fresh_approval, preflight refusal for
   rejected/expired/invalidated approvals, tenant-scoped idempotent review, denied roles,

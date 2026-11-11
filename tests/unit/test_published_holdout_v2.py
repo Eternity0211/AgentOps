@@ -10,6 +10,25 @@ from evaluation.real_scoring import RULES_MODE, Label, Outcome, protocol_hash, s
 from evaluation.run_real_batch import preflight
 
 
+@pytest.mark.parametrize(("mode", "count"), [("single-agent", 50), ("controlled-graph", 51)])
+def test_v2_holdout_citations_resolve_across_evidence_batches(mode: str, count: int) -> None:
+    root = Path("evaluation/results/real-holdout/v2/run-001") / mode
+    resolved = 0
+    for path in root.glob("*/diagnosis-report.json"):
+        report = json.loads(path.read_bytes())["report"]
+        evidence = {
+            row["evidence"]["id"]["value"]: row["evidence"]["incident_id"]["value"]
+            for batch in (path.parent / "evidence").glob("evidence-records*.json")
+            for row in json.loads(batch.read_bytes())
+        }
+        for candidate in report["candidates"]:
+            for field in ("supporting_evidence_ids", "counter_evidence_ids"):
+                for reference in candidate[field]:
+                    assert evidence[reference] == report["incident_id"]
+                    resolved += 1
+    assert resolved == count
+
+
 @pytest.mark.parametrize("rules", [False, True])
 def test_v2_holdout_publication_recomputes(rules: bool) -> None:
     root = Path("evaluation/results") / ("rules-snapshots" if rules else "real-holdout")

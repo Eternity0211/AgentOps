@@ -1,0 +1,46 @@
+{
+  "schema_version": "diagnosis-quality-audit/1.0.0",
+  "cases": 81,
+  "reports": 75,
+  "model_calls": 199,
+  "gate_passes": 15,
+  "evidence_references": 150,
+  "resolved_same_incident_references": 150,
+  "artifact_hash_checks": 150,
+  "artifact_hash_matches": 150,
+  "modes": {
+    "controlled-graph": {
+      "outcomes": 27,
+      "failures": 3,
+      "model_calls": 74,
+      "gate_passes": 5,
+      "duration_ms_median": 4781,
+      "duration_ms_p95_nearest_rank": 11266,
+      "input_tokens": 381006,
+      "output_tokens": 23880,
+      "references": 54
+    },
+    "controlled-graph-simulated-memory": {
+      "outcomes": 27,
+      "failures": 2,
+      "model_calls": 72,
+      "gate_passes": 4,
+      "duration_ms_median": 5062,
+      "duration_ms_p95_nearest_rank": 11125,
+      "input_tokens": 395199,
+      "output_tokens": 24139,
+      "references": 51
+    },
+    "single-agent": {
+      "outcomes": 27,
+      "failures": 1,
+      "model_calls": 53,
+      "gate_passes": 6,
+      "duration_ms_median": 4625,
+      "duration_ms_p95_nearest_rank": 5219,
+      "input_tokens": 226466,
+      "output_tokens": 16335,
+      "references": 45
+    }
+  }
+}

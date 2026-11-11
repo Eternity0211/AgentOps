@@ -960,6 +960,13 @@ This index is an omission check, not a second task list. The referenced phases c
   resumable runner to execute all three declared modes without loading evaluator labels. Measured
   outcomes and new-sample generalization remain open until their respective runs complete.
 
+- [x] C6-quality-retest-run: execute all 81 actual-provider outcomes on the unchanged v2 hashes.
+  Single/graph/simulated-history Top-1 are 11/18 each; safe controls are 9/9, 8/9 and 9/9;
+  failures are 1/27, 3/27 and 2/27. All 150 report references resolve to same-Incident Evidence
+  and matching Artifact hashes. Retain 199 call records, tokens, Gate outcomes and durations.
+  Memory-leak Top-1 remains 0/3 in every mode; direct v5 Evidence replay and new frozen samples
+  remain required before claiming that specific quality defect is fixed.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

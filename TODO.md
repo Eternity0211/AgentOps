@@ -466,6 +466,7 @@ This index is an omission check, not a second task list. The referenced phases c
   Full live capture verified 21/21 windows, 420/420 reads and 1,686/1,686 attributed
   span entries. Pool exhaustion and downstream latency share error service sets.
   Order trace operation timings distinguish those two faults in three windows each.
+  V2 provider archive citation audit found two graph support references missing from their case exports.
 - [x] C3a: inject the official PostgreSQL checkpointer and use the existing resume-aware runner.
   Verification: replacement PostgreSQL saver restores a completed autonomous investigation;
   exactly two model calls and one tool call remain unchanged after replay. This does not yet

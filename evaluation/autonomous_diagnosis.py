@@ -235,6 +235,8 @@ def build_diagnosis_context(
     byte_budget: int = 24_000,
 ) -> dict[str, Any]:
     """Build auditable bounded context while retaining compact cross-record facts."""
+    memory_facts = memory_retention_by_service(all_observations)
+    deployment_records = deployment_facts(all_observations)
     observations: list[dict[str, str]] = []
     excluded: list[str] = []
     used = 0
@@ -255,16 +257,30 @@ def build_diagnosis_context(
         }
         for call_id, value in sorted(failed_reads.items())
     ]
+    compact_fact_evidence_ids = sorted(
+        {
+            evidence_id
+            for fact in memory_facts
+            for sample in fact["samples"]
+            for evidence_id in sample["evidence_ids"]
+        }
+        | {fact["evidence_id"] for fact in deployment_records}
+    )
+    admitted_evidence_ids = [item["id"] for item in observations]
+    referenceable_evidence_ids = list(
+        dict.fromkeys([*admitted_evidence_ids, *compact_fact_evidence_ids])
+    )
     return {
-        "evidence_ids": [item["id"] for item in observations],
+        "evidence_ids": referenceable_evidence_ids,
         "observations": observations,
-        "memory_retention_by_service": memory_retention_by_service(all_observations),
-        "deployment_facts": deployment_facts(all_observations),
+        "memory_retention_by_service": memory_facts,
+        "deployment_facts": deployment_records,
         "unavailable_reads": unavailable,
         "context_budget": {
             "limit_bytes": byte_budget,
             "admitted_bytes": used,
-            "admitted_evidence_ids": [item["id"] for item in observations],
+            "admitted_evidence_ids": admitted_evidence_ids,
+            "compact_fact_evidence_ids": compact_fact_evidence_ids,
             "excluded_evidence_ids": excluded,
         },
     }

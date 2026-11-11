@@ -169,6 +169,34 @@ def test_normal_short_rise_and_deployment_only_do_not_claim_sustained_memory_gro
     )
 
 
+def test_compact_facts_keep_excluded_evidence_referenceable() -> None:
+    observations = [
+        {
+            "id": "trace-large",
+            "source": "traces",
+            "summary": json.dumps(
+                [
+                    memory_span("order", 10, 1_048_576),
+                    memory_span("order", 20, 2_097_152),
+                    memory_span("order", 30, 3_145_728),
+                ]
+            ),
+        },
+        {"id": "log-excluded", "source": "logs", "summary": "x" * 2_000},
+    ]
+
+    context = build_diagnosis_context(observations, {}, byte_budget=1)
+
+    assert context["observations"] == []
+    assert context["context_budget"]["admitted_evidence_ids"] == []
+    assert context["context_budget"]["excluded_evidence_ids"] == [
+        "trace-large",
+        "log-excluded",
+    ]
+    assert context["context_budget"]["compact_fact_evidence_ids"] == ["trace-large"]
+    assert context["evidence_ids"] == ["trace-large"]
+
+
 def test_diagnosis_context_records_unavailable_reads_without_evidence_ids() -> None:
     context = build_diagnosis_context(
         [],

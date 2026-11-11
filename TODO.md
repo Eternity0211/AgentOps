@@ -967,6 +967,11 @@ This index is an omission check, not a second task list. The referenced phases c
   Memory-leak Top-1 remains 0/3 in every mode; direct v5 Evidence replay and new frozen samples
   remain required before claiming that specific quality defect is fixed.
 
+- [x] C6-quality-reference-boundary: make Evidence IDs retained by bounded memory/deployment
+  facts referenceable even when their full records lose the byte-budget competition. Keep fully
+  excluded records without compact facts non-referenceable, and expose separate admitted,
+  compact-fact and excluded audit lists. Direct provider replay remains a later measured batch.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

@@ -455,7 +455,9 @@ This index is an omission check, not a second task list. The referenced phases c
   feedback reaches planner, equivalent queries refuse before dispatch, old Evidence remains
   immutable, terminal checkpoint replay adds no calls. Verification: 23 relevant tests pass,
   including real PostgreSQL terminal replay, two-round Gate success and query reconstruction.
-- [ ] C2: autonomous read investigation through the gateway, discriminating telemetry and exact provenance.
+- [x] C2: autonomous read investigation through the gateway, discriminating telemetry and exact provenance.
+  V5 publishes 40/40 evidence-to-call bindings with content hashes. Distinct dependency
+  candidates were observed for pool exhaustion and Redis timeout; diagnosis quality gaps remain.
   Six-fault real autonomous run completed five investigations and handed off memory. Pool and
   Redis cases produced the same generic transport candidate; discrimination remains open.
   Both gateway trace summaries contained distinct dependency operation names; diagnosis did not distinguish them.

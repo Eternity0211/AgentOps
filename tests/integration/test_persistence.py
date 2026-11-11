@@ -9170,6 +9170,7 @@ async def test_real_provider_effect_replay(
     engine: AsyncEngine, record_property: Callable[[str, int], None], interrupt_before_commit: bool
 ) -> None:
     from evaluation.durable_effects import SqlInvestigationEffects
+    from evaluation.leased_worker import LeasedEvaluationWorker
     from evaluation.structured_model import ModelPurpose, StructuredEvaluationModel
 
     incident = "real-effect-replay"
@@ -9189,6 +9190,7 @@ async def test_real_provider_effect_replay(
     }
     events: list[dict[str, Any]] = []
     model = StructuredEvaluationModel(os.environ["DEEPSEEK_API_KEY"], events.append, max_calls=1)
+    interrupted = asyncio.Event()
 
     async def effect() -> dict[str, Any]:
         result = await asyncio.to_thread(
@@ -9202,27 +9204,61 @@ async def test_real_provider_effect_replay(
             },
         )
         if interrupt_before_commit:
-            raise RuntimeError("injected before effect commit")
+            interrupted.set()
+            await asyncio.Event().wait()
         return {
             "report": result.output.model_dump(mode="json"),
             "request_hash": result.request_hash,
         }
 
     initial = SqlInvestigationEffects(sessions, principal, "replay-corr", "replay-command")
-    if interrupt_before_commit:
-        with pytest.raises(RuntimeError, match="injected before effect commit"):
-            await initial.execute("model:DIAGNOSE:r0", binding, effect)
-    else:
-        saved = await initial.execute("model:DIAGNOSE:r0", binding, effect)
     replacement = SqlInvestigationEffects(sessions, principal, "replay-corr", "replay-command")
+    queued = replace(
+        job("real-effect-replay", max_attempts=2),
+        incident_id=IncidentId(incident),
+        workflow_run_id=WorkflowRunId(binding["workflow_run_id"]),
+    )
+    async with sessions.begin() as session:
+        await JobRepository(session).enqueue(queued)
+
+    saved: dict[str, Any] | None = None
+
+    async def first_handler(lease: JobLease) -> None:
+        nonlocal saved
+        assert lease.attempt == 1 and lease.job.id == queued.id
+        saved = await initial.execute("model:DIAGNOSE:r0", binding, effect)
+        interrupted.set()
+        await asyncio.Event().wait()
+
+    async def replacement_handler(lease: JobLease) -> None:
+        assert lease.attempt == 2 and lease.job.id == queued.id
+        assert await replacement.execute("model:DIAGNOSE:r0", binding, effect) == saved
+
+    first = LeasedEvaluationWorker(
+        sessions, OpaqueIdentifier("first"), first_handler, lease_seconds=3
+    )
+    second = LeasedEvaluationWorker(sessions, OpaqueIdentifier("second"), replacement_handler)
+    task = asyncio.create_task(first.run_once())
+    try:
+        await asyncio.wait_for(interrupted.wait(), timeout=45)
+    finally:
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    await asyncio.sleep(3.1)
     started = perf_counter_ns()
     if interrupt_before_commit:
         with pytest.raises(ValueError, match="outcome uncertain"):
-            await replacement.execute("model:DIAGNOSE:r0", binding, effect)
-        record_property("effect_refusal_ns", perf_counter_ns() - started)
+            await second.run_once()
+        record_property("queue_refusal_ns", perf_counter_ns() - started)
     else:
-        assert await replacement.execute("model:DIAGNOSE:r0", binding, effect) == saved
-        record_property("effect_replay_ns", perf_counter_ns() - started)
+        assert await second.run_once() == 1
+        record_property("queue_replay_ns", perf_counter_ns() - started)
+    assert await second.run_once() == 0
+    async with sessions() as session:
+        row = await session.scalar(select(JobRow).where(JobRow.id == queued.id.value))
+        assert row is not None and row.attempt_count == 2
+        assert row.status == ("DEAD_LETTER" if interrupt_before_commit else "COMPLETED")
     assert sum(event.get("status") == "STARTED" for event in events) == 1
 
 

@@ -40,7 +40,7 @@ Checkboxes are completion claims. Check an item only when its acceptance criteri
 
 - [x] C3：接入真实 Prompt Registry、PostgreSQL 证据/调用审计、检查点及任务租约。
 - [x] C3 验收：工作进程重启可续跑，重复投递不重复产生效果，取消与失败路由正确。
-- [ ] C4：只对门禁 PASS 的候选生成真实修复提案，经策略生成持久化审批请求。
+- [x] C4：只对门禁 PASS 的候选生成真实修复提案，经策略生成持久化审批请求。见 v12 定向实测。
 - [x] C4 验收：提案变更使旧审批失效；拒绝、过期、越权和重复请求均按既有规则处理。
 - [x] C5：冻结独立测试集和评分规则，覆盖六类故障变体、正常、证据不足、反证及注入。注入采用预先声明的独立测试。
 - [x] C5 验收：标签与 Ground Truth 隔离，评分规则不根据测试答案事后修改。见真实评测报告的冻结与隔离复核。
@@ -495,7 +495,8 @@ This index is an omission check, not a second task list. The referenced phases c
   regression 2,859 passed with 100% source statement/branch coverage; final nine invoker
   tests also pass, including report-write failure. Ruff/mypy/architecture/Compose/supply-chain
   and planning checks pass. C3 remains open for job composition and mid-run reconstruction.
-- [ ] C4: gate-bound real remediation, deterministic policy and actual pending approval records.
+- [x] C4: gate-bound real remediation, deterministic policy and actual pending approval records.
+  Order-guided live run persisted one PENDING record and its review snapshot after Gate PASS.
   Resumed live run made nine real requests. Two fault candidates passed diagnosis Gate,
   both cases then failed, and no pending approvals were created.
   Both SQL audit hashes match the missing distinct version evidence refusal before remediation dispatch.

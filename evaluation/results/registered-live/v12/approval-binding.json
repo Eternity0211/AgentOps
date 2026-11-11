@@ -1,0 +1,252 @@
+{
+  "approvals": [
+    {
+      "decided_at": null,
+      "decided_by": null,
+      "decision_reason": null,
+      "expires_at": "2026-11-11 08:56:08.622044+00:00",
+      "id": "lab-review-67fa4295ee0e4dcfaa5e72b25f66b246",
+      "incident_id": "registered-c884dcb5906b40ab8742",
+      "independent_approver_required": true,
+      "policy_decision_fingerprint": "f18921964ca2bf20fe320c7d2fffc602db3fe541f0f12ee16462ad055ca54c6c",
+      "policy_decision_id": "lab-policy-8a7154c785ab4c4385cb40cdfa2efae3",
+      "policy_input_fingerprint": "5a04cfecfcee02294813e32c144c72c49617a248e83372982d3b7f0be589b74a",
+      "proposal_fingerprint": "a49c2780017ce807d9aa82f9ae1fce4e32f608442b543e01b5c8d2bf914a9e84",
+      "proposal_id": "proposal-registered-c884dcb5906b40ab8742-order-v2-500s-1",
+      "proposal_version": 1,
+      "proposer_actor_id": "registered-lab-operator",
+      "requested_at": "2026-11-11 08:26:08.624053+00:00",
+      "risk_level": "MEDIUM",
+      "schema_version": "1.0.0",
+      "status": "PENDING",
+      "tenant_id": "registered-evaluation-lab",
+      "version": 1
+    }
+  ],
+  "review_snapshots": [
+    {
+      "approval_id": "lab-review-67fa4295ee0e4dcfaa5e72b25f66b246",
+      "created_at": "2026-11-11 08:26:08.624053+00:00",
+      "incident_id": "registered-c884dcb5906b40ab8742",
+      "schema_version": "1.0.0",
+      "snapshot": {
+        "policy_decision": {
+          "approval_ttl_seconds": 1800,
+          "evaluated_at": "2026-11-11T16:26:08.622044+08:00",
+          "id": "lab-policy-8a7154c785ab4c4385cb40cdfa2efae3",
+          "input_fingerprint": "5a04cfecfcee02294813e32c144c72c49617a248e83372982d3b7f0be589b74a",
+          "outcome": "APPROVAL_REQUIRED",
+          "policy_version": "1.0.0",
+          "proposal_fingerprint": "a49c2780017ce807d9aa82f9ae1fce4e32f608442b543e01b5c8d2bf914a9e84",
+          "reasons": [
+            {
+              "code": "APPROVAL_REQUIRED",
+              "detail": "Human approval is required before rollback execution."
+            }
+          ],
+          "risk_level": "MEDIUM",
+          "schema_version": "1.0.0"
+        },
+        "policy_input": {
+          "action": "rollback_service",
+          "blast_radius": "SINGLE_SERVICE",
+          "environment": "STAGING",
+          "evidence_gate_decision_fingerprint": "315fa20c064cbf8b9ada7b0939fb0ed5c2e4a9c42ab10376e0c1c807d2d4b44f",
+          "incident_id": "registered-c884dcb5906b40ab8742",
+          "maintenance_window": "NOT_REQUIRED",
+          "proposal_fingerprint": "a49c2780017ce807d9aa82f9ae1fce4e32f608442b543e01b5c8d2bf914a9e84",
+          "proposal_id": "proposal-registered-c884dcb5906b40ab8742-order-v2-500s-1",
+          "proposal_version": 1,
+          "requested_at": "2026-11-11T16:26:08.605296+08:00",
+          "requester_actor_id": "registered-lab-operator",
+          "requester_roles": [
+            "OPERATOR"
+          ],
+          "schema_version": "1.0.0",
+          "separation_of_duties_required": true,
+          "service": "order",
+          "tenant_id": "registered-evaluation-lab"
+        },
+        "proposal": {
+          "action": "rollback_service",
+          "candidate_id": "order-v2-500s",
+          "compensation_eligible": false,
+          "evidence_gate_decision_fingerprint": "315fa20c064cbf8b9ada7b0939fb0ed5c2e4a9c42ab10376e0c1c807d2d4b44f",
+          "evidence_gate_input_fingerprint": "100ec7183db68d5d71caa362dc0044b06e31fe679e1c4e24ded2ffd04582ab44",
+          "failure_handling": {
+            "max_rediagnosis_attempts": 2,
+            "redeploy_faulty_version": false,
+            "route": "BOUNDED_REDIAGNOSIS_THEN_HUMAN_HANDOFF"
+          },
+          "incident_id": "registered-c884dcb5906b40ab8742",
+          "parameters": {
+            "introducing_deployment_evidence_id": "ev-778f85016818bd81-r0-order_deployments",
+            "service": "order"
+          },
+          "prerequisites": {
+            "current_version_evidence_id": "ev-778f85016818bd81-r0-order_metrics",
+            "require_execution_lock": true,
+            "require_human_approval": true,
+            "require_policy_authorization": true,
+            "require_server_resolved_stable_predecessor": true
+          },
+          "proposal_id": "proposal-registered-c884dcb5906b40ab8742-order-v2-500s-1",
+          "proposal_version": 1,
+          "risk_assumptions": [
+            "Rollback target version is resolved by the server as the stable predecessor (1.0.0); the model does not select versions.",
+            "POST /v1/orders returns 500 on version 2.0.0 while /readyz and postgres readiness remain healthy, indicating an application-level regression rather than dependency failure.",
+            "Rollback requires policy authorization, human approval and an execution lock before any action is taken.",
+            "Verification requires all five signals (error rate, p95 latency, healthy endpoint, server-resolved stable version, zero new alerts) sustained over the 300s server stability window.",
+            "The faulty version 2.0.0 must not be redeployed during remediation."
+          ],
+          "schema_version": "1.0.0",
+          "verification_conditions": {
+            "max_error_rate_basis_points": 100,
+            "max_p95_latency_ms": 500,
+            "maximum_new_alerts": 0,
+            "require_healthy_endpoint": true,
+            "require_server_resolved_stable_version": true,
+            "stability_window_seconds": 300
+          }
+        },
+        "schema_version": "1.0.0"
+      },
+      "snapshot_fingerprint": "b7d960cb43005c4785da0cd7b2f3871b2d416423c6d6a443380e59309137a64e",
+      "tenant_id": "registered-evaluation-lab"
+    }
+  ],
+  "gate_decisions": [
+    {
+      "candidate_id": "order-v2-500s",
+      "evaluated_at": "2026-11-11 08:26:05.742872+00:00",
+      "evaluated_evidence_ids": [
+        "ev-778f85016818bd81-r0-order_deployments",
+        "ev-778f85016818bd81-r0-order_logs",
+        "ev-778f85016818bd81-r0-order_metrics"
+      ],
+      "incident_id": "registered-c884dcb5906b40ab8742",
+      "input_fingerprint": "100ec7183db68d5d71caa362dc0044b06e31fe679e1c4e24ded2ffd04582ab44",
+      "input_snapshot": {
+        "claim": {
+          "candidate_id": "order-v2-500s",
+          "counter_evidence_ids": [],
+          "counter_evidence_resolved": true,
+          "incident_id": "registered-c884dcb5906b40ab8742",
+          "missing_evidence": [],
+          "model_confidence_basis_points": 7000,
+          "supporting_evidence_ids": [
+            "ev-778f85016818bd81-r0-order_deployments",
+            "ev-778f85016818bd81-r0-order_logs",
+            "ev-778f85016818bd81-r0-order_metrics"
+          ]
+        },
+        "evaluated_at": "2026-11-11T16:26:05.742872+08:00",
+        "evidence": [
+          {
+            "content_hash": "f548b0f9dba7652bc90db425b74b8d51715f3e31e2e8fe74a04b6e6fae8e3b73",
+            "expires_at": "2026-11-11T17:26:02.64256+08:00",
+            "id": "ev-778f85016818bd81-r0-order_deployments",
+            "observed_from": "2026-11-11T16:25:16.319982+08:00",
+            "observed_to": "2026-11-11T16:26:02.64256+08:00",
+            "quality_reasons": [
+              "source-available",
+              "incomplete-window",
+              "records-observed"
+            ],
+            "quality_score_basis_points": 7500,
+            "source_instance": "local-deployments",
+            "source_type": "DEPLOYMENT",
+            "trust": "DIRECT_OBSERVATION"
+          },
+          {
+            "content_hash": "a951bf8621e4ae94eedac7e9cb11db37be9561e1d62f5232767bee28dc046a4e",
+            "expires_at": "2026-11-11T17:26:02.64256+08:00",
+            "id": "ev-778f85016818bd81-r0-order_logs",
+            "observed_from": "2026-11-11T16:25:16.319982+08:00",
+            "observed_to": "2026-11-11T16:26:02.64256+08:00",
+            "quality_reasons": [
+              "source-available",
+              "incomplete-window",
+              "records-observed"
+            ],
+            "quality_score_basis_points": 7500,
+            "source_instance": "local-logs",
+            "source_type": "LOG",
+            "trust": "DIRECT_OBSERVATION"
+          },
+          {
+            "content_hash": "4c4b828cc2878b2181d03b802bc0a1f27be264056b6f56103db600d8a8f4a694",
+            "expires_at": "2026-11-11T17:26:02.64256+08:00",
+            "id": "ev-778f85016818bd81-r0-order_metrics",
+            "observed_from": "2026-11-11T16:25:16.319982+08:00",
+            "observed_to": "2026-11-11T16:26:02.64256+08:00",
+            "quality_reasons": [
+              "source-available",
+              "incomplete-window",
+              "records-observed"
+            ],
+            "quality_score_basis_points": 7500,
+            "source_instance": "local-metrics",
+            "source_type": "METRIC",
+            "trust": "DIRECT_OBSERVATION"
+          }
+        ],
+        "rules": {
+          "fail_on_declared_missing_evidence": true,
+          "maximum_evidence_age_seconds": 3600,
+          "minimum_independent_sources": 2,
+          "minimum_quality_basis_points": 7000,
+          "require_counter_evidence_resolution": true,
+          "schema_version": "1.0.0",
+          "version": "1.1.0"
+        }
+      },
+      "model_confidence_basis_points": 7000,
+      "outcome": "PASS",
+      "reasons": [],
+      "rules_version": "1.1.0",
+      "schema_version": "1.0.0",
+      "sequence": 1,
+      "tenant_id": "registered-evaluation-lab"
+    }
+  ],
+  "executions": [],
+  "audit": [
+    {
+      "actor_id": "registered-lab-operator",
+      "causation_id": "cause-registered-c884dcb5906b40ab8742",
+      "correlation_id": "corr-registered-c884dcb5906b40ab8742",
+      "event_fingerprint": "0a5ac5bea739bfb7ba084702ff851f608e49f032142976bade8cbc3188e7724f",
+      "event_type": "approval.requested",
+      "event_version": 1,
+      "id": "lab-review-audit-3ba508be3c724137b2a250a4fcf44726",
+      "occurred_at": "2026-11-11 08:26:08.624053+00:00",
+      "payload_schema_version": "approval/v1",
+      "request_hash": "f18921964ca2bf20fe320c7d2fffc602db3fe541f0f12ee16462ad055ca54c6c",
+      "result_hash": "39b165d59f77a9df71dad17957179b31c6f1657ca0a81c5d8ed2991a2c832400",
+      "sequence": 51,
+      "target_id": "lab-review-67fa4295ee0e4dcfaa5e72b25f66b246",
+      "target_type": "approval.record",
+      "tenant_id": "registered-evaluation-lab",
+      "tenant_sequence": 51
+    },
+    {
+      "actor_id": "registered-lab-operator",
+      "causation_id": "cause-registered-c884dcb5906b40ab8742",
+      "correlation_id": "corr-registered-c884dcb5906b40ab8742",
+      "event_fingerprint": "ae3706aec1f431e49472da5bb8bbaee80701f2d7ab18d2b6d7de46372159ca1d",
+      "event_type": "evaluation.policy_approval_required",
+      "event_version": 1,
+      "id": "lab-policy-audit-d899061809f14d30a69af1ad08629796",
+      "occurred_at": "2026-11-11 08:26:08.622044+00:00",
+      "payload_schema_version": "policy/v1",
+      "request_hash": "5a04cfecfcee02294813e32c144c72c49617a248e83372982d3b7f0be589b74a",
+      "result_hash": "f18921964ca2bf20fe320c7d2fffc602db3fe541f0f12ee16462ad055ca54c6c",
+      "sequence": 52,
+      "target_id": "lab-policy-8a7154c785ab4c4385cb40cdfa2efae3",
+      "target_type": "evaluation.policy",
+      "tenant_id": "registered-evaluation-lab",
+      "tenant_sequence": 52
+    }
+  ]
+}

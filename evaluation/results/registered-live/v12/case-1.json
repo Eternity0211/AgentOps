@@ -1,0 +1,112 @@
+{
+  "actual_bill": null,
+  "after_checkout": {
+    "duration_ms": 281,
+    "status": 200
+  },
+  "approval_decided": false,
+  "approval_id": "lab-review-67fa4295ee0e4dcfaa5e72b25f66b246",
+  "baseline": {
+    "duration_ms": 94,
+    "status": 200
+  },
+  "cleanup_exit": 0,
+  "evaluator_scenario": "http-500",
+  "gates": [
+    {
+      "candidate_id": "order-v2-500s",
+      "outcome": "PASS",
+      "reasons": []
+    }
+  ],
+  "heap_scope": "workflow_owned_trace",
+  "incident_id": "registered-c884dcb5906b40ab8742",
+  "instance_id": "registered-c884dcb5906b40ab8742",
+  "policy_outcome": "APPROVAL_REQUIRED",
+  "probes": [
+    {
+      "duration_ms": 15,
+      "status": 502
+    },
+    {
+      "duration_ms": 32,
+      "status": 502
+    },
+    {
+      "duration_ms": 46,
+      "status": 502
+    },
+    {
+      "duration_ms": 16,
+      "status": 502
+    },
+    {
+      "duration_ms": 31,
+      "status": 502
+    },
+    {
+      "duration_ms": 31,
+      "status": 502
+    },
+    {
+      "duration_ms": 16,
+      "status": 502
+    },
+    {
+      "duration_ms": 31,
+      "status": 502
+    }
+  ],
+  "process_cpu_ms": 1671,
+  "proposal": {
+    "action": "rollback_service",
+    "candidate_id": "order-v2-500s",
+    "compensation_eligible": false,
+    "evidence_gate_decision_fingerprint": "315fa20c064cbf8b9ada7b0939fb0ed5c2e4a9c42ab10376e0c1c807d2d4b44f",
+    "evidence_gate_input_fingerprint": "100ec7183db68d5d71caa362dc0044b06e31fe679e1c4e24ded2ffd04582ab44",
+    "failure_handling": {
+      "max_rediagnosis_attempts": 2,
+      "redeploy_faulty_version": false,
+      "route": "BOUNDED_REDIAGNOSIS_THEN_HUMAN_HANDOFF"
+    },
+    "incident_id": "registered-c884dcb5906b40ab8742",
+    "parameters": {
+      "introducing_deployment_evidence_id": "ev-778f85016818bd81-r0-order_deployments",
+      "service": "order"
+    },
+    "prerequisites": {
+      "current_version_evidence_id": "ev-778f85016818bd81-r0-order_metrics",
+      "require_execution_lock": true,
+      "require_human_approval": true,
+      "require_policy_authorization": true,
+      "require_server_resolved_stable_predecessor": true
+    },
+    "proposal_id": "proposal-registered-c884dcb5906b40ab8742-order-v2-500s-1",
+    "proposal_version": 1,
+    "risk_assumptions": [
+      "Rollback target version is resolved by the server as the stable predecessor (1.0.0); the model does not select versions.",
+      "POST /v1/orders returns 500 on version 2.0.0 while /readyz and postgres readiness remain healthy, indicating an application-level regression rather than dependency failure.",
+      "Rollback requires policy authorization, human approval and an execution lock before any action is taken.",
+      "Verification requires all five signals (error rate, p95 latency, healthy endpoint, server-resolved stable version, zero new alerts) sustained over the 300s server stability window.",
+      "The faulty version 2.0.0 must not be redeployed during remediation."
+    ],
+    "schema_version": "1.0.0",
+    "verification_conditions": {
+      "max_error_rate_basis_points": 100,
+      "max_p95_latency_ms": 500,
+      "maximum_new_alerts": 0,
+      "require_healthy_endpoint": true,
+      "require_server_resolved_stable_version": true,
+      "stability_window_seconds": 300
+    }
+  },
+  "provider_starts": 3,
+  "python_heap_current_bytes": 755332,
+  "python_heap_peak_bytes": 1176474,
+  "queue_creation_to_claim_ms": 1395,
+  "queue_ready_to_claim_ms": 1395,
+  "recovery_executed": false,
+  "second_claim_count": 0,
+  "status": "PENDING_APPROVAL",
+  "workflow_ms": 12141
+}

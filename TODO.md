@@ -454,6 +454,8 @@ This index is an omission check, not a second task list. The referenced phases c
 - [ ] C2: autonomous read investigation through the gateway, discriminating telemetry and exact provenance.
   Independent v2 capture audit: 414/420 reads reported records, six trace reads were empty,
   and 0/420 marked a complete window. Fault discrimination remains open.
+  The summary cap truncated 68/84 trace reads and 27/84 log reads. Next verify whether
+  bounded prioritization preserves fault-relevant observations before collecting a new set.
 - [x] C3a: inject the official PostgreSQL checkpointer and use the existing resume-aware runner.
   Verification: replacement PostgreSQL saver restores a completed autonomous investigation;
   exactly two model calls and one tool call remain unchanged after replay. This does not yet

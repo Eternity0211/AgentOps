@@ -454,6 +454,7 @@ This index is an omission check, not a second task list. The referenced phases c
 - [ ] C2: autonomous read investigation through the gateway, discriminating telemetry and exact provenance.
   Six-fault real autonomous run completed five investigations and handed off memory. Pool and
   Redis cases produced the same generic transport candidate; discrimination remains open.
+  Both gateway trace summaries contained distinct dependency operation names; diagnosis did not distinguish them.
   Independent v2 capture audit: 414/420 reads reported records, six trace reads were empty,
   and 0/420 marked a complete window. Fault discrimination remains open.
   The summary cap truncated 68/84 trace reads and 27/84 log reads. Next verify whether

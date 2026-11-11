@@ -32,6 +32,7 @@ from evaluation.run_live_diagnosis import ENVIRONMENT, ROOT
 VERSION = SemanticVersion("2.0.0")
 TRACE_SUMMARY_POLICY = "prefer-otel-error-on-truncation/1.0.0"
 SERVICES = ("gateway", "order", "inventory", "payment")
+TRACE_RESOURCE_SERVICES = frozenset(f"agentops-simulator-{name}" for name in SERVICES)
 SOURCES = {
     "query_metrics": "metrics",
     "query_logs": "logs",
@@ -232,6 +233,16 @@ class LocalReadAdapter:
                         detail = await self._get(client, detail_endpoint, {})
                         requests.append({"endpoint": detail_endpoint, "parameters": {}})
                         for batch in detail.get("batches", []):
+                            span_service = next(
+                                (
+                                    attribute["value"]["stringValue"]
+                                    for attribute in batch.get("resource", {}).get("attributes", [])
+                                    if attribute.get("key") == "service.name"
+                                    and attribute.get("value", {}).get("stringValue")
+                                    in TRACE_RESOURCE_SERVICES
+                                ),
+                                None,
+                            )
                             for scope in batch.get("scopeSpans", []):
                                 for span in scope.get("spans", []):
                                     if span.get("name", "").startswith("GET /readyz"):
@@ -239,6 +250,7 @@ class LocalReadAdapter:
                                     records.append(
                                         {
                                             "name": span.get("name"),
+                                            "service": span_service,
                                             "status": span.get("status"),
                                             "start": span.get("startTimeUnixNano"),
                                             "end": span.get("endTimeUnixNano"),
@@ -265,6 +277,7 @@ class LocalReadAdapter:
         }
         if source == "traces":
             provenance["summary_policy"] = TRACE_SUMMARY_POLICY
+            provenance["span_service_source"] = "otel-resource-service-name/1.0.0"
         return {
             "source": source,
             "summary": summary,

@@ -333,7 +333,14 @@ def test_tempo_truncation_retains_late_error_span() -> None:
     def respond(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/api/search":
             return httpx.Response(200, json={"traces": [{"traceID": "a"}]})
-        return httpx.Response(200, json={"batches": [{"scopeSpans": [{"spans": spans}]}]})
+        resource = {
+            "attributes": [
+                {"key": "service.name", "value": {"stringValue": "agentops-simulator-order"}}
+            ]
+        }
+        return httpx.Response(
+            200, json={"batches": [{"resource": resource, "scopeSpans": [{"spans": spans}]}]}
+        )
 
     now = datetime.now(UTC)
     adapter = LocalReadAdapter(
@@ -342,6 +349,7 @@ def test_tempo_truncation_retains_late_error_span() -> None:
     result = asyncio.run(adapter.invoke(None, {"service": "gateway"}))  # type: ignore[arg-type]
     retained = json.loads(result["summary"])
     assert retained[0]["name"] == "failure"
+    assert retained[0]["service"] == "agentops-simulator-order"
     assert len(result["summary"]) <= 12000
     assert json.loads(result["provenance"])["dropped_records"] == len(spans) - len(retained)
 

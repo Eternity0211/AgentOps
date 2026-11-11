@@ -55,7 +55,11 @@ FULL_CASES: tuple[ScenarioName | None, ...] = (
 
 
 def run(
-    output: Path, key: str, *, cases: tuple[ScenarioName | None, ...] = CASES
+    output: Path,
+    key: str,
+    *,
+    cases: tuple[ScenarioName | None, ...] = CASES,
+    focus_order: bool = False,
 ) -> dict[str, Any]:
     if not key or key.strip() != key:
         raise ValueError("DEEPSEEK_API_KEY is required")
@@ -95,6 +99,7 @@ def run(
             "observation_origin": "LIVE_COMPOSE_TELEMETRY",
             "bootstrap_origin": "SEPARATE_SYNTHETIC_SAFETY_FIXTURE",
             "concurrency": 1,
+            "investigation_scope": "ORDER_GUIDED" if focus_order else "MODEL_SELECTED",
             "cases": list(cases),
             "full_matrix_protocol_sha256": (
                 hashlib.sha256(
@@ -174,7 +179,13 @@ def run(
                                 "when the gateway reports an upstream failure. Check deployment "
                                 "history and independently observed version. Also collect evidence "
                                 "for the symptom. Report uncertainty when observations do not "
-                                "support a cause or version claim.",
+                                "support a cause or version claim."
+                                + (
+                                    " Operator-selected scope: query order deployment and metrics; "
+                                    "check order logs and traces for supporting or contrary facts."
+                                    if focus_order
+                                    else ""
+                                ),
                                 start,
                                 end,
                                 output / "cases" / identifier / "evidence",
@@ -287,12 +298,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--full-matrix", action="store_true")
+    parser.add_argument("--focus-order", action="store_true")
     args = parser.parse_args()
     print(
         run(
             args.output_dir,
             os.environ.get("DEEPSEEK_API_KEY", ""),
             cases=FULL_CASES if args.full_matrix else CASES,
+            focus_order=args.focus_order,
         )
     )
 

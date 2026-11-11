@@ -6,6 +6,7 @@ import asyncio
 import base64
 import hashlib
 import json
+import os
 from collections.abc import AsyncIterator, Callable, Iterator, Mapping
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -9158,6 +9159,59 @@ async def test_evaluation_policy_creates_only_pending_sql_review(engine: AsyncEn
             and review.policy_decision == decision
             and review.proposal == proposed
         )
+
+
+@pytest.mark.anyio
+@pytest.mark.skipif(
+    os.environ.get("AGENTOPS_REAL_EFFECT_REPLAY") != "1", reason="explicit real provider run only"
+)
+async def test_real_provider_effect_replay(
+    engine: AsyncEngine, record_property: Callable[[str, int], None]
+) -> None:
+    from evaluation.durable_effects import SqlInvestigationEffects
+    from evaluation.structured_model import ModelPurpose, StructuredEvaluationModel
+
+    incident = "real-effect-replay"
+    await add_incident(engine, incident, tenant="tenant-1")
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    principal = Principal(
+        ActorId("replay-operator"), TenantId("tenant-1"), frozenset({Role.OPERATOR})
+    )
+    binding = {
+        "tenant_id": "tenant-1",
+        "actor_id": "replay-operator",
+        "incident_id": incident,
+        "workflow_run_id": "real-replay-workflow",
+        "input_hash": "b" * 64,
+        "correlation_id": "replay-corr",
+        "causation_id": "replay-command",
+    }
+    events: list[dict[str, Any]] = []
+    model = StructuredEvaluationModel(os.environ["DEEPSEEK_API_KEY"], events.append, max_calls=1)
+
+    async def effect() -> dict[str, Any]:
+        result = await asyncio.to_thread(
+            model.invoke,
+            ModelPurpose.DIAGNOSE,
+            {
+                "incident_id": incident,
+                "evidence_ids": [],
+                "observations": [],
+                "alert": "Controlled replay probe without telemetry. Report insufficient evidence.",
+            },
+        )
+        return {
+            "report": result.output.model_dump(mode="json"),
+            "request_hash": result.request_hash,
+        }
+
+    initial = SqlInvestigationEffects(sessions, principal, "replay-corr", "replay-command")
+    saved = await initial.execute("model:DIAGNOSE:r0", binding, effect)
+    replacement = SqlInvestigationEffects(sessions, principal, "replay-corr", "replay-command")
+    started = perf_counter_ns()
+    assert await replacement.execute("model:DIAGNOSE:r0", binding, effect) == saved
+    record_property("effect_replay_ns", perf_counter_ns() - started)
+    assert sum(event.get("status") == "STARTED" for event in events) == 1
 
 
 @pytest.mark.anyio

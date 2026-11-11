@@ -498,6 +498,7 @@ This index is an omission check, not a second task list. The referenced phases c
 - [ ] C4: gate-bound real remediation, deterministic policy and actual pending approval records.
   Resumed live run made nine real requests. Two fault candidates passed diagnosis Gate,
   both cases then failed, and no pending approvals were created.
+  Both SQL audit hashes match the missing distinct version evidence refusal before remediation dispatch.
   Approval lifecycle guards verified in safety-matrix v1 JUnit, including
   test_material_revision_invalidates_and_requires_fresh_approval, preflight refusal for
   rejected/expired/invalidated approvals, tenant-scoped idempotent review, denied roles,

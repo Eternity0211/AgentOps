@@ -167,10 +167,11 @@ def run(
                                 f"cause-{identifier}",
                                 "Gateway checkout observations: "
                                 + json.dumps(probes)
-                                + " If errors or latency suggest an affected service, consider its "
-                                "read-only deployment history and independent current-version "
-                                "telemetry. A deployment observation alone does not establish "
-                                "cause.",
+                                + " Rehearsal checklist: use query_deployments and query_metrics "
+                                "for a service selected from the checkout path to check deployment "
+                                "history and independently observed version. Also collect evidence "
+                                "for the symptom. Report uncertainty when observations do not "
+                                "support a cause or version claim.",
                                 start,
                                 end,
                                 output / "cases" / identifier / "evidence",

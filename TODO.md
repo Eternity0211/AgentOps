@@ -502,6 +502,7 @@ This index is an omission check, not a second task list. The referenced phases c
   Registered rehearsal alerts now prompt read-only deployment verification without fault labels.
   Guided run made nine real requests but persisted no deployment Evidence; C4 remains open.
   All three persisted plans omitted deployment reads. The fixed read-only order version probe worked after cleanup.
+  Targeted rehearsal requests both deployment and metric reads. Verify selection and Gate binding live.
   Approval lifecycle guards verified in safety-matrix v1 JUnit, including
   test_material_revision_invalidates_and_requires_fresh_approval, preflight refusal for
   rejected/expired/invalidated approvals, tenant-scoped idempotent review, denied roles,

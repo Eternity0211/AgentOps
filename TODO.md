@@ -977,6 +977,11 @@ This index is an omission check, not a second task list. The referenced phases c
   archived manifest hashes; keep evaluator labels in a separate file that the runner never loads.
   Actual-provider outcomes remain open until the frozen runner completes.
 
+- [x] C6-quality-generalization-audit: retain the first invalid-response attempt instead of
+  overwriting it, persist every later outcome before advancing, continue bounded cases after a
+  provider validation failure, and collect evidence-load/context-build/model-invoke timings.
+  The first failed call predates event persistence, so its usage and response hash remain unknown.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

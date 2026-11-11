@@ -13,7 +13,12 @@ from typing import Any
 
 from evaluation.autonomous_diagnosis import build_diagnosis_context
 from evaluation.real_scoring import CAUSES
-from evaluation.structured_model import ModelPurpose, StructuredEvaluationModel, fingerprint
+from evaluation.structured_model import (
+    ModelPurpose,
+    StructuredEvaluationModel,
+    StructuredModelFailure,
+    fingerprint,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -114,12 +119,14 @@ def run(plan_path: Path, output: Path, *, key: str) -> None:
     output.mkdir(parents=True, exist_ok=False)
     outcomes: list[dict[str, Any]] = []
     for case in plan["cases"]:
+        case_started = time.monotonic_ns()
         events: list[dict[str, Any]] = []
         observations = (
             _archive_observations(case)
             if case["source"] == "ARCHIVED_EVIDENCE"
             else _synthetic_observations(case)
         )
+        observations_loaded = time.monotonic_ns()
         context = build_diagnosis_context(observations, {})
         context.update(
             incident_id=case["incident_id"],
@@ -130,24 +137,43 @@ def run(plan_path: Path, output: Path, *, key: str) -> None:
                 "hand off with missing evidence."
             ),
         )
+        context_built = time.monotonic_ns()
         def journal(event: dict[str, Any], target: list[dict[str, Any]] = events) -> None:
             target.append(dict(event))
 
         model = StructuredEvaluationModel(key, journal, max_calls=1)
-        started = time.monotonic_ns()
-        result = model.invoke(ModelPurpose.DIAGNOSE, context)
-        report = result.output
-        outcomes.append(
-            {
-                "case_id": case["case_id"],
-                "source": case["source"],
-                "input_hash": fingerprint({"case": case, "observations": observations}),
-                "context_hash": fingerprint(context),
-                "duration_ms": (time.monotonic_ns() - started) // 1_000_000,
-                "report": report.model_dump(mode="json"),
-                "events": events,
-            }
-        )
+        try:
+            result = model.invoke(ModelPurpose.DIAGNOSE, context)
+            report = result.output
+            status = "SUCCEEDED"
+            report_data: dict[str, Any] | None = report.model_dump(mode="json")
+            error_code = None
+        except StructuredModelFailure as error:
+            status = "FAILED"
+            report_data = None
+            error_code = str(error)
+        finished = time.monotonic_ns()
+        outcome = {
+            "case_id": case["case_id"],
+            "source": case["source"],
+            "status": status,
+            "error_code": error_code,
+            "input_hash": fingerprint({"case": case, "observations": observations}),
+            "context_hash": fingerprint(context),
+            "duration_ms": (finished - case_started) // 1_000_000,
+            "stage_timing_ms": {
+                "evidence_load": (observations_loaded - case_started) // 1_000_000,
+                "context_build": (context_built - observations_loaded) // 1_000_000,
+                "model_invoke": (finished - context_built) // 1_000_000,
+            },
+            "report": report_data,
+            "events": events,
+        }
+        outcomes.append(outcome)
+        with (output / "outcomes.jsonl").open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(outcome, sort_keys=True) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
     document = {
         "schema_version": "diagnosis-generalization-result/1.0.0",
         "implementation_commit": revision,

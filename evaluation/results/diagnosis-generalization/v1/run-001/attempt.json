@@ -1,0 +1,10 @@
+{
+  "schema_version": "diagnosis-generalization-attempt/1.0.0",
+  "plan": "evaluation/real_protocol/v3/diagnosis-generalization-plan.json",
+  "case_id": "v5-memory-evidence-replay",
+  "status": "FAILED",
+  "error_code": "INVALID_RESPONSE",
+  "calls_attempted": 1,
+  "later_cases_attempted": 0,
+  "audit_limitation": "The initial runner aborted before persisting its in-memory provider event; no usage or response hash is recoverable. This attempt is retained and is not overwritten."
+}

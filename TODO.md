@@ -42,7 +42,7 @@ Checkboxes are completion claims. Check an item only when its acceptance criteri
 - [x] C3 验收：工作进程重启可续跑，重复投递不重复产生效果，取消与失败路由正确。
 - [ ] C4：只对门禁 PASS 的候选生成真实修复提案，经策略生成持久化审批请求。
 - [x] C4 验收：提案变更使旧审批失效；拒绝、过期、越权和重复请求均按既有规则处理。
-- [ ] C5：冻结独立测试集和评分规则，覆盖六类故障变体、正常、证据不足、反证及注入。
+- [x] C5：冻结独立测试集和评分规则，覆盖六类故障变体、正常、证据不足、反证及注入。注入采用预先声明的独立测试。
 - [x] C5 验收：标签与 Ground Truth 隔离，评分规则不根据测试答案事后修改。见真实评测报告的冻结与隔离复核。
 - [ ] C6：运行规则/单次模型/受控图/图加记忆对比，记录诊断正确率、移交、证据及失败原因。
 - [ ] C6：测量工具/模型调用、token、费用口径、排队/调查/续跑耗时、并发和资源分布。
@@ -491,7 +491,7 @@ This index is an omission check, not a second task list. The referenced phases c
   integration reads terminal phase, sequence, budgets and successful tool states from a fresh
   session; Evidence write refusal remains fail-closed. Both integration cases pass; no claim
   of mid-run effect reconstruction or complete worker composition.
-- [ ] C5: frozen holdout/counter-evidence/normal/insufficient-evidence datasets and predeclared scoring.
+- [x] C5: frozen holdout/counter-evidence/normal/insufficient-evidence datasets and predeclared scoring.
 - [ ] C6: complete automatic regression, load/resilience/failure distributions and consolidated results.
 - [x] C7: simulated-operator protocol and evaluation, explicitly separate from real human labor/approval.
   Diagnosis archive 20/93 read tasks. Real pending archive 1/1 binding and 0/1 action

@@ -512,7 +512,9 @@ class AutonomousServices:
         # Preserve whole records under an aggregate budget; never slice JSON mid-record.
         observations = []
         used = 0
-        for item in self.evidence.observations:
+        # Cross-service traces carry dependency operation and resource attribution.
+        # Admit these before bulky logs compete for the same context budget.
+        for item in sorted(self.evidence.observations, key=lambda item: item["source"] != "traces"):
             size = len(json.dumps(item).encode())
             if used + size > 24000:
                 continue

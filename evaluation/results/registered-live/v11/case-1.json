@@ -1,0 +1,62 @@
+{
+  "actual_bill": null,
+  "after_checkout": {
+    "duration_ms": 781,
+    "status": 200
+  },
+  "approval_decided": false,
+  "baseline": {
+    "duration_ms": 62,
+    "status": 200
+  },
+  "cleanup_exit": 0,
+  "evaluator_scenario": "http-500",
+  "gates": [],
+  "heap_scope": "workflow_owned_trace",
+  "incident_id": "registered-3439db783dd54767a5e3",
+  "instance_id": "registered-3439db783dd54767a5e3",
+  "probes": [
+    {
+      "duration_ms": 31,
+      "status": 502
+    },
+    {
+      "duration_ms": 31,
+      "status": 502
+    },
+    {
+      "duration_ms": 32,
+      "status": 502
+    },
+    {
+      "duration_ms": 15,
+      "status": 502
+    },
+    {
+      "duration_ms": 47,
+      "status": 502
+    },
+    {
+      "duration_ms": 31,
+      "status": 502
+    },
+    {
+      "duration_ms": 16,
+      "status": 502
+    },
+    {
+      "duration_ms": 63,
+      "status": 502
+    }
+  ],
+  "process_cpu_ms": 1343,
+  "provider_starts": 2,
+  "python_heap_current_bytes": 354797,
+  "python_heap_peak_bytes": 851624,
+  "queue_creation_to_claim_ms": 62,
+  "queue_ready_to_claim_ms": 62,
+  "recovery_executed": false,
+  "second_claim_count": 0,
+  "status": "HUMAN_HANDOFF",
+  "workflow_ms": 7438
+}

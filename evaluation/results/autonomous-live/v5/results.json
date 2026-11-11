@@ -1,0 +1,296 @@
+{
+  "schema_version": "autonomous-local-evaluation/1.0.0",
+  "code_revision": "5e8098ef5a337fbfef0f7d3db189ca60e4812882",
+  "smoke": false,
+  "results": [
+    {
+      "incident_id": "autonomous-77c1f50432c94e00-1",
+      "scenario": "http-500",
+      "product_recovery_executed": false,
+      "baseline": {
+        "status": 200,
+        "duration_ms": 62
+      },
+      "phase": "COMPLETE",
+      "graph_error": null,
+      "tool_calls": 4,
+      "model_calls": 2,
+      "diagnosis_ms": 5750,
+      "candidates": [
+        "order-service-500-fault"
+      ],
+      "gate": [
+        {
+          "candidate": "order-service-500-fault",
+          "outcome": "PASS",
+          "reasons": []
+        }
+      ],
+      "usage": [
+        {
+          "input": 1694,
+          "output": 329
+        },
+        {
+          "input": 6095,
+          "output": 286
+        }
+      ],
+      "evidence_count": 4,
+      "cleanup_exit": 0,
+      "after_checkout": {
+        "status": 200,
+        "duration_ms": 282
+      }
+    },
+    {
+      "incident_id": "autonomous-77c1f50432c94e00-2",
+      "scenario": "db-pool-exhaustion",
+      "product_recovery_executed": false,
+      "baseline": {
+        "status": 200,
+        "duration_ms": 62
+      },
+      "phase": "HUMAN_HANDOFF",
+      "graph_error": "EVIDENCE_GATE_NOT_PASSED",
+      "tool_calls": 8,
+      "model_calls": 4,
+      "diagnosis_ms": 13047,
+      "candidates": [
+        "order-postgres-pool-exhaustion"
+      ],
+      "gate": [
+        {
+          "candidate": "order-postgres-pool-exhaustion",
+          "outcome": "FAIL",
+          "reasons": [
+            "QUALITY_BELOW_FLOOR"
+          ]
+        }
+      ],
+      "usage": [
+        {
+          "input": 1702,
+          "output": 344
+        },
+        {
+          "input": 6474,
+          "output": 332
+        },
+        {
+          "input": 6343,
+          "output": 338
+        },
+        {
+          "input": 7444,
+          "output": 330
+        }
+      ],
+      "evidence_count": 8,
+      "cleanup_exit": 0,
+      "after_checkout": {
+        "status": 200,
+        "duration_ms": 282
+      }
+    },
+    {
+      "incident_id": "autonomous-77c1f50432c94e00-3",
+      "scenario": "redis-timeout",
+      "product_recovery_executed": false,
+      "baseline": {
+        "status": 200,
+        "duration_ms": 109
+      },
+      "phase": "COMPLETE",
+      "graph_error": null,
+      "tool_calls": 4,
+      "model_calls": 2,
+      "diagnosis_ms": 5781,
+      "candidates": [
+        "redis-inventory-timeout"
+      ],
+      "gate": [
+        {
+          "candidate": "redis-inventory-timeout",
+          "outcome": "PASS",
+          "reasons": []
+        }
+      ],
+      "usage": [
+        {
+          "input": 1702,
+          "output": 344
+        },
+        {
+          "input": 6542,
+          "output": 293
+        }
+      ],
+      "evidence_count": 4,
+      "cleanup_exit": 0,
+      "after_checkout": {
+        "status": 200,
+        "duration_ms": 140
+      }
+    },
+    {
+      "incident_id": "autonomous-77c1f50432c94e00-4",
+      "scenario": "downstream-latency",
+      "product_recovery_executed": false,
+      "baseline": {
+        "status": 200,
+        "duration_ms": 188
+      },
+      "phase": "HUMAN_HANDOFF",
+      "graph_error": "EVIDENCE_GATE_NOT_PASSED",
+      "tool_calls": 8,
+      "model_calls": 4,
+      "diagnosis_ms": 11953,
+      "candidates": [
+        "order-payment-readtimeout"
+      ],
+      "gate": [
+        {
+          "candidate": "order-payment-readtimeout",
+          "outcome": "FAIL",
+          "reasons": [
+            "QUALITY_BELOW_FLOOR",
+            "MISSING_EVIDENCE_DECLARED"
+          ]
+        }
+      ],
+      "usage": [
+        {
+          "input": 1702,
+          "output": 333
+        },
+        {
+          "input": 6647,
+          "output": 286
+        },
+        {
+          "input": 6338,
+          "output": 343
+        },
+        {
+          "input": 7680,
+          "output": 411
+        }
+      ],
+      "evidence_count": 8,
+      "cleanup_exit": 0,
+      "after_checkout": {
+        "status": 200,
+        "duration_ms": 62
+      }
+    },
+    {
+      "incident_id": "autonomous-77c1f50432c94e00-5",
+      "scenario": "memory-leak",
+      "product_recovery_executed": false,
+      "baseline": {
+        "status": 200,
+        "duration_ms": 63
+      },
+      "phase": "HUMAN_HANDOFF",
+      "graph_error": "EVIDENCE_GATE_NOT_PASSED",
+      "tool_calls": 8,
+      "model_calls": 4,
+      "diagnosis_ms": 12656,
+      "candidates": [
+        "order-v2-rollout-latency"
+      ],
+      "gate": [
+        {
+          "candidate": "order-v2-rollout-latency",
+          "outcome": "FAIL",
+          "reasons": [
+            "QUALITY_BELOW_FLOOR",
+            "UNRESOLVED_COUNTER_EVIDENCE",
+            "MISSING_EVIDENCE_DECLARED"
+          ]
+        }
+      ],
+      "usage": [
+        {
+          "input": 1694,
+          "output": 342
+        },
+        {
+          "input": 6530,
+          "output": 313
+        },
+        {
+          "input": 5859,
+          "output": 343
+        },
+        {
+          "input": 7546,
+          "output": 553
+        }
+      ],
+      "evidence_count": 8,
+      "cleanup_exit": 0,
+      "after_checkout": {
+        "status": 200,
+        "duration_ms": 359
+      }
+    },
+    {
+      "incident_id": "autonomous-77c1f50432c94e00-6",
+      "scenario": "bad-configuration",
+      "product_recovery_executed": false,
+      "baseline": {
+        "status": 200,
+        "duration_ms": 63
+      },
+      "phase": "HUMAN_HANDOFF",
+      "graph_error": "EVIDENCE_GATE_NOT_PASSED",
+      "tool_calls": 8,
+      "model_calls": 4,
+      "diagnosis_ms": 13016,
+      "candidates": [
+        "payment-503-cascade"
+      ],
+      "gate": [
+        {
+          "candidate": "payment-503-cascade",
+          "outcome": "FAIL",
+          "reasons": [
+            "QUALITY_BELOW_FLOOR",
+            "MISSING_EVIDENCE_DECLARED"
+          ]
+        }
+      ],
+      "usage": [
+        {
+          "input": 1694,
+          "output": 341
+        },
+        {
+          "input": 6359,
+          "output": 272
+        },
+        {
+          "input": 6033,
+          "output": 349
+        },
+        {
+          "input": 7429,
+          "output": 414
+        }
+      ],
+      "evidence_count": 8,
+      "cleanup_exit": 0,
+      "after_checkout": {
+        "status": 200,
+        "duration_ms": 78
+      }
+    }
+  ],
+  "limitations": [
+    "Local evaluation composition; PostgreSQL/prompt promotion pending C3",
+    "No approvals or product writes; cleanup is evaluator infrastructure",
+    "No memory alert is fabricated if measured gateway requests remain healthy"
+  ]
+}

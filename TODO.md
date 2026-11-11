@@ -456,6 +456,7 @@ This index is an omission check, not a second task list. The referenced phases c
   Redis cases produced the same generic transport candidate; discrimination remains open.
   Both gateway trace summaries contained distinct dependency operation names; diagnosis did not distinguish them.
   Budget reconstruction shows these traces were omitted. Prioritize traces under the existing cap and rerun.
+  Trace-first rerun distinguished pool and Redis candidates. Two Gates passed, four handed off.
   Independent v2 capture audit: 414/420 reads reported records, six trace reads were empty,
   and 0/420 marked a complete window. Fault discrimination remains open.
   The summary cap truncated 68/84 trace reads and 27/84 log reads. Next verify whether

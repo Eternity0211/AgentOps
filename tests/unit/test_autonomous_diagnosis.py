@@ -326,6 +326,26 @@ def test_tempo_short_trace_ids_are_padded_with_bounded_paths(trace_id: str) -> N
     assert len(json.loads(result["provenance"])["requests"]) == 2
 
 
+def test_tempo_truncation_retains_late_error_span() -> None:
+    spans = [{"name": "routine", "attributes": ["x" * 1000]}] * 14
+    spans += [{"name": "failure", "status": {"code": "STATUS_CODE_ERROR"}}]
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/search":
+            return httpx.Response(200, json={"traces": [{"traceID": "a"}]})
+        return httpx.Response(200, json={"batches": [{"scopeSpans": [{"spans": spans}]}]})
+
+    now = datetime.now(UTC)
+    adapter = LocalReadAdapter(
+        "query_traces", now - timedelta(minutes=1), now, transport=httpx.MockTransport(respond)
+    )
+    result = asyncio.run(adapter.invoke(None, {"service": "gateway"}))  # type: ignore[arg-type]
+    retained = json.loads(result["summary"])
+    assert retained[0]["name"] == "failure"
+    assert len(result["summary"]) <= 12000
+    assert json.loads(result["provenance"])["dropped_records"] == len(spans) - len(retained)
+
+
 @pytest.mark.parametrize("trace_id", [None, 1, "", "0", "0" * 32, "a" * 33, "../x", "a?x", "g"])
 def test_tempo_invalid_trace_ids_never_dispatch_detail(trace_id: Any) -> None:
     paths: list[str] = []

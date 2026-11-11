@@ -5,7 +5,6 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-
 from evaluation.run_diagnosis_generalization import (
     _archive_observations,
     _synthetic_observations,

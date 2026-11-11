@@ -165,7 +165,12 @@ def run(
                                 f"workflow-{identifier}",
                                 f"corr-{identifier}",
                                 f"cause-{identifier}",
-                                "Gateway checkout observations: " + json.dumps(probes),
+                                "Gateway checkout observations: "
+                                + json.dumps(probes)
+                                + " If errors or latency suggest an affected service, consider its "
+                                "read-only deployment history and independent current-version "
+                                "telemetry. A deployment observation alone does not establish "
+                                "cause.",
                                 start,
                                 end,
                                 output / "cases" / identifier / "evidence",

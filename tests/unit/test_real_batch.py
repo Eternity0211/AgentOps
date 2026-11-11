@@ -42,3 +42,14 @@ def test_batch_without_key_makes_no_output(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="API_KEY"):
         run_batch(DATASET, output, PROTOCOL, key="")
     assert not output.exists()
+
+
+def test_simulated_memory_mode_requires_frozen_bank(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="frozen simulated bank"):
+        run_batch(
+            DATASET,
+            tmp_path / "run",
+            PROTOCOL,
+            key="test-only",
+            modes=("controlled-graph-simulated-memory",),
+        )

@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "diagnosis-quality-retest-v1",
+  "status": "FROZEN_BEFORE_PROVIDER_CALLS",
+  "implementation_commit": "f6c4acb5b1bd4b45e15e0e8fa3448f3e78b406cf",
+  "dataset": "evaluation/datasets/real-v2",
+  "dataset_index_sha256": "c6836c7e11da8736823c9f306389738a5311938c2aca36f697f30943f9358406",
+  "base_scoring_plan": "evaluation/real_protocol/v1/plan.json",
+  "base_scoring_plan_sha256": "0ffed77c73098898276fb48738ddb33dbd2339c39a267e4ffe3ce08036a3fc26",
+  "modes": [
+    "single-agent",
+    "controlled-graph",
+    "controlled-graph-simulated-memory"
+  ],
+  "simulated_history_bank": "evaluation/simulated_history/v1/bank.json",
+  "simulated_history_bank_sha256": "17c5f635d67af493197b6184b955417d163dd2bcb0c800255b8aada2642b5c70",
+  "provider": {
+    "name": "deepseek",
+    "model": "deepseek-flash",
+    "temperature": 0,
+    "thinking": "disabled",
+    "max_output_tokens": 2048,
+    "transport_version": "real-structured-evaluation/1.4.0"
+  },
+  "comparison": "Before is the immutable v2 run scored under the same base plan. After uses the same 27 input hashes and provider settings; prompt/context code is the intended treatment.",
+  "runtime_isolation": "The runner receives only the dataset, public taxonomy, frozen protocol, and optional simulated-history bank. Evaluator labels remain evaluator_only.",
+  "failure_rule": "Retain every failed provider/tool/workflow result. Never retry an uncertain prior provider effect.",
+  "reporting": [
+    "top1_top3",
+    "safe_controls",
+    "failures",
+    "evidence_references",
+    "gate_outcomes",
+    "provider_calls",
+    "token_usage",
+    "duration"
+  ],
+  "limitations": [
+    "Simulated history is not real confirmed history and is reported separately.",
+    "Actual provider billing, human approval time, labor time, and production incidents are not measured.",
+    "A separate newly frozen sample is required for generalization; this same-snapshot run measures regression only."
+  ]
+}

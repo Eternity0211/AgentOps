@@ -954,6 +954,12 @@ This index is an omission check, not a second task list. The referenced phases c
   sustained increase, deployment-only and all-source-unavailable cases. Same-snapshot provider
   comparison and independently frozen generalization samples remain a separate measured batch.
 
+- [x] C6-quality-retest-freeze: freeze the same-snapshot v2 before/after protocol before any
+  transport 1.4.0 provider call. Bind all 27 inputs, unchanged provider settings/base scoring,
+  implementation commit and the separately identified simulated-history bank. Extend the bounded
+  resumable runner to execute all three declared modes without loading evaluator labels. Measured
+  outcomes and new-sample generalization remain open until their respective runs complete.
+
 ## Explicit non-goal guardrails for the core version
 
 These are scope constraints, not open checklist work:

@@ -4,6 +4,188 @@ Checkboxes are completion claims. Check an item only when its acceptance criteri
 
 > Implementation status: **core complete**. Phase 0 through Phase 13 exit checks pass; optional post-core enhancements remain open below.
 
+## Final closure and comparative validation plan (authoritative, 2026-11-12)
+
+This section is the single authoritative remaining-work list. Older unchecked R/C summary items
+remain below as historical planning records until FC0 maps each one here. A task is complete only
+when its immutable inputs, raw outputs, scorer, arithmetic checks, limitations, commit, and push
+are present. An optional architecture idea may close as `NOT_REQUIRED` only after its declared
+measurement shows no need; closing it does not mean implementing it.
+
+### Comparison and claim rules for every measurement
+
+- [ ] FC0 Freeze the closure protocol and reconcile the old TODO.
+  - Map every one of the 16 older unchecked boxes to an FC item, `NOT_REQUIRED`, or an explicit
+    external prerequisite; remove contradictory “currently doing” prose and retain Git history.
+  - Freeze evaluator-only labels, scenario split, model/settings, prompts, tool schemas, context/
+    token/call/retry/time/cost budgets, scoring rules, seeds, environment, and code hashes before
+    any candidate run. The evaluated runtime must never load labels or Ground Truth.
+  - Publish a machine-readable experiment registry with owner, status, prerequisite, baseline,
+    candidate, independent variable, metrics, minimum sample-size decision, and artifact paths.
+  - Verification: planning-doc validator, registry schema tests, duplicate/open-item audit, Ruff,
+    mypy, credential/content scan, atomic commit and push.
+
+- [ ] FC1 Implement one common paired-comparison scorer; no narrative-only improvement claims.
+  - Every report must show baseline value, candidate value, absolute delta, relative delta where
+    the baseline is nonzero, denominator, failures, 95% interval, and paired test result.
+  - Accuracy/safety pairs use paired bootstrap intervals and McNemar counts; latency/labor/cost
+    use paired median and P95 deltas with bootstrap intervals. Correct for declared multiple
+    comparisons and retain raw pairs so every number is reproducible.
+  - Pre-run power analysis uses a declared minimum relevant effect; it decides the confirmatory
+    sample size. Pilot data may size the study but may not also be the confirmatory result.
+  - A method may be called “improved” only when the interval excludes zero in the beneficial
+    direction, critical safety has no regression, and the predeclared cost/latency ceiling passes.
+    Otherwise report `NO_PROVEN_IMPROVEMENT`, even if the point estimate is positive.
+  - Critical safety is a hard gate: zero fabricated Evidence references, zero unapproved writes,
+    zero duplicate writes, zero Ground-Truth leakage, and zero recovery-success declarations by
+    an LLM. Failed/aborted runs remain in the denominator.
+
+### Fix the currently observed defects, then measure before versus after
+
+- [ ] FC2 Eliminate structured-output failures without weakening schemas or the Evidence Gate.
+  - Cover explanation/string overflow, extra fields such as `steps_note`, Incident mismatch,
+    incomplete JSON, unknown Evidence IDs, timeout, and provider refusal.
+  - Add explicit per-field character budgets to the versioned prompt/schema contract and at most
+    one bounded schema-repair call that receives only validation errors plus the original typed
+    request binding. Never truncate Evidence IDs, silently coerce a diagnosis, or retry a write.
+  - Unit/property/transport tests prove strict refusal, call budget, audit persistence and that an
+    invalid response cannot reach remediation, Policy, Approval or Executor.
+  - Paired experiment: current transport 1.4.0 versus the candidate transport on the identical
+    frozen 81 outcomes, interleaved in the same run window with equal settings/budgets.
+  - Starting reference: current schema/workflow failures are 1/27 single, 3/27 graph and 2/27
+    graph+simulated-history. Report new counts and deltas; acceptance is zero schema/protocol
+    invalids on the frozen set with no reduction in safe-control or Evidence-integrity rates.
+
+- [ ] FC3 Make memory-leak evidence discriminative before asking the model to classify it.
+  - Capture a longer bounded series including retained bytes before/after GC, allocation and
+    release counts, slope, configured limit, service ownership, alert-aligned latency/errors,
+    deployment version and a normal warm-up control. Compact facts must retain resolvable Evidence
+    IDs and explicit admitted/excluded-byte audit.
+  - Freeze unseen normal warm-up, short rise, sustained leak, deployment-only and counter-evidence
+    variants before provider exposure. Do not label “three rising points” alone as a leak.
+  - Unit/integration tests cover ordering, deduplication, clock skew, missing GC samples, budget
+    exclusion, contradictory observations and cross-Incident reference refusal.
+  - Paired experiment: current context builder versus candidate context builder with the same
+    model, prompt, observations and budgets. Starting reference: memory-leak Top-1 is 0/3 in all
+    three 81-run modes and 0/2 in the generalization replay. Publish both new values and deltas.
+
+- [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
+  - Use parameterized variants of all six fault families plus normal, insufficient-evidence,
+    counter-evidence and prompt-injection controls. Prevent exact IDs/payloads from appearing in
+    development, historical-reference or prompt-tuning data.
+  - Run the four required groups on identical observations: deterministic rules, single model,
+    controlled graph, and controlled graph plus confirmed historical memory. Model groups use the
+    same provider/settings and aggregate budgets; only the declared independent variable changes.
+  - Interleave paired groups to reduce provider-time drift. Repeat only according to the frozen
+    schedule; never selectively rerun failures. Score Top-1/Top-3, safe controls, unsupported
+    conclusions, fabricated references, valid-report rate, Gate precision/recall, calls, tokens,
+    latency and cost.
+  - Starting reference for the latest comparable model runs: Top-1/Top-3 11/18 in each model
+    mode; safe controls 9/9, 8/9 and 9/9. The new report must show pairwise deltas and intervals.
+  - Acceptance: FC1 determines whether any quality improvement is proven. No fixed positive claim
+    is assumed in advance; a null or negative result is a valid completed measurement.
+
+### Measure the currently missing real-world outcomes with explicit controls
+
+- [ ] FC5 Build a valid confirmed-history cohort and measure real incident-memory effect.
+  - External prerequisite: tenant-authorized, redacted, confirmed closed incidents with immutable
+    root cause, resolution and outcome records. Synthetic history remains a separate exploratory
+    group and cannot satisfy this item.
+  - Partition history before the held-out incidents by closure time; block same-incident, future,
+    label and tenant leakage. Power the sample size before the confirmatory run.
+  - Control: identical controlled graph with retrieval disabled. Treatment: retrieval enabled;
+    all other inputs/settings/budgets are equal. Report retrieval coverage and precision plus
+    Top-1/Top-3, controls, failures, latency, tokens and cost with paired deltas.
+  - If authorized history cannot be supplied, status remains `BLOCKED_EXTERNAL_DATA`, not done and
+    not zero benefit. Record exactly what dataset/consent/retention decision is missing.
+
+- [ ] FC6 Run a randomized, counterbalanced human incident-response study.
+  - External prerequisite: authorized operators, consent, scheduling and a lab-only incident
+    environment. Conduct a pilot only for usability and power analysis; use separate incidents or
+    operators for the confirmatory study as defined by the statistician-reviewed protocol.
+  - Control: existing dashboards/runbooks without AgentOps suggestions. Treatment: the same tools
+    plus AgentOps diagnosis/evidence/proposal; the deterministic Policy/Approval/Executor/Verifier
+    chain remains identical and every write still requires the human decision.
+  - Randomize and counterbalance order; stratify by operator experience and scenario; blind the
+    evaluator to group. Record active labor separately from wall time and idle/wait time.
+  - Measure time to correct diagnosis, active labor minutes, approval decision time, total MTTR,
+    correct-action rate, unsafe-action attempts, handoffs, workload/usability and recurrence in a
+    predeclared observation window. Report baseline, treatment, absolute/relative deltas and 95%
+    intervals. Simulated operators cannot complete this item.
+
+- [ ] FC7 Measure an actually approved recovery chain against a manual-recovery control.
+  - Use only lab faults declared automation-eligible and supported by introducing-deployment plus
+    stable-predecessor Evidence. An authorized human approves/rejects; no agent self-approval.
+  - Control: operator follows the current rollback runbook through the same deterministic verifier.
+    Treatment: AgentOps proposal followed by Policy, human approval, idempotent executor and the
+    same verifier. Randomize paired scenarios and freeze the stability/recurrence windows.
+  - Report proposal correctness, approval/rejection/expiry/mutation rates, execution success,
+    duplicate/unapproved execution, verifier pass, safe handoff, time to stable recovery, MTTR,
+    active labor and recurrence. Evaluator cleanup earns no recovery credit.
+  - Critical acceptance remains zero unapproved/duplicate execution and zero false closure. The
+    performance result may still be null or worse and must be reported as measured.
+
+- [ ] FC8 Reconcile actual provider and infrastructure cost for every comparison group.
+  - External prerequisite: invoice/export access for the exact run window and provider account,
+    plus a declared allocation rule for shared infrastructure. Never treat the rate-card reserve
+    or missing billing as actual cost or zero.
+  - Bind request hashes and token usage to invoice line items; report matched/unmatched amounts,
+    model cost, infrastructure cost and human labor cost separately.
+  - Compare cost per attempted incident, valid diagnosis, correct diagnosis and safely recovered
+    incident for baseline and treatment; show absolute/relative deltas and uncertainty.
+
+### Reliability, capacity, security and architecture decisions
+
+- [ ] FC9 Run paired durability and failure-injection measurements on the complete real workflow.
+  - Control: no interruption. Treatments: process kill before dispatch, after dispatch with unknown
+    result, after persisted model/tool result, partial parallel reads, checkpoint replacement,
+    stale lease, timeout and duplicate delivery. Use the same cases and bounded retry policy.
+  - Compare completion, duplicate effects, lost Evidence, takeover/resume latency, total latency,
+    calls/tokens/cost and terminal route. Acceptance: zero duplicate external effects and zero
+    ambiguous-result redispatch; publish latency/cost overhead rather than only pass/fail tests.
+
+- [ ] FC10 Measure capacity and decide scaling/broker needs from data.
+  - Run the same frozen workload at declared 1/2/4/8 worker and incident concurrency levels with
+    PostgreSQL queue only; repeat on a clean environment and retain CPU, process heap, database,
+    queue wait, workflow latency, throughput, error and lease-contention distributions.
+  - Compare current single-worker baseline with horizontal workers and report deltas/intervals.
+    Add Kafka/NATS only if a predeclared PostgreSQL bottleneck threshold is exceeded and a new ADR
+    shows the alternative fixes it without weakening ordering, replay or audit semantics.
+
+- [ ] FC11 Expand adversarial and chaos comparisons without changing authority boundaries.
+  - Compare current versus candidate on prompt injection, secret leakage, Evidence forgery,
+    cross-tenant references, SSRF/target injection, stale/concurrent approval, replay, provider
+    timeout, telemetry loss, partial network failure and unavailable dependencies.
+  - Report attack-block rate, safe-handoff rate, false block rate, recovery-route correctness and
+    latency/cost overhead. Critical failures remain zero-tolerance.
+
+- [ ] FC12 Resolve every optional post-core architecture item with evidence.
+  - Read-only MCP: implement only behind existing Tool Gateway contracts if a concrete integration
+    comparison demonstrates value; otherwise record `NOT_REQUIRED`.
+  - Additional write tool and generic compensation: remain `NOT_REQUIRED` until a typed reversible
+    action, independent Policy/Approval and verified inverse exist; do not build speculatively.
+  - Evaluate hash chaining/external anchoring against the threat model and record measured overhead
+    and tamper-detection delta before selecting it.
+  - Evaluate alternative Artifact stores and enterprise identity only with named deployment
+    requirements and contract tests; otherwise close as `NOT_REQUIRED` for the current version.
+  - A2A remains `NOT_REQUIRED` unless independently deployed, separately owned decision-agent
+    services create a real protocol boundary. Do not add it merely to clear a checkbox.
+
+### Final consolidation and release gate
+
+- [ ] FC13 Publish one versioned final report and close the legacy TODO.
+  - Generate, do not hand-edit, a report covering objectives, protocol, groups, frozen hashes,
+    baseline/candidate values, absolute/relative deltas, intervals, failures, denominators, safety,
+    diagnosis, recovery, durability, capacity, cost, human outcomes, limitations and reproduction.
+  - Include a metric-coverage matrix with `MEASURED`, `FAILED`, `NO_PROVEN_IMPROVEMENT`,
+    `NOT_REQUIRED` or `BLOCKED_EXTERNAL_DATA`; never silently omit a requested metric.
+  - Recompute every table from immutable raw artifacts; verify all Evidence/Artifact references,
+    request/usage/billing links and file hashes. Run Ruff, mypy, architecture/planning checks,
+    full Python regression/coverage, publication tests and credential/personal-data review.
+  - Reconcile all legacy unchecked boxes to FC outcomes, commit atomically and push. Release claims
+    may state the measured amount of improvement only for comparisons that pass FC1; all others
+    must state the observed delta and that improvement was not proven.
+
 ## 当前主任务总览（2026-11-05 更新）
 
 目标：补齐真实模型驱动的调查、证据门禁、修复建议、策略与审批等待链路，

@@ -109,8 +109,17 @@ measurement shows no need; closing it does not mean implementing it.
       - [x] Harden the runner to accept only the historical exact two-source binding or the new
         exact three-source binding that adds `autonomous_diagnosis.py`; partial and unknown source
         sets fail before provider work, while already frozen FC2c/FC2d plans remain reproducible.
-    - [ ] FC2e-c execute, audit and publish all 162 outcomes without selective reruns; report the
+    - [x] FC2e-c execute, audit and publish all 162 outcomes without selective reruns; report the
       paired failure, safety, Evidence-integrity, quality, latency, token and rate-card deltas.
+      The new follow-through gate passed (3→0 failed outcomes after successful repair), with 37
+      audited candidate handoffs before incomplete replan. Overall acceptance failed because one
+      candidate DIAGNOSE response and its repair hit the same candidate-level semantic validator;
+      valid outcomes were 77→80, but FC1 reports `NO_PROVEN_IMPROVEMENT` and FC2 stays open.
+  - [ ] FC2f eliminate the remaining candidate-level semantic repair failure without weakening the
+    schema, hiding a failure, or changing the four-call budget. Encode the candidate invariants as
+    machine-readable generation constraints, freeze 1.7/1.8 before calls, and repeat the same
+    81-pair census. Acceptance retains every FC2e gate, including zero terminal invalids and zero
+    failed outcomes after successful repair.
 
 - [ ] FC3 Make memory-leak evidence discriminative before asking the model to classify it.
   - Capture a longer bounded series including retained bytes before/after GC, allocation and

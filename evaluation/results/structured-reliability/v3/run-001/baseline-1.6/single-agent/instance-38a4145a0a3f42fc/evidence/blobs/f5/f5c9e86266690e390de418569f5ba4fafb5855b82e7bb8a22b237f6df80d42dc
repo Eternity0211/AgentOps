@@ -1,0 +1,1 @@
+{"provenance":"{\"attempts\":1,\"call_id\":\"call-82d42090846efb0a-r0-deployments-inventory\",\"error_code\":\"SNAPSHOT_SOURCE_UNAVAILABLE\",\"records_seen\":0,\"source_available\":false,\"tool\":\"query_deployments\",\"version\":\"2.0.0\"}","summary":"{\"error_code\": \"SNAPSHOT_SOURCE_UNAVAILABLE\", \"status\": \"UNAVAILABLE\"}"}

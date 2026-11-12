@@ -1,0 +1,28 @@
+{
+  "acceptance": {
+    "candidate": "candidate-1.7",
+    "maximum_failed_outcomes_after_successful_repair": 0,
+    "passed": true
+  },
+  "authority": "SUPPLEMENTARY_POST_RUN_AUDIT_ONLY",
+  "profile_outcomes": {
+    "baseline-1.6": 81,
+    "candidate-1.7": 81
+  },
+  "profiles": {
+    "baseline-1.6": {
+      "budget_allow_decisions": 0,
+      "budget_handoff_decisions": 0,
+      "failed_after_successful_repair": 3,
+      "successful_repair_outcomes": 4
+    },
+    "candidate-1.7": {
+      "budget_allow_decisions": 0,
+      "budget_handoff_decisions": 37,
+      "failed_after_successful_repair": 0,
+      "successful_repair_outcomes": 0
+    }
+  },
+  "protocol_sha256": "b70f538e202cc2060e0357acca0b45a68992a9acb458760cd8f4cc245e785fb1",
+  "schema_version": "structured-transport-followthrough-audit/1.0.0"
+}

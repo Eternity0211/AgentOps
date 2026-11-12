@@ -12,7 +12,7 @@ import httpx
 import pytest
 from evaluation.autonomous_diagnosis import build_diagnosis_context, investigate
 from evaluation.live_gateway import SOURCES, LocalReadAdapter, local_definitions
-from evaluation.structured_model import StructuredEvaluationModel
+from evaluation.structured_model import StructuredEvaluationModel, StructuredTransportProfile
 from langgraph.checkpoint.memory import InMemorySaver
 
 
@@ -222,9 +222,12 @@ def test_diagnosis_context_records_unavailable_reads_without_evidence_ids() -> N
     ]
 
 
-@pytest.mark.parametrize("replan,single_pass", [(False, False), (True, False), (False, True)])
+@pytest.mark.parametrize(
+    "replan,single_pass,budget_guard",
+    [(False, False, False), (True, False, False), (False, True, False), (True, False, True)],
+)
 def test_autonomous_plan_gateway_evidence_and_gate(
-    tmp_path: Path, replan: bool, single_pass: bool
+    tmp_path: Path, replan: bool, single_pass: bool, budget_guard: bool
 ) -> None:
     events: list[dict[str, Any]] = []
     dispatched = []
@@ -312,7 +315,14 @@ def test_autonomous_plan_gateway_evidence_and_gate(
 
     now = datetime.now(UTC)
     model = StructuredEvaluationModel(
-        "test-only", events.append, transport=httpx.MockTransport(respond)
+        "test-only",
+        events.append,
+        transport=httpx.MockTransport(respond),
+        profile=(
+            StructuredTransportProfile.CANDIDATE_1_7
+            if budget_guard
+            else StructuredTransportProfile.CANDIDATE_1_6
+        ),
     )
     adapters = {definition.identity: Adapter(definition.name) for definition in local_definitions()}
     saver = InMemorySaver()
@@ -330,12 +340,20 @@ def test_autonomous_plan_gateway_evidence_and_gate(
             single_pass=single_pass,
         )
     )
-    assert state.phase.value == "COMPLETE"
-    assert len(dispatched) == (3 if replan else 2)
-    assert state.budgets.used_tool_calls == (3 if replan else 2)
-    assert state.budgets.used_model_calls == (4 if replan else 2)
-    assert state.budgets.used_replans == (1 if replan else 0)
-    assert services.gates[0].outcome.value == "PASS"
+    assert state.phase.value == ("HUMAN_HANDOFF" if budget_guard else "COMPLETE")
+    expected_tools = 2 if budget_guard else 3 if replan else 2
+    expected_model_calls = 2 if budget_guard else 4 if replan else 2
+    assert len(dispatched) == expected_tools
+    assert state.budgets.used_tool_calls == expected_tools
+    assert state.budgets.used_model_calls == expected_model_calls
+    assert state.budgets.used_replans == (1 if replan and not budget_guard else 0)
+    assert services.gates[0].outcome.value == ("FAIL" if budget_guard else "PASS")
+    if budget_guard:
+        assert any(
+            event.get("kind") == "model-budget-decision"
+            and event["decision"] == "HUMAN_HANDOFF"
+            for event in events
+        )
     assert len([event for event in events if event.get("kind") == "tool-audit"]) >= 4
     assert services.evidence is not None
     if single_pass:
@@ -497,7 +515,7 @@ def test_tempo_short_trace_ids_are_padded_with_bounded_paths(trace_id: str) -> N
 
 
 def test_tempo_truncation_retains_late_error_span() -> None:
-    spans = [{"name": "routine", "attributes": ["x" * 1000]}] * 14
+    spans: list[dict[str, Any]] = [{"name": "routine", "attributes": ["x" * 1000]}] * 14
     spans += [{"name": "failure", "status": {"code": "STATUS_CODE_ERROR"}}]
 
     def respond(request: httpx.Request) -> httpx.Response:

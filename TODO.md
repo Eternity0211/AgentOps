@@ -99,6 +99,15 @@ measurement shows no need; closing it does not mean implementing it.
     human handoff. Do not increase calls, skip validation, or convert invalid output. Freeze and run
     1.6 versus the new candidate on the same 81 pairs. Acceptance adds zero failed outcomes after a
     successful repair to the existing zero terminal-invalid, safe-control and Evidence-integrity gates.
+    - [x] FC2e-a candidate 1.7 adds an audited deterministic budget decision before REPLAN. It
+      reserves four remaining calls for worst-case replan repair plus diagnosis repair; when the
+      reservation cannot be met, it retains the validated report and routes to human handoff.
+      Profiles through 1.6 remain byte-compatible, the four-call ceiling is unchanged, and focused
+      workflow/transport tests, Ruff and strict mypy pass.
+    - [ ] FC2e-b freeze the 1.6/1.7 interleaved plan before provider calls, binding the workflow
+      source that owns the new route as well as all prior data, runner, transport and scorer inputs.
+    - [ ] FC2e-c execute, audit and publish all 162 outcomes without selective reruns; report the
+      paired failure, safety, Evidence-integrity, quality, latency, token and rate-card deltas.
 
 - [ ] FC3 Make memory-leak evidence discriminative before asking the model to classify it.
   - Capture a longer bounded series including retained bytes before/after GC, allocation and

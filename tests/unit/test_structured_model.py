@@ -249,6 +249,39 @@ def test_candidate_1_6_adds_machine_readable_generation_constraints() -> None:
     assert "output_constraints" not in json.loads(frozen["messages"][1]["content"])
 
 
+def test_candidate_1_7_reserves_complete_replan_transition() -> None:
+    events: list[dict[str, Any]] = []
+    model = StructuredEvaluationModel(
+        "test-only",
+        events.append,
+        max_calls=4,
+        profile=StructuredTransportProfile.CANDIDATE_1_7,
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json=body(report()))
+        ),
+    )
+    context = {"incident_id": "incident-1", "evidence_ids": ["e1"]}
+    model.invoke(ModelPurpose.DIAGNOSE, context)
+    model.invoke(ModelPurpose.DIAGNOSE, context)
+
+    assert not model.allows_complete_replan()
+    assert events[-1] == {
+        "kind": "model-budget-decision",
+        "transition": "REPLAN_AND_DIAGNOSE",
+        "required_calls": 4,
+        "remaining_calls": 2,
+        "decision": "HUMAN_HANDOFF",
+        "version": "real-structured-evaluation/1.7.0",
+    }
+
+    baseline = StructuredEvaluationModel(
+        "test-only",
+        lambda event: None,
+        profile=StructuredTransportProfile.CANDIDATE_1_6,
+    )
+    assert baseline.allows_complete_replan()
+
+
 @pytest.mark.parametrize(
     "case,expected",
     [

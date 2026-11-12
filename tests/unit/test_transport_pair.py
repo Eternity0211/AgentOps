@@ -181,7 +181,7 @@ def test_candidate_1_6_pair_plan_is_frozen_before_calls() -> None:
         "baseline-1.5": StructuredTransportProfile.CANDIDATE_1_5.value,
         "candidate-1.6": StructuredTransportProfile.CANDIDATE_1_6.value,
     }
-    bindings = {
+    immutable_data = {
         plan["dataset"] + "/index.json": plan["dataset_index_sha256"],
         plan["evaluator_labels"]: plan["evaluator_labels_sha256"],
         plan["base_scoring_plan"]: plan["base_scoring_plan_sha256"],
@@ -190,9 +190,23 @@ def test_candidate_1_6_pair_plan_is_frozen_before_calls() -> None:
         plan["paired_scorer"]["orchestrator_source"]: plan["paired_scorer"][
             "orchestrator_source_sha256"
         ],
-        **plan["source_hashes"],
     }
     assert all(
         hashlib.sha256(Path(name).read_bytes()).hexdigest() == digest
-        for name, digest in bindings.items()
+        for name, digest in immutable_data.items()
+    )
+    assert all(
+        hashlib.sha256(
+            subprocess.check_output(
+                [
+                    "git",
+                    "-c",
+                    "safe.directory=D:/AgentOps",
+                    "show",
+                    f"{plan['implementation_commit']}:{name}",
+                ]
+            )
+        ).hexdigest()
+        == digest
+        for name, digest in plan["source_hashes"].items()
     )

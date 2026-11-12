@@ -819,15 +819,21 @@ class AutonomousServices:
                 evaluate_evidence_gate(claim, resolution, rules=EvidenceGateRules(), at=now)
             )
         passed = any(item.outcome is EvidenceGateOutcome.PASS for item in self.gates)
+        can_replan = (
+            not passed
+            and bool(self.report.candidates)
+            and state.budgets.used_replans < state.budgets.max_replans
+            and state.budgets.used_tool_calls < state.budgets.max_tool_calls
+        )
+        if can_replan:
+            can_replan = self.model.allows_complete_replan()
         return GateNodeResult(
             fingerprint([str(item) for item in self.gates]),
             GateRoute.PASS
             if passed
             else (
                 GateRoute.REPLAN
-                if bool(self.report.candidates)
-                and state.budgets.used_replans < state.budgets.max_replans
-                and state.budgets.used_tool_calls < state.budgets.max_tool_calls
+                if can_replan
                 else GateRoute.HUMAN_HANDOFF
             ),
             None if passed else "EVIDENCE_GATE_NOT_PASSED",

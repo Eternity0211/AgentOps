@@ -34,9 +34,10 @@ from agentops_incident_commander.workflows import (
     RemediationProposal,
 )
 
-VERSION = "real-structured-evaluation/1.6.0"
+VERSION = "real-structured-evaluation/1.7.0"
 BASELINE_VERSION = "real-structured-evaluation/1.4.0"
 CANDIDATE_1_5_VERSION = "real-structured-evaluation/1.5.0"
+CANDIDATE_1_6_VERSION = "real-structured-evaluation/1.6.0"
 
 
 class ModelPurpose(StrEnum):
@@ -48,7 +49,8 @@ class ModelPurpose(StrEnum):
 class StructuredTransportProfile(StrEnum):
     BASELINE_1_4 = BASELINE_VERSION
     CANDIDATE_1_5 = CANDIDATE_1_5_VERSION
-    CANDIDATE_1_6 = VERSION
+    CANDIDATE_1_6 = CANDIDATE_1_6_VERSION
+    CANDIDATE_1_7 = VERSION
 
 
 class ToolProposal(BaseModel):
@@ -218,6 +220,25 @@ class StructuredEvaluationModel:
         self._calls = 0
         self._profile = profile
 
+    def allows_complete_replan(self) -> bool:
+        """Reserve replan and diagnosis calls, including one repair for each."""
+        if self._profile is not StructuredTransportProfile.CANDIDATE_1_7:
+            return True
+        required_calls = 4
+        remaining_calls = self._max_calls - self._calls
+        allowed = remaining_calls >= required_calls
+        self._journal(
+            {
+                "kind": "model-budget-decision",
+                "transition": "REPLAN_AND_DIAGNOSE",
+                "required_calls": required_calls,
+                "remaining_calls": remaining_calls,
+                "decision": "ALLOW" if allowed else "HUMAN_HANDOFF",
+                "version": self._profile.value,
+            }
+        )
+        return allowed
+
     @staticmethod
     def request_payload(
         purpose: ModelPurpose,
@@ -233,7 +254,10 @@ class StructuredEvaluationModel:
         )
         if profile is not StructuredTransportProfile.BASELINE_1_4:
             instruction += " " + FIELD_BUDGETS[purpose]
-        if profile is StructuredTransportProfile.CANDIDATE_1_6:
+        if profile in (
+            StructuredTransportProfile.CANDIDATE_1_6,
+            StructuredTransportProfile.CANDIDATE_1_7,
+        ):
             instruction += (
                 " Obey output_constraints as hard generation rules. Character caps count Unicode "
                 "characters, not words or tokens. Copy every required literal value exactly. "
@@ -248,7 +272,10 @@ class StructuredEvaluationModel:
             "context": context,
             "output_schema": SCHEMAS[purpose].model_json_schema(),
         }
-        if profile is StructuredTransportProfile.CANDIDATE_1_6:
+        if profile in (
+            StructuredTransportProfile.CANDIDATE_1_6,
+            StructuredTransportProfile.CANDIDATE_1_7,
+        ):
             user_content["output_constraints"] = _output_constraints(purpose, context)
         if repair is not None:
             user_content["repair"] = repair

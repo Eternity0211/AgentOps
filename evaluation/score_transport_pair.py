@@ -12,6 +12,7 @@ from typing import Any
 
 from pydantic import TypeAdapter
 
+from evaluation.audit_transport_followthrough import _case_audit
 from evaluation.outcome_ledger import OutcomeLedger
 from evaluation.paired_comparison import (
     ComparisonSuiteRequest,
@@ -335,10 +336,38 @@ def score_pair(plan_path: Path, results: Path, output: Path) -> dict[str, Any]:
     zero_candidate_terminal_invalids = (
         audit_summary[candidate_name]["terminal_schema_protocol_invalids"] == 0
     )
+    native_followthrough = plan["acceptance"].get("native_followthrough_scorer") is True
+    followthrough_summary: dict[str, dict[str, int]] | None = None
+    followthrough_passed = True
+    if native_followthrough:
+        followthrough_summary = {}
+        for name, rows in profiles.items():
+            case_rows = []
+            for item in rows:
+                events_path = results / name / item.mode / item.instance_id / "events.jsonl"
+                events = [
+                    json.loads(line)
+                    for line in events_path.read_text(encoding="utf-8").splitlines()
+                ]
+                case_rows.append(_case_audit(events, failed=item.status == "FAILED"))
+            followthrough_summary[name] = {
+                field: sum(row[field] for row in case_rows)
+                for field in case_rows[0]
+            }
+        maximum = plan["acceptance"].get(
+            "candidate_failed_outcomes_after_successful_repair"
+        )
+        if type(maximum) is not int or maximum < 0:
+            raise ValueError("invalid repair follow-through acceptance threshold")
+        followthrough_passed = (
+            followthrough_summary[candidate_name]["failed_after_successful_repair"]
+            <= maximum
+        )
     critical_safety = (
         safe_control_noninferiority
         and evidence_integrity
         and zero_candidate_terminal_invalids
+        and followthrough_passed
     )
     duration_values = metrics[3].pairs
     cost_values = metrics[6].pairs
@@ -361,25 +390,29 @@ def score_pair(plan_path: Path, results: Path, output: Path) -> dict[str, Any]:
         metrics=tuple(metrics),
     )
     paired_result = score_suite(request)
+    acceptance = {
+        "candidate_terminal_schema_protocol_invalids_zero": (
+            zero_candidate_terminal_invalids
+        ),
+        "safe_control_noninferiority_by_mode": safe_control_noninferiority,
+        "evidence_integrity": evidence_integrity,
+        "passed": (
+            zero_candidate_terminal_invalids
+            and safe_control_noninferiority
+            and evidence_integrity
+            and followthrough_passed
+        ),
+        "safe_controls_by_mode": safe_controls_by_mode,
+    }
+    if native_followthrough:
+        acceptance["repair_followthrough"] = followthrough_passed
     document = {
         "schema_version": "structured-transport-pair-score/1.0.0",
         "protocol_sha256": protocol_digest,
         "profile_outcomes": {name: len(rows) for name, rows in profiles.items()},
         "quality": quality,
         "audit": audit_summary,
-        "acceptance": {
-            "candidate_terminal_schema_protocol_invalids_zero": (
-                zero_candidate_terminal_invalids
-            ),
-            "safe_control_noninferiority_by_mode": safe_control_noninferiority,
-            "evidence_integrity": evidence_integrity,
-            "passed": (
-                zero_candidate_terminal_invalids
-                and safe_control_noninferiority
-                and evidence_integrity
-            ),
-            "safe_controls_by_mode": safe_controls_by_mode,
-        },
+        "acceptance": acceptance,
         "missing_resource_pairs": missing_resource_pairs,
         "paired_request": request.model_dump(mode="json"),
         "paired_result": paired_result.model_dump(mode="json"),
@@ -400,6 +433,8 @@ def score_pair(plan_path: Path, results: Path, output: Path) -> dict[str, Any]:
             for name, rows in profiles.items()
         },
     }
+    if followthrough_summary is not None:
+        document["repair_followthrough"] = followthrough_summary
     output.mkdir(parents=True, exist_ok=False)
     (output / "score.json").write_text(
         json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8"

@@ -34,10 +34,11 @@ from agentops_incident_commander.workflows import (
     RemediationProposal,
 )
 
-VERSION = "real-structured-evaluation/1.7.0"
+VERSION = "real-structured-evaluation/1.8.0"
 BASELINE_VERSION = "real-structured-evaluation/1.4.0"
 CANDIDATE_1_5_VERSION = "real-structured-evaluation/1.5.0"
 CANDIDATE_1_6_VERSION = "real-structured-evaluation/1.6.0"
+CANDIDATE_1_7_VERSION = "real-structured-evaluation/1.7.0"
 
 
 class ModelPurpose(StrEnum):
@@ -50,7 +51,8 @@ class StructuredTransportProfile(StrEnum):
     BASELINE_1_4 = BASELINE_VERSION
     CANDIDATE_1_5 = CANDIDATE_1_5_VERSION
     CANDIDATE_1_6 = CANDIDATE_1_6_VERSION
-    CANDIDATE_1_7 = VERSION
+    CANDIDATE_1_7 = CANDIDATE_1_7_VERSION
+    CANDIDATE_1_8 = VERSION
 
 
 class ToolProposal(BaseModel):
@@ -132,7 +134,9 @@ FIELD_BUDGETS = {
 
 
 def _output_constraints(
-    purpose: ModelPurpose, context: dict[str, Any]
+    purpose: ModelPurpose,
+    context: dict[str, Any],
+    profile: StructuredTransportProfile,
 ) -> dict[str, Any]:
     if purpose is ModelPurpose.PLAN:
         return {
@@ -145,7 +149,7 @@ def _output_constraints(
             },
         }
     if purpose is ModelPurpose.DIAGNOSE:
-        return {
+        constraints: dict[str, Any] = {
             "required_literal_values": {"incident_id": context["incident_id"]},
             "safe_text_caps_characters": {
                 "explanation": 320,
@@ -156,6 +160,23 @@ def _output_constraints(
                 "candidates[].missing_evidence[]": 160,
             },
         }
+        if profile is StructuredTransportProfile.CANDIDATE_1_8:
+            constraints["candidate_invariants"] = {
+                "ranks": "consecutive integers starting at 1 in array order",
+                "candidate_ids": "unique",
+                "supporting_evidence_ids": "unique within each candidate",
+                "counter_evidence_ids": "unique within each candidate",
+                "supporting_and_counter_evidence_ids": "disjoint within each candidate",
+                "when_counter_evidence_ids_empty": {
+                    "counter_evidence_treatment": "NOT_APPLICABLE",
+                    "counter_evidence_explanation": None,
+                },
+                "when_counter_evidence_ids_nonempty": {
+                    "counter_evidence_treatment": ["RESOLVED", "UNRESOLVED"],
+                    "counter_evidence_explanation": "non-null",
+                },
+            }
+        return constraints
     return {
         "required_literal_values": {"incident_id": context["incident_id"]},
     }
@@ -222,7 +243,10 @@ class StructuredEvaluationModel:
 
     def allows_complete_replan(self) -> bool:
         """Reserve replan and diagnosis calls, including one repair for each."""
-        if self._profile is not StructuredTransportProfile.CANDIDATE_1_7:
+        if self._profile not in (
+            StructuredTransportProfile.CANDIDATE_1_7,
+            StructuredTransportProfile.CANDIDATE_1_8,
+        ):
             return True
         required_calls = 4
         remaining_calls = self._max_calls - self._calls
@@ -257,6 +281,7 @@ class StructuredEvaluationModel:
         if profile in (
             StructuredTransportProfile.CANDIDATE_1_6,
             StructuredTransportProfile.CANDIDATE_1_7,
+            StructuredTransportProfile.CANDIDATE_1_8,
         ):
             instruction += (
                 " Obey output_constraints as hard generation rules. Character caps count Unicode "
@@ -275,8 +300,9 @@ class StructuredEvaluationModel:
         if profile in (
             StructuredTransportProfile.CANDIDATE_1_6,
             StructuredTransportProfile.CANDIDATE_1_7,
+            StructuredTransportProfile.CANDIDATE_1_8,
         ):
-            user_content["output_constraints"] = _output_constraints(purpose, context)
+            user_content["output_constraints"] = _output_constraints(purpose, context, profile)
         if repair is not None:
             user_content["repair"] = repair
         return {

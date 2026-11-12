@@ -120,6 +120,12 @@ measurement shows no need; closing it does not mean implementing it.
     machine-readable generation constraints, freeze 1.7/1.8 before calls, and repeat the same
     81-pair census. Acceptance retains every FC2e gate, including zero terminal invalids and zero
     failed outcomes after successful repair.
+    - [x] FC2f-a candidate 1.8 adds machine-readable rank, identity, uniqueness, disjoint-reference
+      and conditional counter-evidence invariants while preserving 1.7 byte behavior. The generic
+      scorer can now opt into native repair-follow-through enforcement for the next frozen plan;
+      historical scores remain byte-reproducible.
+    - [ ] FC2f-b freeze the 1.7/1.8 plan with the updated scorer and all prior bindings before calls.
+    - [ ] FC2f-c execute, audit and publish the complete 162-outcome comparison.
 
 - [ ] FC3 Make memory-leak evidence discriminative before asking the model to classify it.
   - Capture a longer bounded series including retained bytes before/after GC, allocation and

@@ -282,6 +282,41 @@ def test_candidate_1_7_reserves_complete_replan_transition() -> None:
     assert baseline.allows_complete_replan()
 
 
+def test_candidate_1_8_adds_machine_readable_candidate_invariants() -> None:
+    context = {"incident_id": "incident-1", "evidence_ids": ["e1", "e2"]}
+    candidate = StructuredEvaluationModel.request_payload(
+        ModelPurpose.DIAGNOSE,
+        context,
+        profile=StructuredTransportProfile.CANDIDATE_1_8,
+    )
+    frozen = StructuredEvaluationModel.request_payload(
+        ModelPurpose.DIAGNOSE,
+        context,
+        profile=StructuredTransportProfile.CANDIDATE_1_7,
+    )
+    candidate_constraints = json.loads(candidate["messages"][1]["content"])[
+        "output_constraints"
+    ]
+    frozen_constraints = json.loads(frozen["messages"][1]["content"])["output_constraints"]
+
+    assert candidate_constraints["candidate_invariants"] == {
+        "ranks": "consecutive integers starting at 1 in array order",
+        "candidate_ids": "unique",
+        "supporting_evidence_ids": "unique within each candidate",
+        "counter_evidence_ids": "unique within each candidate",
+        "supporting_and_counter_evidence_ids": "disjoint within each candidate",
+        "when_counter_evidence_ids_empty": {
+            "counter_evidence_treatment": "NOT_APPLICABLE",
+            "counter_evidence_explanation": None,
+        },
+        "when_counter_evidence_ids_nonempty": {
+            "counter_evidence_treatment": ["RESOLVED", "UNRESOLVED"],
+            "counter_evidence_explanation": "non-null",
+        },
+    }
+    assert "candidate_invariants" not in frozen_constraints
+
+
 @pytest.mark.parametrize(
     "case,expected",
     [

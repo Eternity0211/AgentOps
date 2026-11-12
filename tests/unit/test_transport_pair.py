@@ -12,11 +12,13 @@ from evaluation.run_transport_pair import FROZEN_V1_PROFILES, _check_plan, run_p
 from evaluation.structured_model import StructuredTransportProfile
 
 
-def source_hashes() -> dict[str, str]:
-    names = (
+def source_hashes(*, bind_workflow: bool = False) -> dict[str, str]:
+    names = [
         "evaluation/run_transport_pair.py",
         "evaluation/structured_model.py",
-    )
+    ]
+    if bind_workflow:
+        names.append("evaluation/autonomous_diagnosis.py")
     return {name: hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in names}
 
 
@@ -38,6 +40,21 @@ def test_transport_pair_plan_binds_profiles_and_source_hashes(tmp_path: Path) ->
         "evaluation.run_transport_pair.subprocess.run", return_value=Mock(returncode=0)
     ):
         _check_plan(plan, "b" * 40, dataset, bank)
+
+    plan["source_hashes"] = source_hashes(bind_workflow=True)
+    with patch(
+        "evaluation.run_transport_pair.subprocess.run", return_value=Mock(returncode=0)
+    ):
+        _check_plan(plan, "b" * 40, dataset, bank)
+
+    del plan["source_hashes"]["evaluation/structured_model.py"]
+    with (
+        patch("evaluation.run_transport_pair.subprocess.run", return_value=Mock(returncode=0)),
+        pytest.raises(ValueError, match="source hash mismatch"),
+    ):
+        _check_plan(plan, "b" * 40, dataset, bank)
+
+    plan["source_hashes"] = source_hashes()
 
     plan["profiles"]["candidate-1.5"] = "changed"
     with (

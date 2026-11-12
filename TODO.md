@@ -106,6 +106,9 @@ measurement shows no need; closing it does not mean implementing it.
       workflow/transport tests, Ruff and strict mypy pass.
     - [ ] FC2e-b freeze the 1.6/1.7 interleaved plan before provider calls, binding the workflow
       source that owns the new route as well as all prior data, runner, transport and scorer inputs.
+      - [x] Harden the runner to accept only the historical exact two-source binding or the new
+        exact three-source binding that adds `autonomous_diagnosis.py`; partial and unknown source
+        sets fail before provider work, while already frozen FC2c/FC2d plans remain reproducible.
     - [ ] FC2e-c execute, audit and publish all 162 outcomes without selective reruns; report the
       paired failure, safety, Evidence-integrity, quality, latency, token and rate-card deltas.
 

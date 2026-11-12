@@ -14,7 +14,7 @@ measurement shows no need; closing it does not mean implementing it.
 
 ### Comparison and claim rules for every measurement
 
-- [ ] FC0 Freeze the closure protocol and reconcile the old TODO.
+- [x] FC0 Freeze the closure protocol and reconcile the old TODO.
   - Map every one of the 16 older unchecked boxes to an FC item, `NOT_REQUIRED`, or an explicit
     external prerequisite; remove contradictory “currently doing” prose and retain Git history.
   - Freeze evaluator-only labels, scenario split, model/settings, prompts, tool schemas, context/
@@ -208,12 +208,12 @@ measurement shows no need; closing it does not mean implementing it.
 - [x] 本地不可变 Evidence/Artifact、引用解析及确定性证据门禁的实验验证。
 - [x] C1：真实模型调查计划、诊断与门禁绑定修复提案的类型化调用接口。
 
-### 当前正在做：C2 自主只读调查
+### 历史任务：C2 自主只读调查（已由后续 C2 批次完成）
 
 - [x] 完成并提交中断前的只读工具 v2 契约、适配器、LangGraph 调查服务和测试。
 - [x] 定位真实 PLAN 的额外 steps_note 字段错误；补充明确示例并保留严格校验。
-- [ ] 跑通“真实计划 → 现有编译器 → Tool Gateway → 实际遥测 → 不可变证据 → 诊断 → 门禁”。
-- [ ] 证明非法计划不调用工具；正常与故障场景均保留完整调用和查询来源。
+- [x] 跑通“真实计划 → 现有编译器 → Tool Gateway → 实际遥测 → 不可变证据 → 诊断 → 门禁”。后续 C2/v5 证据已归档，映射 `LEGACY-01`。
+- [x] 证明非法计划不调用工具；正常与故障场景均保留完整调用和查询来源。严格编译与拒绝测试已归档，映射 `LEGACY-02`。
 
 当前事实：C2 已完成正常基线真实冒烟：5 次 Gateway 查询、2 次模型调用、5 条证据。
 这仅证明链路跑通；固定提交版本的故障测评和 C3 持久化仍需完成。
@@ -235,7 +235,7 @@ measurement shows no need; closing it does not mean implementing it.
   真实模型加 SQL 队列的工作器替换两例通过，独立进程终止补测也通过。
 - [x] C6：运行安全、韧性、重放、超时与恢复验证测试，输出逐项覆盖矩阵和原始数据。归档 JUnit 可精确重算 13 类矩阵。
 - [x] C7：自行执行模拟操作员流程与确定性测试审批，报告为模拟数据，不冒充真实审批或真人收益。
-- [ ] 发布统一报告：目标、方法、实测结果、局限、未达标项、复现方法及证据链接。
+Legacy mapping: unified final report remains open only as FC13 (`LEGACY-03`).
 
 ### 不可混淆的边界
 
@@ -573,14 +573,10 @@ This index is an omission check, not a second task list. The referenced phases c
 
 ## Enhancements after core acceptance
 
-- [ ] Add optional read-only MCP adapters behind the existing Tool Gateway contracts.
-- [ ] Add another tightly scoped write tool only with a new ADR, threat review, policy, verification, failure/compensation semantics, and adversarial suite.
-- [ ] Implement a generic Compensation Controller only after a future write tool defines a safe typed inverse, independent policy/approval, idempotency, and compensation verification.
-- [ ] Evaluate stronger audit integrity (hash chaining/external anchoring) based on threat/deployment needs.
-- [ ] Add alternative artifact stores and enterprise identity providers behind ports.
-- [ ] Add chaos/network-fault variants and larger scenario parameterization.
-- [ ] Evaluate horizontal worker scaling and a message broker only after PostgreSQL queue measurements demonstrate need.
-- [ ] Consider A2A only if independently deployed, separately owned agent services create a real protocol boundary.
+Legacy mappings: optional MCP, write tools, compensation, audit anchoring, Artifact/identity
+providers and A2A are owned by FC12 (`LEGACY-04` through `LEGACY-08`, `LEGACY-11`); chaos and
+network variants are owned by FC11 (`LEGACY-09`); horizontal scaling and any broker decision are
+owned by FC10 plus FC12 (`LEGACY-10`). They are not separate open checkboxes.
 
 ## Real-provider evaluation follow-up
 
@@ -592,7 +588,7 @@ This index is an omission check, not a second task list. The referenced phases c
   mypy, unit tests; real six-case read-only run with immutable results and explicit limitations.
 - [x] R2a: implement bounded real-provider paired replay runner; 22 relevant tests, Ruff and mypy pass.
 - [x] R2b: publish 54 real-provider paired replay calls; retain known-case/held-out distinction.
-- [ ] R2: real-provider fair single/graph/memory comparisons with repeated held-out scenarios.
+Legacy mapping: R2 is owned by FC4 plus FC5 (`LEGACY-12`).
   Acceptance: predeclared equal model/budgets and cause taxonomy; opaque IDs; repeated paired
   inputs; same scoring across modes; real graph topology and advisory-only memory; per-call
   token/latency/failure records. No comparison to mock latency or post-hoc semantic relabeling.
@@ -602,24 +598,24 @@ This index is an omission check, not a second task list. The referenced phases c
 - [x] R3b: execute two six-fault Compose diagnosis runs; publish 24 immutable Artifacts and Gate results.
   Outcomes are measurements, not capability acceptance: verified run 4/6 valid reports, 2/6
   exact Top-1, 0/5 candidate Gate passes; all six evaluator cleanups succeed.
-- [ ] R3a: collect real local simulator fault observations and evaluate diagnosis up to human wait.
+Legacy mapping: R3a is owned by FC4 (`LEGACY-13`).
   Acceptance: actual HTTP observations, provenance/hash/time, baseline/fault/cleanup separation,
   real provider calls, no automatic approval or recovery credit; distinguish in-process and Compose.
   Tests: collection failure, cleanup in finally, evidence reference resolution and no label leakage.
-- [ ] R3: live fault-injection diagnostics and approved recovery measurements.
+Legacy mapping: R3 is owned by FC6 plus FC7 (`LEGACY-14`).
 - [x] R4a: publish six-case provider, worker-resilience, bounded-load and full Python regression artifacts.
   Result: 2,810 Python tests pass with 100% statement/branch source coverage; 20 new adapter/runner
   tests independently pass with 100% coverage. See evaluation/results/deepseek/v1/README.md.
 - [x] R4b: publish real adversarial probes, price bounds, resource snapshots and 2,820-test regression.
   Full requested coverage matrix distinguishes measured results, human tasks and remaining
   nonhuman engineering gaps. See evaluation/results/deepseek/v2/README.md.
-- [ ] R4: consolidated safety/evidence/resilience/load measurements and metric coverage matrix.
+Legacy mapping: R4 is owned by FC9, FC10, FC11 and FC13 (`LEGACY-15`).
   Measurement batch acceptance: publish clean-revision six-case provider results, fixed worker
   resilience and bounded-load raw artifacts; distinguish test counts from outcome rates and
   mark every unsupported human/production metric unmeasured. Verification: full Python tests
   with the existing 100% source coverage gate, report arithmetic and revision/hash checks,
   credential/content review, Ruff/mypy/architecture. No fair-comparison or live-recovery credit.
-- [ ] R5: human paired trial, active labor, MTTR, recurrence and actual cost measurements.
+Legacy mapping: R5 is owned by FC6, FC7 and FC8 (`LEGACY-16`).
 
 ## Complete real-model evaluation follow-up
 

@@ -1,0 +1,155 @@
+{
+  "schema_version": "closure-registry/1.0.0",
+  "generated_from": "TODO.md",
+  "experiments": [
+    {
+      "work_id": "FC0", "title": "Freeze closure governance and reconcile legacy work", "status": "COMPLETE", "owner": "agentops-evaluation",
+      "prerequisites": [],
+      "baseline": {"arm_id": "legacy-plan", "description": "Overlapping R/C tasks and 16 unowned open checkboxes."},
+      "candidate": {"arm_id": "closure-v1", "description": "One strict registry with all legacy work mapped."},
+      "independent_variable": "Planning and experiment ownership contract.",
+      "metrics": ["unmapped_legacy_items", "duplicate_work_ids", "schema_valid"],
+      "sample_size": {"status": "NOT_APPLICABLE", "method": "Governance contract validation.", "fixed_pairs": null},
+      "artifact_paths": ["evaluation/closure/v1/registry.json", "TODO.md"], "external_requirements": []
+    },
+    {
+      "work_id": "FC1", "title": "Common paired comparison scorer", "status": "PLANNED", "owner": "agentops-evaluation", "prerequisites": ["FC0"],
+      "baseline": {"arm_id": "existing-scorers", "description": "Separate scorers without one effect-size contract."},
+      "candidate": {"arm_id": "paired-scorer-v1", "description": "Shared delta, interval and paired-test contract."},
+      "independent_variable": "Comparative statistical reporting implementation.",
+      "metrics": ["absolute_delta", "relative_delta", "confidence_interval", "paired_test", "arithmetic_reproducibility"],
+      "sample_size": {"status": "NOT_APPLICABLE", "method": "Scorer contract and fixture verification.", "fixed_pairs": null},
+      "artifact_paths": ["evaluation/comparison/v1/", "evaluation/results/comparison/v1/"], "external_requirements": []
+    },
+    {
+      "work_id": "FC2", "title": "Structured output reliability", "status": "PLANNED", "owner": "agentops-evaluation", "prerequisites": ["FC1"],
+      "baseline": {"arm_id": "transport-1.4.0", "description": "Current strict transport and prompt contract."},
+      "candidate": {"arm_id": "transport-candidate", "description": "Field budgets and bounded schema repair."},
+      "independent_variable": "Structured-output reliability handling.",
+      "metrics": ["invalid_response_rate", "safe_control_rate", "evidence_integrity_rate", "calls", "tokens", "latency", "cost"],
+      "sample_size": {"status": "FIXED_CENSUS", "method": "Paired census of the frozen 81 outcomes.", "fixed_pairs": 81},
+      "artifact_paths": ["evaluation/real_protocol/v4/", "evaluation/results/structured-reliability/v1/"], "external_requirements": []
+    },
+    {
+      "work_id": "FC3", "title": "Discriminative memory evidence", "status": "PLANNED", "owner": "agentops-evaluation", "prerequisites": ["FC1"],
+      "baseline": {"arm_id": "memory-context-1.0", "description": "Current three-sample retained-byte facts."},
+      "candidate": {"arm_id": "memory-context-candidate", "description": "GC-aware, allocation-aware, alert-aligned bounded facts."},
+      "independent_variable": "Memory evidence construction only.",
+      "metrics": ["memory_top1", "normal_safe_handoff", "fabricated_reference_rate", "context_bytes", "latency", "tokens"],
+      "sample_size": {"status": "POWER_ANALYSIS_REQUIRED", "method": "Pilot on development variants, then frozen paired confirmatory power analysis.", "fixed_pairs": null},
+      "artifact_paths": ["evaluation/memory_signal/v2/", "evaluation/results/memory-evidence/v2/"], "external_requirements": []
+    },
+    {
+      "work_id": "FC4", "title": "Untouched held-out diagnosis comparison", "status": "PLANNED", "owner": "agentops-evaluation", "prerequisites": ["FC1", "FC2", "FC3"],
+      "baseline": {"arm_id": "four-baseline-current", "description": "Rules, single, graph and eligible memory baseline on frozen inputs."},
+      "candidate": {"arm_id": "four-baseline-candidate", "description": "Same four groups after FC2 and FC3 changes."},
+      "independent_variable": "Declared strategy, orchestration or confirmed-memory access per pair.",
+      "metrics": ["top1", "top3", "safe_controls", "valid_report_rate", "unsupported_conclusion_rate", "gate_precision", "gate_recall", "latency", "tokens", "cost"],
+      "sample_size": {"status": "POWER_ANALYSIS_REQUIRED", "method": "Separate pilot and paired confirmatory study sized for the declared minimum relevant Top-1 delta.", "fixed_pairs": null},
+      "artifact_paths": ["evaluation/real_protocol/v4/", "evaluation/results/final-diagnosis-comparison/v1/"], "external_requirements": []
+    },
+    {
+      "work_id": "FC5", "title": "Confirmed historical-memory effect", "status": "BLOCKED_EXTERNAL_DATA", "owner": "agentops-evaluation", "prerequisites": ["FC1", "FC4"],
+      "baseline": {"arm_id": "graph-no-retrieval", "description": "Controlled graph with confirmed-history retrieval disabled."},
+      "candidate": {"arm_id": "graph-confirmed-retrieval", "description": "Identical graph with authorized confirmed-history retrieval."},
+      "independent_variable": "Confirmed historical incident retrieval access.",
+      "metrics": ["retrieval_coverage", "retrieval_precision", "top1", "top3", "safe_controls", "failures", "latency", "tokens", "cost"],
+      "sample_size": {"status": "POWER_ANALYSIS_REQUIRED", "method": "Time-split pilot followed by paired confirmatory power analysis.", "fixed_pairs": null},
+      "artifact_paths": ["evaluation/confirmed_history/v1/", "evaluation/results/confirmed-memory/v1/"],
+      "external_requirements": ["Tenant-authorized redacted confirmed closed incidents", "Retention and consent decision"]
+    },
+    {
+      "work_id": "FC6", "title": "Randomized human response study", "status": "BLOCKED_EXTERNAL_DATA", "owner": "agentops-evaluation", "prerequisites": ["FC1"],
+      "baseline": {"arm_id": "human-dashboards-runbooks", "description": "Authorized operator using existing dashboards and runbooks."},
+      "candidate": {"arm_id": "human-agentops-assisted", "description": "Same operator tool surface plus AgentOps evidence and proposals."},
+      "independent_variable": "Access to AgentOps diagnosis assistance.",
+      "metrics": ["time_to_correct_diagnosis", "active_labor", "approval_time", "mttr", "correct_action_rate", "unsafe_action_attempts", "workload", "recurrence"],
+      "sample_size": {"status": "POWER_ANALYSIS_REQUIRED", "method": "Separate usability pilot then randomized counterbalanced confirmatory power analysis.", "fixed_pairs": null},
+      "artifact_paths": ["evaluation/human_trial/v1/", "evaluation/results/human-trial/v1/"],
+      "external_requirements": ["Authorized consenting operators", "Scheduled lab environment", "Statistician-reviewed protocol"]
+    },
+    {
+      "work_id": "FC7", "title": "Actually approved recovery comparison", "status": "BLOCKED_EXTERNAL_DATA", "owner": "agentops-evaluation", "prerequisites": ["FC1", "FC6"],
+      "baseline": {"arm_id": "manual-approved-runbook", "description": "Human-approved manual rollback using the shared verifier."},
+      "candidate": {"arm_id": "agentops-approved-recovery", "description": "AgentOps proposal through Policy, human approval, Executor and shared verifier."},
+      "independent_variable": "AgentOps proposal and controlled execution path.",
+      "metrics": ["proposal_correctness", "approval_outcomes", "execution_success", "duplicate_execution", "unapproved_execution", "verifier_pass", "time_to_stable_recovery", "mttr", "active_labor", "recurrence"],
+      "sample_size": {"status": "POWER_ANALYSIS_REQUIRED", "method": "Paired lab recovery power analysis after the human-study pilot.", "fixed_pairs": null},
+      "artifact_paths": ["evaluation/recovery_trial/v1/", "evaluation/results/approved-recovery/v1/"],
+      "external_requirements": ["Authorized approvers", "Lab-only automation-eligible faults"]
+    },
+    {
+      "work_id": "FC8", "title": "Actual cost reconciliation", "status": "BLOCKED_EXTERNAL_DATA", "owner": "agentops-evaluation", "prerequisites": ["FC1", "FC4"],
+      "baseline": {"arm_id": "baseline-group-cost", "description": "Invoice, infrastructure and labor cost for each control arm."},
+      "candidate": {"arm_id": "candidate-group-cost", "description": "The same cost categories for each treatment arm."},
+      "independent_variable": "Evaluated method within each parent comparison.",
+      "metrics": ["cost_per_attempt", "cost_per_valid_diagnosis", "cost_per_correct_diagnosis", "cost_per_safe_recovery", "invoice_match_rate"],
+      "sample_size": {"status": "FIXED_CENSUS", "method": "All requests and allocated resources in each frozen comparison window.", "fixed_pairs": 1},
+      "artifact_paths": ["evaluation/billing/v1/", "evaluation/results/actual-cost/v1/"],
+      "external_requirements": ["Provider invoice or billing export", "Infrastructure allocation rule", "Human labor rate decision"]
+    },
+    {
+      "work_id": "FC9", "title": "Complete workflow durability comparison", "status": "PLANNED", "owner": "agentops-evaluation", "prerequisites": ["FC1"],
+      "baseline": {"arm_id": "workflow-no-interruption", "description": "Complete real workflow without injected interruption."},
+      "candidate": {"arm_id": "workflow-failure-matrix", "description": "The same workflow under frozen interruption and duplicate-delivery cases."},
+      "independent_variable": "Declared failure injection.",
+      "metrics": ["completion_rate", "duplicate_effects", "lost_evidence", "resume_latency", "total_latency", "calls", "tokens", "cost", "terminal_route"],
+      "sample_size": {"status": "FIXED_CENSUS", "method": "All declared failure boundaries paired with their no-interruption controls.", "fixed_pairs": 8},
+      "artifact_paths": ["evaluation/durability/v2/", "evaluation/results/final-durability/v1/"], "external_requirements": []
+    },
+    {
+      "work_id": "FC10", "title": "Capacity and scaling decision", "status": "PLANNED", "owner": "agentops-evaluation", "prerequisites": ["FC1", "FC9"],
+      "baseline": {"arm_id": "postgres-single-worker", "description": "PostgreSQL queue with one worker and one incident at a time."},
+      "candidate": {"arm_id": "postgres-horizontal-workers", "description": "The same queue with 2, 4 and 8 workers and incident concurrency."},
+      "independent_variable": "Worker and incident concurrency only.",
+      "metrics": ["throughput", "queue_wait", "workflow_latency", "error_rate", "lease_contention", "cpu", "process_heap", "database_load"],
+      "sample_size": {"status": "POWER_ANALYSIS_REQUIRED", "method": "Warm-up plus repeated clean-environment benchmark sized from variance pilot.", "fixed_pairs": null},
+      "artifact_paths": ["evaluation/load/v2/", "evaluation/results/final-load/v1/"], "external_requirements": []
+    },
+    {
+      "work_id": "FC11", "title": "Adversarial and chaos comparison", "status": "PLANNED", "owner": "agentops-evaluation", "prerequisites": ["FC1", "FC2"],
+      "baseline": {"arm_id": "current-security-boundary", "description": "Current production safety boundary on the frozen attack matrix."},
+      "candidate": {"arm_id": "candidate-security-boundary", "description": "Post-fix boundary on the identical matrix."},
+      "independent_variable": "Declared safety or resilience fix only.",
+      "metrics": ["attack_block_rate", "safe_handoff_rate", "false_block_rate", "route_correctness", "latency", "cost", "critical_failures"],
+      "sample_size": {"status": "FIXED_CENSUS", "method": "All versioned adversarial and chaos cases.", "fixed_pairs": 13},
+      "artifact_paths": ["evaluation/security/v2/", "evaluation/results/final-security/v1/"], "external_requirements": []
+    },
+    {
+      "work_id": "FC12", "title": "Evidence-based optional architecture decisions", "status": "PLANNED", "owner": "agentops-architecture", "prerequisites": ["FC1", "FC10", "FC11"],
+      "baseline": {"arm_id": "current-ports-and-postgres", "description": "Current Tool Gateway, Artifact ports, identity and PostgreSQL queue."},
+      "candidate": {"arm_id": "measured-option", "description": "Only a concrete MCP, anchoring, store, identity, broker, write or A2A option justified by a measured need."},
+      "independent_variable": "One optional architecture capability at a time.",
+      "metrics": ["requirement_satisfied", "safety_regression", "latency_overhead", "cost_overhead", "operational_complexity"],
+      "sample_size": {"status": "NOT_APPLICABLE", "method": "ADR decision from named requirements and parent measurements.", "fixed_pairs": null},
+      "artifact_paths": ["docs/ADR/", "evaluation/results/architecture-decisions/v1/"], "external_requirements": []
+    },
+    {
+      "work_id": "FC13", "title": "Generated final report and legacy closure", "status": "PLANNED", "owner": "agentops-evaluation", "prerequisites": ["FC1", "FC2", "FC3", "FC4", "FC5", "FC6", "FC7", "FC8", "FC9", "FC10", "FC11", "FC12"],
+      "baseline": {"arm_id": "pre-closure-evidence", "description": "Existing fragmented reports and explicit unknowns."},
+      "candidate": {"arm_id": "final-generated-report", "description": "One reproducible report with every metric and disposition."},
+      "independent_variable": "Report consolidation and legacy task reconciliation.",
+      "metrics": ["metric_coverage", "arithmetic_reproducibility", "artifact_integrity", "legacy_open_items", "credential_findings"],
+      "sample_size": {"status": "NOT_APPLICABLE", "method": "Complete artifact and metric inventory.", "fixed_pairs": null},
+      "artifact_paths": ["evaluation/results/final-comparative-report/v1/", "docs/REAL_EVALUATION_REPORT.md"], "external_requirements": []
+    }
+  ],
+  "legacy_mappings": [
+    {"legacy_id": "LEGACY-01", "summary": "C2 real plan through deterministic Gate", "resolution": "EXISTING_EVIDENCE", "evidence": ["TODO.md:C2", "evaluation/results/autonomous-live/v5/results.json"]},
+    {"legacy_id": "LEGACY-02", "summary": "Invalid plan no-dispatch and provenance", "resolution": "EXISTING_EVIDENCE", "evidence": ["TODO.md:C1", "tests/unit/test_structured_model.py"]},
+    {"legacy_id": "LEGACY-03", "summary": "Unified final report", "resolution": "FC13", "evidence": ["TODO.md:FC13"]},
+    {"legacy_id": "LEGACY-04", "summary": "Optional read-only MCP adapter", "resolution": "FC12", "evidence": ["TODO.md:FC12"]},
+    {"legacy_id": "LEGACY-05", "summary": "Additional typed write tool", "resolution": "FC12", "evidence": ["TODO.md:FC12"]},
+    {"legacy_id": "LEGACY-06", "summary": "Generic Compensation Controller", "resolution": "FC12", "evidence": ["TODO.md:FC12"]},
+    {"legacy_id": "LEGACY-07", "summary": "Audit anchoring", "resolution": "FC12", "evidence": ["TODO.md:FC12"]},
+    {"legacy_id": "LEGACY-08", "summary": "Alternative stores and enterprise identity", "resolution": "FC12", "evidence": ["TODO.md:FC12"]},
+    {"legacy_id": "LEGACY-09", "summary": "Chaos and network variants", "resolution": "FC11", "evidence": ["TODO.md:FC11"]},
+    {"legacy_id": "LEGACY-10", "summary": "Horizontal scaling and broker decision", "resolution": "FC10+FC12", "evidence": ["TODO.md:FC10", "TODO.md:FC12"]},
+    {"legacy_id": "LEGACY-11", "summary": "A2A decision", "resolution": "FC12", "evidence": ["TODO.md:FC12"]},
+    {"legacy_id": "LEGACY-12", "summary": "Fair repeated real-provider comparison", "resolution": "FC4+FC5", "evidence": ["TODO.md:FC4", "TODO.md:FC5"]},
+    {"legacy_id": "LEGACY-13", "summary": "Live local fault observations", "resolution": "FC4", "evidence": ["TODO.md:FC4"]},
+    {"legacy_id": "LEGACY-14", "summary": "Approved recovery measurement", "resolution": "FC6+FC7", "evidence": ["TODO.md:FC6", "TODO.md:FC7"]},
+    {"legacy_id": "LEGACY-15", "summary": "Consolidated safety resilience load matrix", "resolution": "FC9+FC10+FC11+FC13", "evidence": ["TODO.md:FC9", "TODO.md:FC10", "TODO.md:FC11", "TODO.md:FC13"]},
+    {"legacy_id": "LEGACY-16", "summary": "Human labor MTTR recurrence and actual cost", "resolution": "FC6+FC7+FC8", "evidence": ["TODO.md:FC6", "TODO.md:FC7", "TODO.md:FC8"]}
+  ]
+}

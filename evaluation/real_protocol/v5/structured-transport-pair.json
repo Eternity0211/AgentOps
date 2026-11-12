@@ -1,0 +1,97 @@
+{
+  "schema_version": "structured-transport-pair/1.0.0",
+  "protocol_id": "structured-transport-candidate-1.5-vs-1.6-v1",
+  "status": "FROZEN_BEFORE_PROVIDER_CALLS",
+  "implementation_commit": "133e56e367288687e349482c6bac7ff080dc90f3",
+  "dataset": "evaluation/datasets/real-v2",
+  "dataset_index_sha256": "c6836c7e11da8736823c9f306389738a5311938c2aca36f697f30943f9358406",
+  "evaluator_labels": "evaluation/real_protocol/v2/evaluator_only/labels.json",
+  "evaluator_labels_sha256": "753efdbad40de3565620d9a0d7c3e508b5cf5548cc7c2f4a5141574d982fe30a",
+  "base_scoring_plan": "evaluation/real_protocol/v1/plan.json",
+  "base_scoring_plan_sha256": "0ffed77c73098898276fb48738ddb33dbd2339c39a267e4ffe3ce08036a3fc26",
+  "simulated_history_bank": "evaluation/simulated_history/v1/bank.json",
+  "simulated_history_bank_sha256": "17c5f635d67af493197b6184b955417d163dd2bcb0c800255b8aada2642b5c70",
+  "profiles": {
+    "baseline-1.5": "real-structured-evaluation/1.5.0",
+    "candidate-1.6": "real-structured-evaluation/1.6.0"
+  },
+  "modes": [
+    "single-agent",
+    "controlled-graph",
+    "controlled-graph-simulated-memory"
+  ],
+  "provider": {
+    "name": "deepseek",
+    "model": "deepseek-flash",
+    "temperature": 0,
+    "thinking": "disabled",
+    "max_output_tokens": 2048,
+    "max_model_calls_per_outcome": 4
+  },
+  "independent_variable": "Schema-derived exact-field rules, conservative character generation caps, and exact Incident literal binding in the initial and repair requests.",
+  "held_constant": [
+    "input_snapshot_hash",
+    "mode",
+    "provider_model_settings",
+    "tool_and_context_budgets",
+    "public_cause_taxonomy",
+    "strict_output_schemas",
+    "repair_eligibility_and_count",
+    "evidence_gate",
+    "simulated_history_bank_when_applicable"
+  ],
+  "execution_order": "Alternate baseline/candidate order by (dataset_index + mode_index) parity.",
+  "expected_outcomes": 162,
+  "failure_rule": "Retain all failures and uncertain prior effects. Do not selectively rerun or drop them. The FC2c publication remains immutable and is not reused as the baseline arm.",
+  "runtime_label_isolation": "The pair runner does not accept or load evaluator_labels; labels are loaded only by the post-run scorer.",
+  "starting_observation": {
+    "source": "evaluation/results/structured-reliability/v1/run-001/analysis/score.json",
+    "candidate_1_5_terminal_schema_protocol_invalids": 4,
+    "candidate_1_5_valid_outcomes": 76,
+    "candidate_1_5_total_outcomes": 81,
+    "remaining_failure_classes": [
+      "repair_explanation_string_too_long_twice",
+      "last_call_plan_steps_note_once",
+      "last_call_incident_mismatch_once"
+    ],
+    "non_schema_terminal_failures": 1
+  },
+  "paired_scorer": {
+    "source": "evaluation/paired_comparison.py",
+    "source_sha256": "86d790da549f38a019bfce29ec7ed87c6b69f7e6f290baa1da7fc9af4dd9d90e",
+    "orchestrator_source": "evaluation/score_transport_pair.py",
+    "orchestrator_source_sha256": "00bccea3ed3a6fb90f999a753a4595b59bc8b407388559499288540ea48348c5",
+    "binary_metrics": {
+      "valid_outcome": {"direction": "HIGHER", "minimum_relevant_effect": 0.02},
+      "safe_control": {"direction": "HIGHER", "minimum_relevant_effect": 0.05},
+      "evidence_integrity": {"direction": "HIGHER", "minimum_relevant_effect": 0.01}
+    },
+    "continuous_metrics": {
+      "duration_ms": {"direction": "LOWER", "minimum_relevant_effect": 100.0},
+      "input_tokens": {"direction": "LOWER", "minimum_relevant_effect": 100.0},
+      "output_tokens": {"direction": "LOWER", "minimum_relevant_effect": 20.0},
+      "cost_upper_bound_nanousd": {"direction": "LOWER", "minimum_relevant_effect": 100000.0}
+    },
+    "confidence_level": 0.95,
+    "multiple_comparison_method": "holm",
+    "bootstrap_iterations": 10000,
+    "seed": 20261113
+  },
+  "acceptance": {
+    "candidate_schema_or_protocol_invalids": 0,
+    "safe_control_noninferiority": "Candidate safe-control count must be no lower in any mode.",
+    "evidence_integrity": "Every cited Evidence and Artifact hash must resolve within the same Incident.",
+    "call_budget": "At most four model calls per outcome; no additional repair or write retry.",
+    "improvement_claim": "Use FC1 only; otherwise report NO_PROVEN_IMPROVEMENT or REGRESSED."
+  },
+  "source_hashes": {
+    "evaluation/run_transport_pair.py": "7c274c7c8205ea750b06d82a0db161a30adb0dac7d4d2c354dabb501ec827178",
+    "evaluation/structured_model.py": "fb97b39fd0093d6137144ac2ef078c6ac9c45beabe6ecd6516691b5fe79d4900"
+  },
+  "limitations": [
+    "The FC2c 1.4/1.5 result and this 1.5/1.6 result use separate provider windows; only within-run paired claims are confirmatory.",
+    "Simulated history remains ineligible as evidence of confirmed-history benefit.",
+    "The fixed 81-pair census measures this frozen workload, not production incidence rates.",
+    "Actual provider billing, human labor, approval, recovery, MTTR, and recurrence are outside FC2."
+  ]
+}

@@ -82,8 +82,11 @@ measurement shows no need; closing it does not mean implementing it.
       character caps and literal Incident binding. Frozen 1.4/1.5 behavior remains selectable;
       the pair runner and scorer now accept exactly two plan-bound profiles. Forty focused tests,
       Ruff and strict mypy pass. No call-budget, retry, schema, Gate or write-path relaxation.
-    - [ ] FC2d-b freeze the 1.5/1.6 interleaved plan after the implementation commit and before
-      provider calls, retaining the same 27 inputs, three modes, FC1 thresholds and failure rules.
+    - [x] FC2d-b froze the 1.5/1.6 interleaved plan after candidate commit `5a918ac` and source-
+      binding hardening commit `133e56e`, but before provider calls. It retains the same 27 inputs,
+      three modes, four-call ceiling, FC1
+      thresholds and failure rules. It binds data, labels-for-post-scoring, runner, transport,
+      scorer and score-orchestrator hashes; FC2c artifacts cannot be overwritten or reused as an arm.
     - [ ] FC2d-c execute, audit and publish all 162 outcomes without selective reruns.
 
 - [ ] FC3 Make memory-leak evidence discriminative before asking the model to classify it.

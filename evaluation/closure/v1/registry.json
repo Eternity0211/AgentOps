@@ -24,11 +24,11 @@
     {
       "work_id": "FC2", "title": "Structured output reliability", "status": "IN_PROGRESS", "owner": "agentops-evaluation", "prerequisites": ["FC1"],
       "baseline": {"arm_id": "transport-1.4.0", "description": "Current strict transport and prompt contract."},
-      "candidate": {"arm_id": "transport-candidate", "description": "Field budgets and bounded schema repair."},
+      "candidate": {"arm_id": "transport-1.6.0", "description": "Field budgets, bounded schema repair and schema-derived generation constraints."},
       "independent_variable": "Structured-output reliability handling.",
       "metrics": ["invalid_response_rate", "safe_control_rate", "evidence_integrity_rate", "calls", "tokens", "latency", "cost"],
       "sample_size": {"status": "FIXED_CENSUS", "method": "Paired census of the frozen 81 outcomes.", "fixed_pairs": 81},
-      "artifact_paths": ["evaluation/real_protocol/v4/", "evaluation/results/structured-reliability/v1/"], "external_requirements": []
+      "artifact_paths": ["evaluation/real_protocol/v4/", "evaluation/real_protocol/v5/", "evaluation/results/structured-reliability/v1/", "evaluation/results/structured-reliability/v2/"], "external_requirements": []
     },
     {
       "work_id": "FC3", "title": "Discriminative memory evidence", "status": "PLANNED", "owner": "agentops-evaluation", "prerequisites": ["FC1"],

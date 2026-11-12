@@ -168,3 +168,31 @@ def test_committed_pair_plan_is_frozen_and_label_isolated() -> None:
         == digest
         for name, digest in plan["source_hashes"].items()
     )
+
+
+def test_candidate_1_6_pair_plan_is_frozen_before_calls() -> None:
+    path = Path("evaluation/real_protocol/v5/structured-transport-pair.json")
+    plan = json.loads(path.read_text(encoding="utf-8"))
+
+    assert plan["status"] == "FROZEN_BEFORE_PROVIDER_CALLS"
+    assert plan["implementation_commit"] == "133e56e367288687e349482c6bac7ff080dc90f3"
+    assert plan["expected_outcomes"] == 162
+    assert plan["profiles"] == {
+        "baseline-1.5": StructuredTransportProfile.CANDIDATE_1_5.value,
+        "candidate-1.6": StructuredTransportProfile.CANDIDATE_1_6.value,
+    }
+    bindings = {
+        plan["dataset"] + "/index.json": plan["dataset_index_sha256"],
+        plan["evaluator_labels"]: plan["evaluator_labels_sha256"],
+        plan["base_scoring_plan"]: plan["base_scoring_plan_sha256"],
+        plan["simulated_history_bank"]: plan["simulated_history_bank_sha256"],
+        plan["paired_scorer"]["source"]: plan["paired_scorer"]["source_sha256"],
+        plan["paired_scorer"]["orchestrator_source"]: plan["paired_scorer"][
+            "orchestrator_source_sha256"
+        ],
+        **plan["source_hashes"],
+    }
+    assert all(
+        hashlib.sha256(Path(name).read_bytes()).hexdigest() == digest
+        for name, digest in bindings.items()
+    )

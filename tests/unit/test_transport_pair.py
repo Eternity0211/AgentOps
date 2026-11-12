@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
-from evaluation.run_transport_pair import PROFILES, _check_plan, run_pair
+from evaluation.run_transport_pair import FROZEN_V1_PROFILES, _check_plan, run_pair
 from evaluation.structured_model import StructuredTransportProfile
 
 
@@ -22,7 +23,7 @@ def test_transport_pair_plan_binds_profiles_and_source_hashes(tmp_path: Path) ->
         "implementation_commit": "a" * 40,
         "dataset_index_sha256": hashlib.sha256(b"[]").hexdigest(),
         "simulated_history_bank_sha256": hashlib.sha256(b"{}").hexdigest(),
-        "profiles": {name: profile.value for name, profile in PROFILES},
+        "profiles": {name: profile.value for name, profile in FROZEN_V1_PROFILES},
     }
     with patch(
         "evaluation.run_transport_pair.subprocess.run", return_value=Mock(returncode=0)
@@ -48,7 +49,7 @@ def test_transport_pair_refuses_nonancestor_before_provider_work(tmp_path: Path)
         "implementation_commit": "a" * 40,
         "dataset_index_sha256": hashlib.sha256(b"[]").hexdigest(),
         "simulated_history_bank_sha256": hashlib.sha256(b"{}").hexdigest(),
-        "profiles": {name: profile.value for name, profile in PROFILES},
+        "profiles": {name: profile.value for name, profile in FROZEN_V1_PROFILES},
     }
     with (
         patch("evaluation.run_transport_pair.subprocess.run", return_value=Mock(returncode=1)),
@@ -58,8 +59,8 @@ def test_transport_pair_refuses_nonancestor_before_provider_work(tmp_path: Path)
 
 
 def test_profile_order_alternates_deterministically() -> None:
-    forward = [name for name, _ in PROFILES]
-    reverse = [name for name, _ in reversed(PROFILES)]
+    forward = [name for name, _ in FROZEN_V1_PROFILES]
+    reverse = [name for name, _ in reversed(FROZEN_V1_PROFILES)]
 
     assert forward == ["baseline-1.4", "candidate-1.5"]
     assert reverse == ["candidate-1.5", "baseline-1.4"]
@@ -77,7 +78,7 @@ def test_pair_runner_interleaves_profiles_without_loading_labels(tmp_path: Path)
         "implementation_commit": "a" * 40,
         "dataset_index_sha256": hashlib.sha256(b"[]").hexdigest(),
         "simulated_history_bank_sha256": hashlib.sha256(b"{}").hexdigest(),
-        "profiles": {name: profile.value for name, profile in PROFILES},
+        "profiles": {name: profile.value for name, profile in FROZEN_V1_PROFILES},
         "modes": ["single-agent", "controlled-graph", "controlled-graph-simulated-memory"],
     }
     plan_path = tmp_path / "plan.json"
@@ -123,20 +124,36 @@ def test_committed_pair_plan_is_frozen_and_label_isolated() -> None:
 
     assert plan["status"] == "FROZEN_BEFORE_PROVIDER_CALLS"
     assert plan["expected_outcomes"] == 162
-    assert plan["profiles"] == {name: profile.value for name, profile in PROFILES}
+    assert plan["profiles"] == {
+        name: profile.value for name, profile in FROZEN_V1_PROFILES
+    }
     assert plan["runtime_label_isolation"].startswith("The pair runner does not")
     assert "evaluator_labels" not in Path("evaluation/run_transport_pair.py").read_text(
         encoding="utf-8"
     )
-    bindings = {
+    immutable_data = {
         plan["dataset"] + "/index.json": plan["dataset_index_sha256"],
         plan["evaluator_labels"]: plan["evaluator_labels_sha256"],
         plan["base_scoring_plan"]: plan["base_scoring_plan_sha256"],
         plan["simulated_history_bank"]: plan["simulated_history_bank_sha256"],
         plan["paired_scorer"]["source"]: plan["paired_scorer"]["source_sha256"],
-        **plan["source_hashes"],
     }
     assert all(
         hashlib.sha256(Path(name).read_bytes()).hexdigest() == digest
-        for name, digest in bindings.items()
+        for name, digest in immutable_data.items()
+    )
+    assert all(
+        hashlib.sha256(
+            subprocess.check_output(
+                [
+                    "git",
+                    "-c",
+                    "safe.directory=D:/AgentOps",
+                    "show",
+                    f"{plan['implementation_commit']}:{name}",
+                ]
+            )
+        ).hexdigest()
+        == digest
+        for name, digest in plan["source_hashes"].items()
     )

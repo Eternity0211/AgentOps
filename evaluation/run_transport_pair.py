@@ -19,7 +19,7 @@ from evaluation.run_snapshot_comparison import run_snapshot
 from evaluation.simulated_history_source import memory_source
 from evaluation.structured_model import StructuredTransportProfile
 
-PROFILES = (
+FROZEN_V1_PROFILES = (
     ("baseline-1.4", StructuredTransportProfile.BASELINE_1_4),
     ("candidate-1.5", StructuredTransportProfile.CANDIDATE_1_5),
 )
@@ -29,7 +29,22 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _check_plan(plan: dict[str, Any], revision: str, dataset: Path, bank: Path) -> None:
+def _profiles(plan: dict[str, Any]) -> tuple[tuple[str, StructuredTransportProfile], ...]:
+    try:
+        profiles = tuple(
+            (name, StructuredTransportProfile(version))
+            for name, version in plan["profiles"].items()
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("transport profile binding mismatch") from error
+    if len(profiles) != 2 or len({name for name, _profile in profiles}) != 2:
+        raise ValueError("transport profile binding mismatch")
+    return profiles
+
+
+def _check_plan(
+    plan: dict[str, Any], revision: str, dataset: Path, bank: Path
+) -> tuple[tuple[str, StructuredTransportProfile], ...]:
     if plan.get("schema_version") != "structured-transport-pair/1.0.0":
         raise ValueError("unknown transport-pair plan")
     binding = subprocess.run(
@@ -50,9 +65,7 @@ def _check_plan(plan: dict[str, Any], revision: str, dataset: Path, bank: Path) 
         raise ValueError("dataset index hash mismatch")
     if _sha256(bank) != plan["simulated_history_bank_sha256"]:
         raise ValueError("simulated-history bank hash mismatch")
-    expected_profiles = {name: profile.value for name, profile in PROFILES}
-    if plan["profiles"] != expected_profiles:
-        raise ValueError("transport profile binding mismatch")
+    return _profiles(plan)
 
 
 def _history(
@@ -84,7 +97,7 @@ def run_pair(
     revision = subprocess.check_output(
         ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
     ).strip()
-    _check_plan(plan, revision, dataset, bank)
+    profiles = _check_plan(plan, revision, dataset, bank)
     rows = preflight(dataset)
     modes = tuple(plan["modes"])
     if modes != ("single-agent", "controlled-graph", SIMULATED_MEMORY_MODE):
@@ -95,7 +108,11 @@ def run_pair(
         snapshot_path = dataset / "inputs" / f"{row['instance_id']}.json"
         snapshot = load_snapshot(snapshot_path, expected_hash=row["input_hash"])
         for mode_index, mode in enumerate(modes):
-            ordered = PROFILES if (row_index + mode_index) % 2 == 0 else tuple(reversed(PROFILES))
+            ordered = (
+                profiles
+                if (row_index + mode_index) % 2 == 0
+                else tuple(reversed(profiles))
+            )
             for profile_name, profile in ordered:
                 profile_root = output / profile_name
                 ledger = OutcomeLedger(profile_root / "outcomes")

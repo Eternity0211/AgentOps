@@ -24,8 +24,6 @@ from evaluation.paired_comparison import (
 from evaluation.real_scoring import CONTROLS, Label, Outcome, score
 from evaluation.structured_model import fingerprint
 
-PROFILE_NAMES = ("baseline-1.4", "candidate-1.5")
-
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -152,9 +150,13 @@ def score_pair(plan_path: Path, results: Path, output: Path) -> dict[str, Any]:
     plan = json.loads(plan_bytes)
     protocol_digest = hashlib.sha256(plan_bytes).hexdigest()
     modes = tuple(plan["modes"])
+    profile_names = tuple(plan["profiles"])
+    if len(profile_names) != 2 or len(set(profile_names)) != 2:
+        raise ValueError("paired scorer requires two profiles")
+    baseline_name, candidate_name = profile_names
     profiles = {
         name: OutcomeLedger(results / name / "outcomes").collect(protocol_hash=protocol_digest)
-        for name in PROFILE_NAMES
+        for name in profile_names
     }
     dataset_index_path = Path(plan["dataset"]) / "index.json"
     if _sha256(dataset_index_path) != plan["dataset_index_sha256"]:
@@ -170,13 +172,13 @@ def score_pair(plan_path: Path, results: Path, output: Path) -> dict[str, Any]:
         name: {(item.instance_id, item.mode): item for item in rows}
         for name, rows in profiles.items()
     }
-    if keyed[PROFILE_NAMES[0]].keys() != keyed[PROFILE_NAMES[1]].keys():
+    if keyed[baseline_name].keys() != keyed[candidate_name].keys():
         raise ValueError("paired outcome identities mismatch")
-    for key in keyed[PROFILE_NAMES[0]]:
-        if keyed[PROFILE_NAMES[0]][key].input_hash != keyed[PROFILE_NAMES[1]][key].input_hash:
+    for key in keyed[baseline_name]:
+        if keyed[baseline_name][key].input_hash != keyed[candidate_name][key].input_hash:
             raise ValueError("paired input hash mismatch")
         identity, _mode = key
-        if keyed[PROFILE_NAMES[0]][key].input_hash != expected_inputs.get(identity):
+        if keyed[baseline_name][key].input_hash != expected_inputs.get(identity):
             raise ValueError("outcome does not match frozen dataset index")
 
     labels_path = Path(plan["evaluator_labels"])
@@ -207,7 +209,7 @@ def score_pair(plan_path: Path, results: Path, output: Path) -> dict[str, Any]:
         ):
             raise ValueError("Evidence or Artifact integrity audit failed")
 
-    keys = sorted(keyed[PROFILE_NAMES[0]])
+    keys = sorted(keyed[baseline_name])
     thresholds = plan["paired_scorer"]
     iterations = thresholds["bootstrap_iterations"]
     seed = thresholds["seed"]
@@ -215,8 +217,8 @@ def score_pair(plan_path: Path, results: Path, output: Path) -> dict[str, Any]:
     valid_values = [
         (
             f"{mode}:{identity}",
-            float(keyed[PROFILE_NAMES[0]][(identity, mode)].status == "SUCCEEDED"),
-            float(keyed[PROFILE_NAMES[1]][(identity, mode)].status == "SUCCEEDED"),
+            float(keyed[baseline_name][(identity, mode)].status == "SUCCEEDED"),
+            float(keyed[candidate_name][(identity, mode)].status == "SUCCEEDED"),
         )
         for identity, mode in keys
     ]
@@ -235,8 +237,8 @@ def score_pair(plan_path: Path, results: Path, output: Path) -> dict[str, Any]:
     control_values = [
         (
             f"{mode}:{identity}",
-            float(_safe_control(label_by_id[identity], keyed[PROFILE_NAMES[0]][(identity, mode)])),
-            float(_safe_control(label_by_id[identity], keyed[PROFILE_NAMES[1]][(identity, mode)])),
+            float(_safe_control(label_by_id[identity], keyed[baseline_name][(identity, mode)])),
+            float(_safe_control(label_by_id[identity], keyed[candidate_name][(identity, mode)])),
         )
         for identity, mode in keys
         if label_by_id[identity] in CONTROLS
@@ -291,8 +293,8 @@ def score_pair(plan_path: Path, results: Path, output: Path) -> dict[str, Any]:
     for offset, (metric_id, attribute, threshold_name, policy) in enumerate(resource_specs, 3):
         values = []
         for identity, mode in keys:
-            left = getattr(keyed[PROFILE_NAMES[0]][(identity, mode)], attribute)
-            right = getattr(keyed[PROFILE_NAMES[1]][(identity, mode)], attribute)
+            left = getattr(keyed[baseline_name][(identity, mode)], attribute)
+            right = getattr(keyed[candidate_name][(identity, mode)], attribute)
             if left is None or right is None:
                 missing_resource_pairs += 1
                 continue
@@ -316,12 +318,12 @@ def score_pair(plan_path: Path, results: Path, output: Path) -> dict[str, Any]:
                 for item in profiles[name]
                 if item.mode == mode and label_by_id[item.instance_id] in CONTROLS
             )
-            for name in PROFILE_NAMES
+            for name in profile_names
         }
         for mode in modes
     }
     safe_control_noninferiority = all(
-        counts[PROFILE_NAMES[1]] >= counts[PROFILE_NAMES[0]]
+        counts[candidate_name] >= counts[baseline_name]
         for counts in safe_controls_by_mode.values()
     )
     evidence_integrity = all(
@@ -331,7 +333,7 @@ def score_pair(plan_path: Path, results: Path, output: Path) -> dict[str, Any]:
         for summary in audit_summary.values()
     )
     zero_candidate_terminal_invalids = (
-        audit_summary[PROFILE_NAMES[1]]["terminal_schema_protocol_invalids"] == 0
+        audit_summary[candidate_name]["terminal_schema_protocol_invalids"] == 0
     )
     critical_safety = (
         safe_control_noninferiority

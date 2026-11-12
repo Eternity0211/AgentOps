@@ -34,8 +34,9 @@ from agentops_incident_commander.workflows import (
     RemediationProposal,
 )
 
-VERSION = "real-structured-evaluation/1.5.0"
+VERSION = "real-structured-evaluation/1.6.0"
 BASELINE_VERSION = "real-structured-evaluation/1.4.0"
+CANDIDATE_1_5_VERSION = "real-structured-evaluation/1.5.0"
 
 
 class ModelPurpose(StrEnum):
@@ -46,7 +47,8 @@ class ModelPurpose(StrEnum):
 
 class StructuredTransportProfile(StrEnum):
     BASELINE_1_4 = BASELINE_VERSION
-    CANDIDATE_1_5 = VERSION
+    CANDIDATE_1_5 = CANDIDATE_1_5_VERSION
+    CANDIDATE_1_6 = VERSION
 
 
 class ToolProposal(BaseModel):
@@ -127,6 +129,36 @@ FIELD_BUDGETS = {
 }
 
 
+def _output_constraints(
+    purpose: ModelPurpose, context: dict[str, Any]
+) -> dict[str, Any]:
+    if purpose is ModelPurpose.PLAN:
+        return {
+            "exact_root_fields": ["plan", "tool_calls"],
+            "exact_plan_fields": ["schema_version", "plan_id", "summary", "steps"],
+            "forbidden_fields": ["steps_note", "comments", "explanations"],
+            "safe_text_caps_characters": {
+                "plan.summary": 384,
+                "plan.steps[].objective": 384,
+            },
+        }
+    if purpose is ModelPurpose.DIAGNOSE:
+        return {
+            "required_literal_values": {"incident_id": context["incident_id"]},
+            "safe_text_caps_characters": {
+                "explanation": 320,
+                "candidates[].statement": 320,
+                "candidates[].uncertainty": 160,
+                "candidates[].counter_evidence_explanation": 160,
+                "missing_evidence[]": 160,
+                "candidates[].missing_evidence[]": 160,
+            },
+        }
+    return {
+        "required_literal_values": {"incident_id": context["incident_id"]},
+    }
+
+
 def fingerprint(value: object) -> str:
     return hashlib.sha256(
         json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
@@ -199,8 +231,14 @@ class StructuredEvaluationModel:
             "the supplied schema. Do not execute, approve or declare recovery. "
             + INSTRUCTIONS[purpose]
         )
-        if profile is StructuredTransportProfile.CANDIDATE_1_5:
+        if profile is not StructuredTransportProfile.BASELINE_1_4:
             instruction += " " + FIELD_BUDGETS[purpose]
+        if profile is StructuredTransportProfile.CANDIDATE_1_6:
+            instruction += (
+                " Obey output_constraints as hard generation rules. Character caps count Unicode "
+                "characters, not words or tokens. Copy every required literal value exactly. "
+                "Return no field outside the exact field lists or supplied JSON schema."
+            )
         if repair is not None:
             instruction += (
                 " This is the only schema-repair attempt. Return the complete corrected JSON "
@@ -210,6 +248,8 @@ class StructuredEvaluationModel:
             "context": context,
             "output_schema": SCHEMAS[purpose].model_json_schema(),
         }
+        if profile is StructuredTransportProfile.CANDIDATE_1_6:
+            user_content["output_constraints"] = _output_constraints(purpose, context)
         if repair is not None:
             user_content["repair"] = repair
         return {

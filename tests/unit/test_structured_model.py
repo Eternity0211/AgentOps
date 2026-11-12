@@ -214,6 +214,41 @@ def test_field_budgets_are_explicit_and_repair_never_applies_to_remediation() ->
     assert len(events) == 2
 
 
+def test_candidate_1_6_adds_machine_readable_generation_constraints() -> None:
+    context = {"incident_id": "incident-1", "evidence_ids": []}
+    diagnosis = StructuredEvaluationModel.request_payload(
+        ModelPurpose.DIAGNOSE,
+        context,
+        profile=StructuredTransportProfile.CANDIDATE_1_6,
+    )
+    user = json.loads(diagnosis["messages"][1]["content"])
+
+    assert user["output_constraints"]["required_literal_values"] == {
+        "incident_id": "incident-1"
+    }
+    assert user["output_constraints"]["safe_text_caps_characters"]["explanation"] == 320
+    assert "Copy every required literal value exactly" in diagnosis["messages"][0]["content"]
+
+    plan = StructuredEvaluationModel.request_payload(
+        ModelPurpose.PLAN,
+        {"incident_id": "incident-1"},
+        profile=StructuredTransportProfile.CANDIDATE_1_6,
+    )
+    plan_constraints = json.loads(plan["messages"][1]["content"])["output_constraints"]
+    assert plan_constraints["forbidden_fields"] == [
+        "steps_note",
+        "comments",
+        "explanations",
+    ]
+
+    frozen = StructuredEvaluationModel.request_payload(
+        ModelPurpose.DIAGNOSE,
+        context,
+        profile=StructuredTransportProfile.CANDIDATE_1_5,
+    )
+    assert "output_constraints" not in json.loads(frozen["messages"][1]["content"])
+
+
 @pytest.mark.parametrize(
     "case,expected",
     [

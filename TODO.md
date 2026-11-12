@@ -78,6 +78,13 @@ measurement shows no need; closing it does not mean implementing it.
     rerun the same interleaved 81-pair census; acceptance remains zero terminal invalids, per-mode
     safe-control non-inferiority and perfect cited Evidence/Artifact integrity. Report repair-call,
     latency, token and rate-card deltas; do not overwrite or selectively rerun FC2c.
+    - [x] FC2d-a candidate 1.6 adds schema-derived machine-readable exact-field rules, conservative
+      character caps and literal Incident binding. Frozen 1.4/1.5 behavior remains selectable;
+      the pair runner and scorer now accept exactly two plan-bound profiles. Forty focused tests,
+      Ruff and strict mypy pass. No call-budget, retry, schema, Gate or write-path relaxation.
+    - [ ] FC2d-b freeze the 1.5/1.6 interleaved plan after the implementation commit and before
+      provider calls, retaining the same 27 inputs, three modes, FC1 thresholds and failure rules.
+    - [ ] FC2d-c execute, audit and publish all 162 outcomes without selective reruns.
 
 - [ ] FC3 Make memory-leak evidence discriminative before asking the model to classify it.
   - Capture a longer bounded series including retained bytes before/after GC, allocation and

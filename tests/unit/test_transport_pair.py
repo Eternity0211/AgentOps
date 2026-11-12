@@ -115,3 +115,28 @@ def test_pair_runner_interleaves_profiles_without_loading_labels(tmp_path: Path)
         "BASELINE_1_4",
         "CANDIDATE_1_5",
     ]
+
+
+def test_committed_pair_plan_is_frozen_and_label_isolated() -> None:
+    path = Path("evaluation/real_protocol/v4/structured-transport-pair.json")
+    plan = json.loads(path.read_text(encoding="utf-8"))
+
+    assert plan["status"] == "FROZEN_BEFORE_PROVIDER_CALLS"
+    assert plan["expected_outcomes"] == 162
+    assert plan["profiles"] == {name: profile.value for name, profile in PROFILES}
+    assert plan["runtime_label_isolation"].startswith("The pair runner does not")
+    assert "evaluator_labels" not in Path("evaluation/run_transport_pair.py").read_text(
+        encoding="utf-8"
+    )
+    bindings = {
+        plan["dataset"] + "/index.json": plan["dataset_index_sha256"],
+        plan["evaluator_labels"]: plan["evaluator_labels_sha256"],
+        plan["base_scoring_plan"]: plan["base_scoring_plan_sha256"],
+        plan["simulated_history_bank"]: plan["simulated_history_bank_sha256"],
+        plan["paired_scorer"]["source"]: plan["paired_scorer"]["source_sha256"],
+        **plan["source_hashes"],
+    }
+    assert all(
+        hashlib.sha256(Path(name).read_bytes()).hexdigest() == digest
+        for name, digest in bindings.items()
+    )

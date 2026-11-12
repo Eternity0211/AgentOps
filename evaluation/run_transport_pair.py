@@ -65,6 +65,16 @@ def _check_plan(
         raise ValueError("dataset index hash mismatch")
     if _sha256(bank) != plan["simulated_history_bank_sha256"]:
         raise ValueError("simulated-history bank hash mismatch")
+    source_root = Path(__file__).resolve().parents[1]
+    required_sources = {
+        "evaluation/run_transport_pair.py",
+        "evaluation/structured_model.py",
+    }
+    if set(plan.get("source_hashes", {})) != required_sources or any(
+        _sha256(source_root / name) != digest
+        for name, digest in plan["source_hashes"].items()
+    ):
+        raise ValueError("transport source hash mismatch")
     return _profiles(plan)
 
 

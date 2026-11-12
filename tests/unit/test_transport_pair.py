@@ -12,6 +12,14 @@ from evaluation.run_transport_pair import FROZEN_V1_PROFILES, _check_plan, run_p
 from evaluation.structured_model import StructuredTransportProfile
 
 
+def source_hashes() -> dict[str, str]:
+    names = (
+        "evaluation/run_transport_pair.py",
+        "evaluation/structured_model.py",
+    )
+    return {name: hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in names}
+
+
 def test_transport_pair_plan_binds_profiles_and_source_hashes(tmp_path: Path) -> None:
     dataset = tmp_path / "dataset"
     dataset.mkdir()
@@ -24,6 +32,7 @@ def test_transport_pair_plan_binds_profiles_and_source_hashes(tmp_path: Path) ->
         "dataset_index_sha256": hashlib.sha256(b"[]").hexdigest(),
         "simulated_history_bank_sha256": hashlib.sha256(b"{}").hexdigest(),
         "profiles": {name: profile.value for name, profile in FROZEN_V1_PROFILES},
+        "source_hashes": source_hashes(),
     }
     with patch(
         "evaluation.run_transport_pair.subprocess.run", return_value=Mock(returncode=0)
@@ -50,6 +59,7 @@ def test_transport_pair_refuses_nonancestor_before_provider_work(tmp_path: Path)
         "dataset_index_sha256": hashlib.sha256(b"[]").hexdigest(),
         "simulated_history_bank_sha256": hashlib.sha256(b"{}").hexdigest(),
         "profiles": {name: profile.value for name, profile in FROZEN_V1_PROFILES},
+        "source_hashes": source_hashes(),
     }
     with (
         patch("evaluation.run_transport_pair.subprocess.run", return_value=Mock(returncode=1)),
@@ -79,6 +89,7 @@ def test_pair_runner_interleaves_profiles_without_loading_labels(tmp_path: Path)
         "dataset_index_sha256": hashlib.sha256(b"[]").hexdigest(),
         "simulated_history_bank_sha256": hashlib.sha256(b"{}").hexdigest(),
         "profiles": {name: profile.value for name, profile in FROZEN_V1_PROFILES},
+        "source_hashes": source_hashes(),
         "modes": ["single-agent", "controlled-graph", "controlled-graph-simulated-memory"],
     }
     plan_path = tmp_path / "plan.json"

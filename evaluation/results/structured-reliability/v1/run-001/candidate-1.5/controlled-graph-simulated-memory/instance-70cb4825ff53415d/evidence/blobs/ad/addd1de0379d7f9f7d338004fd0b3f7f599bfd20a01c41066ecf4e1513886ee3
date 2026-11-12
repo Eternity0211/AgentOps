@@ -1,0 +1,1 @@
+{"provenance":"{\"attempts\":1,\"call_id\":\"call-a1e654d8e8081c4f-r0-gateway_topology\",\"error_code\":\"SNAPSHOT_SOURCE_UNAVAILABLE\",\"records_seen\":0,\"source_available\":false,\"tool\":\"get_service_topology\",\"version\":\"2.0.0\"}","summary":"{\"error_code\": \"SNAPSHOT_SOURCE_UNAVAILABLE\", \"status\": \"UNAVAILABLE\"}"}

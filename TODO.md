@@ -66,8 +66,18 @@ measurement shows no need; closing it does not mean implementing it.
   - [x] FC2b freeze the 1.4.0/1.5.0 paired plan before calls. Bind all 27 inputs, three modes,
     both profiles, simulated bank, evaluator-label hash, FC1 source, effect thresholds, 10,000
     bootstrap iterations, parity interleaving and failure rules. Runtime never accepts labels.
-  - [ ] FC2c execute all 162 paired outcomes, score with FC1, audit Evidence/Artifact hashes and
-    publish the measured delta without selective reruns.
+  - [x] FC2c executed all 162 paired outcomes without selective reruns. Candidate terminal
+    schema/protocol invalids fell from 12/81 to 4/81 (-8; -66.7% of the baseline count), while
+    valid outcomes rose from 69/81 to 76/81 (+8.64 percentage points). All 301 citations resolved
+    within their Incident and matched Artifact hashes; safe controls were non-inferior per mode.
+    Acceptance failed because invalids did not reach zero. Median latency increased 609 ms, input
+    tokens 1,140, output tokens 86 and rate-card upper bound 454,500 nUSD; FC1 marks those four
+    resource metrics `REGRESSED` and all benefit claims `NO_PROVEN_IMPROVEMENT`.
+  - [ ] FC2d classify and eliminate the four remaining terminal schema/protocol failures without
+    increasing the four-call budget or adding write retries. Freeze a new candidate/profile and
+    rerun the same interleaved 81-pair census; acceptance remains zero terminal invalids, per-mode
+    safe-control non-inferiority and perfect cited Evidence/Artifact integrity. Report repair-call,
+    latency, token and rate-card deltas; do not overwrite or selectively rerun FC2c.
 
 - [ ] FC3 Make memory-leak evidence discriminative before asking the model to classify it.
   - Capture a longer bounded series including retained bytes before/after GC, allocation and

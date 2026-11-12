@@ -24,7 +24,7 @@
     {
       "work_id": "FC2", "title": "Structured output reliability", "status": "IN_PROGRESS", "owner": "agentops-evaluation", "prerequisites": ["FC1"],
       "baseline": {"arm_id": "transport-1.4.0", "description": "Current strict transport and prompt contract."},
-      "candidate": {"arm_id": "transport-1.6.0", "description": "Field budgets, bounded schema repair and schema-derived generation constraints."},
+      "candidate": {"arm_id": "transport-next", "description": "Field budgets, bounded schema repair, schema-derived generation constraints and complete-transition call reservation."},
       "independent_variable": "Structured-output reliability handling.",
       "metrics": ["invalid_response_rate", "safe_control_rate", "evidence_integrity_rate", "calls", "tokens", "latency", "cost"],
       "sample_size": {"status": "FIXED_CENSUS", "method": "Paired census of the frozen 81 outcomes.", "fixed_pairs": 81},

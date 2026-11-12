@@ -87,7 +87,18 @@ measurement shows no need; closing it does not mean implementing it.
       three modes, four-call ceiling, FC1
       thresholds and failure rules. It binds data, labels-for-post-scoring, runner, transport,
       scorer and score-orchestrator hashes; FC2c artifacts cannot be overwritten or reused as an arm.
-    - [ ] FC2d-c execute, audit and publish all 162 outcomes without selective reruns.
+    - [x] FC2d-c executed, audited and published all 162 outcomes without selective reruns.
+      Predeclared acceptance passed: candidate terminal schema/protocol invalids 0/81, controls
+      9/9 per mode, and 160/160 candidate citations resolve and hash-match. Valid outcomes were
+      77/81 versus 78/81 (+1.23 percentage points; 95% interval -3.70 to +6.17), so FC1 reports
+      `NO_PROVEN_IMPROVEMENT`; the cost/latency gate failed.
+  - [ ] FC2e eliminate repair-induced call-budget exhaustion before closing FC2. In FC2d, all four
+    candidate initial PLAN invalids repaired successfully, but three graph outcomes then exhausted
+    the four-call ceiling while completing replan/diagnosis. Reserve the complete next transition
+    before starting a replan; if insufficient, retain the validated report and route to deterministic
+    human handoff. Do not increase calls, skip validation, or convert invalid output. Freeze and run
+    1.6 versus the new candidate on the same 81 pairs. Acceptance adds zero failed outcomes after a
+    successful repair to the existing zero terminal-invalid, safe-control and Evidence-integrity gates.
 
 - [ ] FC3 Make memory-leak evidence discriminative before asking the model to classify it.
   - Capture a longer bounded series including retained bytes before/after GC, allocation and

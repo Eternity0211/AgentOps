@@ -124,7 +124,7 @@ measurement shows no need; closing it does not mean implementing it.
       and conditional counter-evidence invariants while preserving 1.7 byte behavior. The generic
       scorer can now opt into native repair-follow-through enforcement for the next frozen plan;
       historical scores remain byte-reproducible.
-    - [ ] FC2f-b freeze the 1.7/1.8 plan with the updated scorer and all prior bindings before calls.
+    - [x] FC2f-b freeze the 1.7/1.8 plan with the updated scorer and all prior bindings before calls.
     - [ ] FC2f-c execute, audit and publish the complete 162-outcome comparison.
 
 - [ ] FC3 Make memory-leak evidence discriminative before asking the model to classify it.

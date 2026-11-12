@@ -185,6 +185,8 @@ def test_committed_pair_plan_is_frozen_and_label_isolated() -> None:
         == digest
         for name, digest in plan["source_hashes"].items()
     )
+
+
 def test_candidate_1_6_pair_plan_is_frozen_before_calls() -> None:
     path = Path("evaluation/real_protocol/v5/structured-transport-pair.json")
     plan = json.loads(path.read_text(encoding="utf-8"))
@@ -201,10 +203,6 @@ def test_candidate_1_6_pair_plan_is_frozen_before_calls() -> None:
         plan["evaluator_labels"]: plan["evaluator_labels_sha256"],
         plan["base_scoring_plan"]: plan["base_scoring_plan_sha256"],
         plan["simulated_history_bank"]: plan["simulated_history_bank_sha256"],
-        plan["paired_scorer"]["source"]: plan["paired_scorer"]["source_sha256"],
-        plan["paired_scorer"]["orchestrator_source"]: plan["paired_scorer"][
-            "orchestrator_source_sha256"
-        ],
     }
     assert all(
         hashlib.sha256(Path(name).read_bytes()).hexdigest() == digest
@@ -223,8 +221,16 @@ def test_candidate_1_6_pair_plan_is_frozen_before_calls() -> None:
             )
         ).hexdigest()
         == digest
-        for name, digest in plan["source_hashes"].items()
+        for name, digest in {
+            **plan["source_hashes"],
+            plan["paired_scorer"]["source"]: plan["paired_scorer"]["source_sha256"],
+            plan["paired_scorer"]["orchestrator_source"]: plan["paired_scorer"][
+                "orchestrator_source_sha256"
+            ],
+        }.items()
     )
+
+
 def test_candidate_1_7_pair_plan_is_frozen_before_calls() -> None:
     path = Path("evaluation/real_protocol/v6/structured-transport-pair.json")
     plan = json.loads(path.read_text(encoding="utf-8"))
@@ -242,10 +248,6 @@ def test_candidate_1_7_pair_plan_is_frozen_before_calls() -> None:
         plan["evaluator_labels"]: plan["evaluator_labels_sha256"],
         plan["base_scoring_plan"]: plan["base_scoring_plan_sha256"],
         plan["simulated_history_bank"]: plan["simulated_history_bank_sha256"],
-        plan["paired_scorer"]["source"]: plan["paired_scorer"]["source_sha256"],
-        plan["paired_scorer"]["orchestrator_source"]: plan["paired_scorer"][
-            "orchestrator_source_sha256"
-        ],
     }
     assert all(
         hashlib.sha256(Path(name).read_bytes()).hexdigest() == digest
@@ -269,7 +271,50 @@ def test_candidate_1_7_pair_plan_is_frozen_before_calls() -> None:
             )
         ).hexdigest()
         == digest
-        for name, digest in plan["source_hashes"].items()
+        for name, digest in {
+            **plan["source_hashes"],
+            plan["paired_scorer"]["source"]: plan["paired_scorer"]["source_sha256"],
+            plan["paired_scorer"]["orchestrator_source"]: plan["paired_scorer"][
+                "orchestrator_source_sha256"
+            ],
+        }.items()
+    )
+def test_candidate_1_8_pair_plan_is_frozen_before_calls() -> None:
+    plan = json.loads(
+        Path("evaluation/real_protocol/v7/structured-transport-pair.json").read_text("utf-8")
+    )
+    assert plan["status"] == "FROZEN_BEFORE_PROVIDER_CALLS"
+    assert plan["implementation_commit"] == "2e33680ec5470eb0e46adac913b2f6ab2fba4684"
+    assert plan["expected_outcomes"] == 162
+    assert plan["profiles"] == {
+        "baseline-1.7": StructuredTransportProfile.CANDIDATE_1_7.value,
+        "candidate-1.8": StructuredTransportProfile.CANDIDATE_1_8.value,
+    }
+    assert plan["acceptance"]["native_followthrough_scorer"] is True
+    bindings = {
+        **plan["source_hashes"],
+        plan["paired_scorer"]["source"]: plan["paired_scorer"]["source_sha256"],
+        plan["paired_scorer"]["orchestrator_source"]: plan["paired_scorer"][
+            "orchestrator_source_sha256"
+        ],
+        plan["paired_scorer"]["followthrough_auditor_source"]: plan["paired_scorer"][
+            "followthrough_auditor_source_sha256"
+        ],
+    }
+    assert all(
+        hashlib.sha256(
+            subprocess.check_output(
+                [
+                    "git",
+                    "-c",
+                    "safe.directory=D:/AgentOps",
+                    "show",
+                    f"{plan['implementation_commit']}:{name}",
+                ]
+            )
+        ).hexdigest()
+        == digest
+        for name, digest in bindings.items()
     )
     revision = subprocess.check_output(
         ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
@@ -280,4 +325,4 @@ def test_candidate_1_7_pair_plan_is_frozen_before_calls() -> None:
         Path(plan["dataset"]),
         Path(plan["simulated_history_bank"]),
     )
-    assert [name for name, _profile in profiles] == ["baseline-1.6", "candidate-1.7"]
+    assert [name for name, _profile in profiles] == ["baseline-1.7", "candidate-1.8"]

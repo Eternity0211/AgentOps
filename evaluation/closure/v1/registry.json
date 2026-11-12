@@ -13,7 +13,7 @@
       "artifact_paths": ["evaluation/closure/v1/registry.json", "TODO.md"], "external_requirements": []
     },
     {
-      "work_id": "FC1", "title": "Common paired comparison scorer", "status": "PLANNED", "owner": "agentops-evaluation", "prerequisites": ["FC0"],
+      "work_id": "FC1", "title": "Common paired comparison scorer", "status": "COMPLETE", "owner": "agentops-evaluation", "prerequisites": ["FC0"],
       "baseline": {"arm_id": "existing-scorers", "description": "Separate scorers without one effect-size contract."},
       "candidate": {"arm_id": "paired-scorer-v1", "description": "Shared delta, interval and paired-test contract."},
       "independent_variable": "Comparative statistical reporting implementation.",

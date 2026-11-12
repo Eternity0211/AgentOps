@@ -14,7 +14,10 @@ def test_closure_registry_is_complete_strict_and_ordered() -> None:
     registry = load_closure_registry(REGISTRY)
 
     assert [item.work_id for item in registry.experiments] == [f"FC{i}" for i in range(14)]
-    assert registry.experiments[0].status is WorkStatus.COMPLETE
+    assert [item.status for item in registry.experiments[:2]] == [
+        WorkStatus.COMPLETE,
+        WorkStatus.COMPLETE,
+    ]
     assert len(registry.legacy_mappings) == 16
     assert {item.resolution for item in registry.legacy_mappings} >= {
         "EXISTING_EVIDENCE",
@@ -50,6 +53,10 @@ def test_closure_registry_refuses_unknown_fields_and_forward_dependencies() -> N
 def test_legacy_todo_has_no_unmapped_open_checkbox() -> None:
     todo = Path("TODO.md").read_text(encoding="utf-8")
     open_items = [line for line in todo.splitlines() if line.startswith("- [ ]")]
+    registry = load_closure_registry(REGISTRY)
+    expected = [
+        item.work_id for item in registry.experiments if item.status is not WorkStatus.COMPLETE
+    ]
 
-    assert len(open_items) == 13
-    assert all(f"FC{index} " in open_items[index - 1] for index in range(1, 14))
+    assert len(open_items) == len(expected)
+    assert all(f"{work_id} " in line for work_id, line in zip(expected, open_items, strict=True))

@@ -25,7 +25,7 @@ measurement shows no need; closing it does not mean implementing it.
   - Verification: planning-doc validator, registry schema tests, duplicate/open-item audit, Ruff,
     mypy, credential/content scan, atomic commit and push.
 
-- [ ] FC1 Implement one common paired-comparison scorer; no narrative-only improvement claims.
+- [x] FC1 Implement one common paired-comparison scorer; no narrative-only improvement claims.
   - Every report must show baseline value, candidate value, absolute delta, relative delta where
     the baseline is nonzero, denominator, failures, 95% interval, and paired test result.
   - Accuracy/safety pairs use paired bootstrap intervals and McNemar counts; latency/labor/cost
@@ -39,6 +39,9 @@ measurement shows no need; closing it does not mean implementing it.
   - Critical safety is a hard gate: zero fabricated Evidence references, zero unapproved writes,
     zero duplicate writes, zero Ground-Truth leakage, and zero recovery-success declarations by
     an LLM. Failed/aborted runs remain in the denominator.
+  - Verification: strict create-only contract, binary/continuous effect arithmetic, deterministic
+    bootstrap, exact McNemar/sign tests, Holm adjustment, gate/zero-baseline/regression/refusal
+    paths and committed fixture pass nine focused tests; Ruff and strict mypy pass.
 
 ### Fix the currently observed defects, then measure before versus after
 

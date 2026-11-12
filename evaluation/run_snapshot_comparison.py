@@ -24,6 +24,7 @@ from evaluation.structured_model import (
     ModelPurpose,
     StructuredEvaluationModel,
     StructuredResult,
+    StructuredTransportProfile,
     fingerprint,
 )
 
@@ -63,6 +64,7 @@ def run_snapshot(
     key: str,
     transport: Any = None,
     memory_source: MemoryReplaySource | None = None,
+    profile: StructuredTransportProfile = StructuredTransportProfile.CANDIDATE_1_5,
 ) -> Outcome:
     if mode not in RUN_MODES:
         raise ValueError("unknown comparison mode")
@@ -101,6 +103,7 @@ def run_snapshot(
         "snapshot_hash": expected_hash,
         "evidence_clock": "CAPTURE_WINDOW_END_PLUS_ONE_SECOND",
         "provider_timing": "REAL_MONOTONIC",
+        "structured_transport_profile": profile.value,
     }
     with (run_root / "runtime.json").open("x", encoding="utf-8") as stream:
         json.dump(runtime, stream, sort_keys=True)
@@ -113,7 +116,9 @@ def run_snapshot(
             stream.flush()
             os.fsync(stream.fileno())
 
-    model = ComparisonModel(key, journal, max_calls=4, transport=transport)
+    model = ComparisonModel(
+        key, journal, max_calls=4, transport=transport, profile=profile
+    )
     started = time.monotonic_ns()
     values: dict[str, Any] = {}
     try:

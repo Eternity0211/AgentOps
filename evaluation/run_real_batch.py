@@ -14,6 +14,7 @@ from evaluation.outcome_ledger import OutcomeLedger
 from evaluation.real_scoring import SIMULATED_MEMORY_MODE, Outcome, protocol_hash
 from evaluation.run_snapshot_comparison import run_snapshot
 from evaluation.simulated_history_source import memory_source
+from evaluation.structured_model import StructuredTransportProfile
 
 
 def preflight(dataset: Path) -> tuple[dict[str, str], ...]:
@@ -47,6 +48,7 @@ def run_batch(
     modes: tuple[str, ...] = ("single-agent", "controlled-graph"),
     transport: Any = None,
     simulated_history_bank: Path | None = None,
+    profile: StructuredTransportProfile = StructuredTransportProfile.CANDIDATE_1_5,
 ) -> None:
     if not key:
         raise ValueError("DEEPSEEK_API_KEY required before batch start")
@@ -104,6 +106,7 @@ def run_batch(
                     if mode == SIMULATED_MEMORY_MODE and simulated_history_bank is not None
                     else None
                 ),
+                profile=profile,
             )
 
 
@@ -116,6 +119,11 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--simulated-history-bank", type=Path)
     parser.add_argument("--include-simulated-memory", action="store_true")
+    parser.add_argument(
+        "--transport-profile",
+        choices=[item.name for item in StructuredTransportProfile],
+        default=StructuredTransportProfile.CANDIDATE_1_5.name,
+    )
     args = parser.parse_args()
     modes: tuple[str, ...] = ("single-agent", "controlled-graph")
     if args.include_simulated_memory:
@@ -127,6 +135,7 @@ def main() -> None:
         key=os.environ.get("DEEPSEEK_API_KEY", ""),
         modes=modes,
         simulated_history_bank=args.simulated_history_bank,
+        profile=StructuredTransportProfile[args.transport_profile],
     )
 
 

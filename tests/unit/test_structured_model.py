@@ -12,6 +12,7 @@ from evaluation.structured_model import (
     ModelPurpose,
     StructuredEvaluationModel,
     StructuredModelFailure,
+    StructuredTransportProfile,
     compile_real_plan,
 )
 
@@ -89,6 +90,128 @@ def test_report_usage_hashes_budget_and_no_payload_in_journal() -> None:
     assert "Bounded cause" not in json.dumps(events) and "test-only" not in json.dumps(events)
     with pytest.raises(StructuredModelFailure, match="MODEL_CALL_BUDGET_EXHAUSTED"):
         model.invoke(ModelPurpose.DIAGNOSE, {})
+
+
+@pytest.mark.parametrize("case", ["overflow", "extra", "incident", "reference"])
+def test_diagnosis_gets_one_bounded_content_free_schema_repair(case: str) -> None:
+    events: list[dict[str, Any]] = []
+    requests: list[dict[str, Any]] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(json.loads(request.content))
+        output = report()
+        if len(requests) == 1:
+            if case == "overflow":
+                output["explanation"] = "REJECTED_MARKER" + "x" * 512
+            elif case == "extra":
+                output["steps_note"] = "REJECTED_MARKER"
+            elif case == "incident":
+                output["incident_id"] = "other"
+            else:
+                output["candidates"][0]["supporting_evidence_ids"] = ["fabricated"]
+        return httpx.Response(200, json=body(output))
+
+    model = StructuredEvaluationModel(
+        "test-only", events.append, max_calls=2, transport=httpx.MockTransport(handle)
+    )
+    result = model.invoke(
+        ModelPurpose.DIAGNOSE, {"incident_id": "incident-1", "evidence_ids": ["e1"]}
+    )
+
+    assert result.output.incident_id == "incident-1"  # type: ignore[attr-defined]
+    assert result.input_tokens == 200 and result.output_tokens == 200
+    assert result.cached_input_tokens == 100
+    assert result.cost_upper_bound_nanousd == 300000
+    assert len(requests) == 2 and len(events) == 4
+    repair = json.loads(requests[1]["messages"][1]["content"])["repair"]
+    assert repair["repair_attempt"] == 1
+    assert repair["original_request_hash"] == events[0]["request_hash"]
+    assert repair["error_code"] in {"INVALID_RESPONSE", "INCIDENT_MISMATCH", "UNKNOWN_REFERENCE"}
+    assert "REJECTED_MARKER" not in requests[1]["messages"][1]["content"]
+    assert events[1]["status"] == "FAILED"
+    assert events[2]["repair_attempt"] == 1
+    assert events[3]["status"] == "SUCCEEDED"
+
+
+def test_schema_repair_is_attempted_only_once() -> None:
+    events: list[dict[str, Any]] = []
+    calls = 0
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        output = report()
+        output["explanation"] = "x" * 513
+        return httpx.Response(200, json=body(output))
+
+    model = StructuredEvaluationModel(
+        "test-only", events.append, max_calls=4, transport=httpx.MockTransport(handle)
+    )
+    with pytest.raises(StructuredModelFailure, match="INVALID_RESPONSE"):
+        model.invoke(
+            ModelPurpose.DIAGNOSE, {"incident_id": "incident-1", "evidence_ids": ["e1"]}
+        )
+
+    assert calls == 2
+    assert [event["repair_attempt"] for event in events] == [0, 0, 1, 1]
+
+
+def test_frozen_baseline_profile_has_old_prompt_and_never_repairs() -> None:
+    requests: list[httpx.Request] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        output = report()
+        output["explanation"] = "x" * 513
+        return httpx.Response(200, json=body(output))
+
+    model = StructuredEvaluationModel(
+        "test-only",
+        lambda event: None,
+        max_calls=4,
+        profile=StructuredTransportProfile.BASELINE_1_4,
+        transport=httpx.MockTransport(handle),
+    )
+    with pytest.raises(StructuredModelFailure, match="INVALID_RESPONSE"):
+        model.invoke(
+            ModelPurpose.DIAGNOSE, {"incident_id": "incident-1", "evidence_ids": ["e1"]}
+        )
+
+    assert len(requests) == 1
+    payload = json.loads(requests[0].content)
+    assert "at most 512 characters" not in payload["messages"][0]["content"]
+
+
+def test_field_budgets_are_explicit_and_repair_never_applies_to_remediation() -> None:
+    payload = StructuredEvaluationModel.request_payload(
+        ModelPurpose.DIAGNOSE, {"incident_id": "incident-1", "evidence_ids": []}
+    )
+    assert "at most 512 characters" in payload["messages"][0]["content"]
+    assert "at most 256 characters" in payload["messages"][0]["content"]
+
+    events: list[dict[str, Any]] = []
+    gate = EvidenceGateDecision(
+        incident_id=IncidentId("incident-1"),
+        candidate_id="cause",
+        outcome=EvidenceGateOutcome.PASS,
+        reasons=(),
+        evaluated_evidence_ids=(EvidenceId("e1"), EvidenceId("e2")),
+        rules_version="1.1.0",
+        input_fingerprint=Sha256Digest("a" * 64),
+        evaluated_at=datetime.now(UTC),
+    )
+    invalid = {"unexpected": True}
+    model = StructuredEvaluationModel(
+        "test-only",
+        events.append,
+        max_calls=4,
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json=body(invalid))
+        ),
+    )
+    with pytest.raises(StructuredModelFailure, match="INVALID_RESPONSE"):
+        model.invoke(ModelPurpose.REMEDIATE, {"incident_id": "incident-1"}, gate=gate)
+    assert len(events) == 2
 
 
 @pytest.mark.parametrize(

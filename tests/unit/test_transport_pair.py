@@ -1,0 +1,117 @@
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+from typing import Any
+from unittest.mock import Mock, patch
+
+import pytest
+from evaluation.run_transport_pair import PROFILES, _check_plan, run_pair
+from evaluation.structured_model import StructuredTransportProfile
+
+
+def test_transport_pair_plan_binds_profiles_and_source_hashes(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    (dataset / "index.json").write_text("[]", encoding="utf-8")
+    bank = tmp_path / "bank.json"
+    bank.write_text("{}", encoding="utf-8")
+    plan: dict[str, Any] = {
+        "schema_version": "structured-transport-pair/1.0.0",
+        "implementation_commit": "a" * 40,
+        "dataset_index_sha256": hashlib.sha256(b"[]").hexdigest(),
+        "simulated_history_bank_sha256": hashlib.sha256(b"{}").hexdigest(),
+        "profiles": {name: profile.value for name, profile in PROFILES},
+    }
+    with patch(
+        "evaluation.run_transport_pair.subprocess.run", return_value=Mock(returncode=0)
+    ):
+        _check_plan(plan, "b" * 40, dataset, bank)
+
+    plan["profiles"]["candidate-1.5"] = "changed"
+    with (
+        patch("evaluation.run_transport_pair.subprocess.run", return_value=Mock(returncode=0)),
+        pytest.raises(ValueError, match="profile binding mismatch"),
+    ):
+        _check_plan(plan, "b" * 40, dataset, bank)
+
+
+def test_transport_pair_refuses_nonancestor_before_provider_work(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    dataset.mkdir()
+    (dataset / "index.json").write_text("[]", encoding="utf-8")
+    bank = tmp_path / "bank.json"
+    bank.write_text("{}", encoding="utf-8")
+    plan: dict[str, Any] = {
+        "schema_version": "structured-transport-pair/1.0.0",
+        "implementation_commit": "a" * 40,
+        "dataset_index_sha256": hashlib.sha256(b"[]").hexdigest(),
+        "simulated_history_bank_sha256": hashlib.sha256(b"{}").hexdigest(),
+        "profiles": {name: profile.value for name, profile in PROFILES},
+    }
+    with (
+        patch("evaluation.run_transport_pair.subprocess.run", return_value=Mock(returncode=1)),
+        pytest.raises(ValueError, match="not an ancestor"),
+    ):
+        _check_plan(plan, "b" * 40, dataset, bank)
+
+
+def test_profile_order_alternates_deterministically() -> None:
+    forward = [name for name, _ in PROFILES]
+    reverse = [name for name, _ in reversed(PROFILES)]
+
+    assert forward == ["baseline-1.4", "candidate-1.5"]
+    assert reverse == ["candidate-1.5", "baseline-1.4"]
+    assert json.dumps(forward) != json.dumps(reverse)
+
+
+def test_pair_runner_interleaves_profiles_without_loading_labels(tmp_path: Path) -> None:
+    dataset = tmp_path / "dataset"
+    (dataset / "inputs").mkdir(parents=True)
+    (dataset / "index.json").write_text("[]", encoding="utf-8")
+    bank = tmp_path / "bank.json"
+    bank.write_text("{}", encoding="utf-8")
+    plan: dict[str, Any] = {
+        "schema_version": "structured-transport-pair/1.0.0",
+        "implementation_commit": "a" * 40,
+        "dataset_index_sha256": hashlib.sha256(b"[]").hexdigest(),
+        "simulated_history_bank_sha256": hashlib.sha256(b"{}").hexdigest(),
+        "profiles": {name: profile.value for name, profile in PROFILES},
+        "modes": ["single-agent", "controlled-graph", "controlled-graph-simulated-memory"],
+    }
+    plan_path = tmp_path / "plan.json"
+    plan_path.write_text(json.dumps(plan), encoding="utf-8")
+    calls: list[str] = []
+
+    def record(*args: object, **kwargs: object) -> None:
+        profile = kwargs["profile"]
+        assert isinstance(profile, StructuredTransportProfile)
+        calls.append(profile.name)
+
+    with (
+        patch("evaluation.run_transport_pair.subprocess.run", return_value=Mock(returncode=0)),
+        patch(
+            "evaluation.run_transport_pair.subprocess.check_output", return_value="b" * 40
+        ),
+        patch(
+            "evaluation.run_transport_pair.preflight",
+            return_value=({"instance_id": "instance-0000000000000001", "input_hash": "c" * 64},),
+        ),
+        patch(
+            "evaluation.run_transport_pair.load_snapshot",
+            return_value={"instance_id": "instance-0000000000000001"},
+        ),
+        patch("evaluation.run_transport_pair._history", return_value=None),
+        patch("evaluation.run_transport_pair.run_snapshot", side_effect=record),
+    ):
+        run_pair(dataset, plan_path, tmp_path / "output", bank, key="test-only")
+
+    assert calls == [
+        "BASELINE_1_4",
+        "CANDIDATE_1_5",
+        "CANDIDATE_1_5",
+        "BASELINE_1_4",
+        "BASELINE_1_4",
+        "CANDIDATE_1_5",
+    ]

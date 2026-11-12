@@ -18,6 +18,7 @@ def test_closure_registry_is_complete_strict_and_ordered() -> None:
         WorkStatus.COMPLETE,
         WorkStatus.COMPLETE,
     ]
+    assert registry.experiments[2].status is WorkStatus.IN_PROGRESS
     assert len(registry.legacy_mappings) == 16
     assert {item.resolution for item in registry.legacy_mappings} >= {
         "EXISTING_EVIDENCE",

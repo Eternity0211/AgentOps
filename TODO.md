@@ -58,6 +58,13 @@ measurement shows no need; closing it does not mean implementing it.
   - Starting reference: current schema/workflow failures are 1/27 single, 3/27 graph and 2/27
     graph+simulated-history. Report new counts and deltas; acceptance is zero schema/protocol
     invalids on the frozen set with no reduction in safe-control or Evidence-integrity rates.
+  - [x] FC2a implementation: transport 1.5.0 adds explicit field budgets and one content-free,
+    hash-bound repair for PLAN/DIAGNOSE schema, Incident and Evidence-reference errors. The 1.4.0
+    baseline profile is frozen in the same adapter; REMEDIATE and non-schema failures never retry.
+    Interleaved label-free pair runner alternates profile order across each input/mode. Thirty-two
+    focused transport/snapshot/batch/runner tests pass with Ruff and strict mypy.
+  - [ ] FC2b freeze the 1.4.0/1.5.0 paired plan before calls, execute all paired outcomes, score
+    with FC1, audit Evidence/Artifact hashes and publish the measured delta.
 
 - [ ] FC3 Make memory-leak evidence discriminative before asking the model to classify it.
   - Capture a longer bounded series including retained bytes before/after GC, allocation and

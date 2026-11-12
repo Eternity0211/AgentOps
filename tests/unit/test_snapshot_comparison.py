@@ -9,6 +9,7 @@ from evaluation.live_gateway import SERVICES, local_definitions
 from evaluation.observation_snapshot import write_snapshot
 from evaluation.outcome_ledger import OutcomeLedger
 from evaluation.run_snapshot_comparison import run_snapshot
+from evaluation.structured_model import StructuredTransportProfile
 
 
 def test_unavailable_snapshot_sources_route_to_handoff(tmp_path: Path) -> None:
@@ -168,3 +169,77 @@ def test_snapshot_success_uses_read_replay_and_retains_usage(tmp_path: Path) -> 
     stored = json.loads(report_file.read_text(encoding="utf-8"))
     assert stored["report"]["disposition"] == "HUMAN_HANDOFF"
     assert stored["validated_report_hash"] == stored["stored_report_hash"]
+
+
+def test_snapshot_runtime_binds_transport_profile(tmp_path: Path) -> None:
+    import json
+
+    reads = {
+        f"{definition.name}:{service}": {"status": "FAILED", "error_code": "CAPTURE_FAILED"}
+        for definition in local_definitions()
+        for service in SERVICES
+    }
+    path = tmp_path / "snapshot.json"
+    now = datetime.now(UTC)
+    digest = write_snapshot(path, "instance-0000000000000001", now, now, reads, "alert")
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        content = json.loads(json.loads(request.content)["messages"][1]["content"])
+        if "plan" in content["output_schema"]["properties"]:
+            output = {
+                "plan": {
+                    "schema_version": "1.0.0",
+                    "plan_id": "plan",
+                    "summary": "Inspect metrics",
+                    "steps": [
+                        {
+                            "step_id": "metrics",
+                            "objective": "Inspect metrics",
+                            "expected_source": "METRIC",
+                            "parallel_group": 0,
+                        }
+                    ],
+                },
+                "tool_calls": [
+                    {
+                        "step_id": "metrics",
+                        "tool_name": "query_metrics",
+                        "tool_version": "2.0.0",
+                        "arguments": {"service": "order"},
+                    }
+                ],
+            }
+        else:
+            output = {
+                "schema_version": "1.0.0",
+                "incident_id": content["context"]["incident_id"],
+                "disposition": "HUMAN_HANDOFF",
+                "candidates": [],
+                "missing_evidence": ["current metrics"],
+                "explanation": "Insufficient evidence",
+            }
+        return httpx.Response(
+            200,
+            json={
+                "usage": {"prompt_tokens": 10, "completion_tokens": 10, "total_tokens": 20},
+                "choices": [{"finish_reason": "stop", "message": {"content": json.dumps(output)}}],
+            },
+        )
+
+    run_snapshot(
+        path,
+        digest,
+        "single-agent",
+        tmp_path / "run",
+        "a" * 64,
+        key="test-only",
+        transport=httpx.MockTransport(respond),
+        profile=StructuredTransportProfile.BASELINE_1_4,
+    )
+    runtime = json.loads(
+        (
+            tmp_path
+            / "run/single-agent/instance-0000000000000001/runtime.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert runtime["structured_transport_profile"] == "real-structured-evaluation/1.4.0"

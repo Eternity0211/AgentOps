@@ -22,7 +22,7 @@
       "artifact_paths": ["evaluation/comparison/v1/", "evaluation/results/comparison/v1/"], "external_requirements": []
     },
     {
-      "work_id": "FC2", "title": "Structured output reliability", "status": "PLANNED", "owner": "agentops-evaluation", "prerequisites": ["FC1"],
+      "work_id": "FC2", "title": "Structured output reliability", "status": "IN_PROGRESS", "owner": "agentops-evaluation", "prerequisites": ["FC1"],
       "baseline": {"arm_id": "transport-1.4.0", "description": "Current strict transport and prompt contract."},
       "candidate": {"arm_id": "transport-candidate", "description": "Field budgets and bounded schema repair."},
       "independent_variable": "Structured-output reliability handling.",

@@ -15,6 +15,7 @@ class StrictRegistryModel(BaseModel):
 
 class WorkStatus(StrEnum):
     COMPLETE = "COMPLETE"
+    IN_PROGRESS = "IN_PROGRESS"
     PLANNED = "PLANNED"
     BLOCKED_EXTERNAL_DATA = "BLOCKED_EXTERNAL_DATA"
 

@@ -104,7 +104,7 @@ measurement shows no need; closing it does not mean implementing it.
       reservation cannot be met, it retains the validated report and routes to human handoff.
       Profiles through 1.6 remain byte-compatible, the four-call ceiling is unchanged, and focused
       workflow/transport tests, Ruff and strict mypy pass.
-    - [ ] FC2e-b freeze the 1.6/1.7 interleaved plan before provider calls, binding the workflow
+    - [x] FC2e-b freeze the 1.6/1.7 interleaved plan before provider calls, binding the workflow
       source that owns the new route as well as all prior data, runner, transport and scorer inputs.
       - [x] Harden the runner to accept only the historical exact two-source binding or the new
         exact three-source binding that adds `autonomous_diagnosis.py`; partial and unknown source

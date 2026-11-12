@@ -185,8 +185,6 @@ def test_committed_pair_plan_is_frozen_and_label_isolated() -> None:
         == digest
         for name, digest in plan["source_hashes"].items()
     )
-
-
 def test_candidate_1_6_pair_plan_is_frozen_before_calls() -> None:
     path = Path("evaluation/real_protocol/v5/structured-transport-pair.json")
     plan = json.loads(path.read_text(encoding="utf-8"))
@@ -227,3 +225,59 @@ def test_candidate_1_6_pair_plan_is_frozen_before_calls() -> None:
         == digest
         for name, digest in plan["source_hashes"].items()
     )
+def test_candidate_1_7_pair_plan_is_frozen_before_calls() -> None:
+    path = Path("evaluation/real_protocol/v6/structured-transport-pair.json")
+    plan = json.loads(path.read_text(encoding="utf-8"))
+
+    assert plan["status"] == "FROZEN_BEFORE_PROVIDER_CALLS"
+    assert plan["implementation_commit"] == "26dc67faf0876c7e7a031380f91d9219a177f93d"
+    assert plan["expected_outcomes"] == 162
+    assert plan["profiles"] == {
+        "baseline-1.6": StructuredTransportProfile.CANDIDATE_1_6.value,
+        "candidate-1.7": StructuredTransportProfile.CANDIDATE_1_7.value,
+    }
+    assert plan["acceptance"]["candidate_failed_outcomes_after_successful_repair"] == 0
+    immutable_data = {
+        plan["dataset"] + "/index.json": plan["dataset_index_sha256"],
+        plan["evaluator_labels"]: plan["evaluator_labels_sha256"],
+        plan["base_scoring_plan"]: plan["base_scoring_plan_sha256"],
+        plan["simulated_history_bank"]: plan["simulated_history_bank_sha256"],
+        plan["paired_scorer"]["source"]: plan["paired_scorer"]["source_sha256"],
+        plan["paired_scorer"]["orchestrator_source"]: plan["paired_scorer"][
+            "orchestrator_source_sha256"
+        ],
+    }
+    assert all(
+        hashlib.sha256(Path(name).read_bytes()).hexdigest() == digest
+        for name, digest in immutable_data.items()
+    )
+    assert set(plan["source_hashes"]) == {
+        "evaluation/run_transport_pair.py",
+        "evaluation/structured_model.py",
+        "evaluation/autonomous_diagnosis.py",
+    }
+    assert all(
+        hashlib.sha256(
+            subprocess.check_output(
+                [
+                    "git",
+                    "-c",
+                    "safe.directory=D:/AgentOps",
+                    "show",
+                    f"{plan['implementation_commit']}:{name}",
+                ]
+            )
+        ).hexdigest()
+        == digest
+        for name, digest in plan["source_hashes"].items()
+    )
+    revision = subprocess.check_output(
+        ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
+    ).strip()
+    profiles = _check_plan(
+        plan,
+        revision,
+        Path(plan["dataset"]),
+        Path(plan["simulated_history_bank"]),
+    )
+    assert [name for name, _profile in profiles] == ["baseline-1.6", "candidate-1.7"]

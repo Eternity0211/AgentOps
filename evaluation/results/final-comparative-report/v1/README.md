@@ -1,6 +1,6 @@
 # AgentOps final comparative evaluation
 
-Generated from immutable artifacts under `final-comparative-report/1.0.0` on 2026-11-13.
+Generated from immutable artifacts under `final-comparative-report/1.0.0` on 2026-11-14.
 No externally blocked metric is replaced by simulation or inference.
 
 ## Outcome
@@ -91,7 +91,7 @@ Human outcomes, approved recovery benefit and actual cost remain externally bloc
 | FC10 | `lease_contention` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
 | FC10 | `cpu` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
 | FC10 | `process_heap` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
-| FC10 | `database_load` | `FAILED` | Statement count was measured; PostgreSQL CPU, memory and I/O were not captured. |
+| FC10 | `database_load` | `MEASURED` | PostgreSQL-container CPU, memory, block I/O and database counters were measured. |
 | FC11 | `attack_block_rate` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
 | FC11 | `safe_handoff_rate` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
 | FC11 | `false_block_rate` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
@@ -176,6 +176,96 @@ Human outcomes, approved recovery benefit and actual cost remain externally bloc
 | FC10 | `database-statement-count:1-to-8-workers` (statements) | median | 450 | 483 | 33 | 0.0733333 | N/A | `MEASURED` |
 | FC10 | `throughput-paired-delta:1-to-8-workers` (jobs/s) | median-paired-delta | 0 | 5.175 | 5.175 | N/A | [2.103, 7.034] | `MEASURED` |
 | FC10 | `lease-contentions:1-to-8-workers` (events) | 11-repetition-total | 0 | 43 | 43 | N/A | N/A | `MEASURED` |
+| FC10 | `postgres_container_cpu_usage_usec:1-to-2-workers` (usec) | arm-median | 262731 | 266184 | 3453 | 0.0131427 | N/A | `MEASURED` |
+| FC10 | `postgres_container_cpu_usage_usec-paired-delta:1-to-2-workers` (usec) | median-paired-delta | 0 | 3453 | 3453 | N/A | [-16575, 35924] | `MEASURED` |
+| FC10 | `postgres_container_memory_peak_observed_bytes:1-to-2-workers` (bytes) | arm-median | 1.22409e+08 | 1.24019e+08 | 1.60973e+06 | 0.0131504 | N/A | `MEASURED` |
+| FC10 | `postgres_container_memory_peak_observed_bytes-paired-delta:1-to-2-workers` (bytes) | median-paired-delta | 0 | 516096 | 516096 | N/A | [-671744, 708608] | `MEASURED` |
+| FC10 | `postgres_container_io_read_bytes:1-to-2-workers` (bytes) | arm-median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `postgres_container_io_read_bytes-paired-delta:1-to-2-workers` (bytes) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 0] | `MEASURED` |
+| FC10 | `postgres_container_io_write_bytes:1-to-2-workers` (bytes) | arm-median | 1.21242e+06 | 1.20422e+06 | -8192 | -0.00675676 | N/A | `MEASURED` |
+| FC10 | `postgres_container_io_write_bytes-paired-delta:1-to-2-workers` (bytes) | median-paired-delta | 0 | 0 | 0 | N/A | [-196608, 385024] | `MEASURED` |
+| FC10 | `postgres_xact_commit:1-to-2-workers` (counter-delta) | arm-median | 133 | 114 | -19 | -0.142857 | N/A | `MEASURED` |
+| FC10 | `postgres_xact_commit-paired-delta:1-to-2-workers` (counter-delta) | median-paired-delta | 0 | -17 | -17 | N/A | [-31, -3] | `MEASURED` |
+| FC10 | `postgres_xact_rollback:1-to-2-workers` (counter-delta) | arm-median | 3 | 3 | 0 | 0 | N/A | `MEASURED` |
+| FC10 | `postgres_xact_rollback-paired-delta:1-to-2-workers` (counter-delta) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 1] | `MEASURED` |
+| FC10 | `postgres_blks_read:1-to-2-workers` (counter-delta) | arm-median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `postgres_blks_read-paired-delta:1-to-2-workers` (counter-delta) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 0] | `MEASURED` |
+| FC10 | `postgres_blks_hit:1-to-2-workers` (counter-delta) | arm-median | 8849 | 6785 | -2064 | -0.233247 | N/A | `MEASURED` |
+| FC10 | `postgres_blks_hit-paired-delta:1-to-2-workers` (counter-delta) | median-paired-delta | 0 | -706 | -706 | N/A | [-2911, -87] | `MEASURED` |
+| FC10 | `postgres_temp_bytes:1-to-2-workers` (counter-delta) | arm-median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `postgres_temp_bytes-paired-delta:1-to-2-workers` (counter-delta) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 0] | `MEASURED` |
+| FC10 | `postgres_deadlocks:1-to-2-workers` (counter-delta) | arm-median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `postgres_deadlocks-paired-delta:1-to-2-workers` (counter-delta) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 0] | `MEASURED` |
+| FC10 | `postgres_tup_returned:1-to-2-workers` (counter-delta) | arm-median | 31786 | 20541 | -11245 | -0.353772 | N/A | `MEASURED` |
+| FC10 | `postgres_tup_returned-paired-delta:1-to-2-workers` (counter-delta) | median-paired-delta | 0 | -3406 | -3406 | N/A | [-6769, 2962] | `MEASURED` |
+| FC10 | `postgres_tup_fetched:1-to-2-workers` (counter-delta) | arm-median | 2617 | 2422 | -195 | -0.0745128 | N/A | `MEASURED` |
+| FC10 | `postgres_tup_fetched-paired-delta:1-to-2-workers` (counter-delta) | median-paired-delta | 0 | -322 | -322 | N/A | [-1138, -104] | `MEASURED` |
+| FC10 | `postgres_tup_inserted:1-to-2-workers` (counter-delta) | arm-median | 65 | 65 | 0 | 0 | N/A | `MEASURED` |
+| FC10 | `postgres_tup_inserted-paired-delta:1-to-2-workers` (counter-delta) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 0] | `MEASURED` |
+| FC10 | `postgres_tup_updated:1-to-2-workers` (counter-delta) | arm-median | 128 | 111 | -17 | -0.132812 | N/A | `MEASURED` |
+| FC10 | `postgres_tup_updated-paired-delta:1-to-2-workers` (counter-delta) | median-paired-delta | 0 | -18 | -18 | N/A | [-32, 2] | `MEASURED` |
+| FC10 | `postgres_tup_deleted:1-to-2-workers` (counter-delta) | arm-median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `postgres_tup_deleted-paired-delta:1-to-2-workers` (counter-delta) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 0] | `MEASURED` |
+| FC10 | `postgres_container_cpu_usage_usec:1-to-4-workers` (usec) | arm-median | 262731 | 263157 | 426 | 0.00162143 | N/A | `MEASURED` |
+| FC10 | `postgres_container_cpu_usage_usec-paired-delta:1-to-4-workers` (usec) | median-paired-delta | 0 | 25113 | 25113 | N/A | [-21493, 46754] | `MEASURED` |
+| FC10 | `postgres_container_memory_peak_observed_bytes:1-to-4-workers` (bytes) | arm-median | 1.22409e+08 | 1.23187e+08 | 778240 | 0.0063577 | N/A | `MEASURED` |
+| FC10 | `postgres_container_memory_peak_observed_bytes-paired-delta:1-to-4-workers` (bytes) | median-paired-delta | 0 | 778240 | 778240 | N/A | [-389120, 2.68698e+06] | `MEASURED` |
+| FC10 | `postgres_container_io_read_bytes:1-to-4-workers` (bytes) | arm-median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `postgres_container_io_read_bytes-paired-delta:1-to-4-workers` (bytes) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 0] | `MEASURED` |
+| FC10 | `postgres_container_io_write_bytes:1-to-4-workers` (bytes) | arm-median | 1.21242e+06 | 1.20422e+06 | -8192 | -0.00675676 | N/A | `MEASURED` |
+| FC10 | `postgres_container_io_write_bytes-paired-delta:1-to-4-workers` (bytes) | median-paired-delta | 0 | 0 | 0 | N/A | [-24576, 303104] | `MEASURED` |
+| FC10 | `postgres_xact_commit:1-to-4-workers` (counter-delta) | arm-median | 133 | 125 | -8 | -0.0601504 | N/A | `MEASURED` |
+| FC10 | `postgres_xact_commit-paired-delta:1-to-4-workers` (counter-delta) | median-paired-delta | 0 | -5 | -5 | N/A | [-22, 13] | `MEASURED` |
+| FC10 | `postgres_xact_rollback:1-to-4-workers` (counter-delta) | arm-median | 3 | 3 | 0 | 0 | N/A | `MEASURED` |
+| FC10 | `postgres_xact_rollback-paired-delta:1-to-4-workers` (counter-delta) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 1] | `MEASURED` |
+| FC10 | `postgres_blks_read:1-to-4-workers` (counter-delta) | arm-median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `postgres_blks_read-paired-delta:1-to-4-workers` (counter-delta) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 0] | `MEASURED` |
+| FC10 | `postgres_blks_hit:1-to-4-workers` (counter-delta) | arm-median | 8849 | 8492 | -357 | -0.0403435 | N/A | `MEASURED` |
+| FC10 | `postgres_blks_hit-paired-delta:1-to-4-workers` (counter-delta) | median-paired-delta | 0 | -906 | -906 | N/A | [-2494, 1728] | `MEASURED` |
+| FC10 | `postgres_temp_bytes:1-to-4-workers` (counter-delta) | arm-median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `postgres_temp_bytes-paired-delta:1-to-4-workers` (counter-delta) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 0] | `MEASURED` |
+| FC10 | `postgres_deadlocks:1-to-4-workers` (counter-delta) | arm-median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `postgres_deadlocks-paired-delta:1-to-4-workers` (counter-delta) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 0] | `MEASURED` |
+| FC10 | `postgres_tup_returned:1-to-4-workers` (counter-delta) | arm-median | 31786 | 31285 | -501 | -0.0157617 | N/A | `MEASURED` |
+| FC10 | `postgres_tup_returned-paired-delta:1-to-4-workers` (counter-delta) | median-paired-delta | 0 | -501 | -501 | N/A | [-11789, 9159] | `MEASURED` |
+| FC10 | `postgres_tup_fetched:1-to-4-workers` (counter-delta) | arm-median | 2617 | 2503 | -114 | -0.0435613 | N/A | `MEASURED` |
+| FC10 | `postgres_tup_fetched-paired-delta:1-to-4-workers` (counter-delta) | median-paired-delta | 0 | -153 | -153 | N/A | [-1325, 369] | `MEASURED` |
+| FC10 | `postgres_tup_inserted:1-to-4-workers` (counter-delta) | arm-median | 65 | 65 | 0 | 0 | N/A | `MEASURED` |
+| FC10 | `postgres_tup_inserted-paired-delta:1-to-4-workers` (counter-delta) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 0] | `MEASURED` |
+| FC10 | `postgres_tup_updated:1-to-4-workers` (counter-delta) | arm-median | 128 | 123 | -5 | -0.0390625 | N/A | `MEASURED` |
+| FC10 | `postgres_tup_updated-paired-delta:1-to-4-workers` (counter-delta) | median-paired-delta | 0 | 0 | 0 | N/A | [-19, 12] | `MEASURED` |
+| FC10 | `postgres_tup_deleted:1-to-4-workers` (counter-delta) | arm-median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `postgres_tup_deleted-paired-delta:1-to-4-workers` (counter-delta) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 0] | `MEASURED` |
+| FC10 | `postgres_container_cpu_usage_usec:1-to-8-workers` (usec) | arm-median | 262731 | 365323 | 102592 | 0.390483 | N/A | `MEASURED` |
+| FC10 | `postgres_container_cpu_usage_usec-paired-delta:1-to-8-workers` (usec) | median-paired-delta | 0 | 96489 | 96489 | N/A | [56211, 164862] | `MEASURED` |
+| FC10 | `postgres_container_memory_peak_observed_bytes:1-to-8-workers` (bytes) | arm-median | 1.22409e+08 | 1.30814e+08 | 8.40499e+06 | 0.0686632 | N/A | `MEASURED` |
+| FC10 | `postgres_container_memory_peak_observed_bytes-paired-delta:1-to-8-workers` (bytes) | median-paired-delta | 0 | 8.04045e+06 | 8.04045e+06 | N/A | [7.42195e+06, 8.47872e+06] | `MEASURED` |
+| FC10 | `postgres_container_io_read_bytes:1-to-8-workers` (bytes) | arm-median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `postgres_container_io_read_bytes-paired-delta:1-to-8-workers` (bytes) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 0] | `MEASURED` |
+| FC10 | `postgres_container_io_write_bytes:1-to-8-workers` (bytes) | arm-median | 1.21242e+06 | 1.19603e+06 | -16384 | -0.0135135 | N/A | `MEASURED` |
+| FC10 | `postgres_container_io_write_bytes-paired-delta:1-to-8-workers` (bytes) | median-paired-delta | 0 | -24576 | -24576 | N/A | [-49152, 147456] | `MEASURED` |
+| FC10 | `postgres_xact_commit:1-to-8-workers` (counter-delta) | arm-median | 133 | 158 | 25 | 0.18797 | N/A | `MEASURED` |
+| FC10 | `postgres_xact_commit-paired-delta:1-to-8-workers` (counter-delta) | median-paired-delta | 0 | 38 | 38 | N/A | [11, 45] | `MEASURED` |
+| FC10 | `postgres_xact_rollback:1-to-8-workers` (counter-delta) | arm-median | 3 | 3 | 0 | 0 | N/A | `MEASURED` |
+| FC10 | `postgres_xact_rollback-paired-delta:1-to-8-workers` (counter-delta) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 1] | `MEASURED` |
+| FC10 | `postgres_blks_read:1-to-8-workers` (counter-delta) | arm-median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `postgres_blks_read-paired-delta:1-to-8-workers` (counter-delta) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 0] | `MEASURED` |
+| FC10 | `postgres_blks_hit:1-to-8-workers` (counter-delta) | arm-median | 8849 | 13976 | 5127 | 0.579388 | N/A | `MEASURED` |
+| FC10 | `postgres_blks_hit-paired-delta:1-to-8-workers` (counter-delta) | median-paired-delta | 0 | 6118 | 6118 | N/A | [3862, 7206] | `MEASURED` |
+| FC10 | `postgres_temp_bytes:1-to-8-workers` (counter-delta) | arm-median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `postgres_temp_bytes-paired-delta:1-to-8-workers` (counter-delta) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 0] | `MEASURED` |
+| FC10 | `postgres_deadlocks:1-to-8-workers` (counter-delta) | arm-median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `postgres_deadlocks-paired-delta:1-to-8-workers` (counter-delta) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 0] | `MEASURED` |
+| FC10 | `postgres_tup_returned:1-to-8-workers` (counter-delta) | arm-median | 31786 | 50826 | 19040 | 0.599006 | N/A | `MEASURED` |
+| FC10 | `postgres_tup_returned-paired-delta:1-to-8-workers` (counter-delta) | median-paired-delta | 0 | 16173 | 16173 | N/A | [-638, 25298] | `MEASURED` |
+| FC10 | `postgres_tup_fetched:1-to-8-workers` (counter-delta) | arm-median | 2617 | 6221 | 3604 | 1.37715 | N/A | `MEASURED` |
+| FC10 | `postgres_tup_fetched-paired-delta:1-to-8-workers` (counter-delta) | median-paired-delta | 0 | 2800 | 2800 | N/A | [2349, 3876] | `MEASURED` |
+| FC10 | `postgres_tup_inserted:1-to-8-workers` (counter-delta) | arm-median | 65 | 65 | 0 | 0 | N/A | `MEASURED` |
+| FC10 | `postgres_tup_inserted-paired-delta:1-to-8-workers` (counter-delta) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 0] | `MEASURED` |
+| FC10 | `postgres_tup_updated:1-to-8-workers` (counter-delta) | arm-median | 128 | 146 | 18 | 0.140625 | N/A | `MEASURED` |
+| FC10 | `postgres_tup_updated-paired-delta:1-to-8-workers` (counter-delta) | median-paired-delta | 0 | 13 | 13 | N/A | [-4, 34] | `MEASURED` |
+| FC10 | `postgres_tup_deleted:1-to-8-workers` (counter-delta) | arm-median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `postgres_tup_deleted-paired-delta:1-to-8-workers` (counter-delta) | median-paired-delta | 0 | 0 | 0 | N/A | [0, 0] | `MEASURED` |
 | FC11 | `attack_block` (rate) | value | 1 | 1 | 0 | 0 | N/A | `MEASURED` |
 | FC11 | `safe_handoff` (rate) | value | 1 | 1 | 0 | 0 | N/A | `MEASURED` |
 | FC11 | `false_block` (rate) | value | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
@@ -196,7 +286,7 @@ Human outcomes, approved recovery benefit and actual cost remain externally bloc
 
 - FC4-FC8 remain blocked by explicitly named authorized human, history, approval or billing data.
 - No result establishes human labor reduction, MTTR reduction, actual provider cost savings or production reliability.
-- Local capacity results exclude PostgreSQL/container resource consumption and cannot set production capacity.
+- Local capacity and database-resource results cannot set production capacity.
 - Rate-card upper bounds are not provider invoices.
 
 ## Integrity and reproduction

@@ -14,7 +14,7 @@ from typing import Any
 from evaluation.contracts import EvaluationContractError, load_json_object
 
 REPORT_SCHEMA = "final-comparative-report/1.0.0"
-REPORT_DATE = "2026-11-13"
+REPORT_DATE = "2026-11-14"
 ALLOWED_COVERAGE = frozenset(
     {"MEASURED", "FAILED", "NO_PROVEN_IMPROVEMENT", "NOT_REQUIRED", "BLOCKED_EXTERNAL_DATA"}
 )
@@ -24,6 +24,7 @@ SOURCE_PATHS = (
     Path("evaluation/results/memory-context/v3/run-001/score.json"),
     Path("evaluation/results/final-durability/v1/run-001/result.json"),
     Path("evaluation/results/final-load/v1/confirmatory-001/confirmatory.json"),
+    Path("evaluation/results/database-resource/v1/run-001/result.json"),
     Path("evaluation/results/final-security/v1/run-001/result.json"),
     Path("evaluation/results/architecture-decisions/v1/decisions.json"),
 )
@@ -345,6 +346,52 @@ def _fc10_comparisons(result: Mapping[str, Any]) -> list[dict[str, Any]]:
     return output
 
 
+def _fc10_database_resource_comparisons(result: Mapping[str, Any]) -> list[dict[str, Any]]:
+    output: list[dict[str, Any]] = []
+    scope = (
+        "Eleven local paired repetitions; Docker PostgreSQL-container load only, "
+        "not application benefit or production capacity."
+    )
+    units = {
+        "postgres_container_cpu_usage_usec": "usec",
+        "postgres_container_memory_peak_observed_bytes": "bytes",
+        "postgres_container_io_read_bytes": "bytes",
+        "postgres_container_io_write_bytes": "bytes",
+    }
+    for item in result["comparisons"]:
+        workers = int(item["workers"])
+        metric = str(item["metric"])
+        unit = units.get(metric, "counter-delta")
+        output.append(
+            _comparison(
+                "FC10",
+                f"{metric}:1-to-{workers}-workers",
+                unit,
+                float(item["baseline_median"]),
+                float(item["candidate_median"]),
+                statistic="arm-median",
+                status="MEASURED",
+                scope=scope,
+                denominator=int(item["denominator_pairs"]),
+            )
+        )
+        output.append(
+            _comparison(
+                "FC10",
+                f"{metric}-paired-delta:1-to-{workers}-workers",
+                unit,
+                0,
+                float(item["paired_absolute_delta_median"]),
+                interval=item["paired_absolute_delta_median_95pct_bootstrap"],
+                statistic="median-paired-delta",
+                status="MEASURED",
+                scope=scope,
+                denominator=int(item["denominator_pairs"]),
+            )
+        )
+    return output
+
+
 def _rate(pair: Sequence[int]) -> float:
     return float(pair[0]) / float(pair[1])
 
@@ -395,8 +442,8 @@ def _coverage_status(work_id: str, metric: str, work_status: str) -> tuple[str, 
         )
     if work_id == "FC10" and metric == "database_load":
         return (
-            "FAILED",
-            "Statement count was measured; PostgreSQL CPU, memory and I/O were not captured.",
+            "MEASURED",
+            "PostgreSQL-container CPU, memory, block I/O and database counters were measured.",
         )
     if work_id in {"FC2", "FC3"} and metric in {"top1", "memory_top1", "latency", "tokens", "cost"}:
         return "NO_PROVEN_IMPROVEMENT", "Observed deltas do not establish statistical superiority."
@@ -409,14 +456,23 @@ def build_report(root: Path = Path(".")) -> dict[str, Any]:
     sources = [root / path for path in SOURCE_PATHS]
     if any(not path.is_file() for path in sources):
         raise EvaluationContractError("final report source artifact is missing")
-    registry, structured, memory, durability, capacity, security, architecture = (
-        load_json_object(path, maximum_bytes=8_388_608) for path in sources
-    )
+    loaded = tuple(load_json_object(path, maximum_bytes=8_388_608) for path in sources)
+    (
+        registry,
+        structured,
+        memory,
+        durability,
+        capacity,
+        database_resource,
+        security,
+        architecture,
+    ) = loaded
     comparisons = (
         _fc2_comparisons(structured)
         + _fc3_comparisons(memory)
         + _fc9_comparisons(durability)
         + _fc10_comparisons(capacity)
+        + _fc10_database_resource_comparisons(database_resource)
         + _fc11_comparisons(security)
     )
     coverage: list[dict[str, Any]] = []
@@ -456,6 +512,7 @@ def build_report(root: Path = Path(".")) -> dict[str, Any]:
             "FC2_comparison_request_sha256": structured["paired_result"]["request_sha256"],
             "FC9_plan_sha256": durability["plan_sha256"],
             "FC10_plan_sha256": capacity["plan_sha256"],
+            "FC10_database_resource_plan_sha256": database_resource["plan_sha256"],
             "FC11_plan_sha256": security["plan_sha256"],
         },
         "failures": {
@@ -464,6 +521,7 @@ def build_report(root: Path = Path(".")) -> dict[str, Any]:
             "FC3_candidate_failures": memory["arms"]["candidate-context"]["failures"],
             "FC9_duplicate_external_effects": durability["summary"]["duplicate_external_effects"],
             "FC10_error_count": sum(group["error_count"] for group in capacity["groups"]),
+            "FC10_database_resource_accepted": database_resource["accepted"],
             "FC11_critical_failures": security["metrics"]["candidate"]["critical_failures"],
         },
         "key_results": {
@@ -473,6 +531,7 @@ def build_report(root: Path = Path(".")) -> dict[str, Any]:
             "durability_route_matches": durability["summary"]["terminal_route_matches"],
             "durability_pairs": durability["summary"]["completed_pairs"],
             "capacity_broker_decision": capacity["broker_decision"],
+            "database_resource_rows": len(database_resource["rows"]),
             "security_accepted": security["accepted"],
         },
         "limitations": [
@@ -484,10 +543,7 @@ def build_report(root: Path = Path(".")) -> dict[str, Any]:
                 "No result establishes human labor reduction, MTTR reduction, actual provider "
                 "cost savings or production reliability."
             ),
-            (
-                "Local capacity results exclude PostgreSQL/container resource consumption and "
-                "cannot set production capacity."
-            ),
+            "Local capacity and database-resource results cannot set production capacity.",
             "Rate-card upper bounds are not provider invoices.",
         ],
         "reproduction": [

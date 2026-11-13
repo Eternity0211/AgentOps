@@ -66,6 +66,24 @@ def test_paired_intervals_are_attached_to_paired_delta_estimands() -> None:
     )
 
 
+def test_database_resource_coverage_is_measured_and_retains_paired_intervals() -> None:
+    report = build_report()
+    coverage = next(
+        item
+        for item in report["coverage"]
+        if item["work_id"] == "FC10" and item["metric"] == "database_load"
+    )
+    resource_rows = [
+        item
+        for item in report["comparisons"]
+        if item["work_id"] == "FC10" and item["metric"].startswith("postgres_")
+    ]
+
+    assert coverage["status"] == "MEASURED"
+    assert len(resource_rows) == 90
+    assert sum(item["delta_95pct_interval"] is not None for item in resource_rows) == 45
+
+
 def test_external_data_is_not_fabricated_or_silently_omitted() -> None:
     report = build_report()
 

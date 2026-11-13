@@ -999,6 +999,1401 @@
       "work_id": "FC10"
     },
     {
+      "absolute_delta": 3453.0,
+      "baseline": 262731.0,
+      "candidate": 266184.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_container_cpu_usage_usec:1-to-2-workers",
+      "relative_delta": 0.013142720120579604,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "usec",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 3453.0,
+      "baseline": 0,
+      "candidate": 3453.0,
+      "delta_95pct_interval": [
+        -16575.0,
+        35924.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_container_cpu_usage_usec-paired-delta:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "usec",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 1609728.0,
+      "baseline": 122408960.0,
+      "candidate": 124018688.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_container_memory_peak_observed_bytes:1-to-2-workers",
+      "relative_delta": 0.013150409904634432,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 516096.0,
+      "baseline": 0,
+      "candidate": 516096.0,
+      "delta_95pct_interval": [
+        -671744.0,
+        708608.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_container_memory_peak_observed_bytes-paired-delta:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0.0,
+      "candidate": 0.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_container_io_read_bytes:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_container_io_read_bytes-paired-delta:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -8192.0,
+      "baseline": 1212416.0,
+      "candidate": 1204224.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_container_io_write_bytes:1-to-2-workers",
+      "relative_delta": -0.006756756756756757,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        -196608.0,
+        385024.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_container_io_write_bytes-paired-delta:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -19.0,
+      "baseline": 133.0,
+      "candidate": 114.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_xact_commit:1-to-2-workers",
+      "relative_delta": -0.14285714285714285,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -17.0,
+      "baseline": 0,
+      "candidate": -17.0,
+      "delta_95pct_interval": [
+        -31.0,
+        -3.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_xact_commit-paired-delta:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 3.0,
+      "candidate": 3.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_xact_rollback:1-to-2-workers",
+      "relative_delta": 0.0,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        1.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_xact_rollback-paired-delta:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0.0,
+      "candidate": 0.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_blks_read:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_blks_read-paired-delta:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -2064.0,
+      "baseline": 8849.0,
+      "candidate": 6785.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_blks_hit:1-to-2-workers",
+      "relative_delta": -0.23324669454175614,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -706.0,
+      "baseline": 0,
+      "candidate": -706.0,
+      "delta_95pct_interval": [
+        -2911.0,
+        -87.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_blks_hit-paired-delta:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0.0,
+      "candidate": 0.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_temp_bytes:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_temp_bytes-paired-delta:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0.0,
+      "candidate": 0.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_deadlocks:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_deadlocks-paired-delta:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -11245.0,
+      "baseline": 31786.0,
+      "candidate": 20541.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_tup_returned:1-to-2-workers",
+      "relative_delta": -0.3537721009249355,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -3406.0,
+      "baseline": 0,
+      "candidate": -3406.0,
+      "delta_95pct_interval": [
+        -6769.0,
+        2962.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_tup_returned-paired-delta:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -195.0,
+      "baseline": 2617.0,
+      "candidate": 2422.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_tup_fetched:1-to-2-workers",
+      "relative_delta": -0.07451280091708062,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -322.0,
+      "baseline": 0,
+      "candidate": -322.0,
+      "delta_95pct_interval": [
+        -1138.0,
+        -104.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_tup_fetched-paired-delta:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 65.0,
+      "candidate": 65.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_tup_inserted:1-to-2-workers",
+      "relative_delta": 0.0,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_tup_inserted-paired-delta:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -17.0,
+      "baseline": 128.0,
+      "candidate": 111.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_tup_updated:1-to-2-workers",
+      "relative_delta": -0.1328125,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -18.0,
+      "baseline": 0,
+      "candidate": -18.0,
+      "delta_95pct_interval": [
+        -32.0,
+        2.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_tup_updated-paired-delta:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0.0,
+      "candidate": 0.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_tup_deleted:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_tup_deleted-paired-delta:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 426.0,
+      "baseline": 262731.0,
+      "candidate": 263157.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_container_cpu_usage_usec:1-to-4-workers",
+      "relative_delta": 0.0016214302842070406,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "usec",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 25113.0,
+      "baseline": 0,
+      "candidate": 25113.0,
+      "delta_95pct_interval": [
+        -21493.0,
+        46754.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_container_cpu_usage_usec-paired-delta:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "usec",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 778240.0,
+      "baseline": 122408960.0,
+      "candidate": 123187200.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_container_memory_peak_observed_bytes:1-to-4-workers",
+      "relative_delta": 0.006357704534047181,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 778240.0,
+      "baseline": 0,
+      "candidate": 778240.0,
+      "delta_95pct_interval": [
+        -389120.0,
+        2686976.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_container_memory_peak_observed_bytes-paired-delta:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0.0,
+      "candidate": 0.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_container_io_read_bytes:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_container_io_read_bytes-paired-delta:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -8192.0,
+      "baseline": 1212416.0,
+      "candidate": 1204224.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_container_io_write_bytes:1-to-4-workers",
+      "relative_delta": -0.006756756756756757,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        -24576.0,
+        303104.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_container_io_write_bytes-paired-delta:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -8.0,
+      "baseline": 133.0,
+      "candidate": 125.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_xact_commit:1-to-4-workers",
+      "relative_delta": -0.06015037593984962,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -5.0,
+      "baseline": 0,
+      "candidate": -5.0,
+      "delta_95pct_interval": [
+        -22.0,
+        13.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_xact_commit-paired-delta:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 3.0,
+      "candidate": 3.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_xact_rollback:1-to-4-workers",
+      "relative_delta": 0.0,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        1.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_xact_rollback-paired-delta:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0.0,
+      "candidate": 0.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_blks_read:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_blks_read-paired-delta:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -357.0,
+      "baseline": 8849.0,
+      "candidate": 8492.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_blks_hit:1-to-4-workers",
+      "relative_delta": -0.040343541643123516,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -906.0,
+      "baseline": 0,
+      "candidate": -906.0,
+      "delta_95pct_interval": [
+        -2494.0,
+        1728.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_blks_hit-paired-delta:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0.0,
+      "candidate": 0.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_temp_bytes:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_temp_bytes-paired-delta:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0.0,
+      "candidate": 0.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_deadlocks:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_deadlocks-paired-delta:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -501.0,
+      "baseline": 31786.0,
+      "candidate": 31285.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_tup_returned:1-to-4-workers",
+      "relative_delta": -0.015761656075001573,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -501.0,
+      "baseline": 0,
+      "candidate": -501.0,
+      "delta_95pct_interval": [
+        -11789.0,
+        9159.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_tup_returned-paired-delta:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -114.0,
+      "baseline": 2617.0,
+      "candidate": 2503.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_tup_fetched:1-to-4-workers",
+      "relative_delta": -0.04356132976690867,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -153.0,
+      "baseline": 0,
+      "candidate": -153.0,
+      "delta_95pct_interval": [
+        -1325.0,
+        369.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_tup_fetched-paired-delta:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 65.0,
+      "candidate": 65.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_tup_inserted:1-to-4-workers",
+      "relative_delta": 0.0,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_tup_inserted-paired-delta:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -5.0,
+      "baseline": 128.0,
+      "candidate": 123.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_tup_updated:1-to-4-workers",
+      "relative_delta": -0.0390625,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        -19.0,
+        12.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_tup_updated-paired-delta:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0.0,
+      "candidate": 0.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_tup_deleted:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_tup_deleted-paired-delta:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 102592.0,
+      "baseline": 262731.0,
+      "candidate": 365323.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_container_cpu_usage_usec:1-to-8-workers",
+      "relative_delta": 0.3904830415900674,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "usec",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 96489.0,
+      "baseline": 0,
+      "candidate": 96489.0,
+      "delta_95pct_interval": [
+        56211.0,
+        164862.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_container_cpu_usage_usec-paired-delta:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "usec",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 8404992.0,
+      "baseline": 122408960.0,
+      "candidate": 130813952.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_container_memory_peak_observed_bytes:1-to-8-workers",
+      "relative_delta": 0.06866320896770955,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 8040448.0,
+      "baseline": 0,
+      "candidate": 8040448.0,
+      "delta_95pct_interval": [
+        7421952.0,
+        8478720.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_container_memory_peak_observed_bytes-paired-delta:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0.0,
+      "candidate": 0.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_container_io_read_bytes:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_container_io_read_bytes-paired-delta:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -16384.0,
+      "baseline": 1212416.0,
+      "candidate": 1196032.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_container_io_write_bytes:1-to-8-workers",
+      "relative_delta": -0.013513513513513514,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -24576.0,
+      "baseline": 0,
+      "candidate": -24576.0,
+      "delta_95pct_interval": [
+        -49152.0,
+        147456.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_container_io_write_bytes-paired-delta:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 25.0,
+      "baseline": 133.0,
+      "candidate": 158.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_xact_commit:1-to-8-workers",
+      "relative_delta": 0.18796992481203006,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 38.0,
+      "baseline": 0,
+      "candidate": 38.0,
+      "delta_95pct_interval": [
+        11.0,
+        45.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_xact_commit-paired-delta:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 3.0,
+      "candidate": 3.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_xact_rollback:1-to-8-workers",
+      "relative_delta": 0.0,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        1.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_xact_rollback-paired-delta:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0.0,
+      "candidate": 0.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_blks_read:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_blks_read-paired-delta:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 5127.0,
+      "baseline": 8849.0,
+      "candidate": 13976.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_blks_hit:1-to-8-workers",
+      "relative_delta": 0.579387501412589,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 6118.0,
+      "baseline": 0,
+      "candidate": 6118.0,
+      "delta_95pct_interval": [
+        3862.0,
+        7206.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_blks_hit-paired-delta:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0.0,
+      "candidate": 0.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_temp_bytes:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_temp_bytes-paired-delta:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0.0,
+      "candidate": 0.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_deadlocks:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_deadlocks-paired-delta:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 19040.0,
+      "baseline": 31786.0,
+      "candidate": 50826.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_tup_returned:1-to-8-workers",
+      "relative_delta": 0.5990058516327943,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 16173.0,
+      "baseline": 0,
+      "candidate": 16173.0,
+      "delta_95pct_interval": [
+        -638.0,
+        25298.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_tup_returned-paired-delta:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 3604.0,
+      "baseline": 2617.0,
+      "candidate": 6221.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_tup_fetched:1-to-8-workers",
+      "relative_delta": 1.377149407718762,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 2800.0,
+      "baseline": 0,
+      "candidate": 2800.0,
+      "delta_95pct_interval": [
+        2349.0,
+        3876.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_tup_fetched-paired-delta:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 65.0,
+      "candidate": 65.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_tup_inserted:1-to-8-workers",
+      "relative_delta": 0.0,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_tup_inserted-paired-delta:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 18.0,
+      "baseline": 128.0,
+      "candidate": 146.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_tup_updated:1-to-8-workers",
+      "relative_delta": 0.140625,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 13.0,
+      "baseline": 0,
+      "candidate": 13.0,
+      "delta_95pct_interval": [
+        -4.0,
+        34.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_tup_updated-paired-delta:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0.0,
+      "candidate": 0.0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "postgres_tup_deleted:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "arm-median",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0,
+      "candidate": 0.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 11,
+      "metric": "postgres_tup_deleted-paired-delta:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions; Docker PostgreSQL-container load only, not application benefit or production capacity.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "counter-delta",
+      "work_id": "FC10"
+    },
+    {
       "absolute_delta": 0.0,
       "baseline": 1.0,
       "candidate": 1.0,
@@ -1574,8 +2969,8 @@
     },
     {
       "metric": "database_load",
-      "note": "Statement count was measured; PostgreSQL CPU, memory and I/O were not captured.",
-      "status": "FAILED",
+      "note": "PostgreSQL-container CPU, memory, block I/O and database counters were measured.",
+      "status": "MEASURED",
       "work_id": "FC10"
     },
     {
@@ -1778,6 +3173,7 @@
     }
   ],
   "failures": {
+    "FC10_database_resource_accepted": true,
     "FC10_error_count": 0,
     "FC11_critical_failures": 0,
     "FC2_provider_error_codes": {
@@ -1794,6 +3190,7 @@
     "FC9_duplicate_external_effects": 0
   },
   "frozen_protocols": {
+    "FC10_database_resource_plan_sha256": "18a4677ac33e6892cb8f07552c0f64ba47e0dad118d8e295186a45bef93dd422",
     "FC10_plan_sha256": "10f5042a0f74a7ba7a40bf4a877af96a3dd50001f3b47d8536e5c584e3c3ba3d",
     "FC11_plan_sha256": "a7657f1eadcf6a9c3b7f2f2c4c4ed2773ec4a12d899f306ae72e5bd449b0bee0",
     "FC2_comparison_request_sha256": "3d597eb7595f814c1501afa040311a769f5e576e10fed2eb2900f6b6bb0a7f19",
@@ -1802,6 +3199,7 @@
   },
   "key_results": {
     "capacity_broker_decision": "BROKER_EVALUATION_REQUIRED",
+    "database_resource_rows": 44,
     "durability_pairs": 8,
     "durability_route_matches": 8,
     "memory_correct_baseline": 9,
@@ -1812,11 +3210,11 @@
   "limitations": [
     "FC4-FC8 remain blocked by explicitly named authorized human, history, approval or billing data.",
     "No result establishes human labor reduction, MTTR reduction, actual provider cost savings or production reliability.",
-    "Local capacity results exclude PostgreSQL/container resource consumption and cannot set production capacity.",
+    "Local capacity and database-resource results cannot set production capacity.",
     "Rate-card upper bounds are not provider invoices."
   ],
   "objective": "Reproducible baseline-versus-candidate closure without fabricated external data.",
-  "report_date": "2026-11-13",
+  "report_date": "2026-11-14",
   "reproduction": [
     ".venv/Scripts/python -m evaluation.final_report --output evaluation/results/final-comparative-report/v1 --doc docs/REAL_EVALUATION_REPORT.md",
     ".venv/Scripts/pytest -q --no-cov tests/unit/test_final_report.py"
@@ -1842,6 +3240,10 @@
     {
       "path": "evaluation/results/final-load/v1/confirmatory-001/confirmatory.json",
       "sha256": "6dc0c47b0c599d97590360a08ba51e5fcb8230b69bbacb1d84526287373efa30"
+    },
+    {
+      "path": "evaluation/results/database-resource/v1/run-001/result.json",
+      "sha256": "df6f79d62784cd6cdbdf32251852b6e07291e4b70145d6d6cb99ea0fb7970330"
     },
     {
       "path": "evaluation/results/final-security/v1/run-001/result.json",

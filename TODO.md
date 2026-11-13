@@ -334,12 +334,17 @@ measurement shows no need; closing it does not mean implementing it.
         44 repetitions completed with zero errors and duplicate ownership. The measured 8/4
         throughput ratio 0.726 and queue-P95 ratio 1.398 crossed the frozen joint threshold, so
         `BROKER_EVALUATION_REQUIRED`; this does not authorize adding a broker without FC12 evidence.
-  - [ ] FC10d complete the missing database-load scope with a separately frozen 44-row supplement:
+  - [x] FC10d complete the missing database-load scope with a separately frozen 44-row supplement:
     PostgreSQL-container CPU, observed memory peak, block I/O and `pg_stat_database` counter deltas,
     each with the one-worker baseline, 2/4/8-worker candidates, paired deltas and 95% intervals.
     - [x] FC10d1 implement the create-only, plan-bound collector, balanced execution order,
       correctness gate, deterministic paired intervals and local-only renderer with parser/scorer
-      tests. The formal 44-row output remains pending FC10d2.
+      tests.
+    - [x] FC10d2 execute the formal supplement once and publish all 44 rows. Every repetition
+      completed 64/64 Jobs with zero errors and duplicate ownership. At eight versus one worker,
+      PostgreSQL-container CPU had a +96,489 usec paired median delta (95% bootstrap interval
+      [+56,211, +164,862]) and observed memory peak had a +8,040,448 byte paired median delta
+      ([+7,421,952, +8,478,720]); these are resource-load increases, not benefits.
   - Run the same frozen workload at declared 1/2/4/8 worker and incident concurrency levels with
     PostgreSQL queue only; repeat on a clean environment and retain CPU, process heap, database,
     queue wait, workflow latency, throughput, error and lease-contention distributions.

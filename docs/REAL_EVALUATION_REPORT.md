@@ -311,3 +311,12 @@ facts 或原始观测，并在预算审计中列出；合成评估兼容入口�
 仍单独记录；恢复不会丢失范围。真实构造器要求时区明确且递增的双端点，stale/unscoped
 Evidence ID 进入排除审计且不进入 referenceable IDs。下一步仍需提取同窗延迟/错误事实并
 补齐矛盾观测的端到端拒绝，因此 FC3h3 尚未关闭。
+
+下一批把同窗 trace 压缩为服务级成功/错误计数和 nearest-rank P95 延迟；精确相同的
+service/name/start/end 若同时报告成功与错误，输出 `CONTRADICTORY` 和双方 Evidence ID，
+不以数量、顺序或模型置信度选择其中一方。
+
+该批已完成：同窗服务 facts 给出成功/错误计数、nearest-rank P95、可解析 Evidence IDs 和
+精确记录冲突集合；部署和内存 facts 使用相同时间筛选与总预算。FC3h 因此关闭。FC3 仍不
+关闭：必须先以真实 Docker simulator 经 Tempo/Loki 捕获并发布字段/窗口/预算审计，再冻结
+扩大后的新成对实验，不能复用五对 v1/v2 输出。

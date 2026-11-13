@@ -271,6 +271,49 @@ def test_diagnosis_context_excludes_stale_and_unscoped_evidence() -> None:
     assert context["evidence_ids"] == ["current"]
 
 
+def test_alert_aligned_facts_report_latency_errors_and_exact_record_conflicts() -> None:
+    start = datetime(2026, 11, 13, 1, 0, tzinfo=UTC)
+    end = start + timedelta(minutes=5)
+
+    def span(status: int, evidence_end: int) -> dict[str, Any]:
+        return {
+            "name": "POST /v1/orders",
+            "service": "agentops-simulator-order",
+            "start": "1000000000",
+            "end": str(evidence_end),
+            "status": {"code": "STATUS_CODE_ERROR" if status >= 500 else "STATUS_CODE_OK"},
+            "attributes": [
+                {"key": "http.response.status_code", "value": {"intValue": str(status)}}
+            ],
+        }
+
+    observations = [
+        {
+            "id": "trace-a",
+            "source": "traces",
+            "summary": json.dumps([span(200, 1100000000)]),
+            "observed_from": start.isoformat(),
+            "observed_to": end.isoformat(),
+        },
+        {
+            "id": "trace-b",
+            "source": "traces",
+            "summary": json.dumps([span(503, 1100000000)]),
+            "observed_from": start.isoformat(),
+            "observed_to": end.isoformat(),
+        },
+    ]
+
+    context = build_diagnosis_context(
+        observations, {}, window_start=start, window_end=end
+    )
+    fact = context["alert_aligned_service_facts"][0]
+    assert fact["classification"] == "CONTRADICTORY"
+    assert (fact["success_count"], fact["error_count"], fact["p95_duration_ms"]) == (1, 1, 100.0)
+    assert fact["contradictory_evidence_ids"] == ["trace-a", "trace-b"]
+    assert set(fact["evidence_ids"]) <= set(context["evidence_ids"])
+
+
 def test_diagnosis_context_records_unavailable_reads_without_evidence_ids() -> None:
     context = build_diagnosis_context(
         [],

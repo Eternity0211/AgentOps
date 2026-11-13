@@ -176,7 +176,7 @@ measurement shows no need; closing it does not mean implementing it.
       points), sustained detection 0/1→1/1 and safe negatives 3/4→4/4; failures stayed 0→0 and
       all Evidence IDs resolved. This passes the frozen mechanism gate but is not a production or
       statistical efficiency claim.
-  - [ ] FC3h capture the memory evidence contract from the real simulator/runtime path, including
+  - [x] FC3h capture the memory evidence contract from the real simulator/runtime path, including
     GC/release observations, alert-aligned latency/error/deployment facts, admitted/excluded-byte
     audit and incident ownership; add integration coverage before expanding the paired dataset.
     - [x] FC3h1 emit cumulative allocation/release counters and a deterministic real GC before/after
@@ -186,10 +186,16 @@ measurement shows no need; closing it does not mean implementing it.
       - [x] FC3h2a preserve memory-evidence spans after error spans under bounded trace truncation,
         reserve compact-fact bytes before raw observations, and fail closed when facts exceed the
         total context budget.
-    - [ ] FC3h3 align memory, latency, error and deployment facts to the incident alert window and
+    - [x] FC3h3 align memory, latency, error and deployment facts to the incident alert window and
       add end-to-end refusal tests for stale, cross-incident and contradictory observations.
       - [x] FC3h3a propagate immutable Evidence observation bounds into the context, require both
         alert-window endpoints on the real path, and exclude/audit stale or unscoped evidence.
+      - [x] FC3h3b emit alert-window-aligned service error counts and P95 latency with resolvable
+        Evidence IDs; mark identical records with conflicting outcomes as contradictory rather
+        than selecting either observation.
+  - [ ] FC3i run the real Docker simulator memory scenario through Tempo/Loki collection, publish
+    the captured GC/release/window/budget audit, then freeze and run an expanded paired comparison
+    that reports baseline, candidate and deltas without reusing v1/v2 outputs.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,

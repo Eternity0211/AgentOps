@@ -335,6 +335,95 @@ def deployment_facts(observations: list[dict[str, str]]) -> list[dict[str, Any]]
     return facts
 
 
+def alert_aligned_service_facts(
+    observations: list[dict[str, str]],
+) -> list[dict[str, Any]]:
+    """Summarize bounded latency/error signals and surface exact-record contradictions."""
+    grouped: dict[str, dict[str, Any]] = {}
+    identities: dict[tuple[str, str, str, str], tuple[str, str]] = {}
+    contradictions: dict[str, set[str]] = {}
+    for observation in observations:
+        if observation.get("source") != "traces":
+            continue
+        try:
+            records = json.loads(observation["summary"])
+        except (KeyError, TypeError, json.JSONDecodeError):
+            continue
+        if not isinstance(records, list):
+            continue
+        for record in records:
+            if not isinstance(record, dict) or not isinstance(record.get("service"), str):
+                continue
+            service = record["service"]
+            attributes = {
+                item.get("key"): _attribute_value(item)
+                for item in record.get("attributes", [])
+                if isinstance(item, dict) and isinstance(item.get("key"), str)
+            }
+            raw_status = attributes.get("http.response.status_code") or attributes.get(
+                "http_response_status_code"
+            )
+            span_status = record.get("status")
+            try:
+                status_is_error = (
+                    isinstance(raw_status, (str, int))
+                    and not isinstance(raw_status, bool)
+                    and int(raw_status) >= 500
+                )
+            except (TypeError, ValueError):
+                status_is_error = False
+            is_error = status_is_error or (
+                isinstance(span_status, dict)
+                and span_status.get("code") in (2, "STATUS_CODE_ERROR")
+            )
+            outcome = "ERROR" if is_error else "SUCCESS"
+            identity = (
+                service,
+                str(record.get("name")),
+                str(record.get("start")),
+                str(record.get("end")),
+            )
+            previous = identities.get(identity)
+            if previous is not None and previous[0] != outcome:
+                contradictions.setdefault(service, set()).update(
+                    (previous[1], observation["id"])
+                )
+            else:
+                identities[identity] = (outcome, observation["id"])
+            fact = grouped.setdefault(
+                service,
+                {"success_count": 0, "error_count": 0, "durations_ms": [], "evidence_ids": set()},
+            )
+            fact["success_count" if outcome == "SUCCESS" else "error_count"] += 1
+            fact["evidence_ids"].add(observation["id"])
+            try:
+                start, end = int(record["start"]), int(record["end"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if end >= start:
+                fact["durations_ms"].append((end - start) / 1_000_000)
+    result: list[dict[str, Any]] = []
+    for service, fact in sorted(grouped.items()):
+        durations = sorted(fact.pop("durations_ms"))
+        conflicting = sorted(contradictions.get(service, set()))
+        result.append(
+            {
+                "service": service,
+                "classification": "CONTRADICTORY" if conflicting else "OBSERVED",
+                "success_count": fact["success_count"],
+                "error_count": fact["error_count"],
+                "p95_duration_ms": (
+                    durations[max(0, (95 * len(durations) + 99) // 100 - 1)]
+                    if durations
+                    else None
+                ),
+                "evidence_ids": sorted(fact["evidence_ids"]),
+                "contradictory_evidence_ids": conflicting,
+            }
+        )
+    return result
+
+
 def build_diagnosis_context(
     all_observations: list[dict[str, str]],
     failed_reads: dict[str, dict[str, Any]],
@@ -401,6 +490,7 @@ def _build_diagnosis_context(
     if byte_budget <= 0:
         raise ValueError("diagnosis context byte budget must be positive")
     deployment_records = deployment_facts(all_observations)
+    service_records = alert_aligned_service_facts(all_observations)
     all_compact_fact_evidence_ids = sorted(
         {
             evidence_id
@@ -408,12 +498,18 @@ def _build_diagnosis_context(
             for evidence_id in _memory_fact_evidence_ids(fact)
         }
         | {fact["evidence_id"] for fact in deployment_records}
+        | {
+            evidence_id
+            for fact in service_records
+            for evidence_id in fact["evidence_ids"]
+        }
     )
     compact_fact_bytes = len(
         json.dumps(
             {
                 "memory_retention_by_service": memory_facts,
                 "deployment_facts": deployment_records,
+                "alert_aligned_service_facts": service_records,
             },
             sort_keys=True,
         ).encode()
@@ -423,6 +519,7 @@ def _build_diagnosis_context(
         excluded_compact_fact_evidence_ids = all_compact_fact_evidence_ids
         memory_facts = []
         deployment_records = []
+        service_records = []
         compact_fact_bytes = 0
     observations: list[dict[str, str]] = []
     excluded: list[str] = []
@@ -451,6 +548,11 @@ def _build_diagnosis_context(
             for evidence_id in _memory_fact_evidence_ids(fact)
         }
         | {fact["evidence_id"] for fact in deployment_records}
+        | {
+            evidence_id
+            for fact in service_records
+            for evidence_id in fact["evidence_ids"]
+        }
     )
     admitted_evidence_ids = [item["id"] for item in observations]
     referenceable_evidence_ids = list(
@@ -461,6 +563,7 @@ def _build_diagnosis_context(
         "observations": observations,
         "memory_retention_by_service": memory_facts,
         "deployment_facts": deployment_records,
+        "alert_aligned_service_facts": service_records,
         "unavailable_reads": unavailable,
         "context_budget": {
             "limit_bytes": byte_budget,

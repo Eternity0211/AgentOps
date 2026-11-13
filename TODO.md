@@ -316,12 +316,15 @@ measurement shows no need; closing it does not mean implementing it.
 - [ ] FC10 Measure capacity and decide scaling/broker needs from data.
   - [x] FC10a freeze the 1/2/4/8-worker three-repetition pilot, exact local resource scope,
     correctness gates, variance-based confirmatory sizing rule and joint broker threshold.
-  - [ ] FC10b implement and execute the migrated-PostgreSQL pilot without selective reruns, then
+  - [x] FC10b implement and execute the migrated-PostgreSQL pilot without selective reruns, then
     freeze the confirmatory repetition count from its observed log-throughput variance.
     - [x] FC10b1 implement the create-only runner with actual JobRepository claims/completions,
       per-Job queue/workflow timing, duplicate ownership, empty-claim contention, SQL statement,
       process CPU and Python heap observations. A discarded exploratory run is not evidence.
-    - [ ] FC10b2 run the source-bound formal pilot once and freeze its calculated repetition count.
+    - [x] FC10b2 run the source-bound formal pilot once and freeze its calculated repetition count.
+      - [x] All twelve pilot repetitions completed 64/64 Jobs with zero errors/duplicate ownership.
+        Median throughput for 1/2/4/8 workers was 16.473/29.223/30.331/24.051 Jobs/s; the frozen
+        variance rule selected 11 confirmatory repetitions per level.
   - [ ] FC10c execute the separately frozen confirmatory run and publish the one-worker baseline,
     every horizontal-worker value, deltas, intervals and the measured broker decision.
   - Run the same frozen workload at declared 1/2/4/8 worker and incident concurrency levels with

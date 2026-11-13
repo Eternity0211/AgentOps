@@ -1,0 +1,39 @@
+{
+  "schema_version": "capacity-confirmatory-plan/1.0.0",
+  "status": "FROZEN_BEFORE_CONFIRMATORY_RUN",
+  "sized_from_pilot": "evaluation/results/final-load/v1/pilot-001/pilot.json",
+  "sized_from_pilot_sha256": "760b7d486e7eac3260018ca1b9d69d9cbe4411113439657fbb6e68f25bc9eb75",
+  "sizing_result": "The predeclared largest log-throughput standard-deviation rule selected 11 repetitions per worker level.",
+  "queue": "PostgreSQL JobRepository claim/lease; no broker or control-plane Redis",
+  "operations_per_repetition": 64,
+  "worker_levels": [1, 2, 4, 8],
+  "confirmatory_repetitions": 11,
+  "handler_delay_ms": 5,
+  "lease_seconds": 30,
+  "metrics": [
+    "completed_jobs",
+    "error_rate",
+    "duplicate_job_ownership",
+    "throughput_jobs_per_second",
+    "queue_wait_p50_ms",
+    "queue_wait_p95_ms",
+    "workflow_latency_p50_ms",
+    "workflow_latency_p95_ms",
+    "lease_contention_rate",
+    "process_cpu_ms",
+    "python_heap_peak_bytes",
+    "database_statement_count"
+  ],
+  "intervals": {
+    "method": "Deterministic 10000-resample percentile bootstrap over the 11 repetitions.",
+    "confidence_level": 0.95,
+    "seed": "SHA-256 of this canonical confirmatory plan"
+  },
+  "broker_threshold": {
+    "minimum_throughput_ratio_8_to_4": 1.05,
+    "maximum_queue_wait_p95_ratio_8_to_4": 1.25,
+    "decision": "BROKER_EVALUATION_REQUIRED only when 8/4 median throughput is <=1.05 and 8/4 median queue-wait P95 is >=1.25; otherwise POSTGRES_QUEUE_RETAINED.",
+    "correctness_gate": "Any error, duplicate ownership or nonterminal Job fails the run and prevents a scaling decision."
+  },
+  "reporting": "Publish all 44 repetitions, the 1-worker baseline, absolute and relative deltas, 95% intervals, local process/heap/SQL scope, and the measured broker decision."
+}

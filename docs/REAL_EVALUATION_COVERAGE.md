@@ -123,6 +123,9 @@ pilot 只用于按 log-throughput 方差确定 5–30 次 confirmatory 重复数
 FC10b1 已实现真实 JobRepository claim/complete runner，记录逐 Job queue/workflow 时间、空
 claim 竞争、SQL statement、进程 CPU 与 Python heap。一次探索运行已丢弃；正式 pilot 必须
 在 runner hash 写入计划后新建，并据正式方差冻结 confirmatory 次数。
+FC10 pilot 正式 12 次运行均完成 64/64 Jobs，错误与重复 ownership 均为 0。1/2/4/8 workers
+吞吐中位数为 16.473/29.223/30.331/24.051 Jobs/s；预声明方差公式选择每级 11 次正式重复。
+confirmatory 44 次运行方案已在执行前冻结，pilot 的 8-worker 回落不能提前当作 broker 结论。
 
 | 测量项目 | 已有证据与结果 | 结论及剩余边界 |
 | --- | --- | --- |

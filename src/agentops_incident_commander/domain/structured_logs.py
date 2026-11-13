@@ -119,6 +119,9 @@ _EVENT_FIELDS: Final[dict[StructuredLogEvent, frozenset[str]]] = {
             "process.memory.retained_bytes",
             "process.memory.retention_allocations",
             "process.memory.retention_limit_bytes",
+            "process.memory.retention_releases",
+            "process.memory.gc.cycle",
+            "process.memory.gc.phase",
         }
     ),
     StructuredLogEvent.TELEMETRY_SHUTDOWN_TIMEOUT: frozenset(),

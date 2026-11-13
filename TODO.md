@@ -179,6 +179,12 @@ measurement shows no need; closing it does not mean implementing it.
   - [ ] FC3h capture the memory evidence contract from the real simulator/runtime path, including
     GC/release observations, alert-aligned latency/error/deployment facts, admitted/excluded-byte
     audit and incident ownership; add integration coverage before expanding the paired dataset.
+    - [x] FC3h1 emit cumulative allocation/release counters and a deterministic real GC before/after
+      pair from the bounded simulator fixture; cover caps, pairing and release counter-evidence.
+    - [ ] FC3h2 carry those fields through the real trace/log collection path with immutable,
+      incident-owned Evidence records and explicit admitted/excluded-byte accounting.
+    - [ ] FC3h3 align memory, latency, error and deployment facts to the incident alert window and
+      add end-to-end refusal tests for stale, cross-incident and contradictory observations.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,

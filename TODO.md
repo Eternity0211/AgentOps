@@ -346,6 +346,10 @@ measurement shows no need; closing it does not mean implementing it.
     control, exact test nodes, metrics and zero-tolerance acceptance before candidate execution.
   - [ ] FC11b implement the create-only JUnit comparison runner, execute once and publish both arms,
     deltas, local duration overhead and zero-provider-cost scope.
+    - [x] FC11b1 implement exact parameterized-member extraction, strict denominator equality,
+      paired metric deltas, acceptance and create-only candidate JUnit retention. The exploratory
+      validation output was discarded before source binding and cannot count as the formal run.
+    - [ ] FC11b2 run the bound candidate once, publish and close FC11 only if all safety gates pass.
   - Compare current versus candidate on prompt injection, secret leakage, Evidence forgery,
     cross-tenant references, SSRF/target injection, stale/concurrent approval, replay, provider
     timeout, telemetry loss, partial network failure and unavailable dependencies.

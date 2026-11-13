@@ -1,6 +1,8 @@
 {
   "schema_version": "final-security-plan/1.0.0",
   "status": "FROZEN_BEFORE_CANDIDATE_RUN",
+  "implementation_binding_note": "The cases, metrics and acceptance were frozen before runner implementation. The runner hash was added after a discarded exploratory validation and before the formal candidate run.",
+  "source_bindings": {"evaluation/run_final_security.py":"65e164067031deca75a4fb54260a52698feb00acd15f603358ffca120c8d9cc3"},
   "baseline_junit": "evaluation/results/safety-matrix/v1/run-001/junit.xml",
   "baseline_revision": "7813bae",
   "candidate_revision_rule": "Full committed SHA supplied to the create-only runner.",

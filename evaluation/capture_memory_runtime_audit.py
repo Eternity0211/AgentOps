@@ -88,7 +88,7 @@ def capture(output: Path) -> None:
         if inject("memory-leak", run_id=run_id, root=ROOT, environment=environment) != 0:
             raise RuntimeError("memory fault injection failed")
         wait_target("order", environment)
-        with httpx.Client(timeout=10) as client:
+        with httpx.Client(timeout=10, trust_env=False) as client:
             ready(client)
             start = datetime.now(UTC)
             checkouts = [checkout(client, sku=f"fc3i-{index}") for index in range(6)]
@@ -99,7 +99,7 @@ def capture(output: Path) -> None:
         cleanup_exit = clean(run_id=run_id, root=ROOT, environment=environment)
         if cleanup_exit == 0:
             wait_target("order", environment)
-            with httpx.Client(timeout=10) as client:
+            with httpx.Client(timeout=10, trust_env=False) as client:
                 ready(client)
                 after_cleanup_status = int(checkout(client, sku="fc3i-clean")["status"])
     document = build_audit_document(

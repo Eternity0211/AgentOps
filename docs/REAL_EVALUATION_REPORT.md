@@ -325,3 +325,7 @@ FC3i1 的捕获器已实现为单次、不可覆盖输出：固定注入 memory 
 有界导出、经现有只读 gateway adapter 查询 trace/log/deployment，随后无条件 evaluator
 cleanup 并验证恢复后的 HTTP 200。输出同时保留 raw observations、provenance、派生 facts、
 总预算审计和 `recovery_credit=false`；真实运行将在该实现提交后执行。
+
+首次预运行暴露本机代理环境会接管 httpx loopback 健康探针；固定 curl 直连和 Compose 健康
+均为 200，且 finally 已清理故障，未写结果。捕获器随后对固定 127.0.0.1 连接设置
+`trust_env=false`，与现有 telemetry adapter 的边界一致；这次失败不计正式样本或选择性重跑。

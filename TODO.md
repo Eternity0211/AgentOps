@@ -314,6 +314,12 @@ measurement shows no need; closing it does not mean implementing it.
     ambiguous-result redispatch; publish latency/cost overhead rather than only pass/fail tests.
 
 - [ ] FC10 Measure capacity and decide scaling/broker needs from data.
+  - [x] FC10a freeze the 1/2/4/8-worker three-repetition pilot, exact local resource scope,
+    correctness gates, variance-based confirmatory sizing rule and joint broker threshold.
+  - [ ] FC10b implement and execute the migrated-PostgreSQL pilot without selective reruns, then
+    freeze the confirmatory repetition count from its observed log-throughput variance.
+  - [ ] FC10c execute the separately frozen confirmatory run and publish the one-worker baseline,
+    every horizontal-worker value, deltas, intervals and the measured broker decision.
   - Run the same frozen workload at declared 1/2/4/8 worker and incident concurrency levels with
     PostgreSQL queue only; repeat on a clean environment and retain CPU, process heap, database,
     queue wait, workflow latency, throughput, error and lease-contention distributions.

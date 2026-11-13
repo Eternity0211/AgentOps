@@ -1,0 +1,40 @@
+{
+  "schema_version": "capacity-pilot-plan/1.0.0",
+  "status": "FROZEN_BEFORE_PILOT",
+  "queue": "PostgreSQL JobRepository claim/lease; no broker or control-plane Redis",
+  "operations_per_repetition": 64,
+  "worker_levels": [1, 2, 4, 8],
+  "pilot_repetitions": 3,
+  "handler_delay_ms": 5,
+  "lease_seconds": 30,
+  "cleanup": "Each repetition uses a new Incident, workflow and Job identity set and verifies all prior Jobs are terminal before the next level.",
+  "metrics": [
+    "completed_jobs",
+    "error_rate",
+    "duplicate_job_ownership",
+    "throughput_jobs_per_second",
+    "queue_wait_p50_ms",
+    "queue_wait_p95_ms",
+    "workflow_latency_p50_ms",
+    "workflow_latency_p95_ms",
+    "lease_contention_rate",
+    "process_cpu_ms",
+    "python_heap_peak_bytes",
+    "database_statement_count"
+  ],
+  "confirmatory_sizing": {
+    "primary_metric": "throughput_jobs_per_second",
+    "minimum_relevant_relative_delta": 0.1,
+    "confidence_level": 0.95,
+    "method": "Use the largest per-level pilot standard deviation of log throughput and n=ceil((1.96*s/log(1.10))^2).",
+    "minimum_repetitions": 5,
+    "maximum_repetitions": 30
+  },
+  "broker_threshold": {
+    "rule": "PostgreSQL is a measured bottleneck only if the median 8-worker throughput is at most 1.05 times the 4-worker median while 8-worker queue-wait P95 is at least 1.25 times the 4-worker value.",
+    "minimum_throughput_ratio_8_to_4": 1.05,
+    "maximum_queue_wait_p95_ratio_8_to_4": 1.25,
+    "correctness_gate": "Any error, duplicate ownership or nonterminal Job fails the experiment but does not by itself justify a broker."
+  },
+  "reporting": "Publish every repetition, per-level distributions, the 1-worker baseline, absolute/relative deltas and 95% intervals. Local process CPU and Python heap exclude database/container resources."
+}

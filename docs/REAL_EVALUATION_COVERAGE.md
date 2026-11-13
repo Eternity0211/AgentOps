@@ -117,6 +117,9 @@ FC9b 已加入 create-only 配对评分器和实际迁移 PostgreSQL 探针；�
 FC9 正式八对运行已完成：8/8 路由匹配，重复外部效果 0、未知结果重派发 0、可续跑路线
 Evidence 丢失 0。总时延差中位数 +13ms，配对 bootstrap 区间 -32 至 +44ms；接管/续跑
 中位数 +67ms，区间 +25 至 +84ms。该本地 PostgreSQL 结果不等于生产可靠性或 MTTR。
+FC10a 已冻结容量 pilot：同一 64-Job PostgreSQL 队列分别用 1/2/4/8 workers，每级三次；
+pilot 只用于按 log-throughput 方差确定 5–30 次 confirmatory 重复数。Kafka/NATS 只有在最终
+4→8 workers 吞吐不超过 1.05 倍且 queue-wait P95 至少恶化 1.25 倍时才进入后续 ADR。
 
 | 测量项目 | 已有证据与结果 | 结论及剩余边界 |
 | --- | --- | --- |

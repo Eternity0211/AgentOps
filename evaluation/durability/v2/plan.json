@@ -2,6 +2,7 @@
   "schema_version": "final-durability-plan/1.0.0",
   "status": "FROZEN_BEFORE_MEASUREMENT",
   "frozen_at_revision": "d3c10efda6bfcb1cc00bd50bf293725e57a2e396",
+  "implementation_binding_note": "The treatment census, metrics and acceptance were frozen at frozen_at_revision. The probe hash was added after an exploratory discarded validation and before the create-only formal measurement.",
   "objective": "Measure the effect of eight declared interruption or duplicate-delivery conditions against the same uninterrupted persisted workflow fixture.",
   "pair_count": 8,
   "fixture": {
@@ -57,6 +58,7 @@
     "src/agentops_incident_commander/application/recovery_orchestration.py": "b016e8e47328c1f2bed640f5061b01722a954439fbe485b8e439d4145f3a16e0",
     "evaluation/durable_effects.py": "fa9831203160da03f5570e5ef1582c4c984ed26ef146ce98a124157fd016eb1e",
     "evaluation/leased_worker.py": "88a4a0e1049a33df18dface736e1a30ce6ad7aace03e519fe3d09c80a7009bf1",
+    "evaluation/run_final_durability_probe.py": "3b3a7a6c1d16bb9f87e8e1f1112cc58eb75719907f58bbddbfb77f90845fe999",
     "tests/integration/test_graph_checkpoints.py": "62e21a3a497bded8546df3843fa65f41be40d328b68f36976657964a274ad355",
     "tests/integration/test_persistence.py": "af5a870f74937c7552b5a30e107fcd97655bdad8c354635f4f91cc05b4f3c922"
   }

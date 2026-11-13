@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 from evaluation.memory_evidence import GcPhase, MemoryPattern, MemorySample, assess_memory_series
@@ -37,3 +39,30 @@ def test_memory_context_labels_match_deterministic_contract() -> None:
         )
         expected = MemoryPattern(labels[case["case_id"]])
         assert assess_memory_series(samples).pattern is expected
+
+
+def test_memory_context_plan_is_frozen_before_provider_calls() -> None:
+    plan = json.loads((ROOT / "plan.json").read_text("utf-8"))
+    assert plan["status"] == "FROZEN_BEFORE_PROVIDER_CALLS"
+    assert plan["implementation_commit"] == "91d467d0ea530a6fc0b0ae2a1c16abc01d20fbf5"
+    assert plan["expected_outcomes"] == 10
+    bindings = {
+        plan["inputs"]: plan["inputs_sha256"],
+        plan["evaluator_labels"]: plan["evaluator_labels_sha256"],
+        **plan["source_hashes"],
+    }
+    assert all(
+        hashlib.sha256(
+            subprocess.check_output(
+                [
+                    "git",
+                    "-c",
+                    "safe.directory=D:/AgentOps",
+                    "show",
+                    f"{plan['implementation_commit']}:{name}",
+                ]
+            )
+        ).hexdigest()
+        == digest
+        for name, digest in bindings.items()
+    )

@@ -1,0 +1,25 @@
+{
+  "schema_version": "memory-context-pair/1.0.0",
+  "status": "FROZEN_BEFORE_PROVIDER_CALLS",
+  "implementation_commit": "91d467d0ea530a6fc0b0ae2a1c16abc01d20fbf5",
+  "inputs": "evaluation/memory_context/v1/inputs.json",
+  "inputs_sha256": "d6fe804db95380fe1800f3ae5fc2cd29591e3f70b21a4eff64ce74c6018fd40c",
+  "evaluator_labels": "evaluation/memory_context/v1/evaluator_only/labels.json",
+  "evaluator_labels_sha256": "7e73bd9bba7e2f292bc2b58bb868a4078e724d58e44597f6750f2a25f19ca293",
+  "arms": ["baseline-context", "candidate-context"],
+  "expected_outcomes": 10,
+  "execution_order": "Alternate arm order by opaque input index parity.",
+  "provider": {"name":"deepseek","model":"deepseek-flash","temperature":0,"thinking":"disabled","max_output_tokens":2048,"max_calls_per_outcome":2},
+  "held_constant": ["model","prompt","observations","evidence_ids","output_schema","repair_policy","call_budget"],
+  "independent_variable": "Existing three-rise memory context versus GC-aware deterministic memory context.",
+  "failure_rule": "All provider, schema and protocol failures remain in the denominator; no selective reruns.",
+  "acceptance": {"candidate_failures":0,"candidate_sustained_detected":1,"candidate_safe_negatives":4,"candidate_correct_not_below_baseline":true,"evidence_references_resolvable":true},
+  "source_hashes": {
+    "evaluation/run_memory_context_pair.py": "e4e7816f4745bd30cedb0283681ba5aff8987e6b10899bc3f6f520211e0b10ea",
+    "evaluation/score_memory_context_pair.py": "7c33c51dee0a595f31ca8221b359711417014706c85f82bca3066f51f0ab1ed0",
+    "evaluation/autonomous_diagnosis.py": "e0d02976df397dd8e7dcd0d8ad50e97a254c1c1d1d5981efde2f5563f98d8b3a",
+    "evaluation/memory_evidence.py": "3d149c8b335ead318f95537d4e7700e5472765375ab557ce5e842769d314d598",
+    "evaluation/structured_model.py": "6c574e57003045dc7395a35cc1d5b0479ad58bdb73851c16cdaaa3ef9333a423"
+  },
+  "limitations": ["Five synthetic unseen variants are a mechanism check, not production incidence.","Lexical bounded-memory claim scoring is narrower than the later untouched diagnosis-quality evaluation.","Actual billing, human labor, recovery, MTTR and recurrence remain unmeasured."]
+}

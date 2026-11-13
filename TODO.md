@@ -159,6 +159,9 @@ measurement shows no need; closing it does not mean implementing it.
     the next batch freezes the exact implementation commit and hashes.
     - [x] Harden runner preflight to require the exact five-source binding for runner, scorer,
       baseline/candidate context, classifier and structured transport before any provider call.
+  - [x] FC3e freeze the five-pair/ten-outcome plan before provider calls, binding opaque inputs,
+    isolated labels, exact implementation commit, runner, scorer, both context builders,
+    classifier, transport, settings, failure denominator and acceptance thresholds.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,

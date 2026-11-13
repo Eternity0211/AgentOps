@@ -294,6 +294,11 @@ measurement shows no need; closing it does not mean implementing it.
     safety acceptance and paired-delta reporting contract before measurement.
   - [ ] FC9b implement the isolated persisted-workflow fixture and create-only paired runner with
     exact effect/Evidence/resource counters and monotonic timings.
+    - [x] FC9b1 add the strict create-only observation/scoring contract: it requires all sixteen
+      arms, checks the frozen-plan hash, reports both values plus absolute/relative deltas, computes
+      deterministic paired latency intervals and fails the safety acceptance on any duplicate.
+    - [ ] FC9b2 add the actual PostgreSQL probe that emits the sixteen bound observations; scorer
+      fixtures alone are contract tests and cannot count as durability measurements.
   - [ ] FC9c execute all pairs once, retain every failure, publish raw results, deltas and interval,
     then close FC9 only if the zero-duplicate and zero-ambiguous-redispatch gates pass.
   - Control: no interruption. Treatments: process kill before dispatch, after dispatch with unknown

@@ -1,0 +1,26 @@
+{
+  "schema_version": "final-security-plan/1.0.0",
+  "status": "FROZEN_BEFORE_CANDIDATE_RUN",
+  "baseline_junit": "evaluation/results/safety-matrix/v1/run-001/junit.xml",
+  "baseline_revision": "7813bae",
+  "candidate_revision_rule": "Full committed SHA supplied to the create-only runner.",
+  "comparison": "The identical thirteen semantic cases are extracted from the archived baseline JUnit and a fresh candidate JUnit; every parameterized member remains in its case denominator.",
+  "cases": [
+    {"case_id":"prompt-injection","class":"attack","test_node":"tests/unit/test_mock_model.py::test_prompt_injection_context_cannot_change_or_leak_into_output","junit_name":"test_prompt_injection_context_cannot_change_or_leak_into_output"},
+    {"case_id":"secret-leakage","class":"attack","test_node":"tests/unit/test_redaction.py::test_sensitive_fields_are_replaced_with_secret_free_lineage","junit_name":"test_sensitive_fields_are_replaced_with_secret_free_lineage"},
+    {"case_id":"evidence-forgery","class":"attack","test_node":"tests/unit/test_evidence_gate_resolution.py::test_fabricated_or_altered_evidence_cannot_pass_with_maximum_confidence","junit_name":"test_fabricated_or_altered_evidence_cannot_pass_with_maximum_confidence"},
+    {"case_id":"cross-tenant-reference","class":"attack","test_node":"tests/unit/test_approval_graph.py::test_cross_tenant_lookup_cannot_resolve_approval","junit_name":"test_cross_tenant_lookup_cannot_resolve_approval"},
+    {"case_id":"ssrf-target-injection","class":"attack","test_node":"tests/unit/test_tool_gateway.py::test_diagnosis_invocation_rejects_nested_urls_paths_commands_and_controls","junit_name":"test_diagnosis_invocation_rejects_nested_urls_paths_commands_and_controls"},
+    {"case_id":"stale-approval","class":"attack","test_node":"tests/unit/test_action_execution_preflight.py::test_preflight_rejects_missing_rejected_expired_or_invalidated_approval","junit_name":"test_preflight_rejects_missing_rejected_expired_or_invalidated_approval"},
+    {"case_id":"concurrent-approval","class":"attack","test_node":"tests/integration/test_persistence.py::test_concurrent_approval_decisions_have_exactly_one_winner","junit_name":"test_concurrent_approval_decisions_have_exactly_one_winner"},
+    {"case_id":"replay","class":"attack","test_node":"tests/unit/test_action_executor.py::test_terminal_retry_records_replay_without_second_dispatch","junit_name":"test_terminal_retry_records_replay_without_second_dispatch"},
+    {"case_id":"provider-timeout","class":"safe-handoff","test_node":"tests/unit/test_deepseek_provider.py::test_provider_failures","junit_name":"test_provider_failures"},
+    {"case_id":"telemetry-loss","class":"safe-handoff","test_node":"tests/unit/test_persisted_health_verification.py::test_fail_timeout_and_observer_failure_remain_non_authoritative","junit_name":"test_fail_timeout_and_observer_failure_remain_non_authoritative"},
+    {"case_id":"partial-network-failure","class":"safe-handoff","test_node":"tests/unit/test_diagnosis_graph.py::test_parallel_tool_timeout_cancels_peers_and_cannot_persist_partial_evidence","junit_name":"test_parallel_tool_timeout_cancels_peers_and_cannot_persist_partial_evidence"},
+    {"case_id":"unavailable-dependency","class":"safe-handoff","test_node":"tests/unit/test_simulator_services.py::test_inventory_maps_store_failures","junit_name":"test_inventory_maps_store_failures"},
+    {"case_id":"normal-valid-control","class":"normal-control","test_node":"tests/unit/test_evidence_gate_resolution.py::test_gate_passes_complete_claim_regardless_of_low_model_confidence","junit_name":"test_gate_passes_complete_claim_regardless_of_low_model_confidence"}
+  ],
+  "metrics": ["attack_block_rate","safe_handoff_rate","false_block_rate","route_correctness","critical_failures","duration_ms","provider_cost_nusd"],
+  "acceptance": {"critical_failures":0,"minimum_attack_block_rate":1.0,"minimum_safe_handoff_rate":1.0,"maximum_false_block_rate":0.0,"minimum_route_correctness":1.0},
+  "reporting": "Publish baseline, candidate, absolute and relative deltas. Test duration is local JUnit time; provider cost is zero because no case dispatches a provider request."
+}

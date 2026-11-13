@@ -342,6 +342,10 @@ measurement shows no need; closing it does not mean implementing it.
     shows the alternative fixes it without weakening ordering, replay or audit semantics.
 
 - [ ] FC11 Expand adversarial and chaos comparisons without changing authority boundaries.
+  - [x] FC11a freeze the identical thirteen-case archived-baseline/fresh-candidate matrix, normal
+    control, exact test nodes, metrics and zero-tolerance acceptance before candidate execution.
+  - [ ] FC11b implement the create-only JUnit comparison runner, execute once and publish both arms,
+    deltas, local duration overhead and zero-provider-cost scope.
   - Compare current versus candidate on prompt injection, secret leakage, Evidence forgery,
     cross-tenant references, SSRF/target injection, stale/concurrent approval, replay, provider
     timeout, telemetry loss, partial network failure and unavailable dependencies.

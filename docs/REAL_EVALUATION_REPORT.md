@@ -302,3 +302,12 @@ v2 已产生十个全新真实模型结果并通过预声明机制门槛。基�
 GC/释放字段经 Artifact 完整性链进入 tenant/incident 绑定的 Evidence，跨 Incident 读取返回空。
 compact facts 与原始 observations 共用总字节上限，审计分别给出 raw、compact、总纳入字节及
 两类排除 Evidence ID；事实本身超过预算时不做截断猜测，而是整组 fail-closed。
+
+第三步先建立统一时间边界：Evidence 的 observed_from/observed_to 随恢复和新采集进入上下文，
+真实诊断构造器同时接收告警起止。窗口外、缺少时间范围或范围非法的记录不会进入 compact
+facts 或原始观测，并在预算审计中列出；合成评估兼容入口未传窗口时保持原冻结语义。
+
+该时间边界已接入真实工作流：查询的起止时间写入 Evidence 的 observation bounds，收集时间
+仍单独记录；恢复不会丢失范围。真实构造器要求时区明确且递增的双端点，stale/unscoped
+Evidence ID 进入排除审计且不进入 referenceable IDs。下一步仍需提取同窗延迟/错误事实并
+补齐矛盾观测的端到端拒绝，因此 FC3h3 尚未关闭。

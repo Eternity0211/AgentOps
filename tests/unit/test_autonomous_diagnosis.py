@@ -238,6 +238,39 @@ def test_compact_facts_fail_closed_when_they_exceed_context_budget() -> None:
     assert context["context_budget"]["excluded_compact_fact_evidence_ids"] == ["trace-large"]
 
 
+def test_diagnosis_context_excludes_stale_and_unscoped_evidence() -> None:
+    start = datetime(2026, 11, 13, 1, 0, tzinfo=UTC)
+    end = start + timedelta(minutes=5)
+    observations = [
+        {
+            "id": "current",
+            "source": "traces",
+            "summary": json.dumps([memory_span("order", 10, 1_048_576)]),
+            "observed_from": start.isoformat(),
+            "observed_to": end.isoformat(),
+        },
+        {
+            "id": "stale",
+            "source": "traces",
+            "summary": json.dumps([memory_span("order", 20, 2_097_152)]),
+            "observed_from": (start - timedelta(hours=2)).isoformat(),
+            "observed_to": (start - timedelta(hours=1)).isoformat(),
+        },
+        {"id": "unscoped", "source": "logs", "summary": "old error"},
+    ]
+
+    context = build_diagnosis_context(
+        observations, {}, window_start=start, window_end=end
+    )
+
+    assert [item["id"] for item in context["observations"]] == ["current"]
+    assert context["context_budget"]["temporally_excluded_evidence_ids"] == [
+        "stale",
+        "unscoped",
+    ]
+    assert context["evidence_ids"] == ["current"]
+
+
 def test_diagnosis_context_records_unavailable_reads_without_evidence_ids() -> None:
     context = build_diagnosis_context(
         [],

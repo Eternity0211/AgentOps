@@ -188,6 +188,8 @@ measurement shows no need; closing it does not mean implementing it.
         total context budget.
     - [ ] FC3h3 align memory, latency, error and deployment facts to the incident alert window and
       add end-to-end refusal tests for stale, cross-incident and contradictory observations.
+      - [x] FC3h3a propagate immutable Evidence observation bounds into the context, require both
+        alert-window endpoints on the real path, and exclude/audit stale or unscoped evidence.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,

@@ -277,13 +277,19 @@ def build_candidate_diagnosis_context(
     failed_reads: dict[str, dict[str, Any]],
     *,
     byte_budget: int = 24_000,
+    window_start: datetime | None = None,
+    window_end: datetime | None = None,
 ) -> dict[str, Any]:
     """Candidate context that replaces the three-rise heuristic with GC-aware facts."""
+    selected, temporally_excluded = _select_alert_window(
+        all_observations, window_start=window_start, window_end=window_end
+    )
     context = _build_diagnosis_context(
-        all_observations,
+        selected,
         failed_reads,
         byte_budget=byte_budget,
-        memory_facts=discriminative_memory_retention_by_service(all_observations),
+        memory_facts=discriminative_memory_retention_by_service(selected),
+        temporally_excluded_evidence_ids=temporally_excluded,
     )
     context["memory_evidence_contract"] = "gc-aware/1.0.0"
     return context
@@ -334,14 +340,54 @@ def build_diagnosis_context(
     failed_reads: dict[str, dict[str, Any]],
     *,
     byte_budget: int = 24_000,
+    window_start: datetime | None = None,
+    window_end: datetime | None = None,
 ) -> dict[str, Any]:
     """Build auditable bounded context while retaining compact cross-record facts."""
+    selected, temporally_excluded = _select_alert_window(
+        all_observations, window_start=window_start, window_end=window_end
+    )
     return _build_diagnosis_context(
-        all_observations,
+        selected,
         failed_reads,
         byte_budget=byte_budget,
-        memory_facts=memory_retention_by_service(all_observations),
+        memory_facts=memory_retention_by_service(selected),
+        temporally_excluded_evidence_ids=temporally_excluded,
     )
+
+
+def _select_alert_window(
+    observations: list[dict[str, str]],
+    *,
+    window_start: datetime | None,
+    window_end: datetime | None,
+) -> tuple[list[dict[str, str]], list[str]]:
+    if (window_start is None) != (window_end is None):
+        raise ValueError("alert window requires both start and end")
+    if window_start is None or window_end is None:
+        return observations, []
+    if window_start.tzinfo is None or window_end.tzinfo is None or window_start >= window_end:
+        raise ValueError("alert window must be timezone-aware and increasing")
+    selected: list[dict[str, str]] = []
+    excluded: list[str] = []
+    for observation in observations:
+        try:
+            observed_from = datetime.fromisoformat(observation["observed_from"])
+            observed_to = datetime.fromisoformat(observation["observed_to"])
+        except (KeyError, TypeError, ValueError):
+            excluded.append(observation["id"])
+            continue
+        if (
+            observed_from.tzinfo is None
+            or observed_to.tzinfo is None
+            or observed_from > observed_to
+            or observed_to < window_start
+            or observed_from > window_end
+        ):
+            excluded.append(observation["id"])
+            continue
+        selected.append(observation)
+    return selected, excluded
 
 
 def _build_diagnosis_context(
@@ -350,6 +396,7 @@ def _build_diagnosis_context(
     *,
     byte_budget: int,
     memory_facts: list[dict[str, Any]],
+    temporally_excluded_evidence_ids: list[str],
 ) -> dict[str, Any]:
     if byte_budget <= 0:
         raise ValueError("diagnosis context byte budget must be positive")
@@ -424,6 +471,7 @@ def _build_diagnosis_context(
             "compact_fact_evidence_ids": compact_fact_evidence_ids,
             "excluded_evidence_ids": excluded,
             "excluded_compact_fact_evidence_ids": excluded_compact_fact_evidence_ids,
+            "temporally_excluded_evidence_ids": temporally_excluded_evidence_ids,
         },
     }
 
@@ -452,8 +500,21 @@ class AutonomousServices:
         end: datetime | None = None,
         allow_incomplete_reads: bool = False,
     ) -> None:
+        if (
+            end is None
+            or start.tzinfo is None
+            or end.tzinfo is None
+            or start >= end
+        ):
+            raise ValueError("autonomous evidence window must be timezone-aware and increasing")
         self.model, self.gateway, self.registry = model, gateway, registry
-        self.incident, self.alert, self.root, self.start = incident, alert, root, start
+        self.incident, self.alert, self.root, self.start, self.end = (
+            incident,
+            alert,
+            root,
+            start,
+            end,
+        )
         self.compiled: Any = None
         self.results: dict[str, dict[str, Any]] = {}
         self.evidence: ExperimentEvidence | None = None
@@ -828,6 +889,7 @@ class AutonomousServices:
             self.incident,
             observations,
             observed_from=self.start,
+            observed_to=self.end,
             at=self.clock(),
             provenance_by_id=provenance,
             existing=self.evidence,
@@ -883,7 +945,12 @@ class AutonomousServices:
     ) -> HypothesisNodeResult:
         await self.restore_evidence(state)
         assert self.evidence is not None
-        context = build_diagnosis_context(self.evidence.observations, self.failed_reads)
+        context = build_diagnosis_context(
+            self.evidence.observations,
+            self.failed_reads,
+            window_start=self.start,
+            window_end=self.end,
+        )
         self.round = state.budgets.used_replans
         result = await self.invoke_model_effect(
             state,

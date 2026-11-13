@@ -92,6 +92,8 @@ class ExperimentEvidence:
                     "id": item.id.value,
                     "source": item.normalized_query.as_dict()["source"],
                     "summary": payload["summary"],
+                    "observed_from": item.observed_from.isoformat(),
+                    "observed_to": item.observed_to.isoformat(),
                 }
             )
         return restored
@@ -103,6 +105,7 @@ class ExperimentEvidence:
         observations: list[dict[str, str]],
         *,
         observed_from: datetime,
+        observed_to: datetime | None = None,
         provenance_by_id: dict[str, dict[str, Any]] | None = None,
         existing: ExperimentEvidence | None = None,
         tenant: str = "local-evaluation",
@@ -125,6 +128,11 @@ class ExperimentEvidence:
         self.observations: list[dict[str, str]] = list(existing.observations) if existing else []
         self.batch: int = existing.batch + 1 if existing else 0
         now = at or datetime.now(UTC)
+        observation_end = observed_to or now
+        if observed_from.tzinfo is None or observation_end.tzinfo is None:
+            raise ValueError("evidence observation bounds must be timezone-aware")
+        if observed_from > observation_end or observation_end > now:
+            raise ValueError("evidence observation bounds are invalid")
         source_types = {
             "metrics": EvidenceSourceType.METRIC,
             "logs": EvidenceSourceType.LOG,
@@ -174,7 +182,7 @@ class ExperimentEvidence:
                     tool_schema_version=provenance.get("version", "1.0.0"),
                     normalized_query=NormalizedQuery(tuple(query_fields)),
                     observed_from=observed_from,
-                    observed_to=now,
+                    observed_to=observation_end,
                     collected_at=now,
                     expires_at=now + timedelta(hours=1),
                     artifact_expires_at=now + timedelta(days=7),
@@ -200,7 +208,14 @@ class ExperimentEvidence:
             )
             self.storage.store(normalized.artifact, normalized.content)
             self.records[normalized.evidence.id] = normalized.evidence
-            self.observations.append({**observation, "summary": text})
+            self.observations.append(
+                {
+                    **observation,
+                    "summary": text,
+                    "observed_from": normalized.evidence.observed_from.isoformat(),
+                    "observed_to": normalized.evidence.observed_to.isoformat(),
+                }
+            )
             manifest.append(
                 {"evidence": asdict(normalized.evidence), "artifact": asdict(normalized.artifact)}
             )

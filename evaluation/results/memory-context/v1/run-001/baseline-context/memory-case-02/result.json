@@ -1,0 +1,32 @@
+{
+  "context_sha256": "265dbbb2ea61ff80ecbbf1c0d67eb1d1abca3bc2f0220b10cf64e9cb4e645aaf",
+  "cost_upper_bound_nanousd": 983400,
+  "duration_ms": 2093,
+  "input_tokens": 2334,
+  "output_tokens": 236,
+  "protocol_sha256": "32182a0e25da0456417ac7caeb43ddcdf74ec13aa8210fdbff0c22db3852efed",
+  "report": {
+    "candidates": [
+      {
+        "candidate_id": "order-retention-growth",
+        "confidence_basis_points": 5500,
+        "counter_evidence_explanation": null,
+        "counter_evidence_ids": [],
+        "counter_evidence_treatment": "NOT_APPLICABLE",
+        "missing_evidence": [],
+        "rank": 1,
+        "statement": "Order service retained memory grows monotonically (10\u219220\u219230 bytes) across three samples with 3 allocations and 0 releases, indicating unreleased retention allocations accumulating in the order service.",
+        "supporting_evidence_ids": [
+          "evidence-memory-case-02-memory"
+        ],
+        "uncertainty": "Retained bytes remain far below the 100-byte limit; growth is small and may be benign warm-up rather than a leak."
+      }
+    ],
+    "disposition": "CANDIDATES",
+    "explanation": "Three order-service samples show retained bytes rising 10\u219220\u219230 with allocations 1\u21922\u21923 and zero releases, a sustained increase consistent with accumulating unreleased retention. Magnitude is small relative to the 100-byte limit, so the candidate is bounded to observed growth only.",
+    "incident_id": "memory-case-02",
+    "missing_evidence": [],
+    "schema_version": "1.0.0"
+  },
+  "status": "SUCCEEDED"
+}

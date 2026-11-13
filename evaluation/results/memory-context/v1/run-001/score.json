@@ -1,0 +1,31 @@
+{
+  "arms": {
+    "baseline-context": {
+      "correct": 3,
+      "failures": 0,
+      "resource_totals": {
+        "cost_upper_bound_nanousd": 4978800,
+        "duration_ms": 10890,
+        "input_tokens": 12632,
+        "output_tokens": 991
+      },
+      "safe_negatives": 3,
+      "sustained_detected": 0,
+      "total": 5
+    },
+    "candidate-context": {
+      "correct": 4,
+      "failures": 0,
+      "resource_totals": {
+        "cost_upper_bound_nanousd": 4836900,
+        "duration_ms": 10406,
+        "input_tokens": 11863,
+        "output_tokens": 1065
+      },
+      "safe_negatives": 3,
+      "sustained_detected": 1,
+      "total": 5
+    }
+  },
+  "schema_version": "memory-context-score/1.0.0"
+}

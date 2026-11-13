@@ -265,3 +265,7 @@ Evidence ID；原构造器未修改，仍可作为公平对照。候选不会把
 配对 runner 与后置 scorer 已实现。runner 的接口没有 labels 参数，对两个 builder 固定同一
 模型、prompt、观测和调用预算，并交错先后顺序；所有成功或失败都会写入结果。scorer 才
 读取 evaluator-only 标签，分别报告正确数、持续保留检出、安全负例、失败和资源总量。
+
+首轮五对真实调用全部完成。正确数 3/5→4/5，持续保留检出 0/1→1/1；但冻结词法 scorer
+把候选明确写出的“normal warmup, not a leak”因包含 memory retention 一词计作正例，导致
+安全负例仍为 3/4，验收失败。该结果不事后改分；修复 scorer 后必须重新冻结和重跑两臂。

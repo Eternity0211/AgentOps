@@ -1,0 +1,32 @@
+{
+  "context_sha256": "66738a5959c95edd6572b58ab209661021a4a5baa68207fbeea2a7af8cf72d7e",
+  "cost_upper_bound_nanousd": 1055400,
+  "duration_ms": 2156,
+  "input_tokens": 2594,
+  "output_tokens": 231,
+  "protocol_sha256": "32182a0e25da0456417ac7caeb43ddcdf74ec13aa8210fdbff0c22db3852efed",
+  "report": {
+    "candidates": [
+      {
+        "candidate_id": "order-memory-normal-warmup",
+        "confidence_basis_points": 8000,
+        "counter_evidence_explanation": null,
+        "counter_evidence_ids": [],
+        "counter_evidence_treatment": "NOT_APPLICABLE",
+        "missing_evidence": [],
+        "rank": 1,
+        "statement": "Order service memory retention is normal warmup, not a leak: retained bytes rose 10->40 then GC reclaimed 20 bytes back to 20, well under the 100-byte limit, with net allocation count of 1.",
+        "supporting_evidence_ids": [
+          "evidence-memory-case-01-memory"
+        ],
+        "uncertainty": "Only one service and five samples observed; no long-window trend to confirm steady state."
+      }
+    ],
+    "disposition": "CANDIDATES",
+    "explanation": "GC-aware retention data for order shows a short rise followed by GC reclaiming retained bytes, staying far below the retention limit. This matches NORMAL_WARMUP, so no leak is claimed; a short increase alone is insufficient evidence of a leak.",
+    "incident_id": "memory-case-01",
+    "missing_evidence": [],
+    "schema_version": "1.0.0"
+  },
+  "status": "SUCCEEDED"
+}

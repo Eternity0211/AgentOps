@@ -1,0 +1,32 @@
+{
+  "context_sha256": "bedf1c7a8aff57f47488d9a9a4afc9cce029bf8c8a4b7506a31a20546bc96e84",
+  "cost_upper_bound_nanousd": 1105200,
+  "duration_ms": 2438,
+  "input_tokens": 2600,
+  "output_tokens": 271,
+  "protocol_sha256": "32182a0e25da0456417ac7caeb43ddcdf74ec13aa8210fdbff0c22db3852efed",
+  "report": {
+    "candidates": [
+      {
+        "candidate_id": "order-sustained-retention",
+        "confidence_basis_points": 6500,
+        "counter_evidence_explanation": null,
+        "counter_evidence_ids": [],
+        "counter_evidence_treatment": "NOT_APPLICABLE",
+        "missing_evidence": [],
+        "rank": 1,
+        "statement": "The order service shows sustained memory retention: retained_bytes rose from 10 to 40 against a 100-byte limit across 5 samples, with 3 net allocations and 0 releases. A GC cycle (BEFORE/AFTER) reclaimed 0 bytes, so retained memory persists after GC, consistent with a bounded retention growth fault in order.",
+        "supporting_evidence_ids": [
+          "evidence-memory-case-03-memory"
+        ],
+        "uncertainty": "Single service, short window; no heap profile or allocation-site data to confirm the specific retaining structure."
+      }
+    ],
+    "disposition": "CANDIDATES",
+    "explanation": "Memory-retention telemetry for order shows monotonic retained_bytes growth (10\u219240 of 100 limit), net allocations without releases, and zero reclamation across a GC cycle, matching SUSTAINED_RETENTION. No deployment or counter evidence present. One bounded candidate is offered; allocation-site detail remains unverified.",
+    "incident_id": "memory-case-03",
+    "missing_evidence": [],
+    "schema_version": "1.0.0"
+  },
+  "status": "SUCCEEDED"
+}

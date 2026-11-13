@@ -1,0 +1,22 @@
+{
+  "context_sha256": "19d625a13911d6a3312c205aa80a82ba60ed6ed861fc625387ecd1945ecc1366",
+  "cost_upper_bound_nanousd": 1064700,
+  "duration_ms": 2328,
+  "input_tokens": 2821,
+  "output_tokens": 182,
+  "protocol_sha256": "32182a0e25da0456417ac7caeb43ddcdf74ec13aa8210fdbff0c22db3852efed",
+  "report": {
+    "candidates": [],
+    "disposition": "HUMAN_HANDOFF",
+    "explanation": "Retained bytes for order rose only 10\u219240 against a 100 limit, with a flat step between samples 3 and 4 and no releases; the aggregate direction is FLAT_OR_MIXED and no sustained increase is observed. A short increase alone cannot establish a leak, so no bounded root cause is substantiated and the operator hypothesis is not confirmed.",
+    "incident_id": "memory-case-03",
+    "missing_evidence": [
+      "Longer retention series for order showing sustained growth toward the 100-byte limit",
+      "Evidence of retention releases remaining zero over a longer window",
+      "Heap/GC post-cycle retained bytes showing no reclamation across multiple cycles",
+      "Comparison against a baseline or peer service retention profile"
+    ],
+    "schema_version": "1.0.0"
+  },
+  "status": "SUCCEEDED"
+}

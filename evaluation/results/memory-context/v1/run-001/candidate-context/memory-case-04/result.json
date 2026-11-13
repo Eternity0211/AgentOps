@@ -1,0 +1,22 @@
+{
+  "context_sha256": "75872350d167d4abdc3d40c526e5941dae7c3783e36b003352bfbc3f768d0723",
+  "cost_upper_bound_nanousd": 781200,
+  "duration_ms": 2046,
+  "input_tokens": 1852,
+  "output_tokens": 188,
+  "protocol_sha256": "32182a0e25da0456417ac7caeb43ddcdf74ec13aa8210fdbff0c22db3852efed",
+  "report": {
+    "candidates": [],
+    "disposition": "HUMAN_HANDOFF",
+    "explanation": "No memory-retention observations exist for any service, and the trace evidence is empty. The only admitted fact is a deployment of order 2.0.0 from 1.0.0, which cannot by itself establish a memory leak or latency cause. No bounded root-cause candidate can be substantiated, so hand off for further evidence collection.",
+    "incident_id": "memory-case-04",
+    "missing_evidence": [
+      "Memory-retention time series per service (heap/RSS over time) to detect growth",
+      "Trace or metric evidence of memory pressure, GC behavior, or OOM events",
+      "Baseline comparison of memory usage before and after order 2.0.0 deployment",
+      "Confirmation of which service(s) exhibit the reported symptom"
+    ],
+    "schema_version": "1.0.0"
+  },
+  "status": "SUCCEEDED"
+}

@@ -1,0 +1,21 @@
+{
+  "context_sha256": "fd1a518dfd7b0d6b53bfbc930d50c8cefb7bcc21f361156d16d69cf1523cb566",
+  "cost_upper_bound_nanousd": 1019400,
+  "duration_ms": 1922,
+  "input_tokens": 2594,
+  "output_tokens": 201,
+  "protocol_sha256": "32182a0e25da0456417ac7caeb43ddcdf74ec13aa8210fdbff0c22db3852efed",
+  "report": {
+    "candidates": [],
+    "disposition": "HUMAN_HANDOFF",
+    "explanation": "The only admitted evidence is a single order-service memory-retention trace series. Retained bytes rose from 10 to 40 (limit 100) then fell to 15 and 5 after a GC cycle reclaimed 25 bytes; net delta is -5 bytes with zero releases before GC. This is a short, bounded increase fully reclaimed by GC, which the contract treats as insufficient to claim a leak. No candidate is substantiated; operator hypothesis of a leak is contradicted.",
+    "incident_id": "memory-case-05",
+    "missing_evidence": [
+      "Sustained multi-cycle retention series showing retained bytes growing across GC cycles without reclamation",
+      "Retention limit breach or OOM/restart events for order service",
+      "Independent corroborating signal (heap profile, allocation site) tying growth to a specific leak"
+    ],
+    "schema_version": "1.0.0"
+  },
+  "status": "SUCCEEDED"
+}

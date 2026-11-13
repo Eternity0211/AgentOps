@@ -1,0 +1,30 @@
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+
+from evaluation.score_memory_context_pair import score_pair
+
+ROOT = Path("evaluation/results/memory-context/v1")
+RUN = ROOT / "run-001"
+LABELS = Path("evaluation/memory_context/v1/evaluator_only/labels.json")
+
+
+def test_memory_context_v1_score_recomputes(tmp_path: Path) -> None:
+    expected = json.loads((RUN / "score.json").read_text("utf-8"))
+    actual = score_pair(LABELS, RUN, tmp_path / "score.json")
+    assert actual == expected
+    assert actual["arms"]["baseline-context"]["correct"] == 3
+    assert actual["arms"]["candidate-context"]["correct"] == 4
+    assert actual["arms"]["candidate-context"]["safe_negatives"] == 3
+
+
+def test_memory_context_v1_hash_manifest() -> None:
+    expected = json.loads((ROOT / "file-hashes.json").read_text("utf-8"))
+    actual = {
+        path.relative_to(ROOT).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in ROOT.rglob("*")
+        if path.is_file() and path.name != "file-hashes.json"
+    }
+    assert actual == expected

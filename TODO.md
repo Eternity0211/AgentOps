@@ -162,6 +162,12 @@ measurement shows no need; closing it does not mean implementing it.
   - [x] FC3e freeze the five-pair/ten-outcome plan before provider calls, binding opaque inputs,
     isolated labels, exact implementation commit, runner, scorer, both context builders,
     classifier, transport, settings, failure denominator and acceptance thresholds.
+  - [x] FC3f execute and publish all ten frozen outcomes without reruns. Correctness was 3/5→4/5
+    and sustained detection 0/1→1/1, but frozen safe negatives remained 3/4→3/4. The counted
+    candidate false positive explicitly said “normal warmup, not a leak”; the scorer ignored
+    negation. Acceptance failed and the result remains immutable.
+  - [ ] FC3g fix the negation-blind scorer, freeze its source, and fully rerun both arms; do not
+    rescore v1 as confirmatory evidence or reuse either arm.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,

@@ -1,0 +1,35 @@
+{
+  "context_sha256": "5dc5e76552bc5851987b92f3a6597f854aa731189a207a42f694b3f9d4a91c6f",
+  "cost_upper_bound_nanousd": 1449300,
+  "duration_ms": 2735,
+  "input_tokens": 3423,
+  "output_tokens": 352,
+  "protocol_sha256": "34139b0d9558cf4a7acc2197ff060b2edc7b5314e136d6c79eaeac9c4339190b",
+  "report": {
+    "candidates": [
+      {
+        "candidate_id": "order-memory-retention-growth",
+        "confidence_basis_points": 5500,
+        "counter_evidence_explanation": null,
+        "counter_evidence_ids": [],
+        "counter_evidence_treatment": "NOT_APPLICABLE",
+        "missing_evidence": [
+          "Retained memory samples over a longer window to confirm growth continues toward the 32 MiB retention limit",
+          "Heap/GC detail showing whether retained objects are reachable or collectable"
+        ],
+        "rank": 1,
+        "statement": "Order service shows monotonically increasing retained memory (1 MiB to 6 MiB across 6 samples) with allocations rising 1 to 6 and zero releases, including across a GC cycle, indicating retained memory is not being released and is accumulating toward the 32 MiB limit.",
+        "supporting_evidence_ids": [
+          "evidence-expanded-case-03-1"
+        ],
+        "uncertainty": "Growth is modest (6 MiB of 32 MiB limit) and no latency or error impact is observed; leak vs. normal warm-up is not yet distinguishable."
+      }
+    ],
+    "disposition": "CANDIDATES",
+    "explanation": "Order service retained memory rises steadily across all six samples with allocations increasing and zero releases, even across a GC cycle, consistent with a bounded memory-retention accumulation. The deployment record (2.0.0 from 1.0.0) only establishes version facts and does not establish causation. No latency or error impact is observed, so the candidate is scoped to the retention trend only.",
+    "incident_id": "expanded-case-03",
+    "missing_evidence": [],
+    "schema_version": "1.0.0"
+  },
+  "status": "SUCCEEDED"
+}

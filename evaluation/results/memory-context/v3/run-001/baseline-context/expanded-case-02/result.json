@@ -1,0 +1,22 @@
+{
+  "context_sha256": "8fa06c2bce18ecc20321072162045857d5e0e2b4702fbc32607875b15ae38f52",
+  "cost_upper_bound_nanousd": 1002000,
+  "duration_ms": 1985,
+  "input_tokens": 2512,
+  "output_tokens": 207,
+  "protocol_sha256": "34139b0d9558cf4a7acc2197ff060b2edc7b5314e136d6c79eaeac9c4339190b",
+  "report": {
+    "candidates": [],
+    "disposition": "HUMAN_HANDOFF",
+    "explanation": "Order service shows retained_bytes rising 10\u219220\u219230 with allocations 1\u21922\u21923 and zero releases, but this is a tiny absolute increase far below the 33554432-byte limit, and success_count=3 with error_count=0 and p95 ~1\u00b5s shows no degradation. A short increase alone cannot establish a leak, so no bounded root cause is substantiated; hand off.",
+    "incident_id": "expanded-case-02",
+    "missing_evidence": [
+      "Longer retention time series for order to distinguish normal warm-up from sustained unbounded growth",
+      "Retained_bytes trend relative to the 33554432-byte limit over a meaningful window",
+      "Evidence of user-visible impact (latency/errors) correlated with memory growth",
+      "Allocation/release behavior after workload completion to confirm unreleased memory"
+    ],
+    "schema_version": "1.0.0"
+  },
+  "status": "SUCCEEDED"
+}

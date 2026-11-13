@@ -130,7 +130,7 @@ measurement shows no need; closing it does not mean implementing it.
       Quality was 36/54 in both arms. FC1 reports no reliability/quality improvement and marks
       input tokens plus rate-card estimate `REGRESSED`, so closing FC2 is not an efficiency claim.
 
-- [ ] FC3 Make memory-leak evidence discriminative before asking the model to classify it.
+- [x] FC3 Make memory-leak evidence discriminative before asking the model to classify it.
   - Capture a longer bounded series including retained bytes before/after GC, allocation and
     release counts, slope, configured limit, service ownership, alert-aligned latency/errors,
     deployment version and a normal warm-up control. Compact facts must retain resolvable Evidence
@@ -193,7 +193,7 @@ measurement shows no need; closing it does not mean implementing it.
       - [x] FC3h3b emit alert-window-aligned service error counts and P95 latency with resolvable
         Evidence IDs; mark identical records with conflicting outcomes as contradictory rather
         than selecting either observation.
-  - [ ] FC3i run the real Docker simulator memory scenario through Tempo/Loki collection, publish
+  - [x] FC3i run the real Docker simulator memory scenario through Tempo/Loki collection, publish
     the captured GC/release/window/budget audit, then freeze and run an expanded paired comparison
     that reports baseline, candidate and deltas without reusing v1/v2 outputs.
     - [x] FC3i1 add a bounded one-command capture that always cleans the evaluator fault, verifies
@@ -205,7 +205,7 @@ measurement shows no need; closing it does not mean implementing it.
         produced six samples, one GC pair, five net allocations, zero releases and
         SUSTAINED_RETENTION. The context admitted 15,546/24,000 bytes and explicitly excluded the
         oversized raw log observation.
-    - [ ] FC3i2 freeze an expanded label-isolated paired dataset sourced from the real capture
+    - [x] FC3i2 freeze an expanded label-isolated paired dataset sourced from the real capture
       shapes, with new normal/release/short/stale/contradictory/sustained variants and no reuse of
       v1/v2 provider outputs; publish baseline, candidate, deltas and resource totals.
       - [x] Add ten opaque inputs (twenty paired outcomes) with two sustained positives and eight
@@ -213,6 +213,10 @@ measurement shows no need; closing it does not mean implementing it.
         contradictory and stable-after-GC evidence; keep labels evaluator-only.
       - [x] Freeze all input/label/source hashes, v2 claim profile, twenty-outcome denominator and
         acceptance thresholds before provider calls; prohibit v1/v2 output reuse or rescoring.
+      - [x] Publish twenty new outcomes: correctness 9/10→10/10 (+1, +10 percentage points),
+        sustained detection 1/2→2/2, safe negatives 8/8→8/8 and failures 0→0. All references
+        resolve. Duration increased 140ms while input tokens fell 1,667 and rate-card upper bound
+        fell 468,900 nUSD; these resource deltas are descriptive, not significance claims.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,

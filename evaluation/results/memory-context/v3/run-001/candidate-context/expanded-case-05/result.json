@@ -1,0 +1,21 @@
+{
+  "context_sha256": "5deda73a5c89b5a8967b089c477f48c02cc6a1f10c5718f9fc4f51694412fc82",
+  "cost_upper_bound_nanousd": 1062300,
+  "duration_ms": 2032,
+  "input_tokens": 2769,
+  "output_tokens": 193,
+  "protocol_sha256": "34139b0d9558cf4a7acc2197ff060b2edc7b5314e136d6c79eaeac9c4339190b",
+  "report": {
+    "candidates": [],
+    "disposition": "HUMAN_HANDOFF",
+    "explanation": "Memory-retention facts for order are classified CONTRADICTED: retained bytes fell from 10 to 5 with 4 releases and 25 bytes reclaimed after GC cycle 1, far below the 33554432-byte limit. Order shows 5 successes, 0 errors, and ~1\u00b5s p95. No leak or latency fault is established; the operator hypothesis is contradicted, so hand off rather than assert a bounded cause.",
+    "incident_id": "expanded-case-05",
+    "missing_evidence": [
+      "Evidence of a genuine memory leak: retained bytes growing without GC reclamation across cycles",
+      "Sustained latency or error-rate degradation on order service beyond the 1-minute window",
+      "Deployment or config change record correlated with the incident window"
+    ],
+    "schema_version": "1.0.0"
+  },
+  "status": "SUCCEEDED"
+}

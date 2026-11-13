@@ -1,0 +1,36 @@
+{
+  "context_sha256": "6e7acdb9ac0faea49d426625bb22dbc9043a401f5655b3fb001bed7d8570cfe1",
+  "cost_upper_bound_nanousd": 1309500,
+  "duration_ms": 2063,
+  "input_tokens": 3097,
+  "output_tokens": 317,
+  "protocol_sha256": "34139b0d9558cf4a7acc2197ff060b2edc7b5314e136d6c79eaeac9c4339190b",
+  "report": {
+    "candidates": [
+      {
+        "candidate_id": "order-retention-no-release",
+        "confidence_basis_points": 4500,
+        "counter_evidence_explanation": null,
+        "counter_evidence_ids": [],
+        "counter_evidence_treatment": "NOT_APPLICABLE",
+        "missing_evidence": [],
+        "rank": 1,
+        "statement": "Order service retains memory without releasing it: retained_bytes rises monotonically 10 to 60 over 6 samples, retention_allocations climb 1 to 6, and retention_releases stay 0, indicating allocations are not being freed.",
+        "supporting_evidence_ids": [
+          "evidence-expanded-case-06-1"
+        ],
+        "uncertainty": "Magnitude is tiny versus the 33554432-byte limit; no latency or error impact observed, so this may be benign growth rather than a fault."
+      }
+    ],
+    "disposition": "CANDIDATES",
+    "explanation": "Order service shows a sustained, monotonic increase in retained bytes (10 to 60) across 6 samples with allocations rising 1 to 6 and zero releases, while the retention limit (33554432 bytes) is far from reached. This bounded pattern is consistent with unreleased retention growth, but the absolute magnitude is tiny and no latency or error impact is observed.",
+    "incident_id": "expanded-case-06",
+    "missing_evidence": [
+      "Longer retention time series to confirm continued growth beyond 60 bytes",
+      "Evidence of latency or error impact correlated with retention growth",
+      "Heap or allocation profiling attributing unreleased allocations to specific code paths"
+    ],
+    "schema_version": "1.0.0"
+  },
+  "status": "SUCCEEDED"
+}

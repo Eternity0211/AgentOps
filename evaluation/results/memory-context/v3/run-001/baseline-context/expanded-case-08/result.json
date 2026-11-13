@@ -1,0 +1,22 @@
+{
+  "context_sha256": "b6175e70e02e1918cae53dc5f4eae7bf72f1eda87b2228bf32cb7113e3841f2c",
+  "cost_upper_bound_nanousd": 858900,
+  "duration_ms": 1921,
+  "input_tokens": 2023,
+  "output_tokens": 210,
+  "protocol_sha256": "34139b0d9558cf4a7acc2197ff060b2edc7b5314e136d6c79eaeac9c4339190b",
+  "report": {
+    "candidates": [],
+    "disposition": "HUMAN_HANDOFF",
+    "explanation": "The only evidence is a single trace pair for order POST /v1/orders: one 200 OK and one 503, both spanning 100ms. This is contradictory, not a bounded fault signature. No deployment facts, memory-retention data, or additional telemetry exist to localize a cause. Operator hypothesis cannot be confirmed or refuted; handing off for more evidence.",
+    "incident_id": "expanded-case-08",
+    "missing_evidence": [
+      "Additional traces or metrics for order POST /v1/orders over a wider window to establish error rate and whether 503s are sustained or isolated",
+      "Downstream dependency telemetry (DB, payment, inventory) to identify the source of the 503",
+      "Deployment records for the order service around the incident window",
+      "Logs from the order service at the time of the 503 response"
+    ],
+    "schema_version": "1.0.0"
+  },
+  "status": "SUCCEEDED"
+}

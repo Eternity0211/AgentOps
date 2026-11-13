@@ -1,0 +1,35 @@
+{
+  "context_sha256": "eb2c2d916f89c5bbbd75e8ab9f662963f3ba7cf515e72e830df3f4bd3e5f041a",
+  "cost_upper_bound_nanousd": 1268400,
+  "duration_ms": 2453,
+  "input_tokens": 2912,
+  "output_tokens": 329,
+  "protocol_sha256": "34139b0d9558cf4a7acc2197ff060b2edc7b5314e136d6c79eaeac9c4339190b",
+  "report": {
+    "candidates": [
+      {
+        "candidate_id": "order-sustained-memory-retention",
+        "confidence_basis_points": 5500,
+        "counter_evidence_explanation": null,
+        "counter_evidence_ids": [],
+        "counter_evidence_treatment": "NOT_APPLICABLE",
+        "missing_evidence": [
+          "Heap/object-level allocation profile to identify the retaining structure in order",
+          "Longer retention window to confirm unbounded growth versus bounded warm-up"
+        ],
+        "rank": 1,
+        "statement": "The order service shows sustained memory retention: retained_bytes rises monotonically from 100 to 500 across 6 samples with 4 net allocations and 0 releases, and retained memory is not reclaimed after the GC cycle (300 bytes before and after GC).",
+        "supporting_evidence_ids": [
+          "evidence-expanded-case-10-1"
+        ],
+        "uncertainty": "Retained bytes (500) are far below the 32 MiB limit, so impact on latency or errors is not established; order requests show 0 errors and ~1ms p95."
+      }
+    ],
+    "disposition": "CANDIDATES",
+    "explanation": "Traces for the order service show monotonic growth in retained_bytes with zero releases and no reclamation across a GC cycle, consistent with sustained retention. However, absolute retention is tiny relative to the limit and no latency or error impact is observed, so this is a bounded retention finding rather than a confirmed incident cause.",
+    "incident_id": "expanded-case-10",
+    "missing_evidence": [],
+    "schema_version": "1.0.0"
+  },
+  "status": "SUCCEEDED"
+}

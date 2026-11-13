@@ -1,0 +1,20 @@
+{
+  "context_sha256": "84a46d21814bbc6efd352e9d5de49203aa895ff37003a5901101c98a0707ff1f",
+  "cost_upper_bound_nanousd": 1045800,
+  "duration_ms": 2000,
+  "input_tokens": 2766,
+  "output_tokens": 180,
+  "protocol_sha256": "34139b0d9558cf4a7acc2197ff060b2edc7b5314e136d6c79eaeac9c4339190b",
+  "report": {
+    "candidates": [],
+    "disposition": "HUMAN_HANDOFF",
+    "explanation": "Memory-retention facts for order are CONTRADICTED: retained_bytes flat at 20 across 5 samples, delta 0, no net allocation, GC reclaimed 0. Alert-aligned facts show order healthy (5 successes, 0 errors, p95 ~1e-06 ms). No deployment facts. Current evidence establishes no fault and no bounded root cause, so hand off rather than assert a candidate.",
+    "incident_id": "expanded-case-09",
+    "missing_evidence": [
+      "Evidence of any actual fault: error traces, latency degradation, or resource exhaustion for order service",
+      "Independent signal establishing a bounded root cause; current data shows healthy order service (5 successes, 0 errors)"
+    ],
+    "schema_version": "1.0.0"
+  },
+  "status": "SUCCEEDED"
+}

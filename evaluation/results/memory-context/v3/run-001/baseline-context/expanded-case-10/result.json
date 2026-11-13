@@ -1,0 +1,21 @@
+{
+  "context_sha256": "f85b1641635f83bf13c1031eaf720e67a23b434fc6dd668d9ad5f099f36c7e80",
+  "cost_upper_bound_nanousd": 1182600,
+  "duration_ms": 2016,
+  "input_tokens": 3202,
+  "output_tokens": 185,
+  "protocol_sha256": "34139b0d9558cf4a7acc2197ff060b2edc7b5314e136d6c79eaeac9c4339190b",
+  "report": {
+    "candidates": [],
+    "disposition": "HUMAN_HANDOFF",
+    "explanation": "Order service shows retained_bytes rising 100\u2192500 with zero releases, but this is a short, tiny increase (400 bytes vs 32 MiB limit) and the memory summary classifies direction as FLAT_OR_MIXED with no sustained increase. Per retention rules this is insufficient to claim a leak. No deployment facts, no errors, p95 ~1\u00b5s. No bounded fault is established; hand off.",
+    "incident_id": "expanded-case-10",
+    "missing_evidence": [
+      "Longer retention time series for order service to establish sustained increase vs limit",
+      "Heap/GC allocation profile or leak-detector output attributing retained bytes to a code path",
+      "Baseline retention behavior for order service under comparable load"
+    ],
+    "schema_version": "1.0.0"
+  },
+  "status": "SUCCEEDED"
+}

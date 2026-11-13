@@ -1,0 +1,35 @@
+{
+  "context_sha256": "dc118392f6411786a98d05d2d87c51d0dc9d562df8a0e8288159ef4390f53dc4",
+  "cost_upper_bound_nanousd": 1369800,
+  "duration_ms": 2703,
+  "input_tokens": 3122,
+  "output_tokens": 361,
+  "protocol_sha256": "34139b0d9558cf4a7acc2197ff060b2edc7b5314e136d6c79eaeac9c4339190b",
+  "report": {
+    "candidates": [
+      {
+        "candidate_id": "order-memory-sustained-retention",
+        "confidence_basis_points": 7000,
+        "counter_evidence_explanation": null,
+        "counter_evidence_ids": [],
+        "counter_evidence_treatment": "NOT_APPLICABLE",
+        "missing_evidence": [
+          "Heap/object-level allocation profile identifying the retaining structure in order",
+          "Longer retention series to confirm unbounded growth toward the 32 MiB limit"
+        ],
+        "rank": 1,
+        "statement": "The order service shows sustained memory retention: retained_bytes rose monotonically from 1 MiB to 6 MiB across 6 samples with 5 net allocations and 0 releases, and the GC cycle reclaimed 0 bytes (retained still 4 MiB AFTER vs BEFORE). Retention persists after GC, consistent with a memory-retention fault in order.",
+        "supporting_evidence_ids": [
+          "evidence-expanded-case-03-1"
+        ],
+        "uncertainty": "Deployment record (2.0.0 from 1.0.0) does not establish causation; growth is still well below the retention limit and no latency/error impact is observed."
+      }
+    ],
+    "disposition": "CANDIDATES",
+    "explanation": "Order service telemetry shows sustained positive net memory retention that survives a GC cycle (0 bytes reclaimed), matching the SUSTAINED_RETENTION classification. The deployment record only proves version facts and cannot establish causation. Alert-aligned facts show no errors and low latency, so the bounded candidate is a memory-retention fault in order, not a performance incident.",
+    "incident_id": "expanded-case-03",
+    "missing_evidence": [],
+    "schema_version": "1.0.0"
+  },
+  "status": "SUCCEEDED"
+}

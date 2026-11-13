@@ -1,0 +1,32 @@
+{
+  "arms": {
+    "baseline-context": {
+      "correct": 9,
+      "failures": 0,
+      "resource_totals": {
+        "cost_upper_bound_nanousd": 10682700,
+        "duration_ms": 20549,
+        "input_tokens": 26865,
+        "output_tokens": 2186
+      },
+      "safe_negatives": 8,
+      "sustained_detected": 1,
+      "total": 10
+    },
+    "candidate-context": {
+      "correct": 10,
+      "failures": 0,
+      "resource_totals": {
+        "cost_upper_bound_nanousd": 10213800,
+        "duration_ms": 20689,
+        "input_tokens": 25198,
+        "output_tokens": 2212
+      },
+      "safe_negatives": 8,
+      "sustained_detected": 2,
+      "total": 10
+    }
+  },
+  "claim_profile": "v2",
+  "schema_version": "memory-context-score/1.0.0"
+}

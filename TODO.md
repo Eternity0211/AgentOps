@@ -45,7 +45,7 @@ measurement shows no need; closing it does not mean implementing it.
 
 ### Fix the currently observed defects, then measure before versus after
 
-- [ ] FC2 Eliminate structured-output failures without weakening schemas or the Evidence Gate.
+- [x] FC2 Eliminate structured-output failures without weakening schemas or the Evidence Gate.
   - Cover explanation/string overflow, extra fields such as `steps_note`, Incident mismatch,
     incomplete JSON, unknown Evidence IDs, timeout, and provider refusal.
   - Add explicit per-field character budgets to the versioned prompt/schema contract and at most
@@ -73,7 +73,7 @@ measurement shows no need; closing it does not mean implementing it.
     Acceptance failed because invalids did not reach zero. Median latency increased 609 ms, input
     tokens 1,140, output tokens 86 and rate-card upper bound 454,500 nUSD; FC1 marks those four
     resource metrics `REGRESSED` and all benefit claims `NO_PROVEN_IMPROVEMENT`.
-  - [ ] FC2d classify and eliminate the four remaining terminal schema/protocol failures without
+  - [x] FC2d classify and eliminate the four remaining terminal schema/protocol failures without
     increasing the four-call budget or adding write retries. Freeze a new candidate/profile and
     rerun the same interleaved 81-pair census; acceptance remains zero terminal invalids, per-mode
     safe-control non-inferiority and perfect cited Evidence/Artifact integrity. Report repair-call,
@@ -92,7 +92,7 @@ measurement shows no need; closing it does not mean implementing it.
       9/9 per mode, and 160/160 candidate citations resolve and hash-match. Valid outcomes were
       77/81 versus 78/81 (+1.23 percentage points; 95% interval -3.70 to +6.17), so FC1 reports
       `NO_PROVEN_IMPROVEMENT`; the cost/latency gate failed.
-  - [ ] FC2e eliminate repair-induced call-budget exhaustion before closing FC2. In FC2d, all four
+  - [x] FC2e eliminate repair-induced call-budget exhaustion before closing FC2. In FC2d, all four
     candidate initial PLAN invalids repaired successfully, but three graph outcomes then exhausted
     the four-call ceiling while completing replan/diagnosis. Reserve the complete next transition
     before starting a replan; if insufficient, retain the validated report and route to deterministic
@@ -115,7 +115,7 @@ measurement shows no need; closing it does not mean implementing it.
       audited candidate handoffs before incomplete replan. Overall acceptance failed because one
       candidate DIAGNOSE response and its repair hit the same candidate-level semantic validator;
       valid outcomes were 77→80, but FC1 reports `NO_PROVEN_IMPROVEMENT` and FC2 stays open.
-  - [ ] FC2f eliminate the remaining candidate-level semantic repair failure without weakening the
+  - [x] FC2f eliminate the remaining candidate-level semantic repair failure without weakening the
     schema, hiding a failure, or changing the four-call budget. Encode the candidate invariants as
     machine-readable generation constraints, freeze 1.7/1.8 before calls, and repeat the same
     81-pair census. Acceptance retains every FC2e gate, including zero terminal invalids and zero
@@ -125,7 +125,10 @@ measurement shows no need; closing it does not mean implementing it.
       scorer can now opt into native repair-follow-through enforcement for the next frozen plan;
       historical scores remain byte-reproducible.
     - [x] FC2f-b freeze the 1.7/1.8 plan with the updated scorer and all prior bindings before calls.
-    - [ ] FC2f-c execute, audit and publish the complete 162-outcome comparison.
+    - [x] FC2f-c executed and audited all 162 outcomes. Both arms were 81/81 valid with zero
+      terminal invalids and zero post-repair failures; controls and Evidence integrity were perfect.
+      Quality was 36/54 in both arms. FC1 reports no reliability/quality improvement and marks
+      input tokens plus rate-card estimate `REGRESSED`, so closing FC2 is not an efficiency claim.
 
 - [ ] FC3 Make memory-leak evidence discriminative before asking the model to classify it.
   - Capture a longer bounded series including retained bytes before/after GC, allocation and

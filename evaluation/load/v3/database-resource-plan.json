@@ -1,0 +1,62 @@
+{
+  "schema_version": "database-resource-plan/1.0.0",
+  "status": "FROZEN_BEFORE_MEASUREMENT",
+  "objective": "Complete FC10 database-load coverage on the frozen local PostgreSQL queue workload without changing the queue, job count, handler delay or worker levels.",
+  "parent_result": "evaluation/results/final-load/v1/confirmatory-001/confirmatory.json",
+  "parent_result_sha256": "6dc0c47b0c599d97590360a08ba51e5fcb8230b69bbacb1d84526287373efa30",
+  "workload_source": "evaluation/run_capacity_pilot.py",
+  "workload_source_sha256": "3923f452757751e2db3eed235141ce192a36dadbe7018fca18f3555808d86c99",
+  "baseline": {"workers": 1, "description": "PostgreSQL claim/lease queue with one worker."},
+  "candidates": [
+    {"workers": 2, "description": "Identical workload with two workers."},
+    {"workers": 4, "description": "Identical workload with four workers."},
+    {"workers": 8, "description": "Identical workload with eight workers."}
+  ],
+  "operations_per_repetition": 64,
+  "worker_levels": [1, 2, 4, 8],
+  "repetitions": 11,
+  "handler_delay_ms": 5,
+  "lease_seconds": 30,
+  "execution_order": "Deterministic balanced rotation of worker levels across repetitions.",
+  "container_metrics": [
+    "postgres_container_cpu_usage_usec",
+    "postgres_container_memory_peak_observed_bytes",
+    "postgres_container_io_read_bytes",
+    "postgres_container_io_write_bytes"
+  ],
+  "postgres_metrics": [
+    "xact_commit",
+    "xact_rollback",
+    "blks_read",
+    "blks_hit",
+    "temp_bytes",
+    "deadlocks",
+    "tup_returned",
+    "tup_fetched",
+    "tup_inserted",
+    "tup_updated",
+    "tup_deleted"
+  ],
+  "instrumentation": {
+    "container_scope": "The pgvector PostgreSQL container cgroup v2 only; it excludes the Python evaluator and Docker Desktop host overhead.",
+    "cpu_and_io": "Read cumulative cpu.stat and io.stat immediately before and after each repetition and report non-negative deltas.",
+    "memory": "Poll memory.current during each workload and report the largest observed value; polling overhead is present in every arm.",
+    "postgres": "Read pg_stat_database for current_database() before and after each repetition and report non-negative counter deltas.",
+    "poll_interval_ms": 50
+  },
+  "intervals": {
+    "method": "Deterministic 10000-resample percentile bootstrap of paired candidate-minus-baseline deltas.",
+    "confidence_level": 0.95,
+    "seed": "SHA-256 of this canonical plan"
+  },
+  "acceptance": {
+    "required_rows": 44,
+    "required_completed_jobs_per_row": 64,
+    "maximum_errors": 0,
+    "maximum_duplicate_job_ownership": 0,
+    "minimum_memory_samples_per_row": 2,
+    "require_all_declared_metrics": true,
+    "require_non_negative_cumulative_deltas": true
+  },
+  "reporting": "Publish every row and, for each declared metric, the one-worker baseline, each candidate, absolute and relative delta, paired 95% interval, denominator and local-only scope. Do not reinterpret resource increase as benefit."
+}

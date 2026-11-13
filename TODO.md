@@ -142,6 +142,10 @@ measurement shows no need; closing it does not mean implementing it.
   - Paired experiment: current context builder versus candidate context builder with the same
     model, prompt, observations and budgets. Starting reference: memory-leak Top-1 is 0/3 in all
     three 81-run modes and 0/2 in the generalization replay. Publish both new values and deltas.
+  - [x] FC3a add a deterministic evidence-bound memory-series contract. Sustained retention now
+    requires at least five ordered samples, a complete before/after GC pair, positive net
+    allocations and retention that survives GC. Short rises and missing GC are insufficient;
+    reclaim, releases, duplicates and clock conflicts have explicit safe classifications/refusal.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,

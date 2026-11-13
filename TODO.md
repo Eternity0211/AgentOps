@@ -146,6 +146,9 @@ measurement shows no need; closing it does not mean implementing it.
     requires at least five ordered samples, a complete before/after GC pair, positive net
     allocations and retention that survives GC. Short rises and missing GC are insufficient;
     reclaim, releases, duplicates and clock conflicts have explicit safe classifications/refusal.
+  - [x] FC3b add an independent candidate context builder that emits the GC-aware classification,
+    slope, net allocations, GC pairs, reclaimed bytes and resolvable Evidence IDs while retaining
+    the existing three-rise builder unchanged as the comparison arm.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,

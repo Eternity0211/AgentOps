@@ -10,7 +10,11 @@ from typing import Any
 
 import httpx
 import pytest
-from evaluation.autonomous_diagnosis import build_diagnosis_context, investigate
+from evaluation.autonomous_diagnosis import (
+    build_candidate_diagnosis_context,
+    build_diagnosis_context,
+    investigate,
+)
 from evaluation.live_gateway import SOURCES, LocalReadAdapter, local_definitions
 from evaluation.structured_model import StructuredEvaluationModel, StructuredTransportProfile
 from langgraph.checkpoint.memory import InMemorySaver
@@ -84,6 +88,22 @@ def memory_span(service: str, timestamp: int, retained: int) -> dict[str, Any]:
             },
         ],
     }
+
+
+def test_candidate_memory_context_refuses_three_rises_without_gc() -> None:
+    observation = {
+        "id": "evidence-trace-a",
+        "source": "traces",
+        "summary": json.dumps(
+            [memory_span("order", index * 10, index * 1_048_576) for index in range(1, 6)]
+        ),
+    }
+    baseline = build_diagnosis_context([observation], {})
+    candidate = build_candidate_diagnosis_context([observation], {})
+
+    assert baseline["memory_retention_by_service"][0]["sustained_increase_observed"] is True
+    assert candidate["memory_retention_by_service"][0]["classification"] == "INSUFFICIENT"
+    assert candidate["memory_evidence_contract"] == "gc-aware/1.0.0"
 
 
 def test_diagnosis_context_binds_chronological_memory_facts_to_evidence() -> None:

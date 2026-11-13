@@ -68,6 +68,7 @@ from evaluation.baselines.controlled_graph import _Progress
 from evaluation.durable_effects import StoredModelResult, WorkflowEffectStore
 from evaluation.live_evidence import ExperimentEvidence
 from evaluation.live_gateway import SOURCES, LocalReadAdapter, local_definitions
+from evaluation.memory_evidence import GcPhase, MemorySample, assess_memory_series
 from evaluation.registered_model import RegisteredModelInvoker
 from evaluation.structured_model import (
     INSTRUCTIONS,
@@ -199,6 +200,91 @@ def memory_retention_by_service(
             }
         )
     return result
+
+
+def discriminative_memory_retention_by_service(
+    observations: list[dict[str, str]],
+) -> list[dict[str, Any]]:
+    """Build GC-aware candidate facts without upgrading missing data into proof."""
+    grouped: dict[str, list[MemorySample]] = {}
+    for observation in observations:
+        if observation.get("source") != "traces":
+            continue
+        try:
+            spans = json.loads(observation["summary"])
+        except (KeyError, TypeError, json.JSONDecodeError):
+            continue
+        if not isinstance(spans, list):
+            continue
+        for span in spans:
+            if not isinstance(span, dict) or not isinstance(span.get("attributes"), list):
+                continue
+            attributes = {
+                item.get("key"): _attribute_value(item)
+                for item in span["attributes"]
+                if isinstance(item, dict) and isinstance(item.get("key"), str)
+            }
+            def integer(value: object) -> int:
+                if isinstance(value, bool) or not isinstance(value, (str, int)):
+                    raise ValueError("invalid memory integer")
+                return int(value)
+
+            try:
+                phase_value = attributes.get("process.memory.gc.phase")
+                phase = GcPhase(str(phase_value)) if phase_value is not None else None
+                cycle_value = attributes.get("process.memory.gc.cycle")
+                sample = MemorySample(
+                    integer(span.get("end") or span["start"]),
+                    integer(attributes["process.memory.retained_bytes"]),
+                    integer(attributes.get("process.memory.retention_allocations", 0)),
+                    integer(attributes.get("process.memory.retention_releases", 0)),
+                    integer(attributes["process.memory.retention_limit_bytes"]),
+                    (observation["id"],),
+                    None if cycle_value is None else integer(cycle_value),
+                    phase,
+                )
+            except (KeyError, TypeError, ValueError):
+                continue
+            service = span.get("service")
+            if isinstance(service, str) and service:
+                grouped.setdefault(service, []).append(sample)
+    facts: list[dict[str, Any]] = []
+    for service, samples in sorted(grouped.items()):
+        try:
+            assessment = assess_memory_series(tuple(samples))
+        except ValueError:
+            facts.append({"service": service, "classification": "INVALID_SERIES"})
+            continue
+        facts.append(
+            {
+                "service": service,
+                "classification": assessment.pattern.value,
+                "reason": assessment.reason,
+                "sample_count": assessment.sample_count,
+                "delta_bytes": assessment.delta_bytes,
+                "slope_bytes_per_second": assessment.slope_bytes_per_second,
+                "net_allocation_count": assessment.net_allocation_count,
+                "gc_pair_count": assessment.gc_pair_count,
+                "reclaimed_bytes_after_gc": assessment.reclaimed_bytes_after_gc,
+                "evidence_ids": list(assessment.evidence_ids),
+            }
+        )
+    return facts
+
+
+def build_candidate_diagnosis_context(
+    all_observations: list[dict[str, str]],
+    failed_reads: dict[str, dict[str, Any]],
+    *,
+    byte_budget: int = 24_000,
+) -> dict[str, Any]:
+    """Candidate context that replaces the three-rise heuristic with GC-aware facts."""
+    context = build_diagnosis_context(all_observations, failed_reads, byte_budget=byte_budget)
+    context["memory_retention_by_service"] = discriminative_memory_retention_by_service(
+        all_observations
+    )
+    context["memory_evidence_contract"] = "gc-aware/1.0.0"
+    return context
 
 
 def deployment_facts(observations: list[dict[str, str]]) -> list[dict[str, Any]]:

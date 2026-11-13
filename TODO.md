@@ -359,7 +359,10 @@ measurement shows no need; closing it does not mean implementing it.
   - Report attack-block rate, safe-handoff rate, false block rate, recovery-route correctness and
     latency/cost overhead. Critical failures remain zero-tolerance.
 
-- [ ] FC12 Resolve every optional post-core architecture item with evidence.
+- [x] FC12 Resolve every optional post-core architecture item with evidence.
+  - [x] ADR 0010 records all current-version dispositions. PostgreSQL remains the queue with a
+    supported local cap of four workers; the measured 4→8 regression triggers future alternative
+    comparison but does not authorize Kafka/NATS without identical-workload safety/cost evidence.
   - Read-only MCP: implement only behind existing Tool Gateway contracts if a concrete integration
     comparison demonstrates value; otherwise record `NOT_REQUIRED`.
   - Additional write tool and generic compensation: remain `NOT_REQUIRED` until a typed reversible

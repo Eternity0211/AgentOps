@@ -337,6 +337,9 @@ measurement shows no need; closing it does not mean implementing it.
   - [ ] FC10d complete the missing database-load scope with a separately frozen 44-row supplement:
     PostgreSQL-container CPU, observed memory peak, block I/O and `pg_stat_database` counter deltas,
     each with the one-worker baseline, 2/4/8-worker candidates, paired deltas and 95% intervals.
+    - [x] FC10d1 implement the create-only, plan-bound collector, balanced execution order,
+      correctness gate, deterministic paired intervals and local-only renderer with parser/scorer
+      tests. The formal 44-row output remains pending FC10d2.
   - Run the same frozen workload at declared 1/2/4/8 worker and incident concurrency levels with
     PostgreSQL queue only; repeat on a clean environment and retain CPU, process heap, database,
     queue wait, workflow latency, throughput, error and lease-contention distributions.

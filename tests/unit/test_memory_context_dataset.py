@@ -5,10 +5,13 @@ import json
 import subprocess
 from pathlib import Path
 
+from evaluation.autonomous_diagnosis import build_candidate_diagnosis_context
 from evaluation.memory_evidence import GcPhase, MemoryPattern, MemorySample, assess_memory_series
+from evaluation.run_memory_context_pair import _windowed_observations
 
 ROOT = Path("evaluation/memory_context/v1")
 V2_PLAN = Path("evaluation/memory_context/v2/plan.json")
+V3_ROOT = Path("evaluation/memory_context/v3")
 
 
 def test_memory_context_inputs_are_opaque_and_labels_are_isolated() -> None:
@@ -96,3 +99,40 @@ def test_memory_context_v2_plan_requires_full_paired_rerun() -> None:
         == digest
         for name, digest in bindings.items()
     )
+
+
+def test_expanded_memory_inputs_are_opaque_label_isolated_and_contract_aligned() -> None:
+    inputs = json.loads((V3_ROOT / "inputs.json").read_text("utf-8"))
+    labels = json.loads(
+        (V3_ROOT / "evaluator_only/labels.json").read_text("utf-8")
+    )["labels"]
+    cases = inputs["cases"]
+    assert len(cases) == len(labels) == 10
+    assert set(labels) == {case["case_id"] for case in cases}
+    assert not any(label in json.dumps(cases) for label in labels.values())
+    classifications: dict[str, list[str]] = {}
+    service_classifications: dict[str, list[str]] = {}
+    for case in cases:
+        observations, start, end = _windowed_observations(
+            case, inputs["retention_limit_bytes"]
+        )
+        context = build_candidate_diagnosis_context(
+            observations, {}, window_start=start, window_end=end
+        )
+        classifications[case["case_id"]] = [
+            fact["classification"] for fact in context["memory_retention_by_service"]
+        ]
+        service_classifications[case["case_id"]] = [
+            fact["classification"] for fact in context["alert_aligned_service_facts"]
+        ]
+    expected_positive = {
+        case_id for case_id, label in labels.items() if label == "SUSTAINED_RETENTION"
+    }
+    actual_positive = {
+        case_id
+        for case_id, values in classifications.items()
+        if "SUSTAINED_RETENTION" in values
+    }
+    assert actual_positive == expected_positive
+    assert classifications["expanded-case-07"] == []
+    assert service_classifications["expanded-case-08"] == ["CONTRADICTORY"]

@@ -1,0 +1,15 @@
+{
+  "schema_version": "memory-context-labels/2.0.0",
+  "labels": {
+    "expanded-case-01": "NORMAL_WARMUP",
+    "expanded-case-02": "SHORT_RISE",
+    "expanded-case-03": "SUSTAINED_RETENTION",
+    "expanded-case-04": "DEPLOYMENT_ONLY",
+    "expanded-case-05": "RELEASE_COUNTER_EVIDENCE",
+    "expanded-case-06": "MISSING_GC",
+    "expanded-case-07": "STALE_RETENTION",
+    "expanded-case-08": "CONTRADICTORY_STATUS",
+    "expanded-case-09": "STABLE_AFTER_GC",
+    "expanded-case-10": "SUSTAINED_RETENTION"
+  }
+}

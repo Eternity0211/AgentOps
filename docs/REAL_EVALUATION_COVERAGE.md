@@ -93,6 +93,9 @@
 > run-002 通过全部捕获门：六次请求及清理后均 HTTP 200，真实 trace 有 6 个样本、1 个 GC pair、
 > 5 个净分配、0 release，分类 SUSTAINED_RETENTION，部署为 2.0.0。上下文纳入
 > 15,546/24,000 bytes（compact 1,441），raw logs 因预算排除。FC3i2 开始冻结扩大对照集。
+> FC3i2 已新增十个 opaque 输入和隔离标签：2 个持续保留正例、8 个 warmup/short/
+> deployment/release/missing-GC/stale/contradictory/stable 控制。runner v2 支持 Evidence 时间范围
+> 和精确状态冲突；旧 v1/v2 结果不参与。尚未冻结前不得调用 provider。
 
 截至 2026-11-06 的阶段审计；不是全部验收通过声明。目标是在保留人工执行授权的前提下，用可解析证据缩短诊断时间。方法包括固定观测回放、实际本地故障注入、真实模型调用、SQL 工作流组合，以及独立确定性安全/续跑测试。预期收益需要对照验证，当前没有证实诊断质量、人工效率或 MTTR 提升。
 

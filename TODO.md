@@ -208,6 +208,9 @@ measurement shows no need; closing it does not mean implementing it.
     - [ ] FC3i2 freeze an expanded label-isolated paired dataset sourced from the real capture
       shapes, with new normal/release/short/stale/contradictory/sustained variants and no reuse of
       v1/v2 provider outputs; publish baseline, candidate, deltas and resource totals.
+      - [x] Add ten opaque inputs (twenty paired outcomes) with two sustained positives and eight
+        controls spanning warmup, short rise, deployment-only, release, missing GC, stale,
+        contradictory and stable-after-GC evidence; keep labels evaluator-only.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,

@@ -340,3 +340,8 @@ Tempo trace 给出六个有序样本、一个完整 GC pair、五个净分配、
 SUSTAINED_RETENTION；部署事实为 2.0.0。上下文纳入 15,546/24,000 bytes，其中 compact
 facts 1,441 bytes；raw log observation 因总预算排除。该结果只证明本地真实传输与预算机制，
 下一步仍需用新变体冻结扩大成对模型实验。
+
+扩大集现包含十个 opaque case：两个持续保留正例和八个不同安全控制，新增 stale Evidence
+时间范围与相同 span 身份冲突。标签仍在 evaluator-only 文件；确定性测试证明候选分类只在
+两个预期正例上为 SUSTAINED_RETENTION、stale 被排除、冲突为 CONTRADICTORY。runner 兼容
+原输入并为新 schema 启用告警窗口；provider 调用继续等待实现与哈希冻结。

@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import subprocess
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -72,6 +73,62 @@ def _observations(case: dict[str, Any], limit: int) -> list[dict[str, str]]:
     return observations
 
 
+def _windowed_observations(
+    case: dict[str, Any], limit: int
+) -> tuple[list[dict[str, str]], datetime, datetime]:
+    window_start = datetime(2026, 11, 13, 0, 0, tzinfo=UTC)
+    window_end = window_start + timedelta(minutes=1)
+    observations: list[dict[str, str]] = []
+    for index, specification in enumerate(case["observations"]):
+        evidence_id = f"evidence-{case['case_id']}-{index + 1}"
+        scope = specification["time_scope"]
+        observed_from = window_start if scope == "current" else window_start - timedelta(hours=2)
+        observed_to = window_end if scope == "current" else window_start - timedelta(hours=1)
+        if specification["kind"] == "memory":
+            legacy_case = {**case, "samples": specification["samples"], "deployment": None}
+            summary = _observations(legacy_case, limit)[0]["summary"]
+            source = "traces"
+        elif specification["kind"] == "deployment":
+            source = "deployments"
+            summary = json.dumps([{"service": case["service"], **specification["deployment"]}])
+        elif specification["kind"] == "trace-conflict":
+            source = "traces"
+            summary = json.dumps(
+                [
+                    {
+                        "service": case["service"],
+                        "name": "POST /v1/orders",
+                        "start": "1000000000",
+                        "end": "1100000000",
+                        "status": {
+                            "code": (
+                                "STATUS_CODE_ERROR" if status >= 500 else "STATUS_CODE_OK"
+                            )
+                        },
+                        "attributes": [
+                            {
+                                "key": "http.response.status_code",
+                                "value": {"intValue": str(status)},
+                            }
+                        ],
+                    }
+                    for status in specification["statuses"]
+                ]
+            )
+        else:
+            raise ValueError("unknown memory-context observation kind")
+        observations.append(
+            {
+                "id": evidence_id,
+                "source": source,
+                "summary": summary,
+                "observed_from": observed_from.isoformat(),
+                "observed_to": observed_to.isoformat(),
+            }
+        )
+    return observations, window_start, window_end
+
+
 def run_pair(inputs_path: Path, plan_path: Path, output: Path, *, key: str) -> None:
     if output.exists():
         raise FileExistsError("memory-context pair output already exists")
@@ -117,11 +174,24 @@ def run_pair(inputs_path: Path, plan_path: Path, output: Path, *, key: str) -> N
         ("candidate-context", build_candidate_diagnosis_context),
     )
     for index, case in enumerate(inputs["cases"]):
-        observations = _observations(case, inputs["retention_limit_bytes"])
+        window_start: datetime | None
+        window_end: datetime | None
+        if inputs["schema_version"] == "memory-context-inputs/2.0.0":
+            observations, window_start, window_end = _windowed_observations(
+                case, inputs["retention_limit_bytes"]
+            )
+        else:
+            observations = _observations(case, inputs["retention_limit_bytes"])
+            window_start = window_end = None
         ordered = builders if index % 2 == 0 else tuple(reversed(builders))
         for arm, builder in ordered:
             events: list[dict[str, Any]] = []
-            context = builder(observations, {})
+            context = builder(
+                observations,
+                {},
+                window_start=window_start,
+                window_end=window_end,
+            )
             context["incident_id"] = case["case_id"]
             model = StructuredEvaluationModel(
                 key,

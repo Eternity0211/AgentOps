@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import hashlib
 import math
+import random
 import statistics
 import time
 from collections.abc import Mapping, Sequence
@@ -47,6 +48,7 @@ PLAN_SCHEMA = "capacity-pilot-plan/1.0.0"
 
 @dataclass(frozen=True, slots=True)
 class CapacityPilotPlan:
+    kind: str
     fingerprint: str
     operations: int
     worker_levels: tuple[int, ...]
@@ -60,29 +62,45 @@ class CapacityPilotPlan:
 
 def load_plan(path: Path) -> CapacityPilotPlan:
     value = load_json_object(path)
-    if value.get("schema_version") != PLAN_SCHEMA or value.get("status") != (
-        "FROZEN_BEFORE_PILOT"
+    schema = value.get("schema_version")
+    if schema == PLAN_SCHEMA and value.get("status") == "FROZEN_BEFORE_PILOT":
+        kind = "pilot"
+        repetitions_value = value.get("pilot_repetitions")
+        sizing = value.get("confirmatory_sizing")
+        if not isinstance(sizing, dict):
+            raise EvaluationContractError("capacity pilot sizing contract changed")
+        minimum_repetitions = sizing.get("minimum_repetitions")
+        maximum_repetitions = sizing.get("maximum_repetitions")
+        minimum_delta = sizing.get("minimum_relevant_relative_delta")
+    elif (
+        schema == "capacity-confirmatory-plan/1.0.0"
+        and value.get("status") == "FROZEN_BEFORE_CONFIRMATORY_RUN"
     ):
+        kind = "confirmatory"
+        repetitions_value = value.get("confirmatory_repetitions")
+        minimum_repetitions = repetitions_value
+        maximum_repetitions = repetitions_value
+        minimum_delta = 0.1
+    else:
         raise EvaluationContractError("capacity pilot plan is not frozen")
     levels = value.get("worker_levels")
-    sizing = value.get("confirmatory_sizing")
-    if levels != [1, 2, 4, 8] or not isinstance(sizing, dict):
+    if levels != [1, 2, 4, 8]:
         raise EvaluationContractError("capacity pilot levels or sizing contract changed")
     integer_fields = {
         "operations": value.get("operations_per_repetition"),
-        "repetitions": value.get("pilot_repetitions"),
+        "repetitions": repetitions_value,
         "handler_delay_ms": value.get("handler_delay_ms"),
         "lease_seconds": value.get("lease_seconds"),
-        "minimum_repetitions": sizing.get("minimum_repetitions"),
-        "maximum_repetitions": sizing.get("maximum_repetitions"),
+        "minimum_repetitions": minimum_repetitions,
+        "maximum_repetitions": maximum_repetitions,
     }
     if any(type(item) is not int or item < 1 for item in integer_fields.values()):
         raise EvaluationContractError("capacity pilot numeric bound is invalid")
-    minimum_delta = sizing.get("minimum_relevant_relative_delta")
     if not isinstance(minimum_delta, float) or not 0 < minimum_delta < 1:
         raise EvaluationContractError("capacity pilot relevant delta is invalid")
     return CapacityPilotPlan(
-        hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest(),
+        fingerprint=hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest(),
+        kind=kind,
         worker_levels=tuple(levels),
         minimum_relative_delta=minimum_delta,
         **integer_fields,  # type: ignore[arg-type]
@@ -328,7 +346,98 @@ def summarize(plan: CapacityPilotPlan, rows: Sequence[Mapping[str, Any]]) -> dic
     }
 
 
+def _bootstrap_interval(values: Sequence[float], seed: int) -> list[float]:
+    generator = random.Random(seed)
+    samples = sorted(
+        statistics.median(generator.choices(values, k=len(values))) for _ in range(10_000)
+    )
+    return [samples[249], samples[9749]]
+
+
+def summarize_confirmatory(
+    plan: CapacityPilotPlan, rows: Sequence[Mapping[str, Any]]
+) -> dict[str, Any]:
+    if plan.kind != "confirmatory" or len(rows) != 4 * plan.repetitions:
+        raise EvaluationContractError("capacity confirmatory row set is incomplete")
+    seed = int(plan.fingerprint[:16], 16)
+    baseline_rows = [row for row in rows if row["workers"] == 1]
+    baseline = [row["throughput_jobs_per_second_milli"] / 1_000 for row in baseline_rows]
+    groups = []
+    for workers in plan.worker_levels:
+        selected = [row for row in rows if row["workers"] == workers]
+        throughputs = [row["throughput_jobs_per_second_milli"] / 1_000 for row in selected]
+        deltas = [
+            candidate - control
+            for candidate, control in zip(throughputs, baseline, strict=True)
+        ]
+        relatives = [
+            candidate / control - 1
+            for candidate, control in zip(throughputs, baseline, strict=True)
+        ]
+        groups.append(
+            {
+                "workers": workers,
+                "repetitions": len(selected),
+                "throughput_jobs_per_second_median": statistics.median(throughputs),
+                "throughput_median_95pct_bootstrap": _bootstrap_interval(
+                    throughputs, seed ^ workers
+                ),
+                "throughput_absolute_delta_from_1_worker_median": statistics.median(deltas),
+                "throughput_absolute_delta_95pct_bootstrap": _bootstrap_interval(
+                    deltas, seed ^ (workers << 4)
+                ),
+                "throughput_relative_delta_from_1_worker_median": statistics.median(relatives),
+                "throughput_relative_delta_95pct_bootstrap": _bootstrap_interval(
+                    relatives, seed ^ (workers << 8)
+                ),
+                "queue_wait_p95_ms_median": statistics.median(
+                    row["queue_wait_p95_ms"] for row in selected
+                ),
+                "workflow_latency_p95_ms_median": statistics.median(
+                    row["workflow_latency_p95_ms"] for row in selected
+                ),
+                "process_cpu_ms_median": statistics.median(
+                    row["process_cpu_ms"] for row in selected
+                ),
+                "python_heap_peak_bytes_median": statistics.median(
+                    row["python_heap_peak_bytes"] for row in selected
+                ),
+                "database_statement_count_median": statistics.median(
+                    row["database_statement_count"] for row in selected
+                ),
+                "error_count": sum(row["error_count"] for row in selected),
+                "duplicate_job_ownership": sum(
+                    row["duplicate_job_ownership"] for row in selected
+                ),
+            }
+        )
+    four, eight = groups[2], groups[3]
+    throughput_ratio = (
+        eight["throughput_jobs_per_second_median"]
+        / four["throughput_jobs_per_second_median"]
+    )
+    queue_ratio = eight["queue_wait_p95_ms_median"] / four["queue_wait_p95_ms_median"]
+    correctness = not any(
+        item["error_count"] or item["duplicate_job_ownership"] for item in groups
+    )
+    broker_required = throughput_ratio <= 1.05 and queue_ratio >= 1.25
+    return {
+        "schema_version": "capacity-confirmatory-result/1.0.0",
+        "plan_sha256": plan.fingerprint,
+        "rows": list(rows),
+        "groups": groups,
+        "correctness_passed": correctness,
+        "throughput_ratio_8_to_4": throughput_ratio,
+        "queue_wait_p95_ratio_8_to_4": queue_ratio,
+        "broker_decision": (
+            "BROKER_EVALUATION_REQUIRED" if broker_required else "POSTGRES_QUEUE_RETAINED"
+        ) if correctness else "NO_DECISION_CORRECTNESS_FAILED",
+    }
+
+
 def _render(result: Mapping[str, Any]) -> str:
+    if result["schema_version"] == "capacity-confirmatory-result/1.0.0":
+        return _render_confirmatory(result)
     lines = [
         "# PostgreSQL capacity pilot",
         "",
@@ -360,6 +469,39 @@ def _render(result: Mapping[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _render_confirmatory(result: Mapping[str, Any]) -> str:
+    lines = [
+        "# PostgreSQL capacity confirmatory comparison",
+        "",
+        "| Workers | Repetitions | Median jobs/s (95% interval) | Delta vs 1 worker | "
+        "Queue P95 ms | Workflow P95 ms | Errors | Duplicates |",
+        "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for item in result["groups"]:
+        interval = item["throughput_median_95pct_bootstrap"]
+        lines.append(
+            f"| {item['workers']} | {item['repetitions']} | "
+            f"{item['throughput_jobs_per_second_median']:.3f} "
+            f"[{interval[0]:.3f}, {interval[1]:.3f}] | "
+            f"{item['throughput_relative_delta_from_1_worker_median']:+.1%} | "
+            f"{item['queue_wait_p95_ms_median']} | {item['workflow_latency_p95_ms_median']} | "
+            f"{item['error_count']} | {item['duplicate_job_ownership']} |"
+        )
+    lines.extend(
+        (
+            "",
+            f"Broker decision: `{result['broker_decision']}`. The measured 8/4 throughput ratio "
+            f"was {result['throughput_ratio_8_to_4']:.3f}; queue-wait P95 ratio was "
+            f"{result['queue_wait_p95_ratio_8_to_4']:.3f}.",
+            "",
+            "These are bounded local results. Process CPU and Python heap exclude PostgreSQL and "
+            "container resources; no production capacity or availability claim is made.",
+            "",
+        )
+    )
+    return "\n".join(lines)
+
+
 def execute(*, plan_path: Path, output_dir: Path, code_revision: str) -> None:
     if output_dir.exists():
         raise EvaluationContractError("capacity pilot output already exists")
@@ -375,9 +517,14 @@ def execute(*, plan_path: Path, output_dir: Path, code_revision: str) -> None:
             rows = asyncio.run(run_pilot(url, plan))
         finally:
             command.downgrade(_config(url), "base")
-    result = summarize(plan, rows) | {"code_revision": code_revision}
+    result = (
+        summarize(plan, rows)
+        if plan.kind == "pilot"
+        else summarize_confirmatory(plan, rows)
+    ) | {"code_revision": code_revision}
     output_dir.mkdir(parents=True)
-    (output_dir / "pilot.json").write_text(
+    result_name = "pilot.json" if plan.kind == "pilot" else "confirmatory.json"
+    (output_dir / result_name).write_text(
         f"{canonical_json(result)}\n", encoding="utf-8", newline="\n"
     )
     (output_dir / "README.md").write_text(_render(result), encoding="utf-8", newline="\n")

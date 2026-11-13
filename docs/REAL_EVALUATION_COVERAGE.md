@@ -126,6 +126,9 @@ claim 竞争、SQL statement、进程 CPU 与 Python heap。一次探索运行�
 FC10 pilot 正式 12 次运行均完成 64/64 Jobs，错误与重复 ownership 均为 0。1/2/4/8 workers
 吞吐中位数为 16.473/29.223/30.331/24.051 Jobs/s；预声明方差公式选择每级 11 次正式重复。
 confirmatory 44 次运行方案已在执行前冻结，pilot 的 8-worker 回落不能提前当作 broker 结论。
+FC10c1 已把 confirmatory 方案接入同一 runner：正式输出必须含 11×4 全部 repetition、基线
+差值、确定性 bootstrap 区间、correctness gate 与联合 broker 阈值。runner hash 已在任何
+confirmatory 执行前写入冻结计划。
 
 | 测量项目 | 已有证据与结果 | 结论及剩余边界 |
 | --- | --- | --- |

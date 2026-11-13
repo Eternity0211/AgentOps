@@ -1,6 +1,10 @@
 {
   "schema_version": "capacity-confirmatory-plan/1.0.0",
   "status": "FROZEN_BEFORE_CONFIRMATORY_RUN",
+  "implementation_binding_note": "The 44-run census, metrics, intervals and decision thresholds were frozen before confirmatory support was added. The runner hash was added before any confirmatory run.",
+  "source_bindings": {
+    "evaluation/run_capacity_pilot.py": "3923f452757751e2db3eed235141ce192a36dadbe7018fca18f3555808d86c99"
+  },
   "sized_from_pilot": "evaluation/results/final-load/v1/pilot-001/pilot.json",
   "sized_from_pilot_sha256": "760b7d486e7eac3260018ca1b9d69d9cbe4411113439657fbb6e68f25bc9eb75",
   "sizing_result": "The predeclared largest log-throughput standard-deviation rule selected 11 repetitions per worker level.",

@@ -327,6 +327,9 @@ measurement shows no need; closing it does not mean implementing it.
         variance rule selected 11 confirmatory repetitions per level.
   - [ ] FC10c execute the separately frozen confirmatory run and publish the one-worker baseline,
     every horizontal-worker value, deltas, intervals and the measured broker decision.
+    - [x] FC10c1 extend the source-bound runner to the frozen 44-run census, deterministic bootstrap
+      intervals, correctness gate and exact joint broker decision without changing pilot artifacts.
+    - [ ] FC10c2 execute once, publish and close FC10 only after all 44 repetitions are retained.
   - Run the same frozen workload at declared 1/2/4/8 worker and incident concurrency levels with
     PostgreSQL queue only; repeat on a clean environment and retain CPU, process heap, database,
     queue wait, workflow latency, throughput, error and lease-contention distributions.

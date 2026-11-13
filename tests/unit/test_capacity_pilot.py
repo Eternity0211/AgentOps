@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from evaluation.run_capacity_pilot import load_plan, summarize
+from evaluation.run_capacity_pilot import load_plan, summarize, summarize_confirmatory
 
 PLAN = Path("evaluation/load/v2/pilot-plan.json")
 
@@ -50,3 +50,23 @@ def test_capacity_pilot_summary_has_baseline_deltas_and_sized_confirmation() -> 
     assert result["groups"][1]["throughput_relative_delta_from_1_worker"] > 0
     assert 5 <= result["confirmatory_repetitions"] <= 30
     assert result["pilot_only"] is True
+
+
+def test_capacity_confirmatory_reports_intervals_and_broker_decision() -> None:
+    plan = load_plan(Path("evaluation/load/v2/confirmatory-plan.json"))
+    rows = []
+    for repetition in range(1, 12):
+        for row in _rows()[:4]:
+            item = dict(row)
+            item["workers"] = row["workers"]
+            item["repetition"] = repetition
+            rows.append(item)
+    result = summarize_confirmatory(plan, rows)
+
+    assert result["correctness_passed"] is True
+    assert result["broker_decision"] in {
+        "POSTGRES_QUEUE_RETAINED",
+        "BROKER_EVALUATION_REQUIRED",
+    }
+    assert len(result["groups"]) == 4
+    assert all(len(item["throughput_median_95pct_bootstrap"]) == 2 for item in result["groups"])

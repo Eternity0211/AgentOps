@@ -196,11 +196,18 @@ measurement shows no need; closing it does not mean implementing it.
   - [ ] FC3i run the real Docker simulator memory scenario through Tempo/Loki collection, publish
     the captured GC/release/window/budget audit, then freeze and run an expanded paired comparison
     that reports baseline, candidate and deltas without reusing v1/v2 outputs.
-    - [ ] FC3i1 add a bounded one-command capture that always cleans the evaluator fault, verifies
+    - [x] FC3i1 add a bounded one-command capture that always cleans the evaluator fault, verifies
       post-cleanup HTTP 200, and records raw trace/log/deployment observations plus derived audits.
-      - [ ] Preserve failed run-001: all checkouts and cleanup passed, but Tempo returned no trace
+      - [x] Preserve failed run-001: all checkouts and cleanup passed, but Tempo returned no trace
         within the original fixed six-second wait, so GC/retention acceptance failed. Add bounded
         trace polling and explicit machine-readable acceptance before a fresh run.
+      - [x] Publish run-002: all six checkouts and cleanup HTTP 200 passed; the real trace path
+        produced six samples, one GC pair, five net allocations, zero releases and
+        SUSTAINED_RETENTION. The context admitted 15,546/24,000 bytes and explicitly excluded the
+        oversized raw log observation.
+    - [ ] FC3i2 freeze an expanded label-isolated paired dataset sourced from the real capture
+      shapes, with new normal/release/short/stale/contradictory/sustained variants and no reuse of
+      v1/v2 provider outputs; publish baseline, candidate, deltas and resource totals.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,

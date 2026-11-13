@@ -334,3 +334,9 @@ cleanup 并验证恢复后的 HTTP 200。输出同时保留 raw observations、p
 在固定六秒等待后返回空数组，所以 GC/retention facts 为空。该结果作为正式失败保留。捕获器
 新增最多 30 秒的有界 trace 轮询及机器验收：六次成功、SUSTAINED_RETENTION、至少一组 GC、
 release 字段、2.0.0 部署和 cleanup 全部为真才 accepted；新运行不得覆盖 run-001。
+
+run-002 在有界轮询后通过全部捕获门：六次 faulted checkout 和 cleanup 后请求均为 HTTP 200；
+Tempo trace 给出六个有序样本、一个完整 GC pair、五个净分配、零释放并分类为
+SUSTAINED_RETENTION；部署事实为 2.0.0。上下文纳入 15,546/24,000 bytes，其中 compact
+facts 1,441 bytes；raw log observation 因总预算排除。该结果只证明本地真实传输与预算机制，
+下一步仍需用新变体冻结扩大成对模型实验。

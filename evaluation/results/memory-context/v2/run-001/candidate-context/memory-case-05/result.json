@@ -1,0 +1,21 @@
+{
+  "context_sha256": "fd1a518dfd7b0d6b53bfbc930d50c8cefb7bcc21f361156d16d69cf1523cb566",
+  "cost_upper_bound_nanousd": 1001400,
+  "duration_ms": 1797,
+  "input_tokens": 2594,
+  "output_tokens": 186,
+  "protocol_sha256": "6de469cd8afba8347be026e9b2439517259c14c49e102bd8737dd5148d74c7b8",
+  "report": {
+    "candidates": [],
+    "disposition": "HUMAN_HANDOFF",
+    "explanation": "The only admitted evidence is a single order-service retention series that rises to 40 bytes then drops to 5 after GC reclaimed 25 bytes, with releases matching allocations. The memory contract classifies this as CONTRADICTED (GC_RECLAIMED_RETAINED_BYTES), so the leak hypothesis is not supported. No bounded alternative fault is established by current observations; handing off for more evidence.",
+    "incident_id": "memory-case-05",
+    "missing_evidence": [
+      "Sustained-growth memory samples beyond the single GC cycle to distinguish transient allocation from a leak",
+      "Evidence of retained bytes exceeding the retention limit or unbounded growth over many cycles",
+      "Independent confirmation of a leak hypothesis beyond the contradicted retention series"
+    ],
+    "schema_version": "1.0.0"
+  },
+  "status": "SUCCEEDED"
+}

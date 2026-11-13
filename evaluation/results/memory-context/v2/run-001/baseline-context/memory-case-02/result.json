@@ -1,0 +1,32 @@
+{
+  "context_sha256": "265dbbb2ea61ff80ecbbf1c0d67eb1d1abca3bc2f0220b10cf64e9cb4e645aaf",
+  "cost_upper_bound_nanousd": 990600,
+  "duration_ms": 1875,
+  "input_tokens": 2334,
+  "output_tokens": 242,
+  "protocol_sha256": "6de469cd8afba8347be026e9b2439517259c14c49e102bd8737dd5148d74c7b8",
+  "report": {
+    "candidates": [
+      {
+        "candidate_id": "order-retention-growth",
+        "confidence_basis_points": 5500,
+        "counter_evidence_explanation": null,
+        "counter_evidence_ids": [],
+        "counter_evidence_treatment": "NOT_APPLICABLE",
+        "missing_evidence": [],
+        "rank": 1,
+        "statement": "Order service retained memory grows monotonically (10\u219220\u219230 bytes) with allocations increasing (1\u21922\u21923) and zero releases across three samples, indicating unreleased retention growth. Retained bytes remain well below the 100-byte limit, so this is a bounded growth trend, not an established leak.",
+        "supporting_evidence_ids": [
+          "evidence-memory-case-02-memory"
+        ],
+        "uncertainty": "Short window and small absolute values; no release events observed yet, so leak vs. normal warm-up is unresolved."
+      }
+    ],
+    "disposition": "CANDIDATES",
+    "explanation": "Three chronological samples for order show sustained retained-memory increase with allocations rising and no releases, while staying under the retention limit. This supports a bounded retention-growth candidate only; the short increase alone cannot establish a leak.",
+    "incident_id": "memory-case-02",
+    "missing_evidence": [],
+    "schema_version": "1.0.0"
+  },
+  "status": "SUCCEEDED"
+}

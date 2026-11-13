@@ -1,0 +1,21 @@
+{
+  "context_sha256": "d4f7fe25f1df2a7fc67cbbf48f7eb39c682d65b11fb4d2d7eff0517a97a80d72",
+  "cost_upper_bound_nanousd": 1062300,
+  "duration_ms": 1969,
+  "input_tokens": 2821,
+  "output_tokens": 180,
+  "protocol_sha256": "6de469cd8afba8347be026e9b2439517259c14c49e102bd8737dd5148d74c7b8",
+  "report": {
+    "candidates": [],
+    "disposition": "HUMAN_HANDOFF",
+    "explanation": "Retained bytes for order rose 10\u219230\u219240 then fell to 20 after a GC cycle (releases 0\u21922), staying well under the 100-byte limit. The series is FLAT_OR_MIXED with no sustained increase, so a memory leak is not established. No bounded alternative fault is supported by current evidence; hand off for further investigation.",
+    "incident_id": "memory-case-01",
+    "missing_evidence": [
+      "Longer retention series to test for sustained growth beyond the observed 5 samples",
+      "Heap/GC metrics beyond a single cycle to distinguish normal reclamation from a leak",
+      "Service-level latency or error telemetry to link memory behavior to an incident impact"
+    ],
+    "schema_version": "1.0.0"
+  },
+  "status": "SUCCEEDED"
+}

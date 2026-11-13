@@ -1,0 +1,32 @@
+{
+  "context_sha256": "bedf1c7a8aff57f47488d9a9a4afc9cce029bf8c8a4b7506a31a20546bc96e84",
+  "cost_upper_bound_nanousd": 1088400,
+  "duration_ms": 2203,
+  "input_tokens": 2600,
+  "output_tokens": 257,
+  "protocol_sha256": "6de469cd8afba8347be026e9b2439517259c14c49e102bd8737dd5148d74c7b8",
+  "report": {
+    "candidates": [
+      {
+        "candidate_id": "order-sustained-retention",
+        "confidence_basis_points": 7000,
+        "counter_evidence_explanation": null,
+        "counter_evidence_ids": [],
+        "counter_evidence_treatment": "NOT_APPLICABLE",
+        "missing_evidence": [],
+        "rank": 1,
+        "statement": "The order service shows sustained memory retention: retained_bytes rose from 10 to 40 against a 100-byte limit across 5 samples, with 3 net allocations and 0 releases, and no bytes reclaimed after the GC cycle (BEFORE 30 -> AFTER 30). This bounded retention growth is the observed fault.",
+        "supporting_evidence_ids": [
+          "evidence-memory-case-03-memory"
+        ],
+        "uncertainty": "Retention remains well below the 100-byte limit; no OOM or latency impact observed. Root allocation source not identified."
+      }
+    ],
+    "disposition": "CANDIDATES",
+    "explanation": "Memory-retention telemetry for the order service shows monotonic retained_bytes growth with zero releases and no reclamation across the GC cycle, matching SUSTAINED_RETENTION. Evidence is bounded to observed retention; no deployment or impact data available.",
+    "incident_id": "memory-case-03",
+    "missing_evidence": [],
+    "schema_version": "1.0.0"
+  },
+  "status": "SUCCEEDED"
+}

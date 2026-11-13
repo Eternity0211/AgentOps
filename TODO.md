@@ -166,12 +166,19 @@ measurement shows no need; closing it does not mean implementing it.
     and sustained detection 0/1→1/1, but frozen safe negatives remained 3/4→3/4. The counted
     candidate false positive explicitly said “normal warmup, not a leak”; the scorer ignored
     negation. Acceptance failed and the result remains immutable.
-  - [ ] FC3g fix the negation-blind scorer, freeze its source, and fully rerun both arms; do not
+  - [x] FC3g fix the negation-blind scorer, freeze its source, and fully rerun both arms; do not
     rescore v1 as confirmatory evidence or reuse either arm.
     - [x] Add an explicit negation-aware v2 claim profile while keeping v1 as the default so the
       published failed score remains byte-reproducible. Unknown profiles fail closed.
     - [x] Freeze the v2 scorer/source/input hashes and require a fresh ten-outcome paired rerun;
       v1 outputs may not be reused or rescored as confirmatory evidence.
+    - [x] Publish ten newly invoked outcomes. Correctness improved 3/5→5/5 (+2, +40 percentage
+      points), sustained detection 0/1→1/1 and safe negatives 3/4→4/4; failures stayed 0→0 and
+      all Evidence IDs resolved. This passes the frozen mechanism gate but is not a production or
+      statistical efficiency claim.
+  - [ ] FC3h capture the memory evidence contract from the real simulator/runtime path, including
+    GC/release observations, alert-aligned latency/error/deployment facts, admitted/excluded-byte
+    audit and incident ownership; add integration coverage before expanding the paired dataset.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,

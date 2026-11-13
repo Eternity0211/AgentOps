@@ -90,7 +90,7 @@
       "external_requirements": ["Provider invoice or billing export", "Infrastructure allocation rule", "Human labor rate decision"]
     },
     {
-      "work_id": "FC9", "title": "Complete workflow durability comparison", "status": "PLANNED", "owner": "agentops-evaluation", "prerequisites": ["FC1"],
+      "work_id": "FC9", "title": "Complete workflow durability comparison", "status": "COMPLETE", "owner": "agentops-evaluation", "prerequisites": ["FC1"],
       "baseline": {"arm_id": "workflow-no-interruption", "description": "Complete real workflow without injected interruption."},
       "candidate": {"arm_id": "workflow-failure-matrix", "description": "The same workflow under frozen interruption and duplicate-delivery cases."},
       "independent_variable": "Declared failure injection.",

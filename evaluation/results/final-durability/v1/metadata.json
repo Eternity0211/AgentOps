@@ -1,0 +1,15 @@
+{
+  "schema_version": "final-durability-publication/1.0.0",
+  "run_id": "final-durability-20261113-001",
+  "code_revision": "cc8b5ea040ec6cf211a1ae106d8f365a9db3d909",
+  "plan_sha256": "9ee44d769836a969aacbfba3e8350424ed2f03a2ec0bb32c2d8e9942137a4ade",
+  "probe_sha256": "3b3a7a6c1d16bb9f87e8e1f1112cc58eb75719907f58bbddbfb77f90845fe999",
+  "observations_sha256": "b17bfd881998849ba231858698924094ca4e909f009e1a607d5557e654f64ed9",
+  "scope": "Migrated local PostgreSQL, immutable Evidence, durable typed effects, stale lease takeover and concurrent duplicate delivery with controlled model/tool substitutes.",
+  "limitations": [
+    "The controlled substitutes measure durability, not real-provider diagnosis quality.",
+    "Local monotonic timings are not production latency, availability, MTTR or human labor.",
+    "Rate-card upper bounds are descriptive and are not provider invoices.",
+    "The recovery authority chain is covered by separate exact production-component tests; this probe never creates a real human Approval or infrastructure mutation."
+  ]
+}

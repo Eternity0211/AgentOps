@@ -289,7 +289,7 @@ measurement shows no need; closing it does not mean implementing it.
 
 ### Reliability, capacity, security and architecture decisions
 
-- [ ] FC9 Run paired durability and failure-injection measurements on the complete real workflow.
+- [x] FC9 Run paired durability and failure-injection measurements on the complete real workflow.
   - [x] FC9a freeze the eight-pair census, exact interruption points, source bindings, metrics,
     safety acceptance and paired-delta reporting contract before measurement.
   - [x] FC9b implement the isolated persisted-workflow fixture and create-only paired runner with
@@ -300,8 +300,12 @@ measurement shows no need; closing it does not mean implementing it.
     - [x] FC9b2 add the actual PostgreSQL probe that emits the sixteen bound observations; it uses
       migrated PostgreSQL, immutable Evidence, effect replay, concurrent duplicate delivery and
       real stale-lease takeover. Its exploratory output was discarded before the formal run.
-  - [ ] FC9c execute all pairs once, retain every failure, publish raw results, deltas and interval,
+  - [x] FC9c execute all pairs once, retain every failure, publish raw results, deltas and interval,
     then close FC9 only if the zero-duplicate and zero-ambiguous-redispatch gates pass.
+    - [x] Formal run completed all 8/8 pairs and matched every route with zero duplicate effects,
+      zero ambiguous redispatch and zero lost Evidence on resumable routes. Median local total
+      latency delta was +13 ms (paired bootstrap interval -32 to +44 ms); median resume/takeover
+      latency was +67 ms (+25 to +84 ms). These are local durability results, not MTTR claims.
   - Control: no interruption. Treatments: process kill before dispatch, after dispatch with unknown
     result, after persisted model/tool result, partial parallel reads, checkpoint replacement,
     stale lease, timeout and duplicate delivery. Use the same cases and bounded retry policy.

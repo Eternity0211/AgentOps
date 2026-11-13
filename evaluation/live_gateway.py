@@ -30,7 +30,7 @@ from agentops_incident_commander.domain import (
 from evaluation.run_live_diagnosis import ENVIRONMENT, ROOT
 
 VERSION = SemanticVersion("2.0.0")
-TRACE_SUMMARY_POLICY = "prefer-otel-error-on-truncation/1.0.0"
+TRACE_SUMMARY_POLICY = "prefer-otel-error-then-memory-evidence-on-truncation/1.1.0"
 SERVICES = ("gateway", "order", "inventory", "payment")
 TRACE_RESOURCE_SERVICES = frozenset(f"agentops-simulator-{name}" for name in SERVICES)
 SOURCES = {
@@ -90,6 +90,15 @@ def local_definitions() -> tuple[ToolDefinition, ...]:
 def _is_error_span(record: Mapping[str, Any]) -> bool:
     status = record.get("status")
     return isinstance(status, dict) and status.get("code") in (2, "STATUS_CODE_ERROR")
+
+
+def _is_memory_evidence_span(record: Mapping[str, Any]) -> bool:
+    attributes = record.get("attributes")
+    return isinstance(attributes, list) and any(
+        isinstance(attribute, dict)
+        and attribute.get("key") == "process.memory.retained_bytes"
+        for attribute in attributes
+    )
 
 
 def deployment_observation(service: str) -> dict[str, Any]:
@@ -268,7 +277,12 @@ class LocalReadAdapter:
                                     )
         summary = json.dumps(records, sort_keys=True, separators=(",", ":"))
         if source == "traces" and len(summary) > 12000:
-            records.sort(key=lambda record: not _is_error_span(record))
+            records.sort(
+                key=lambda record: (
+                    not _is_error_span(record),
+                    not _is_memory_evidence_span(record),
+                )
+            )
         # Trim whole records, never cut JSON or silently hide truncation.
         dropped = 0
         while len(summary) > 12000 and records:

@@ -279,12 +279,27 @@ def build_candidate_diagnosis_context(
     byte_budget: int = 24_000,
 ) -> dict[str, Any]:
     """Candidate context that replaces the three-rise heuristic with GC-aware facts."""
-    context = build_diagnosis_context(all_observations, failed_reads, byte_budget=byte_budget)
-    context["memory_retention_by_service"] = discriminative_memory_retention_by_service(
-        all_observations
+    context = _build_diagnosis_context(
+        all_observations,
+        failed_reads,
+        byte_budget=byte_budget,
+        memory_facts=discriminative_memory_retention_by_service(all_observations),
     )
     context["memory_evidence_contract"] = "gc-aware/1.0.0"
     return context
+
+
+def _memory_fact_evidence_ids(fact: dict[str, Any]) -> list[str]:
+    direct = fact.get("evidence_ids")
+    if isinstance(direct, list):
+        return [item for item in direct if isinstance(item, str)]
+    return [
+        evidence_id
+        for sample in fact.get("samples", [])
+        if isinstance(sample, dict)
+        for evidence_id in sample.get("evidence_ids", [])
+        if isinstance(evidence_id, str)
+    ]
 
 
 def deployment_facts(observations: list[dict[str, str]]) -> list[dict[str, Any]]:
@@ -321,11 +336,50 @@ def build_diagnosis_context(
     byte_budget: int = 24_000,
 ) -> dict[str, Any]:
     """Build auditable bounded context while retaining compact cross-record facts."""
-    memory_facts = memory_retention_by_service(all_observations)
+    return _build_diagnosis_context(
+        all_observations,
+        failed_reads,
+        byte_budget=byte_budget,
+        memory_facts=memory_retention_by_service(all_observations),
+    )
+
+
+def _build_diagnosis_context(
+    all_observations: list[dict[str, str]],
+    failed_reads: dict[str, dict[str, Any]],
+    *,
+    byte_budget: int,
+    memory_facts: list[dict[str, Any]],
+) -> dict[str, Any]:
+    if byte_budget <= 0:
+        raise ValueError("diagnosis context byte budget must be positive")
     deployment_records = deployment_facts(all_observations)
+    all_compact_fact_evidence_ids = sorted(
+        {
+            evidence_id
+            for fact in memory_facts
+            for evidence_id in _memory_fact_evidence_ids(fact)
+        }
+        | {fact["evidence_id"] for fact in deployment_records}
+    )
+    compact_fact_bytes = len(
+        json.dumps(
+            {
+                "memory_retention_by_service": memory_facts,
+                "deployment_facts": deployment_records,
+            },
+            sort_keys=True,
+        ).encode()
+    )
+    excluded_compact_fact_evidence_ids: list[str] = []
+    if compact_fact_bytes > byte_budget:
+        excluded_compact_fact_evidence_ids = all_compact_fact_evidence_ids
+        memory_facts = []
+        deployment_records = []
+        compact_fact_bytes = 0
     observations: list[dict[str, str]] = []
     excluded: list[str] = []
-    used = 0
+    used = compact_fact_bytes
     for item in sorted(all_observations, key=lambda value: value["source"] != "traces"):
         size = len(json.dumps(item, sort_keys=True).encode())
         if used + size > byte_budget:
@@ -347,8 +401,7 @@ def build_diagnosis_context(
         {
             evidence_id
             for fact in memory_facts
-            for sample in fact["samples"]
-            for evidence_id in sample["evidence_ids"]
+            for evidence_id in _memory_fact_evidence_ids(fact)
         }
         | {fact["evidence_id"] for fact in deployment_records}
     )
@@ -365,9 +418,12 @@ def build_diagnosis_context(
         "context_budget": {
             "limit_bytes": byte_budget,
             "admitted_bytes": used,
+            "raw_observation_bytes": used - compact_fact_bytes,
+            "compact_fact_bytes": compact_fact_bytes,
             "admitted_evidence_ids": admitted_evidence_ids,
             "compact_fact_evidence_ids": compact_fact_evidence_ids,
             "excluded_evidence_ids": excluded,
+            "excluded_compact_fact_evidence_ids": excluded_compact_fact_evidence_ids,
         },
     }
 

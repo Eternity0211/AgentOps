@@ -293,3 +293,12 @@ v2 已产生十个全新真实模型结果并通过预声明机制门槛。基�
 第一步已完成：fixture 以累计计数区分分配与释放，在确定的第 3/4 次分配发射同一 GC cycle
 的 BEFORE/AFTER，AFTER 前执行真实 `gc.collect()`；保留对象仍有硬上限，释放计数不会超过
 实际保留块。新增字段必须通过结构化日志白名单，未知字段拒绝策略保持不变。
+
+第二步首先处理两个已识别风险：Tempo 摘要达到上限时，错误 span 之后仍需优先保留内存
+证据 span；compact facts 不能绕过原始 observation 的上下文字节预算。候选与基线将共用
+同一预算算法，事实先占位，超限则整组拒绝并记录被排除的 Evidence ID。
+
+第二步现已完成。截断策略为 error→memory evidence→other，provenance 记录策略版本和丢弃数；
+GC/释放字段经 Artifact 完整性链进入 tenant/incident 绑定的 Evidence，跨 Incident 读取返回空。
+compact facts 与原始 observations 共用总字节上限，审计分别给出 raw、compact、总纳入字节及
+两类排除 Evidence ID；事实本身超过预算时不做截断猜测，而是整组 fail-closed。

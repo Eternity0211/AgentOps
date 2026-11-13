@@ -181,8 +181,11 @@ measurement shows no need; closing it does not mean implementing it.
     audit and incident ownership; add integration coverage before expanding the paired dataset.
     - [x] FC3h1 emit cumulative allocation/release counters and a deterministic real GC before/after
       pair from the bounded simulator fixture; cover caps, pairing and release counter-evidence.
-    - [ ] FC3h2 carry those fields through the real trace/log collection path with immutable,
+    - [x] FC3h2 carry those fields through the real trace/log collection path with immutable,
       incident-owned Evidence records and explicit admitted/excluded-byte accounting.
+      - [x] FC3h2a preserve memory-evidence spans after error spans under bounded trace truncation,
+        reserve compact-fact bytes before raw observations, and fail closed when facts exceed the
+        total context budget.
     - [ ] FC3h3 align memory, latency, error and deployment facts to the incident alert window and
       add end-to-end refusal tests for stale, cross-incident and contradictory observations.
 

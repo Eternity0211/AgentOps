@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 from datetime import UTC, datetime
@@ -10,6 +11,7 @@ from pathlib import Path
 import pytest
 from evaluation.live_evidence import ExperimentEvidence
 
+from agentops_incident_commander.domain import EvidenceId, IncidentId, TenantId
 from agentops_incident_commander.workflows import DiagnosisReport
 
 
@@ -71,6 +73,67 @@ def test_prompt_injection_is_excluded_before_model_context(tmp_path: Path) -> No
     )
     assert evidence.observations == []
     assert evidence.records == {}
+
+
+def test_memory_trace_fields_are_immutable_and_incident_scoped(tmp_path: Path) -> None:
+    summary = json.dumps(
+        [
+            {
+                "service": "agentops-simulator-order",
+                "attributes": [
+                    {"key": "process.memory.retained_bytes", "value": {"intValue": "4194304"}},
+                    {
+                        "key": "process.memory.retention_releases",
+                        "value": {"intValue": "1"},
+                    },
+                    {"key": "process.memory.gc.cycle", "value": {"intValue": "1"}},
+                    {"key": "process.memory.gc.phase", "value": {"stringValue": "AFTER"}},
+                ],
+            }
+        ]
+    )
+    evidence = ExperimentEvidence(
+        tmp_path,
+        "incident-1",
+        [{"id": "memory-trace", "source": "traces", "summary": summary}],
+        observed_from=datetime.now(UTC),
+        provenance_by_id={
+            "memory-trace": {
+                "tool": "query_traces",
+                "version": "2.0.0",
+                "records_seen": 1,
+                "dropped_records": 2,
+                "call_id": "call-memory-trace",
+            }
+        },
+        tenant="tenant-1",
+    )
+
+    record = evidence.records[EvidenceId("memory-trace")]
+    assert record.tenant_id == TenantId("tenant-1")
+    assert record.incident_id == IncidentId("incident-1")
+    assert "records-dropped" in record.quality.reasons
+    assert json.loads(evidence.observations[0]["summary"]) == json.loads(summary)
+    assert (
+        asyncio.run(
+            evidence.get(
+                EvidenceId("memory-trace"),
+                tenant_id=TenantId("tenant-1"),
+                incident_id=IncidentId("incident-1"),
+            )
+        )
+        == record
+    )
+    assert (
+        asyncio.run(
+            evidence.get(
+                EvidenceId("memory-trace"),
+                tenant_id=TenantId("tenant-1"),
+                incident_id=IncidentId("other-incident"),
+            )
+        )
+        is None
+    )
 
 
 def test_incremental_evidence_retains_original_records_and_exact_query(tmp_path: Path) -> None:

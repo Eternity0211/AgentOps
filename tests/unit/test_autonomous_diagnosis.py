@@ -189,7 +189,7 @@ def test_normal_short_rise_and_deployment_only_do_not_claim_sustained_memory_gro
     )
 
 
-def test_compact_facts_keep_excluded_evidence_referenceable() -> None:
+def test_compact_facts_keep_excluded_raw_evidence_referenceable_and_accounted() -> None:
     observations = [
         {
             "id": "trace-large",
@@ -205,7 +205,7 @@ def test_compact_facts_keep_excluded_evidence_referenceable() -> None:
         {"id": "log-excluded", "source": "logs", "summary": "x" * 2_000},
     ]
 
-    context = build_diagnosis_context(observations, {}, byte_budget=1)
+    context = build_diagnosis_context(observations, {}, byte_budget=1_000)
 
     assert context["observations"] == []
     assert context["context_budget"]["admitted_evidence_ids"] == []
@@ -214,7 +214,28 @@ def test_compact_facts_keep_excluded_evidence_referenceable() -> None:
         "log-excluded",
     ]
     assert context["context_budget"]["compact_fact_evidence_ids"] == ["trace-large"]
+    assert context["context_budget"]["compact_fact_bytes"] > 0
+    assert context["context_budget"]["raw_observation_bytes"] == 0
+    assert context["context_budget"]["admitted_bytes"] <= 1_000
+    assert context["context_budget"]["excluded_compact_fact_evidence_ids"] == []
     assert context["evidence_ids"] == ["trace-large"]
+
+
+def test_compact_facts_fail_closed_when_they_exceed_context_budget() -> None:
+    observation = {
+        "id": "trace-large",
+        "source": "traces",
+        "summary": json.dumps(
+            [memory_span("order", index * 10, index * 1_048_576) for index in range(1, 6)]
+        ),
+    }
+
+    context = build_candidate_diagnosis_context([observation], {}, byte_budget=1)
+
+    assert context["memory_retention_by_service"] == []
+    assert context["evidence_ids"] == []
+    assert context["context_budget"]["admitted_bytes"] == 0
+    assert context["context_budget"]["excluded_compact_fact_evidence_ids"] == ["trace-large"]
 
 
 def test_diagnosis_context_records_unavailable_reads_without_evidence_ids() -> None:
@@ -560,6 +581,43 @@ def test_tempo_truncation_retains_late_error_span() -> None:
     assert retained[0]["service"] == "agentops-simulator-order"
     assert len(result["summary"]) <= 12000
     assert json.loads(result["provenance"])["dropped_records"] == len(spans) - len(retained)
+
+
+def test_tempo_truncation_retains_gc_memory_evidence_after_errors() -> None:
+    spans: list[dict[str, Any]] = [{"name": "routine", "attributes": ["x" * 1000]}] * 14
+    spans += [
+        {
+            "name": "memory",
+            "attributes": [
+                {
+                    "key": "process.memory.retained_bytes",
+                    "value": {"intValue": "4194304"},
+                },
+                {"key": "process.memory.gc.phase", "value": {"stringValue": "AFTER"}},
+            ],
+        }
+    ]
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/search":
+            return httpx.Response(200, json={"traces": [{"traceID": "a"}]})
+        resource = {
+            "attributes": [
+                {"key": "service.name", "value": {"stringValue": "agentops-simulator-order"}}
+            ]
+        }
+        return httpx.Response(
+            200, json={"batches": [{"resource": resource, "scopeSpans": [{"spans": spans}]}]}
+        )
+
+    now = datetime.now(UTC)
+    adapter = LocalReadAdapter(
+        "query_traces", now - timedelta(minutes=1), now, transport=httpx.MockTransport(respond)
+    )
+    result = asyncio.run(adapter.invoke(None, {"service": "gateway"}))  # type: ignore[arg-type]
+    retained = json.loads(result["summary"])
+    assert retained[0]["name"] == "memory"
+    assert json.loads(result["provenance"])["summary_policy"].endswith("/1.1.0")
 
 
 @pytest.mark.parametrize("trace_id", [None, 1, "", "0", "0" * 32, "a" * 33, "../x", "a?x", "g"])

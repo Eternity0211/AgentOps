@@ -168,6 +168,8 @@ measurement shows no need; closing it does not mean implementing it.
     negation. Acceptance failed and the result remains immutable.
   - [ ] FC3g fix the negation-blind scorer, freeze its source, and fully rerun both arms; do not
     rescore v1 as confirmatory evidence or reuse either arm.
+    - [x] Add an explicit negation-aware v2 claim profile while keeping v1 as the default so the
+      published failed score remains byte-reproducible. Unknown profiles fail closed.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,

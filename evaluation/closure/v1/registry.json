@@ -22,7 +22,7 @@
       "artifact_paths": ["evaluation/comparison/v1/", "evaluation/results/comparison/v1/"], "external_requirements": []
     },
     {
-      "work_id": "FC2", "title": "Structured output reliability", "status": "IN_PROGRESS", "owner": "agentops-evaluation", "prerequisites": ["FC1"],
+      "work_id": "FC2", "title": "Structured output reliability", "status": "COMPLETE", "owner": "agentops-evaluation", "prerequisites": ["FC1"],
       "baseline": {"arm_id": "transport-1.4.0", "description": "Current strict transport and prompt contract."},
       "candidate": {"arm_id": "transport-next", "description": "Field budgets, bounded schema repair, schema-derived generation constraints and complete-transition call reservation."},
       "independent_variable": "Structured-output reliability handling.",
@@ -31,7 +31,7 @@
       "artifact_paths": ["evaluation/real_protocol/v4/", "evaluation/real_protocol/v5/", "evaluation/results/structured-reliability/v1/", "evaluation/results/structured-reliability/v2/"], "external_requirements": []
     },
     {
-      "work_id": "FC3", "title": "Discriminative memory evidence", "status": "PLANNED", "owner": "agentops-evaluation", "prerequisites": ["FC1"],
+      "work_id": "FC3", "title": "Discriminative memory evidence", "status": "COMPLETE", "owner": "agentops-evaluation", "prerequisites": ["FC1"],
       "baseline": {"arm_id": "memory-context-1.0", "description": "Current three-sample retained-byte facts."},
       "candidate": {"arm_id": "memory-context-candidate", "description": "GC-aware, allocation-aware, alert-aligned bounded facts."},
       "independent_variable": "Memory evidence construction only.",

@@ -170,6 +170,8 @@ measurement shows no need; closing it does not mean implementing it.
     rescore v1 as confirmatory evidence or reuse either arm.
     - [x] Add an explicit negation-aware v2 claim profile while keeping v1 as the default so the
       published failed score remains byte-reproducible. Unknown profiles fail closed.
+    - [x] Freeze the v2 scorer/source/input hashes and require a fresh ten-outcome paired rerun;
+      v1 outputs may not be reused or rescored as confirmatory evidence.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,

@@ -261,3 +261,7 @@ Evidence ID；原构造器未修改，仍可作为公平对照。候选不会把
 五类未见变体已形成标签隔离数据：输入只含 opaque case ID、服务、内存序列和部署事实；
 预热、短升、持续保留、仅部署与 GC/释放反证标签仅存在 evaluator-only 文件。确定性测试
 先验证标签与契约一致；runner、scorer 和全部哈希尚未冻结前，不允许模型接触这些输入。
+
+配对 runner 与后置 scorer 已实现。runner 的接口没有 labels 参数，对两个 builder 固定同一
+模型、prompt、观测和调用预算，并交错先后顺序；所有成功或失败都会写入结果。scorer 才
+读取 evaluator-only 标签，分别报告正确数、持续保留检出、安全负例、失败和资源总量。

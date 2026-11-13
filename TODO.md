@@ -153,6 +153,10 @@ measurement shows no need; closing it does not mean implementing it.
     sustained retention, deployment-only and release/GC counter-evidence. Deterministic tests prove
     the evaluator-only labels match the versioned contract; provider exposure remains forbidden
     until a later commit freezes all input, label, runner and scorer hashes.
+  - [x] FC3d add a label-free interleaved real-model runner for the unchanged baseline and GC-aware
+    candidate contexts, plus a post-run scorer that loads isolated labels and reports correct,
+    sustained-detection, safe-negative and resource totals. Provider calls remain blocked until
+    the next batch freezes the exact implementation commit and hashes.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,

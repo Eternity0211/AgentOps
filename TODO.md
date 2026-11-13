@@ -157,6 +157,8 @@ measurement shows no need; closing it does not mean implementing it.
     candidate contexts, plus a post-run scorer that loads isolated labels and reports correct,
     sustained-detection, safe-negative and resource totals. Provider calls remain blocked until
     the next batch freezes the exact implementation commit and hashes.
+    - [x] Harden runner preflight to require the exact five-source binding for runner, scorer,
+      baseline/candidate context, classifier and structured transport before any provider call.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,

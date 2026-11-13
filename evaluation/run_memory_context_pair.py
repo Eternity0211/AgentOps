@@ -97,6 +97,19 @@ def run_pair(inputs_path: Path, plan_path: Path, output: Path, *, key: str) -> N
         raise ValueError("frozen implementation commit is not an ancestor")
     if _sha256(inputs_path) != plan["inputs_sha256"]:
         raise ValueError("memory-context input hash mismatch")
+    source_root = Path(__file__).resolve().parents[1]
+    required_sources = {
+        "evaluation/run_memory_context_pair.py",
+        "evaluation/score_memory_context_pair.py",
+        "evaluation/autonomous_diagnosis.py",
+        "evaluation/memory_evidence.py",
+        "evaluation/structured_model.py",
+    }
+    if set(plan.get("source_hashes", {})) != required_sources or any(
+        _sha256(source_root / name) != digest
+        for name, digest in plan["source_hashes"].items()
+    ):
+        raise ValueError("memory-context source hash mismatch")
     inputs = json.loads(inputs_path.read_text("utf-8"))
     digest = _sha256(plan_path)
     builders = (

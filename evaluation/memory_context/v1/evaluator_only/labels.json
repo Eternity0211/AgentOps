@@ -1,0 +1,10 @@
+{
+  "schema_version": "memory-context-labels/1.0.0",
+  "labels": {
+    "memory-case-01": "NORMAL_WARMUP",
+    "memory-case-02": "INSUFFICIENT",
+    "memory-case-03": "SUSTAINED_RETENTION",
+    "memory-case-04": "INSUFFICIENT",
+    "memory-case-05": "CONTRADICTED"
+  }
+}

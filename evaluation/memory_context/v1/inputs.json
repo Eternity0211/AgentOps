@@ -1,0 +1,12 @@
+{
+  "schema_version": "memory-context-inputs/1.0.0",
+  "cases": [
+    {"case_id":"memory-case-01","service":"order","samples":[[1,10,1,0,null,null],[2,30,3,0,null,null],[3,40,4,0,1,"BEFORE"],[4,20,4,2,1,"AFTER"],[5,20,4,2,null,null]],"deployment":null},
+    {"case_id":"memory-case-02","service":"order","samples":[[1,10,1,0,null,null],[2,20,2,0,null,null],[3,30,3,0,null,null]],"deployment":null},
+    {"case_id":"memory-case-03","service":"order","samples":[[1,10,1,0,null,null],[2,20,2,0,null,null],[3,30,3,0,1,"BEFORE"],[4,30,3,0,1,"AFTER"],[5,40,4,0,null,null]],"deployment":null},
+    {"case_id":"memory-case-04","service":"order","samples":[],"deployment":{"version":"2.0.0","previous_version":"1.0.0"}},
+    {"case_id":"memory-case-05","service":"order","samples":[[1,10,1,0,null,null],[2,30,3,0,null,null],[3,40,4,0,1,"BEFORE"],[4,15,4,3,1,"AFTER"],[5,5,4,4,null,null]],"deployment":null}
+  ],
+  "sample_tuple": ["second", "retained_bytes", "allocation_count", "release_count", "gc_cycle", "gc_phase"],
+  "retention_limit_bytes": 100
+}

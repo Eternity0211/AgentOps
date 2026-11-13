@@ -345,3 +345,7 @@ facts 1,441 bytes；raw log observation 因总预算排除。该结果只证明�
 时间范围与相同 span 身份冲突。标签仍在 evaluator-only 文件；确定性测试证明候选分类只在
 两个预期正例上为 SUSTAINED_RETENTION、stale 被排除、冲突为 CONTRADICTORY。runner 兼容
 原输入并为新 schema 启用告警窗口；provider 调用继续等待实现与哈希冻结。
+
+二十结果计划已在调用前冻结：两组共享模型、prompt、观测、告警窗口、Evidence IDs、schema、
+修复策略、调用预算和 v2 scorer，只改变 context builder。候选须零失败、检出两个正例、通过
+八个安全负例、不低于基线且引用全可解析；所有 provider/protocol 失败保留在分母中。

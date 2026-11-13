@@ -96,6 +96,8 @@
 > FC3i2 已新增十个 opaque 输入和隔离标签：2 个持续保留正例、8 个 warmup/short/
 > deployment/release/missing-GC/stale/contradictory/stable 控制。runner v2 支持 Evidence 时间范围
 > 和精确状态冲突；旧 v1/v2 结果不参与。尚未冻结前不得调用 provider。
+> FC3i2 计划已冻结二十个全新结果、v2 scorer、十个输入/隔离标签及五个实现源哈希；候选门为
+> 0 failure、2/2 sustained、8/8 safe negatives、正确数不低于基线和引用全部可解析。
 
 截至 2026-11-06 的阶段审计；不是全部验收通过声明。目标是在保留人工执行授权的前提下，用可解析证据缩短诊断时间。方法包括固定观测回放、实际本地故障注入、真实模型调用、SQL 工作流组合，以及独立确定性安全/续跑测试。预期收益需要对照验证，当前没有证实诊断质量、人工效率或 MTTR 提升。
 

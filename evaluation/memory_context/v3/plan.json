@@ -1,0 +1,27 @@
+{
+  "schema_version": "memory-context-pair/2.0.0",
+  "status": "FROZEN_BEFORE_PROVIDER_CALLS",
+  "implementation_commit": "275159581c4226ec519c515ae4373ff8cd05a984",
+  "inputs": "evaluation/memory_context/v3/inputs.json",
+  "inputs_sha256": "d1204067e0433a83c7ba085b368767d65241dcc18824410e83a8cae2f25bb60c",
+  "evaluator_labels": "evaluation/memory_context/v3/evaluator_only/labels.json",
+  "evaluator_labels_sha256": "580579c0b732c58417e754f89872c1847eab1c8f81e2adbebab6901635bba749",
+  "arms": ["baseline-context", "candidate-context"],
+  "expected_outcomes": 20,
+  "execution_order": "Alternate arm order by opaque input index parity.",
+  "provider": {"name":"deepseek","model":"deepseek-flash","temperature":0,"thinking":"disabled","max_output_tokens":2048,"max_calls_per_outcome":2},
+  "held_constant": ["model","prompt","observations","alert_window","evidence_ids","output_schema","repair_policy","call_budget","claim_profile"],
+  "independent_variable": "Existing three-rise memory context versus GC-aware, alert-window-bound deterministic memory context.",
+  "claim_profile": "v2",
+  "rerun_policy": "Invoke both arms for all ten inputs. Do not reuse or rescore any v1 or v2 provider output.",
+  "failure_rule": "All provider, schema and protocol failures remain in the denominator; no selective reruns.",
+  "acceptance": {"candidate_failures":0,"candidate_sustained_detected":2,"candidate_safe_negatives":8,"candidate_correct_not_below_baseline":true,"evidence_references_resolvable":true},
+  "source_hashes": {
+    "evaluation/run_memory_context_pair.py": "4f368b62d64ede0ecc89937c1ee667b4e05fef3e48163d6a3de0fcc6e2dadbcd",
+    "evaluation/score_memory_context_pair.py": "272c005d9539e28ed9d34b292f72533ff9cd7971d6f2fbde575b7392f1daf0a4",
+    "evaluation/autonomous_diagnosis.py": "ee80dab0f7d6881cb658b2f8196228e3422ea13b21e680be0f168150e5c3aa58",
+    "evaluation/memory_evidence.py": "3d149c8b335ead318f95537d4e7700e5472765375ab557ce5e842769d314d598",
+    "evaluation/structured_model.py": "6c574e57003045dc7395a35cc1d5b0479ad58bdb73851c16cdaaa3ef9333a423"
+  },
+  "limitations": ["Ten designed mechanism variants are not production incidence.","Binary bounded-memory claim scoring is narrower than the later untouched diagnosis-quality evaluation.","Actual billing, human labor, recovery, MTTR and recurrence remain unmeasured."]
+}

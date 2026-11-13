@@ -136,3 +136,32 @@ def test_expanded_memory_inputs_are_opaque_label_isolated_and_contract_aligned()
     assert actual_positive == expected_positive
     assert classifications["expanded-case-07"] == []
     assert service_classifications["expanded-case-08"] == ["CONTRADICTORY"]
+
+
+def test_expanded_memory_plan_is_frozen_before_twenty_provider_outcomes() -> None:
+    plan = json.loads((V3_ROOT / "plan.json").read_text("utf-8"))
+    assert plan["status"] == "FROZEN_BEFORE_PROVIDER_CALLS"
+    assert plan["implementation_commit"] == "275159581c4226ec519c515ae4373ff8cd05a984"
+    assert plan["expected_outcomes"] == 20
+    assert plan["claim_profile"] == "v2"
+    assert "Do not reuse or rescore any v1 or v2 provider output" in plan["rerun_policy"]
+    bindings = {
+        plan["inputs"]: plan["inputs_sha256"],
+        plan["evaluator_labels"]: plan["evaluator_labels_sha256"],
+        **plan["source_hashes"],
+    }
+    assert all(
+        hashlib.sha256(
+            subprocess.check_output(
+                [
+                    "git",
+                    "-c",
+                    "safe.directory=D:/AgentOps",
+                    "show",
+                    f"{plan['implementation_commit']}:{name}",
+                ]
+            )
+        ).hexdigest()
+        == digest
+        for name, digest in bindings.items()
+    )

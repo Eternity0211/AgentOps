@@ -211,6 +211,8 @@ measurement shows no need; closing it does not mean implementing it.
       - [x] Add ten opaque inputs (twenty paired outcomes) with two sustained positives and eight
         controls spanning warmup, short rise, deployment-only, release, missing GC, stale,
         contradictory and stable-after-GC evidence; keep labels evaluator-only.
+      - [x] Freeze all input/label/source hashes, v2 claim profile, twenty-outcome denominator and
+        acceptance thresholds before provider calls; prohibit v1/v2 output reuse or rescoring.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,

@@ -1,6 +1,6 @@
 """Snapshot failure is retained without reading labels or fabricating usage."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -22,7 +22,14 @@ def test_unavailable_snapshot_sources_route_to_handoff(tmp_path: Path) -> None:
     }
     path = tmp_path / "snapshot.json"
     now = datetime.now(UTC)
-    digest = write_snapshot(path, "instance-0000000000000001", now, now, reads, "observed error")
+    digest = write_snapshot(
+        path,
+        "instance-0000000000000001",
+        now - timedelta(minutes=1),
+        now,
+        reads,
+        "observed error",
+    )
 
     def respond(request: httpx.Request) -> httpx.Response:
         assert b"public_cause_taxonomy" in request.content
@@ -53,10 +60,9 @@ def test_unavailable_snapshot_sources_route_to_handoff(tmp_path: Path) -> None:
             }
         else:
             assert len(body["context"]["evidence_ids"]) == 1
-            assert body["context"]["observations"][0]["summary"].startswith("{\"error_code\"")
+            assert body["context"]["observations"][0]["summary"].startswith('{"error_code"')
             assert (
-                body["context"]["unavailable_reads"][0]["error_code"]
-                == "SNAPSHOT_CAPTURE_FAILED"
+                body["context"]["unavailable_reads"][0]["error_code"] == "SNAPSHOT_CAPTURE_FAILED"
             )
             output = {
                 "schema_version": "1.0.0",
@@ -109,7 +115,14 @@ def test_snapshot_success_uses_read_replay_and_retains_usage(tmp_path: Path) -> 
     }
     path = tmp_path / "snapshot.json"
     now = datetime.now(UTC)
-    digest = write_snapshot(path, "instance-0000000000000001", now, now, reads, "observations")
+    digest = write_snapshot(
+        path,
+        "instance-0000000000000001",
+        now - timedelta(minutes=1),
+        now,
+        reads,
+        "observations",
+    )
 
     def respond(request: httpx.Request) -> httpx.Response:
         body = json.loads(json.loads(request.content)["messages"][1]["content"])
@@ -237,9 +250,8 @@ def test_snapshot_runtime_binds_transport_profile(tmp_path: Path) -> None:
         profile=StructuredTransportProfile.BASELINE_1_4,
     )
     runtime = json.loads(
-        (
-            tmp_path
-            / "run/single-agent/instance-0000000000000001/runtime.json"
-        ).read_text(encoding="utf-8")
+        (tmp_path / "run/single-agent/instance-0000000000000001/runtime.json").read_text(
+            encoding="utf-8"
+        )
     )
     assert runtime["structured_transport_profile"] == "real-structured-evaluation/1.4.0"

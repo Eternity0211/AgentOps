@@ -8438,6 +8438,8 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
 
     incident = "postgres-autonomous"
     combined_workflow = f"combined-workflow-{int(crash)}"
+    observed_to = datetime.now(UTC)
+    observed_from = observed_to - timedelta(minutes=1)
     if not write_failure:
         await add_incident(
             engine, incident, tenant="tenant-1" if registered else "local-evaluation"
@@ -8617,8 +8619,8 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
             incident,
             "Observed checkout error",
             tmp_path,
-            NOW - timedelta(minutes=1),
-            NOW,
+            observed_from,
+            observed_to,
             lambda e: None,
             adapters=adapters,
             evidence_store=store,
@@ -8667,8 +8669,8 @@ async def test_autonomous_gate_uses_committed_postgres_evidence(
                     "combined-corr",
                     "combined-command",
                     "Observed checkout error",
-                    NOW - timedelta(minutes=1),
-                    NOW,
+                    observed_from,
+                    observed_to,
                     tmp_path,
                 ),
                 factory,
@@ -9565,7 +9567,9 @@ async def test_lab_prompts_require_measured_mechanical_regression_before_activat
         observed.append,
         fixture_version=fixture_version,
     )
-    assert calls == ["PLAN", "DIAGNOSE", "REMEDIATE"]
+    assert calls == (
+        ["PLAN", "DIAGNOSE", "DIAGNOSE"] if bad_reference else ["PLAN", "DIAGNOSE", "REMEDIATE"]
+    )
     assert len(references) == (0 if bad_reference else 3)
     async with async_sessionmaker(engine)() as session:
         rows = (

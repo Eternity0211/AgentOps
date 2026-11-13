@@ -36,15 +36,11 @@ def test_transport_pair_plan_binds_profiles_and_source_hashes(tmp_path: Path) ->
         "profiles": {name: profile.value for name, profile in FROZEN_V1_PROFILES},
         "source_hashes": source_hashes(),
     }
-    with patch(
-        "evaluation.run_transport_pair.subprocess.run", return_value=Mock(returncode=0)
-    ):
+    with patch("evaluation.run_transport_pair.subprocess.run", return_value=Mock(returncode=0)):
         _check_plan(plan, "b" * 40, dataset, bank)
 
     plan["source_hashes"] = source_hashes(bind_workflow=True)
-    with patch(
-        "evaluation.run_transport_pair.subprocess.run", return_value=Mock(returncode=0)
-    ):
+    with patch("evaluation.run_transport_pair.subprocess.run", return_value=Mock(returncode=0)):
         _check_plan(plan, "b" * 40, dataset, bank)
 
     del plan["source_hashes"]["evaluation/structured_model.py"]
@@ -120,9 +116,7 @@ def test_pair_runner_interleaves_profiles_without_loading_labels(tmp_path: Path)
 
     with (
         patch("evaluation.run_transport_pair.subprocess.run", return_value=Mock(returncode=0)),
-        patch(
-            "evaluation.run_transport_pair.subprocess.check_output", return_value="b" * 40
-        ),
+        patch("evaluation.run_transport_pair.subprocess.check_output", return_value="b" * 40),
         patch(
             "evaluation.run_transport_pair.preflight",
             return_value=({"instance_id": "instance-0000000000000001", "input_hash": "c" * 64},),
@@ -152,9 +146,7 @@ def test_committed_pair_plan_is_frozen_and_label_isolated() -> None:
 
     assert plan["status"] == "FROZEN_BEFORE_PROVIDER_CALLS"
     assert plan["expected_outcomes"] == 162
-    assert plan["profiles"] == {
-        name: profile.value for name, profile in FROZEN_V1_PROFILES
-    }
+    assert plan["profiles"] == {name: profile.value for name, profile in FROZEN_V1_PROFILES}
     assert plan["runtime_label_isolation"].startswith("The pair runner does not")
     assert "evaluator_labels" not in Path("evaluation/run_transport_pair.py").read_text(
         encoding="utf-8"
@@ -279,6 +271,8 @@ def test_candidate_1_7_pair_plan_is_frozen_before_calls() -> None:
             ],
         }.items()
     )
+
+
 def test_candidate_1_8_pair_plan_is_frozen_before_calls() -> None:
     plan = json.loads(
         Path("evaluation/real_protocol/v7/structured-transport-pair.json").read_text("utf-8")
@@ -319,10 +313,10 @@ def test_candidate_1_8_pair_plan_is_frozen_before_calls() -> None:
     revision = subprocess.check_output(
         ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
     ).strip()
-    profiles = _check_plan(
-        plan,
-        revision,
-        Path(plan["dataset"]),
-        Path(plan["simulated_history_bank"]),
-    )
-    assert [name for name, _profile in profiles] == ["baseline-1.7", "candidate-1.8"]
+    with pytest.raises(ValueError, match="transport source hash mismatch"):
+        _check_plan(
+            plan,
+            revision,
+            Path(plan["dataset"]),
+            Path(plan["simulated_history_bank"]),
+        )

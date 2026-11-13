@@ -376,7 +376,10 @@ measurement shows no need; closing it does not mean implementing it.
 
 ### Final consolidation and release gate
 
-- [ ] FC13 Publish one versioned final report and close the legacy TODO.
+- [x] FC13 Publish one versioned final report and close the legacy TODO.
+  - [x] The generated v1 report hashes every source, provides baseline/candidate/delta fields,
+    assigns every registered metric an explicit disposition, and retains FC4-FC8 as external-data
+    blockers rather than substituting simulated history, operators, approvals or billing.
   - Generate, do not hand-edit, a report covering objectives, protocol, groups, frozen hashes,
     baseline/candidate values, absolute/relative deltas, intervals, failures, denominators, safety,
     diagnosis, recovery, durability, capacity, cost, human outcomes, limitations and reproduction.

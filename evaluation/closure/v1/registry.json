@@ -126,7 +126,7 @@
       "artifact_paths": ["docs/ADR/", "evaluation/results/architecture-decisions/v1/"], "external_requirements": []
     },
     {
-      "work_id": "FC13", "title": "Generated final report and legacy closure", "status": "PLANNED", "owner": "agentops-evaluation", "prerequisites": ["FC1", "FC2", "FC3", "FC4", "FC5", "FC6", "FC7", "FC8", "FC9", "FC10", "FC11", "FC12"],
+      "work_id": "FC13", "title": "Generated final report and legacy closure", "status": "COMPLETE", "owner": "agentops-evaluation", "prerequisites": ["FC1", "FC2", "FC3", "FC4", "FC5", "FC6", "FC7", "FC8", "FC9", "FC10", "FC11", "FC12"],
       "baseline": {"arm_id": "pre-closure-evidence", "description": "Existing fragmented reports and explicit unknowns."},
       "candidate": {"arm_id": "final-generated-report", "description": "One reproducible report with every metric and disposition."},
       "independent_variable": "Report consolidation and legacy task reconciliation.",

@@ -1,0 +1,1855 @@
+{
+  "architecture_decisions": [
+    {
+      "baseline": "versioned Tool Gateway",
+      "candidate": "optional read-only MCP adapter",
+      "cost_overhead": "NOT_MEASURED_NO_CANDIDATE",
+      "disposition": "NOT_REQUIRED",
+      "latency_overhead": "NOT_MEASURED_NO_CANDIDATE",
+      "operational_complexity": "Avoided for current version",
+      "option": "read-only-mcp",
+      "requirement_satisfied": "No MCP-only integration requirement exists",
+      "safety_regression": "NOT_MEASURED_NO_CANDIDATE"
+    },
+    {
+      "baseline": "typed rollback_service with non-compensable failure routing",
+      "candidate": "future reversible write plus independent compensation",
+      "cost_overhead": "NOT_MEASURED_NO_ELIGIBLE_ACTION",
+      "disposition": "NOT_REQUIRED",
+      "latency_overhead": "NOT_MEASURED_NO_ELIGIBLE_ACTION",
+      "operational_complexity": "Avoided for current version",
+      "option": "additional-write-and-compensation",
+      "requirement_satisfied": "No second reversible action, verified inverse, Policy or Approval contract exists",
+      "safety_regression": "NOT_MEASURED_NO_ELIGIBLE_ACTION"
+    },
+    {
+      "baseline": "append-only hash-bound tenant audit ledger",
+      "candidate": "external anchor",
+      "cost_overhead": "NOT_MEASURED_NO_CANDIDATE",
+      "disposition": "NOT_REQUIRED",
+      "latency_overhead": "NOT_MEASURED_NO_CANDIDATE",
+      "operational_complexity": "Avoided for current version",
+      "option": "external-audit-anchoring",
+      "requirement_satisfied": "No external database-compromise threat requirement is declared for the local MVP",
+      "safety_regression": "NOT_MEASURED_NO_CANDIDATE"
+    },
+    {
+      "baseline": "versioned ports and current tenant-scoped identity contracts",
+      "candidate": "alternative store or enterprise identity adapter",
+      "cost_overhead": "NOT_MEASURED_NO_CANDIDATE",
+      "disposition": "NOT_REQUIRED",
+      "latency_overhead": "NOT_MEASURED_NO_CANDIDATE",
+      "operational_complexity": "Avoided for current version",
+      "option": "artifact-store-and-enterprise-identity",
+      "requirement_satisfied": "No named deployment backend or enterprise identity requirement exists",
+      "safety_regression": "NOT_MEASURED_NO_CANDIDATE"
+    },
+    {
+      "baseline": "two bounded decision nodes in one controlled workflow",
+      "candidate": "A2A protocol boundary",
+      "cost_overhead": "NOT_MEASURED_NO_PROTOCOL_BOUNDARY",
+      "disposition": "NOT_REQUIRED",
+      "latency_overhead": "NOT_MEASURED_NO_PROTOCOL_BOUNDARY",
+      "operational_complexity": "Avoided for current version",
+      "option": "a2a",
+      "requirement_satisfied": "Decision agents are not independently deployed or separately owned services",
+      "safety_regression": "NOT_MEASURED_NO_PROTOCOL_BOUNDARY"
+    },
+    {
+      "baseline": "PostgreSQL queue at four workers",
+      "candidate": "eight PostgreSQL workers; external broker remains unproven",
+      "cost_overhead": "NOT_MEASURED_ACTUAL_COST",
+      "disposition": "NOT_REQUIRED_FOR_CURRENT_VERSION",
+      "latency_overhead": "queue-wait P95 1866 to 2608 ms, +742 ms (+39.8%)",
+      "measurements": {
+        "queue_wait_p95_ms": {
+          "absolute_delta": 742,
+          "baseline": 1866,
+          "candidate": 2608,
+          "relative_delta": 0.397642015005359
+        },
+        "throughput_jobs_per_second": {
+          "absolute_delta": -7.948,
+          "baseline": 28.959,
+          "candidate": 21.011,
+          "relative_delta": -0.27445699091819475
+        }
+      },
+      "operational_complexity": "Kafka/NATS deferred pending identical-workload proof",
+      "option": "control-plane-broker",
+      "requirement_satisfied": "Current local version is capped at four workers",
+      "safety_regression": "0 errors and 0 duplicate ownership in both measured levels"
+    }
+  ],
+  "comparisons": [
+    {
+      "absolute_delta": 0.012345679012345623,
+      "baseline": 0.9506172839506173,
+      "candidate": 0.9629629629629629,
+      "delta_95pct_interval": [
+        -0.03703703703703709,
+        0.06172839506172845
+      ],
+      "denominator": 81,
+      "metric": "valid-outcome",
+      "relative_delta": 0.012987012987012927,
+      "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
+      "statistic": "rate",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "unit": "rate",
+      "work_id": "FC2"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 1.0,
+      "candidate": 1.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 27,
+      "metric": "safe-control",
+      "relative_delta": 0.0,
+      "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
+      "statistic": "rate",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "unit": "rate",
+      "work_id": "FC2"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 1.0,
+      "candidate": 1.0,
+      "delta_95pct_interval": [
+        0.0,
+        0.0
+      ],
+      "denominator": 81,
+      "metric": "evidence-integrity",
+      "relative_delta": 0.0,
+      "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
+      "statistic": "rate",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "unit": "rate",
+      "work_id": "FC2"
+    },
+    {
+      "absolute_delta": 63.0,
+      "baseline": 5234.0,
+      "candidate": 5297.0,
+      "delta_95pct_interval": [
+        -438.0,
+        469.0
+      ],
+      "denominator": 81,
+      "metric": "duration-ms",
+      "relative_delta": 0.01203668322506687,
+      "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
+      "statistic": "median",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "unit": "duration-ms",
+      "work_id": "FC2"
+    },
+    {
+      "absolute_delta": 874.0,
+      "baseline": 12047.0,
+      "candidate": 12921.0,
+      "delta_95pct_interval": [
+        78.0,
+        2062.0
+      ],
+      "denominator": 81,
+      "metric": "duration-ms",
+      "relative_delta": 0.07254918236905454,
+      "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
+      "statistic": "p95",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "unit": "duration-ms",
+      "work_id": "FC2"
+    },
+    {
+      "absolute_delta": 471.0,
+      "baseline": 10179.0,
+      "candidate": 10650.0,
+      "delta_95pct_interval": [
+        -498.0,
+        1183.0
+      ],
+      "denominator": 81,
+      "metric": "input-tokens",
+      "relative_delta": 0.04627173592690834,
+      "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
+      "statistic": "median",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "unit": "input-tokens",
+      "work_id": "FC2"
+    },
+    {
+      "absolute_delta": 3569.0,
+      "baseline": 26406.0,
+      "candidate": 29975.0,
+      "delta_95pct_interval": [
+        545.0,
+        5282.0
+      ],
+      "denominator": 81,
+      "metric": "input-tokens",
+      "relative_delta": 0.13515867605847157,
+      "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
+      "statistic": "p95",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "unit": "input-tokens",
+      "work_id": "FC2"
+    },
+    {
+      "absolute_delta": 19.0,
+      "baseline": 675.0,
+      "candidate": 694.0,
+      "delta_95pct_interval": [
+        -37.0,
+        88.0
+      ],
+      "denominator": 81,
+      "metric": "output-tokens",
+      "relative_delta": 0.028148148148148148,
+      "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
+      "statistic": "median",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "unit": "output-tokens",
+      "work_id": "FC2"
+    },
+    {
+      "absolute_delta": -13.0,
+      "baseline": 1557.0,
+      "candidate": 1544.0,
+      "delta_95pct_interval": [
+        -142.0,
+        116.0
+      ],
+      "denominator": 81,
+      "metric": "output-tokens",
+      "relative_delta": -0.008349389852280027,
+      "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
+      "statistic": "p95",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "unit": "output-tokens",
+      "work_id": "FC2"
+    },
+    {
+      "absolute_delta": 111000.0,
+      "baseline": 3809700.0,
+      "candidate": 3920700.0,
+      "delta_95pct_interval": [
+        -135300.0,
+        419400.0
+      ],
+      "denominator": 81,
+      "metric": "cost-upper-bound",
+      "relative_delta": 0.029136152452949052,
+      "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
+      "statistic": "median",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "unit": "cost-upper-bound",
+      "work_id": "FC2"
+    },
+    {
+      "absolute_delta": 926700.0,
+      "baseline": 9809400.0,
+      "candidate": 10736100.0,
+      "delta_95pct_interval": [
+        138600.0,
+        1791300.0
+      ],
+      "denominator": 81,
+      "metric": "cost-upper-bound",
+      "relative_delta": 0.09447060982323077,
+      "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
+      "statistic": "p95",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "unit": "cost-upper-bound",
+      "work_id": "FC2"
+    },
+    {
+      "absolute_delta": -5.0,
+      "baseline": 9.0,
+      "candidate": 4.0,
+      "delta_95pct_interval": null,
+      "denominator": 81,
+      "metric": "initial-schema-protocol-invalids",
+      "relative_delta": -0.5555555555555556,
+      "scope": "81 outcomes per arm; bounded repair made terminal invalids 0→0.",
+      "statistic": "value",
+      "status": "MEASURED",
+      "unit": "outcomes",
+      "work_id": "FC2"
+    },
+    {
+      "absolute_delta": 0.09999999999999998,
+      "baseline": 0.9,
+      "candidate": 1.0,
+      "delta_95pct_interval": null,
+      "denominator": 10,
+      "metric": "correct-diagnosis-rate",
+      "relative_delta": 0.11111111111111108,
+      "scope": "Frozen ten-pair designed memory-context set; not an untouched diagnosis study.",
+      "statistic": "value",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "unit": "rate",
+      "work_id": "FC3"
+    },
+    {
+      "absolute_delta": 0.5,
+      "baseline": 0.5,
+      "candidate": 1.0,
+      "delta_95pct_interval": null,
+      "denominator": 2,
+      "metric": "sustained-retention-detection-rate",
+      "relative_delta": 1.0,
+      "scope": "Frozen ten-pair designed memory-context set; not an untouched diagnosis study.",
+      "statistic": "value",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "unit": "rate",
+      "work_id": "FC3"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 1.0,
+      "candidate": 1.0,
+      "delta_95pct_interval": null,
+      "denominator": 8,
+      "metric": "safe-negative-rate",
+      "relative_delta": 0.0,
+      "scope": "Frozen ten-pair designed memory-context set; not an untouched diagnosis study.",
+      "statistic": "value",
+      "status": "MEASURED",
+      "unit": "rate",
+      "work_id": "FC3"
+    },
+    {
+      "absolute_delta": 0,
+      "baseline": 0,
+      "candidate": 0,
+      "delta_95pct_interval": null,
+      "denominator": 10,
+      "metric": "failure-count",
+      "relative_delta": null,
+      "scope": "Frozen ten-pair designed memory-context set; not an untouched diagnosis study.",
+      "statistic": "value",
+      "status": "MEASURED",
+      "unit": "outcomes",
+      "work_id": "FC3"
+    },
+    {
+      "absolute_delta": 140,
+      "baseline": 20549,
+      "candidate": 20689,
+      "delta_95pct_interval": null,
+      "denominator": 10,
+      "metric": "duration",
+      "relative_delta": 0.006812983600175191,
+      "scope": "Frozen ten-pair designed memory-context set; not an untouched diagnosis study.",
+      "statistic": "value",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "unit": "ms",
+      "work_id": "FC3"
+    },
+    {
+      "absolute_delta": -1667,
+      "baseline": 26865,
+      "candidate": 25198,
+      "delta_95pct_interval": null,
+      "denominator": 10,
+      "metric": "input-tokens",
+      "relative_delta": -0.06205099571933743,
+      "scope": "Frozen ten-pair designed memory-context set; not an untouched diagnosis study.",
+      "statistic": "value",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "unit": "tokens",
+      "work_id": "FC3"
+    },
+    {
+      "absolute_delta": 26,
+      "baseline": 2186,
+      "candidate": 2212,
+      "delta_95pct_interval": null,
+      "denominator": 10,
+      "metric": "output-tokens",
+      "relative_delta": 0.011893870082342177,
+      "scope": "Frozen ten-pair designed memory-context set; not an untouched diagnosis study.",
+      "statistic": "value",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "unit": "tokens",
+      "work_id": "FC3"
+    },
+    {
+      "absolute_delta": -468900,
+      "baseline": 10682700,
+      "candidate": 10213800,
+      "delta_95pct_interval": null,
+      "denominator": 10,
+      "metric": "cost-upper-bound",
+      "relative_delta": -0.043893397736527284,
+      "scope": "Frozen ten-pair designed memory-context set; not an untouched diagnosis study.",
+      "statistic": "value",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "unit": "nUSD",
+      "work_id": "FC3"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 1.0,
+      "candidate": 1.0,
+      "delta_95pct_interval": null,
+      "denominator": 8,
+      "metric": "terminal-route-match-rate",
+      "relative_delta": 0.0,
+      "scope": "Eight frozen local controlled workflow pairs; rate-card cost is not billing.",
+      "statistic": "value",
+      "status": "MEASURED",
+      "unit": "rate",
+      "work_id": "FC9"
+    },
+    {
+      "absolute_delta": 0,
+      "baseline": 0,
+      "candidate": 0,
+      "delta_95pct_interval": null,
+      "denominator": 8,
+      "metric": "duplicate_external_effects",
+      "relative_delta": null,
+      "scope": "Eight frozen local controlled workflow pairs; rate-card cost is not billing.",
+      "statistic": "value",
+      "status": "MEASURED",
+      "unit": "events",
+      "work_id": "FC9"
+    },
+    {
+      "absolute_delta": 0,
+      "baseline": 0,
+      "candidate": 0,
+      "delta_95pct_interval": null,
+      "denominator": 8,
+      "metric": "ambiguous_result_redispatches",
+      "relative_delta": null,
+      "scope": "Eight frozen local controlled workflow pairs; rate-card cost is not billing.",
+      "statistic": "value",
+      "status": "MEASURED",
+      "unit": "events",
+      "work_id": "FC9"
+    },
+    {
+      "absolute_delta": 0,
+      "baseline": 0,
+      "candidate": 0,
+      "delta_95pct_interval": null,
+      "denominator": 8,
+      "metric": "lost_evidence_records",
+      "relative_delta": null,
+      "scope": "Eight frozen local controlled workflow pairs; rate-card cost is not billing.",
+      "statistic": "value",
+      "status": "MEASURED",
+      "unit": "events",
+      "work_id": "FC9"
+    },
+    {
+      "absolute_delta": 22.5,
+      "baseline": 86.0,
+      "candidate": 108.5,
+      "delta_95pct_interval": null,
+      "denominator": 8,
+      "metric": "total-latency",
+      "relative_delta": 0.2616279069767442,
+      "scope": "Eight frozen local controlled workflow pairs; rate-card cost is not billing.",
+      "statistic": "arm-median",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "unit": "ms",
+      "work_id": "FC9"
+    },
+    {
+      "absolute_delta": 13.0,
+      "baseline": 0,
+      "candidate": 13.0,
+      "delta_95pct_interval": [
+        -32.0,
+        44.0
+      ],
+      "denominator": 8,
+      "metric": "paired-total-latency-delta",
+      "relative_delta": null,
+      "scope": "Eight frozen local controlled workflow pairs; rate-card cost is not billing.",
+      "statistic": "median-paired-delta",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "unit": "ms",
+      "work_id": "FC9"
+    },
+    {
+      "absolute_delta": 67.0,
+      "baseline": 0.0,
+      "candidate": 67.0,
+      "delta_95pct_interval": [
+        25.0,
+        84.0
+      ],
+      "denominator": 8,
+      "metric": "resume-latency",
+      "relative_delta": null,
+      "scope": "Eight frozen local controlled workflow pairs; rate-card cost is not billing.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "ms",
+      "work_id": "FC9"
+    },
+    {
+      "absolute_delta": -2,
+      "baseline": 16,
+      "candidate": 14,
+      "delta_95pct_interval": null,
+      "denominator": 8,
+      "metric": "model_calls",
+      "relative_delta": -0.125,
+      "scope": "Eight frozen local controlled workflow pairs; rate-card cost is not billing.",
+      "statistic": "value",
+      "status": "MEASURED",
+      "unit": "calls",
+      "work_id": "FC9"
+    },
+    {
+      "absolute_delta": -1,
+      "baseline": 16,
+      "candidate": 15,
+      "delta_95pct_interval": null,
+      "denominator": 8,
+      "metric": "tool_calls",
+      "relative_delta": -0.0625,
+      "scope": "Eight frozen local controlled workflow pairs; rate-card cost is not billing.",
+      "statistic": "value",
+      "status": "MEASURED",
+      "unit": "calls",
+      "work_id": "FC9"
+    },
+    {
+      "absolute_delta": -240,
+      "baseline": 1760,
+      "candidate": 1520,
+      "delta_95pct_interval": null,
+      "denominator": 8,
+      "metric": "input_tokens",
+      "relative_delta": -0.13636363636363635,
+      "scope": "Eight frozen local controlled workflow pairs; rate-card cost is not billing.",
+      "statistic": "value",
+      "status": "MEASURED",
+      "unit": "tokens",
+      "work_id": "FC9"
+    },
+    {
+      "absolute_delta": -120,
+      "baseline": 880,
+      "candidate": 760,
+      "delta_95pct_interval": null,
+      "denominator": 8,
+      "metric": "output_tokens",
+      "relative_delta": -0.13636363636363635,
+      "scope": "Eight frozen local controlled workflow pairs; rate-card cost is not billing.",
+      "statistic": "value",
+      "status": "MEASURED",
+      "unit": "tokens",
+      "work_id": "FC9"
+    },
+    {
+      "absolute_delta": -1920,
+      "baseline": 14080,
+      "candidate": 12160,
+      "delta_95pct_interval": null,
+      "denominator": 8,
+      "metric": "rate_card_upper_bound_nusd",
+      "relative_delta": -0.13636363636363635,
+      "scope": "Eight frozen local controlled workflow pairs; rate-card cost is not billing.",
+      "statistic": "value",
+      "status": "MEASURED",
+      "unit": "nUSD",
+      "work_id": "FC9"
+    },
+    {
+      "absolute_delta": 11.719000000000001,
+      "baseline": 17.227,
+      "candidate": 28.946,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "throughput:1-to-2-workers",
+      "relative_delta": 0.6802693446334244,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "jobs/s",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -1439,
+      "baseline": 3297,
+      "candidate": 1858,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "queue-wait-p95:1-to-2-workers",
+      "relative_delta": -0.4364573855019715,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "ms",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -1436,
+      "baseline": 3318,
+      "candidate": 1882,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "workflow-latency-p95:1-to-2-workers",
+      "relative_delta": -0.432790837854129,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "ms",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0,
+      "baseline": 0,
+      "candidate": 0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "error-count:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "events",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0,
+      "baseline": 0,
+      "candidate": 0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "duplicate-job-ownership:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "events",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -109,
+      "baseline": 2046,
+      "candidate": 1937,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "process-cpu:1-to-2-workers",
+      "relative_delta": -0.05327468230694037,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "ms",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 24862,
+      "baseline": 222139,
+      "candidate": 247001,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "python-heap-peak:1-to-2-workers",
+      "relative_delta": 0.11192091438243622,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 3,
+      "baseline": 450,
+      "candidate": 453,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "database-statement-count:1-to-2-workers",
+      "relative_delta": 0.006666666666666667,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "statements",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 12.093,
+      "baseline": 0,
+      "candidate": 12.093,
+      "delta_95pct_interval": [
+        11.080000000000002,
+        13.114
+      ],
+      "denominator": 11,
+      "metric": "throughput-paired-delta:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions per worker level.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "jobs/s",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 1,
+      "baseline": 0,
+      "candidate": 1,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "lease-contentions:1-to-2-workers",
+      "relative_delta": null,
+      "scope": "Eleven local repetitions per worker level.",
+      "statistic": "11-repetition-total",
+      "status": "MEASURED",
+      "unit": "events",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 11.732,
+      "baseline": 17.227,
+      "candidate": 28.959,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "throughput:1-to-4-workers",
+      "relative_delta": 0.6810239739943112,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "jobs/s",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -1431,
+      "baseline": 3297,
+      "candidate": 1866,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "queue-wait-p95:1-to-4-workers",
+      "relative_delta": -0.4340309372156506,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "ms",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -1406,
+      "baseline": 3318,
+      "candidate": 1912,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "workflow-latency-p95:1-to-4-workers",
+      "relative_delta": -0.42374924653405666,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "ms",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0,
+      "baseline": 0,
+      "candidate": 0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "error-count:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "events",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0,
+      "baseline": 0,
+      "candidate": 0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "duplicate-job-ownership:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "events",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -31,
+      "baseline": 2046,
+      "candidate": 2015,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "process-cpu:1-to-4-workers",
+      "relative_delta": -0.015151515151515152,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "ms",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 134116,
+      "baseline": 222139,
+      "candidate": 356255,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "python-heap-peak:1-to-4-workers",
+      "relative_delta": 0.6037481036648225,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 9,
+      "baseline": 450,
+      "candidate": 459,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "database-statement-count:1-to-4-workers",
+      "relative_delta": 0.02,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "statements",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 11.806999999999999,
+      "baseline": 0,
+      "candidate": 11.806999999999999,
+      "delta_95pct_interval": [
+        11.021999999999998,
+        13.018
+      ],
+      "denominator": 11,
+      "metric": "throughput-paired-delta:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions per worker level.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "jobs/s",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 6,
+      "baseline": 0,
+      "candidate": 6,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "lease-contentions:1-to-4-workers",
+      "relative_delta": null,
+      "scope": "Eleven local repetitions per worker level.",
+      "statistic": "11-repetition-total",
+      "status": "MEASURED",
+      "unit": "events",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 3.783999999999999,
+      "baseline": 17.227,
+      "candidate": 21.011,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "throughput:1-to-8-workers",
+      "relative_delta": 0.21965519243048695,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "jobs/s",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -689,
+      "baseline": 3297,
+      "candidate": 2608,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "queue-wait-p95:1-to-8-workers",
+      "relative_delta": -0.2089778586593873,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "ms",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": -626,
+      "baseline": 3318,
+      "candidate": 2692,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "workflow-latency-p95:1-to-8-workers",
+      "relative_delta": -0.188667872212176,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "ms",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0,
+      "baseline": 0,
+      "candidate": 0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "error-count:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "events",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0,
+      "baseline": 0,
+      "candidate": 0,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "duplicate-job-ownership:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "events",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 719,
+      "baseline": 2046,
+      "candidate": 2765,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "process-cpu:1-to-8-workers",
+      "relative_delta": 0.3514173998044966,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "ms",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 789044,
+      "baseline": 222139,
+      "candidate": 1011183,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "python-heap-peak:1-to-8-workers",
+      "relative_delta": 3.552028234573848,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "bytes",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 33,
+      "baseline": 450,
+      "candidate": 483,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "database-statement-count:1-to-8-workers",
+      "relative_delta": 0.07333333333333333,
+      "scope": "Eleven local repetitions; process metrics exclude PostgreSQL/container resources.",
+      "statistic": "median",
+      "status": "MEASURED",
+      "unit": "statements",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 5.175000000000001,
+      "baseline": 0,
+      "candidate": 5.175000000000001,
+      "delta_95pct_interval": [
+        2.102999999999998,
+        7.034000000000001
+      ],
+      "denominator": 11,
+      "metric": "throughput-paired-delta:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local paired repetitions per worker level.",
+      "statistic": "median-paired-delta",
+      "status": "MEASURED",
+      "unit": "jobs/s",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 43,
+      "baseline": 0,
+      "candidate": 43,
+      "delta_95pct_interval": null,
+      "denominator": 11,
+      "metric": "lease-contentions:1-to-8-workers",
+      "relative_delta": null,
+      "scope": "Eleven local repetitions per worker level.",
+      "statistic": "11-repetition-total",
+      "status": "MEASURED",
+      "unit": "events",
+      "work_id": "FC10"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 1.0,
+      "candidate": 1.0,
+      "delta_95pct_interval": null,
+      "denominator": 8,
+      "metric": "attack_block",
+      "relative_delta": 0.0,
+      "scope": "Fixed 13-case local deterministic census; duration includes environment setup.",
+      "statistic": "value",
+      "status": "MEASURED",
+      "unit": "rate",
+      "work_id": "FC11"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 1.0,
+      "candidate": 1.0,
+      "delta_95pct_interval": null,
+      "denominator": 4,
+      "metric": "safe_handoff",
+      "relative_delta": 0.0,
+      "scope": "Fixed 13-case local deterministic census; duration includes environment setup.",
+      "statistic": "value",
+      "status": "MEASURED",
+      "unit": "rate",
+      "work_id": "FC11"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 0.0,
+      "candidate": 0.0,
+      "delta_95pct_interval": null,
+      "denominator": 1,
+      "metric": "false_block",
+      "relative_delta": null,
+      "scope": "Fixed 13-case local deterministic census; duration includes environment setup.",
+      "statistic": "value",
+      "status": "MEASURED",
+      "unit": "rate",
+      "work_id": "FC11"
+    },
+    {
+      "absolute_delta": 0.0,
+      "baseline": 1.0,
+      "candidate": 1.0,
+      "delta_95pct_interval": null,
+      "denominator": 13,
+      "metric": "route_correctness",
+      "relative_delta": 0.0,
+      "scope": "Fixed 13-case local deterministic census; duration includes environment setup.",
+      "statistic": "value",
+      "status": "MEASURED",
+      "unit": "rate",
+      "work_id": "FC11"
+    },
+    {
+      "absolute_delta": 0,
+      "baseline": 0,
+      "candidate": 0,
+      "delta_95pct_interval": null,
+      "denominator": 13,
+      "metric": "critical_failures",
+      "relative_delta": null,
+      "scope": "Fixed 13-case local deterministic census; duration includes environment setup.",
+      "statistic": "value",
+      "status": "MEASURED",
+      "unit": "events",
+      "work_id": "FC11"
+    },
+    {
+      "absolute_delta": 9359,
+      "baseline": 829,
+      "candidate": 10188,
+      "delta_95pct_interval": null,
+      "denominator": 13,
+      "metric": "duration_ms",
+      "relative_delta": 11.289505428226779,
+      "scope": "Fixed 13-case local deterministic census; duration includes environment setup.",
+      "statistic": "value",
+      "status": "MEASURED",
+      "unit": "ms",
+      "work_id": "FC11"
+    },
+    {
+      "absolute_delta": 0,
+      "baseline": 0,
+      "candidate": 0,
+      "delta_95pct_interval": null,
+      "denominator": 13,
+      "metric": "provider_cost_nusd",
+      "relative_delta": null,
+      "scope": "Fixed 13-case local deterministic census; duration includes environment setup.",
+      "statistic": "value",
+      "status": "MEASURED",
+      "unit": "nUSD",
+      "work_id": "FC11"
+    }
+  ],
+  "coverage": [
+    {
+      "metric": "unmapped_legacy_items",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC0"
+    },
+    {
+      "metric": "duplicate_work_ids",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC0"
+    },
+    {
+      "metric": "schema_valid",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC0"
+    },
+    {
+      "metric": "absolute_delta",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC1"
+    },
+    {
+      "metric": "relative_delta",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC1"
+    },
+    {
+      "metric": "confidence_interval",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC1"
+    },
+    {
+      "metric": "paired_test",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC1"
+    },
+    {
+      "metric": "arithmetic_reproducibility",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC1"
+    },
+    {
+      "metric": "invalid_response_rate",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC2"
+    },
+    {
+      "metric": "safe_control_rate",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC2"
+    },
+    {
+      "metric": "evidence_integrity_rate",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC2"
+    },
+    {
+      "metric": "calls",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC2"
+    },
+    {
+      "metric": "tokens",
+      "note": "Observed deltas do not establish statistical superiority.",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "work_id": "FC2"
+    },
+    {
+      "metric": "latency",
+      "note": "Observed deltas do not establish statistical superiority.",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "work_id": "FC2"
+    },
+    {
+      "metric": "cost",
+      "note": "Observed deltas do not establish statistical superiority.",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "work_id": "FC2"
+    },
+    {
+      "metric": "memory_top1",
+      "note": "Observed deltas do not establish statistical superiority.",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "work_id": "FC3"
+    },
+    {
+      "metric": "normal_safe_handoff",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC3"
+    },
+    {
+      "metric": "fabricated_reference_rate",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC3"
+    },
+    {
+      "metric": "context_bytes",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC3"
+    },
+    {
+      "metric": "latency",
+      "note": "Observed deltas do not establish statistical superiority.",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "work_id": "FC3"
+    },
+    {
+      "metric": "tokens",
+      "note": "Observed deltas do not establish statistical superiority.",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "work_id": "FC3"
+    },
+    {
+      "metric": "top1",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC4"
+    },
+    {
+      "metric": "top3",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC4"
+    },
+    {
+      "metric": "safe_controls",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC4"
+    },
+    {
+      "metric": "valid_report_rate",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC4"
+    },
+    {
+      "metric": "unsupported_conclusion_rate",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC4"
+    },
+    {
+      "metric": "gate_precision",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC4"
+    },
+    {
+      "metric": "gate_recall",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC4"
+    },
+    {
+      "metric": "latency",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC4"
+    },
+    {
+      "metric": "tokens",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC4"
+    },
+    {
+      "metric": "cost",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC4"
+    },
+    {
+      "metric": "retrieval_coverage",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC5"
+    },
+    {
+      "metric": "retrieval_precision",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC5"
+    },
+    {
+      "metric": "top1",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC5"
+    },
+    {
+      "metric": "top3",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC5"
+    },
+    {
+      "metric": "safe_controls",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC5"
+    },
+    {
+      "metric": "failures",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC5"
+    },
+    {
+      "metric": "latency",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC5"
+    },
+    {
+      "metric": "tokens",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC5"
+    },
+    {
+      "metric": "cost",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC5"
+    },
+    {
+      "metric": "time_to_correct_diagnosis",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC6"
+    },
+    {
+      "metric": "active_labor",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC6"
+    },
+    {
+      "metric": "approval_time",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC6"
+    },
+    {
+      "metric": "mttr",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC6"
+    },
+    {
+      "metric": "correct_action_rate",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC6"
+    },
+    {
+      "metric": "unsafe_action_attempts",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC6"
+    },
+    {
+      "metric": "workload",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC6"
+    },
+    {
+      "metric": "recurrence",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC6"
+    },
+    {
+      "metric": "proposal_correctness",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC7"
+    },
+    {
+      "metric": "approval_outcomes",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC7"
+    },
+    {
+      "metric": "execution_success",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC7"
+    },
+    {
+      "metric": "duplicate_execution",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC7"
+    },
+    {
+      "metric": "unapproved_execution",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC7"
+    },
+    {
+      "metric": "verifier_pass",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC7"
+    },
+    {
+      "metric": "time_to_stable_recovery",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC7"
+    },
+    {
+      "metric": "mttr",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC7"
+    },
+    {
+      "metric": "active_labor",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC7"
+    },
+    {
+      "metric": "recurrence",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC7"
+    },
+    {
+      "metric": "cost_per_attempt",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC8"
+    },
+    {
+      "metric": "cost_per_valid_diagnosis",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC8"
+    },
+    {
+      "metric": "cost_per_correct_diagnosis",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC8"
+    },
+    {
+      "metric": "cost_per_safe_recovery",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC8"
+    },
+    {
+      "metric": "invoice_match_rate",
+      "note": "Required authorized external observations do not exist.",
+      "status": "BLOCKED_EXTERNAL_DATA",
+      "work_id": "FC8"
+    },
+    {
+      "metric": "completion_rate",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC9"
+    },
+    {
+      "metric": "duplicate_effects",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC9"
+    },
+    {
+      "metric": "lost_evidence",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC9"
+    },
+    {
+      "metric": "resume_latency",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC9"
+    },
+    {
+      "metric": "total_latency",
+      "note": "The paired 95% delta interval crosses zero.",
+      "status": "NO_PROVEN_IMPROVEMENT",
+      "work_id": "FC9"
+    },
+    {
+      "metric": "calls",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC9"
+    },
+    {
+      "metric": "tokens",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC9"
+    },
+    {
+      "metric": "cost",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC9"
+    },
+    {
+      "metric": "terminal_route",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC9"
+    },
+    {
+      "metric": "throughput",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC10"
+    },
+    {
+      "metric": "queue_wait",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC10"
+    },
+    {
+      "metric": "workflow_latency",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC10"
+    },
+    {
+      "metric": "error_rate",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC10"
+    },
+    {
+      "metric": "lease_contention",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC10"
+    },
+    {
+      "metric": "cpu",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC10"
+    },
+    {
+      "metric": "process_heap",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC10"
+    },
+    {
+      "metric": "database_load",
+      "note": "Statement count was measured; PostgreSQL CPU, memory and I/O were not captured.",
+      "status": "FAILED",
+      "work_id": "FC10"
+    },
+    {
+      "metric": "attack_block_rate",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC11"
+    },
+    {
+      "metric": "safe_handoff_rate",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC11"
+    },
+    {
+      "metric": "false_block_rate",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC11"
+    },
+    {
+      "metric": "route_correctness",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC11"
+    },
+    {
+      "metric": "latency",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC11"
+    },
+    {
+      "metric": "cost",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC11"
+    },
+    {
+      "metric": "critical_failures",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC11"
+    },
+    {
+      "metric": "requirement_satisfied",
+      "note": "No named current-version requirement justifies the optional capability.",
+      "status": "NOT_REQUIRED",
+      "work_id": "FC12"
+    },
+    {
+      "metric": "safety_regression",
+      "note": "No named current-version requirement justifies the optional capability.",
+      "status": "NOT_REQUIRED",
+      "work_id": "FC12"
+    },
+    {
+      "metric": "latency_overhead",
+      "note": "No named current-version requirement justifies the optional capability.",
+      "status": "NOT_REQUIRED",
+      "work_id": "FC12"
+    },
+    {
+      "metric": "cost_overhead",
+      "note": "No named current-version requirement justifies the optional capability.",
+      "status": "NOT_REQUIRED",
+      "work_id": "FC12"
+    },
+    {
+      "metric": "operational_complexity",
+      "note": "No named current-version requirement justifies the optional capability.",
+      "status": "NOT_REQUIRED",
+      "work_id": "FC12"
+    },
+    {
+      "metric": "metric_coverage",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC13"
+    },
+    {
+      "metric": "arithmetic_reproducibility",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC13"
+    },
+    {
+      "metric": "artifact_integrity",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC13"
+    },
+    {
+      "metric": "legacy_open_items",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC13"
+    },
+    {
+      "metric": "credential_findings",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
+      "work_id": "FC13"
+    }
+  ],
+  "external_blockers": [
+    {
+      "metrics": [
+        "top1",
+        "top3",
+        "safe_controls",
+        "valid_report_rate",
+        "unsupported_conclusion_rate",
+        "gate_precision",
+        "gate_recall",
+        "latency",
+        "tokens",
+        "cost"
+      ],
+      "required_external_data": [
+        "Tenant-authorized redacted confirmed closed incidents for the required fourth arm",
+        "Retention and consent decision for confirmed-history use"
+      ],
+      "title": "Untouched held-out diagnosis comparison",
+      "work_id": "FC4"
+    },
+    {
+      "metrics": [
+        "retrieval_coverage",
+        "retrieval_precision",
+        "top1",
+        "top3",
+        "safe_controls",
+        "failures",
+        "latency",
+        "tokens",
+        "cost"
+      ],
+      "required_external_data": [
+        "Tenant-authorized redacted confirmed closed incidents",
+        "Retention and consent decision"
+      ],
+      "title": "Confirmed historical-memory effect",
+      "work_id": "FC5"
+    },
+    {
+      "metrics": [
+        "time_to_correct_diagnosis",
+        "active_labor",
+        "approval_time",
+        "mttr",
+        "correct_action_rate",
+        "unsafe_action_attempts",
+        "workload",
+        "recurrence"
+      ],
+      "required_external_data": [
+        "Authorized consenting operators",
+        "Scheduled lab environment",
+        "Statistician-reviewed protocol"
+      ],
+      "title": "Randomized human response study",
+      "work_id": "FC6"
+    },
+    {
+      "metrics": [
+        "proposal_correctness",
+        "approval_outcomes",
+        "execution_success",
+        "duplicate_execution",
+        "unapproved_execution",
+        "verifier_pass",
+        "time_to_stable_recovery",
+        "mttr",
+        "active_labor",
+        "recurrence"
+      ],
+      "required_external_data": [
+        "Authorized approvers",
+        "Lab-only automation-eligible faults"
+      ],
+      "title": "Actually approved recovery comparison",
+      "work_id": "FC7"
+    },
+    {
+      "metrics": [
+        "cost_per_attempt",
+        "cost_per_valid_diagnosis",
+        "cost_per_correct_diagnosis",
+        "cost_per_safe_recovery",
+        "invoice_match_rate"
+      ],
+      "required_external_data": [
+        "Provider invoice or billing export",
+        "Infrastructure allocation rule",
+        "Human labor rate decision"
+      ],
+      "title": "Actual cost reconciliation",
+      "work_id": "FC8"
+    }
+  ],
+  "failures": {
+    "FC10_error_count": 0,
+    "FC11_critical_failures": 0,
+    "FC2_provider_error_codes": {
+      "baseline-1.5": {
+        "INCIDENT_MISMATCH": 2,
+        "INVALID_RESPONSE": 7
+      },
+      "candidate-1.6": {
+        "INVALID_RESPONSE": 4
+      }
+    },
+    "FC3_baseline_failures": 0,
+    "FC3_candidate_failures": 0,
+    "FC9_duplicate_external_effects": 0
+  },
+  "frozen_protocols": {
+    "FC10_plan_sha256": "10f5042a0f74a7ba7a40bf4a877af96a3dd50001f3b47d8536e5c584e3c3ba3d",
+    "FC11_plan_sha256": "a7657f1eadcf6a9c3b7f2f2c4c4ed2773ec4a12d899f306ae72e5bd449b0bee0",
+    "FC2_comparison_request_sha256": "3d597eb7595f814c1501afa040311a769f5e576e10fed2eb2900f6b6bb0a7f19",
+    "FC2_protocol_sha256": "26f1314146c03b0f05f30acbe6f3e73923c0cbf66756ae1a682bed655e81db31",
+    "FC9_plan_sha256": "9ee44d769836a969aacbfba3e8350424ed2f03a2ec0bb32c2d8e9942137a4ade"
+  },
+  "key_results": {
+    "capacity_broker_decision": "BROKER_EVALUATION_REQUIRED",
+    "durability_pairs": 8,
+    "durability_route_matches": 8,
+    "memory_correct_baseline": 9,
+    "memory_correct_candidate": 10,
+    "security_accepted": true,
+    "structured_acceptance_passed": true
+  },
+  "limitations": [
+    "FC4-FC8 remain blocked by explicitly named authorized human, history, approval or billing data.",
+    "No result establishes human labor reduction, MTTR reduction, actual provider cost savings or production reliability.",
+    "Local capacity results exclude PostgreSQL/container resource consumption and cannot set production capacity.",
+    "Rate-card upper bounds are not provider invoices."
+  ],
+  "objective": "Reproducible baseline-versus-candidate closure without fabricated external data.",
+  "report_date": "2026-11-13",
+  "reproduction": [
+    ".venv/Scripts/python -m evaluation.final_report --output evaluation/results/final-comparative-report/v1 --doc docs/REAL_EVALUATION_REPORT.md",
+    ".venv/Scripts/pytest -q --no-cov tests/unit/test_final_report.py"
+  ],
+  "schema_version": "final-comparative-report/1.0.0",
+  "source_artifacts": [
+    {
+      "path": "evaluation/closure/v1/registry.json",
+      "sha256": "6537cee102e390bbaf81e8fc5398621f5dc3e393ca59a99b74d6b6e4f5016b26"
+    },
+    {
+      "path": "evaluation/results/structured-reliability/v2/run-001/analysis/score.json",
+      "sha256": "b8553b8aed07278fcee5eebb502ad218542479f5251565a9573ba5f3213c463f"
+    },
+    {
+      "path": "evaluation/results/memory-context/v3/run-001/score.json",
+      "sha256": "15ec8d7226e148e496a699d40cbaaaedd4b5b32f3a235bc89566dc4db22fb827"
+    },
+    {
+      "path": "evaluation/results/final-durability/v1/run-001/result.json",
+      "sha256": "0d91543aee07548d6dd0b9d66c96ca5789523368ee1916df089075ecfce9a3e1"
+    },
+    {
+      "path": "evaluation/results/final-load/v1/confirmatory-001/confirmatory.json",
+      "sha256": "6dc0c47b0c599d97590360a08ba51e5fcb8230b69bbacb1d84526287373efa30"
+    },
+    {
+      "path": "evaluation/results/final-security/v1/run-001/result.json",
+      "sha256": "c1d524e884a4f7520e4ea590a87eeaa9f871d375c5ec85189bb8252aba38bce3"
+    },
+    {
+      "path": "evaluation/results/architecture-decisions/v1/decisions.json",
+      "sha256": "433a29c1d2dad612406a7601c285e64236fd7e77511df03e9832326849606410"
+    }
+  ]
+}

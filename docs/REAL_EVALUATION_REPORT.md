@@ -1,358 +1,207 @@
-# 真实模型评测统一报告
+# AgentOps final comparative evaluation
 
-状态：当前自动评测仍在补齐，尚不声明 C2–C7 全部验收通过。历史 mock 报告保持独立。本报告汇总实际模型、真实本地故障观测、冻结回放、确定性测试与模拟操作员结果，不能将这些分母混用。
+Generated from immutable artifacts under `final-comparative-report/1.0.0` on 2026-11-13.
+No externally blocked metric is replaced by simulation or inference.
 
-## 项目目标与实测收益
+## Outcome
 
-| 项目目标 | 方法 | 已有具体结果 | 收益结论 |
+Structured-output acceptance, the eight-pair durability safety gate and the 13-case security census passed. The designed memory set changed 9/10→10/10, but the ten-pair sample does not prove superiority. PostgreSQL throughput improved through four local workers and regressed at eight; the current supported local cap is four.
+Human outcomes, approved recovery benefit and actual cost remain externally blocked.
+
+## Metric coverage
+
+| Work | Metric | Status | Note |
 | --- | --- | --- | --- |
-| 缩短诊断时间 | 同 27 快照，单次模型与受控图，各含 18 故障及 9 控制 | 合法报告耗时中位数 4773/4625ms，P95 4859/10312ms；合法报告仅 8/27、7/27 | 成功样本集合不同，不能把耗时差换算为提效；人工 MTTR 未测 |
-| 提高根因正确率 | evaluator-only 标签，精确 ID Top-1/Top-3，失败保留 | 单次 5/18，图 4/18（27.8%/22.2%）；图低约 5.6 个百分点；控制均 0/9 | 未证实质量提升；不是生产独立留出 |
-| 提高证据可追溯性 | 不可变 Evidence/Artifact、SQL 报告与调用追踪、引用复核 | 模拟复核 8 份可用报告中 22/22 引用可解析，另 73/81 运行缺完整报告 | 可解析不等于事实正确；早期缺失未补造 |
-| 限制自动恢复风险 | schema、证据门禁、策略、实际人审等待、执行器与确定性验证分权 | 2991 项核心回归通过，13 类安全映射；真实 v2 的 LOG 部署引用负例导致新增角色校验，v4/v5 实际触发缺部署证据拒绝 | 证明特定拒绝与测试边界；不等于危险操作总体阻断率或真实恢复成功率 |
-
-## 诊断、记忆与规则对照
-
-[真实单次/图对照](../evaluation/results/real-comparison/v1/README.md)包含 54 次运行、74 个实际 provider 请求，输入 201871 token、输出 24965 token。单次流程失败 19/27，图失败 20/27；所有失败保留在分母。输入由 18 个真实本地故障观测、3 个正常观测和 6 个明确派生控制组成；首个开发样本曾用于 smoke，运行中存在已披露的版本变更及早期报告 DTO 缺失。原始读取组合 374/420 可用，46 个 trace 不可用；不能将全部失败归因于模型。
-
-[模拟历史补充](../evaluation/results/simulated-memory/v1/README.md)为 27 个运行，44 次实际请求，Top-1/3 2/18（11.1%），控制 0/9、失败 22/27；输入 161089、输出 15691 token。历史示例明确虚构且在看到基线结果后构造，不能作为真实记忆的因果效果。用户确认没有真实已关闭历史，因此真实历史对照明确未测。
-
-[同快照保守规则](../evaluation/results/rules-snapshots/v1/README.md)不修改旧规则，27 样本 Top-1/3 0/18、控制 6/9、来源失败 3/27，324 次离线快照读取，无模型调用和 token。旧规则面向叙述摘要，当前为原始遥测；固定查询策略与模型不同，仅作为独立资源分母的补充基线。
-
-上述真实请求的实际账单未返回。历史按固定代码费率估出的预算分别为 USD 0.0905193 与 0.0671559，仅是当时实验预算，不是实付费用或当前报价。规则没有模型消耗，不代表没有本机计算成本。
-
-## 实际注册工作流与安全发现
-
-注册链路组合真实 SQL 队列/租约、Prompt 注册、官方 PostgreSQL 检查点、Evidence、追踪、报告、确定性 Gate、受控修复与策略/审批等待。所有后续运行均保留失败，不宣告模型恢复成功，也不把故障清理计为产品恢复。
-
-| 实际运行 | 结果与限制 |
-| --- | --- |
-| [v1](../evaluation/results/registered-live/v1/README.md) | 11 次调用，三场：正常接手、两故障 schema 拒绝，零审批；首轮 SQL 导出不完整 |
-| [v2](../evaluation/results/registered-live/v2/README.md) | 8 次调用，一条 PENDING，但 LOG 被引用为部署证据，后置复核建议拒绝；实际审批未改写，非正确修复 |
-| [v3](../evaluation/results/registered-live/v3/README.md) | 6 次调用，三场 trace 工具失败，未触达新校验；保留正常探测异常 |
-| [v4](../evaluation/results/registered-live/v4/README.md) | 10 次调用，HTTP500 Gate PASS 后缺部署证据拒绝；内存场景重复查询拒绝，原始计划离线复现 |
-| [v5](../evaluation/results/registered-live/v5/README.md) | 11 次调用，HTTP500 完成两轮计划/诊断后角色拒绝，正常也拒绝、内存接手；零审批执行 |
-
-各运行包含独立的合成注册预检，预检不是历史数据或独立诊断准确率样本。模型请求使用 DeepSeek alias，未固定供应商底层权重；不同物理观测、版本与选择不能拼成单一受控前后收益实验。
-
-## 持久化、失败与模拟操作员
-
-[14 项 PostgreSQL 续跑组合](../evaluation/results/durable-replay/v1/run-002/README.md)验证实际注册/证据/报告/追踪、任务租约及官方检查点，但模型与工具为受控替身。未知外部结果不会重新派发；三次尝试后 DEAD_LETTER。两个重规划替换各保持 4 次模型、3 次工具、3 条证据；部分并行续跑保持 2 次模型及工具。测试时间不能作为人工 MTTR。
-
-C3 的实际模型记录和崩溃续跑采用两组证据。实际并发实验归档注册、租约、证据、报告、调用和 PostgreSQL 检查点。两条实际调用的 SQL 用量另经逐条核对。受控 PostgreSQL 测试验证工作进程替换、重复效果复用和未知结果拒绝。安全矩阵 JUnit 中的取消后接管、过期租约单一接管者、重放完整性三个用例均通过。真实 provider 调用中的故障中断未测。[实际并发记录](../evaluation/results/concurrent-registered/v1/README.md) [用量复核](../evaluation/results/registered-metering/v1/README.md) [安全矩阵 JUnit](../evaluation/results/safety-matrix/v1/run-001/junit.xml)
-
-[当前安全矩阵](../evaluation/results/safety-matrix/v1/README.md)关联 13 类检查与实际 JUnit 成员，完整回归 2991 项通过，src 语句和分支 100%；矩阵生成器另有 4 项测试。覆盖率不是模型能力或测评指标覆盖率，组数也不相加为独立实验。
-
-审批生命周期验收已核对安全矩阵 JUnit。提案变更触发旧审批失效并要求重新审批，拒绝、过期或失效审批被执行前检查拒绝，越权请求、重复请求和四种并发终态竞争均有通过记录。当前回滚证据守卫下的真实正向待审批仍待采集。历史 v2 待审批保留为日志引用负例。[安全矩阵 JUnit](../evaluation/results/safety-matrix/v1/run-001/junit.xml)
-
-[模拟操作员](../evaluation/results/simulated-operator/README.md)对 81 次归档做只读复核，可执行任务完成 20/93；缺报告等失败保留。它没有真人审批权限，不能测量真人 UX、节省工时或授权恢复。独立的待审批复核核验了真实 v2 快照，1/1 绑定通过，0/1 回滚证据角色通过，模拟建议为拒绝。实际审批决定和执行均为零。[待审批复核](../evaluation/results/simulated-operator/v2/README.md)
-
-## 资源、未测项与后续验收
-
-[历史组件负载](../evaluation/results/load/v1/run-001/README.md)仅覆盖局部 API、SQL/租约和进程内 worker，不能作为当前模型端到端吞吐。[v6 七场固定版本实测](../evaluation/results/registered-live/v6/README.md)共 15 次模型调用，正常场景基线 502 缺测，六个故障均因缺部署证据被拒绝，零审批执行。六个工作流排队中位数/P95 为 72/124ms，耗时为 8086/10032ms，进程 CPU 时间为 1718/2671ms，Python 堆峰值为 855057/4009966 bytes；并发为一，不支持生产容量或提效结论。
-
-[实际并发补充](../evaluation/results/concurrent-registered/v1/README.md)测得调查峰值 2/4，六个队列任务各完成一次，21 次实际模型调用（输入 83241、输出 6923 token）。2 路/4 路批次耗时 21781/21516ms，但调用量为 8/10，结果分别为两次失败/四次接手，不能据此计算提效或扩展比例。九份报告、36 条证据与 Artifact、17 次引用归属核验通过；审批执行为零。SQL 用量字段仍缺，精确 token 来自绑定请求的原始 provider 事件，后续需补 SQL 计量绑定。
-
-真实确认历史、实际账单、真人审批质量与工时、真实授权产品恢复、复发、跨环境泛化与生产可靠性未测。部分缺失来自用户确认没有的数据，部分属于尚未通过的产品/评测验收；不能统一标为成功。逐项状态见[覆盖清单](REAL_EVALUATION_COVERAGE.md)及[任务清单](../TODO.md)。后续按原计划完成剩余自动测量、审计和报告更新，保留全部负面结果。
-
-独立留出 v2 已冻结。21 个采集样本覆盖六类已知故障和正常场景，另有六个派生控制。正常探测 24/24 返回 200，420 个来源读取均成功返回。留出配对评分已完成。[冻结数据集](../evaluation/datasets/real-v2/README.md)
-
-
-同一留出集上，单次模型与受控图各取得 8/18 Top-1、0/9 控制达标、4/27 流程失败。规则基线为 0/18 Top-1、6/9 控制达标及 3/27 流程失败。受控图成功样本耗时中位数为 4,719ms，单次模型为 5,015ms。受控图 P95 为 9,875ms，单次模型为 5,141ms。两组实际模型结果均绑定同一提交，未证实准确率提升，真人耗时未测。[配对结果](../evaluation/results/real-holdout/v2/README.md) [规则结果](../evaluation/results/rules-snapshots/v2/README.md)
-
-冻结与隔离复核：`6a9ea91` 在模型运行前冻结 27 个输入、独立标签与捕获审计。批量模型入口只接收快照数据目录，评分端单独连接 `evaluator_only` 的标签。归档测试按预先冻结的 v1 规则重算两份评分，并验证输入、结果和协议哈希。Ground Truth 隔离、归档重算及独立注入测试共 11 项通过。注入测试与 27 个留出输入分别统计。
-留出集覆盖六类故障各三例，分别使用 4、8、12 次探测。正常、证据不足和反证各三例。冻结计划预先规定注入单独统计；独立安全归档包含六类探针各两次，其中日志注入两次。冻结、评分重算及独立探针验证共五项通过。[冻结计划](../evaluation/real_protocol/v2/capture-plan.json) [安全归档](../evaluation/results/deepseek/v2/adversarial-001/results.json)
-按归档计划从 JUnit 精确重算 13 类安全矩阵，结果与发布版本一致。另运行四项矩阵生成器测试，验证通过、失败、报错和跳过的计入规则。完整回归数字仍绑定原始采集提交 `7813bae`。[原始 JUnit 和矩阵](../evaluation/results/safety-matrix/v1/README.md)
-资源指标复核覆盖注册串行、并发、SQL 用量和留出集归档，16 项测试通过。并发批次 2 路与 4 路分别完成 2/2 与 4/4 次任务，工作量不同。已归档的 PostgreSQL 续跑记录验证了恢复行为，测试总耗时混有环境开销，缺少从工作进程替换到恢复进展的独立计时，续跑耗时继续列为未测。
-续跑补测中，首次运行发现已持久化的 RUNNING 状态可能在替换时被重复提交。修复后相同状态幂等处理，读取的重放与拒绝仍由持久化调用记录判断。14 项 PostgreSQL 组合测试通过，10 次成功替换的任务领取至完成耗时为 142.6–748.2 ms。计时不含替换进程启动，模型与工具使用受控响应。[逐例计时](../evaluation/results/durable-replay/v1/run-003/timing.json)
-留出集采集质量复核只统计 21 份原始观测，不计派生控制。420 次读取全部返回，其中 414 次报告至少一条记录。拓扑、部署、日志和指标各 84/84 非空，链路 78/84 非空。420 次均未标记完整窗口，因此读取成功率不能替代可区分故障的证据覆盖率。[冻结数据集](../evaluation/datasets/real-v2/README.md)
-对 420 条读取的来源记录复算后，12,000 字符摘要上限触发于 68/84 次链路读取和 27/84 次日志读取，共移除 1,590 个 span 和 231 条日志。其他三类读取未触发该上限。移除数量只覆盖适配器最后的摘要裁剪，源查询本身的数量上限另计。链路和日志目前按返回顺序裁剪，尚未验证被移除的记录里有多少故障信号。
-链路摘要新增带版本的裁剪策略。超过上限时先保留 OpenTelemetry 明确标记为错误的 span，同类内保持原顺序，来源记录继续保存移除数量。适配器与冻结归档共 30 项测试通过，其中包含末尾错误 span 在裁剪后保留的验证。新策略的真实采集效果仍待测。
-新链路策略实测绑定 `796ada5`。六类故障与正常各三组，21/21 组完成，清理后基线全部为 HTTP 200。84/84 次链路读取成功，70 次裁剪，其中 46 次保留错误 span。各场景裁剪后有错误数与裁剪数分别为 HTTP 500 1/1、连接池耗尽 12/12、Redis 超时 9/9、下游延迟 12/12、错误配置 12/12、内存泄漏 0/12、正常 0/12。采集未保留裁剪前的全量 span，也未对同一输入运行旧策略，无法据此估计策略带来的增量或判定故障根因。
-逐例核对快照哈希后，链路中的 `process.memory.retained_bytes` 在 3/3 个内存泄漏窗口和 0/3 个正常窗口出现。指标和日志摘要未出现该字段。各服务查询可能返回同一条链路，故按窗口计数。该字段来自模拟器实际保留的字节，仅验证本地观测的区分能力。[逐例观测](../evaluation/results/trace-memory-signal-v1.json)
-Tempo 按服务搜索可以返回整条跨服务链路。链路摘要现从每个 span 所属的 OpenTelemetry resource 保留服务名，只接受本地服务白名单，缺失时为空。来源记录标明字段出处。适配器测试验证网关查询返回的订单 span 仍归属于订单服务。实际 Tempo 返回格式待复核。
-实际 Tempo 冒烟绑定 `f082c77`，正常基线返回 HTTP 200。四次链路查询各保留 25 条 span，100/100 条均包含服务归属。网关查询包含 5 条网关、12 条订单、6 条库存和 2 条支付 span。计数按查询条目统计，同一 span 可在多个查询结果中出现。
-带服务归属的完整采集绑定 `ef2f96c`。21 份快照哈希均匹配，清理后均为 HTTP 200，420/420 次读取成功，1,686/1,686 条保留的 span 查询条目有服务归属。数据库连接池耗尽与下游延迟的错误服务集合均为网关和订单，说明单靠错误服务集合无法区分这两类故障。Redis 超时另有库存错误，错误配置另有支付错误。各组统计包含跨查询重复条目。
-在 `ef2f96c` 采集的订单链路摘要中，三个连接池耗尽窗口的 `postgres.save_order` 最大耗时分别为 2408.6、2009.5、2019.4 ms，摘要未保留 `POST payment`。三个下游延迟窗口的 `POST payment` 最大耗时分别为 2089.8、2057.8、2168.3 ms，摘要未保留 `postgres.save_order`。三个正常窗口两种操作均出现，最大分别为 44.9 和 43.3 ms。订单依赖指标有操作量但未观察到 `outcome` 标签。链路最大值只覆盖保留条目，不能把缺失解释为操作未发生，也未验证模型是否会引用该证据。
-按各案例的全部 Evidence 批次核对 v2 留出集真实模型报告。两个模型模式各保存 15 份候选报告和 8 份需补证据报告。单次模型的 50 条支持引用为日志 15、拓扑 15、指标 14、链路 6。受控图的 51 条支持引用为日志 15、拓扑 15、指标 15、链路 6，其中两条指标引用位于后续重规划批次。101 条均可解析并归属于各自事件。两组均无部署或反证引用。四项归档测试通过。
-恢复凭据后的注册演练绑定 `a93a03e`，实际发起 9 次 DeepSeek 请求。正常场景转人工，HTTP 500 与内存泄漏各有一个候选通过诊断门禁，两个场景随后以 `ValueError` 失败。两次清理后均返回 HTTP 200。待审批、审批决策、恢复执行均为 0，实际账单未知。[演练摘要](../evaluation/results/registered-live/v7/summary.json)
-v7 两条 SQL 审计结果哈希均匹配 `ROLLBACK_DISTINCT_VERSION_EVIDENCE_REQUIRED`。两个诊断门禁快照都没有部署证据，回滚检查在调用修复模型前拒绝。SQL 审批和执行表为空。下一轮应让规划明确考虑核查受影响服务的部署记录，仍由当前证据决定能否提出回滚。
-注册演练的调查输入现提示模型在观测显示服务异常时考虑读取部署记录，并通过独立遥测核对当前版本。提示应用于全部场景，未提供注入标签或预设原因。下一轮实测核对模型选用的工具和门禁实际引用。
-部署核查提示版 `1b78e24` 实测 9 次 DeepSeek 请求。正常和内存泄漏转人工接手。HTTP 500 的门禁快照只含日志、指标和拓扑，SQL 未保存部署证据，拒绝哈希仍匹配 `ROLLBACK_DISTINCT_VERSION_EVIDENCE_REQUIRED`。零待审批、零审批决策、零恢复执行。[演练摘要](../evaluation/results/registered-live/v8/summary.json)
-v8 的三份持久化计划都选择拓扑、日志、指标和链路，均未选择部署查询。因此这轮缺证据发生在工具选择阶段。清理后单独调用固定只读订单版本探针，返回基线部署 `baseline-order-v1`，无上一版本。下一轮正例演练应明确要求核查部署和独立版本观测，并单独记录这一约束；诊断与回滚证据门槛仍按现行规则评估。
-下一版 C4 定向演练明确请求部署与指标查询，服务由模型从 checkout 路径选择。场景标签和版本答案不进入模型输入。评测核对实际读取、门禁快照与审批表，作为受指导的 C4 演练记录。
-定向演练 `5723d76` 发起 11 次真实请求，三场景均转人工接手。四份已保存的调查计划都选择部署、指标、日志和链路，SQL 各保存四条证据。HTTP 500 候选因未解决反证及声明缺少证据未过门禁。三场景最终基线均为 HTTP 200，待审批、审批决策和执行均为 0。[演练摘要](../evaluation/results/registered-live/v9/summary.json)
-v9 报告指出订单指标仍有 1.0.0 的 HTTP 200，而日志与部署显示 2.0.0 的 HTTP 500。指标此前固定回看 60 秒，可能纳入观测窗口前的样本。三条指标查询现按实际窗口生成范围，并记录完整查询。15 秒抓取间隔下短窗口可能缺样本，实测仍需验证版本对齐和订单异常细节。
-指标窗口对齐后的实测绑定 `8823be9`，共 9 次 DeepSeek 请求。三场景各保存部署、指标、日志和链路证据。HTTP 500 候选以日志和链路通过诊断门禁，部署与指标未进入门禁快照。SQL 拒绝哈希再次匹配 `ROLLBACK_DISTINCT_VERSION_EVIDENCE_REQUIRED`，待审批、审批决策、恢复执行均为 0。[演练摘要](../evaluation/results/registered-live/v10/summary.json)
-v10 HTTP 500 的部署查询和指标查询均针对网关。部署只返回网关基线版本，三条指标查询均无序列。下一轮将八次探测分为两波，间隔 20 秒，并提示在网关转发失败时检查疑似下游服务。变更用于提高观测机会，待实测确认。
-分波演练 `978b367` 共发起 9 次真实请求。HTTP 500 场景的网关指标有 HTTP 502 序列，但版本查询仍选择网关，返回 1.0.0 基线且无上一版本。该场景未产生门禁候选，三场景均转人工，待审批和执行为 0。[演练摘要](../evaluation/results/registered-live/v11/summary.json)
-C4 演练可用 `--focus-order` 将订单服务设为操作员指定调查范围。运行元数据标记该范围，所有场景共用同一提示，不提供注入标签或版本答案。正例仍须由实际证据、门禁和策略共同支持。
-订单定向演练 `1dc713c` 发起 10 次实际 DeepSeek 请求。HTTP 500 候选以订单部署、日志和指标通过门禁，回滚提案以两条独立证据分别引用部署与当前版本。部署记录显示 2.0.0 和上一版本 1.0.0，指标记录 2.0.0 的 HTTP 500。策略要求审批，PostgreSQL 写入一条 `PENDING` 和一份绑定的评审快照。正常与内存泄漏场景转人工接手，审批决策及执行均为 0。模拟故障清理由演练执行，清理后 HTTP 200。[演练摘要](../evaluation/results/registered-live/v12/summary.json)
-六类故障自主实测绑定 `95c836d`，14 次模型调用、28 次只读工具调用，5/6 场景通过诊断门禁，内存泄漏转人工。连接池耗尽和 Redis 超时输出相同的通用传输故障候选，因此门禁通过率不能作为根因正确率。六场景清理后均返回 HTTP 200。[逐例结果](../evaluation/results/autonomous-live/v4/results.json)
-复核 `95c836d` 自主调查的证据文件，连接池耗尽和 Redis 超时均只查询了网关。网关链路覆盖了下游，其中前者保留 6 条 `postgres.save_order`，后者保留 4 条 `redis.reserve_inventory`。内存泄漏的链路保留 2 处 `process.memory.retained_bytes`。三组信号均已进入采集摘要，但前两例仍输出相同通用候选，内存泄漏转人工。下一步验证诊断输入是否突出这些操作及其服务归属。
-按自主调查原有的 24,000 字节预算及归档证据顺序重算，连接池耗尽、Redis 超时、下游延迟和内存泄漏的链路摘要均未进入首轮诊断输入。诊断阶段现在优先装入链路摘要，再按顺序装入其他完整证据，预算保持 24,000 字节。后续实测需同时检查链路引用及其他来源是否因预算被排除。
-链路优先的六故障自主调查绑定 `5e8098e`，使用 20 次真实模型调用和 40 次只读工具调用。连接池耗尽与 Redis 超时形成了不同候选，前者未过门禁，后者通过。HTTP 500 也通过，其余四个场景转人工，内存泄漏候选指向版本延迟。六场景清理后均返回 HTTP 200。两轮采集窗口不同，不能将门禁或候选变化全部归因于输入排序。[逐例结果](../evaluation/results/autonomous-live/v5/results.json)
-同一批 v2 留出快照的模拟历史补测绑定 `34e1ebe`。27 条结果均匹配冻结输入哈希，Top-1/3 为 11/18，控制达标 0/9，失败 4/27。此前受控图为 8/18，两个批次的代码版本不同，差值仅作描述。历史库由虚构案例组成，真实历史仍未测。[补测评分](../evaluation/results/simulated-memory/v2/run-001/score.json)
-模拟历史 v2 首次发布时，Git 换行转换导致 62/477 个文件与本地输出字节不同。已恢复原始字节并禁用该目录下的文本转换。477 个暂存文件逐一通过 Git blob 校验。
-真实调用续跑补测预设两个中断点。第一组在真实模型响应已写入效果记录、后续节点尚未完成时替换工作进程，验收要求复用同一结果、同一调用只派发一次，并记录替换进程领取至完成耗时。第二组在已派发真实请求、效果尚未提交时终止工作进程，验收要求替换进程保留未知状态，按有界队列策略拒绝重复派发。第二组记录从领取到拒绝的耗时。两组均核对 SQL 效果记录、调用追踪、队列终态和审批及执行计数。尚未采集。
-真实 DeepSeek 响应已通过 PostgreSQL 效果层复用测试。两个效果存储实例共用同一绑定，实际派发 1 次，替换实例读回同一响应耗时 13431900 ns。该测试使用同一进程内的替换实例，完整工作进程替换、队列耗时及结果未知仍待实测。复现时设置 `AGENTOPS_REAL_EFFECT_REPLAY=1`，运行 `pytest tests/integration/test_persistence.py -k real_provider_effect_replay --no-cov`。
-真实效果层两例补测通过。提交后复用耗时 12196600 ns，响应返回但提交前注入异常的拒绝耗时 8920600 ns。每例实际派发一次。注入发生在响应返回后，测试替换效果存储实例，未覆盖网络请求进行中终止进程或队列接管。
-真实模型续跑补测加入 PostgreSQL 队列。取消首个工作器任务并等待租约失效后，替换工作器以第二次尝试领取。已提交响应复用并完成，领取调用至完成耗时 35712000 ns。未提交响应拒绝重发并进入 DEAD_LETTER，耗时 30062100 ns。两例各派发一次，后续领取均为空。计时不含租约等待。测试在同一进程取消工作器任务，未在网络请求进行中终止独立进程。首次测试在最终状态检查使用了错误的 SQL 主键，修正查询后两例通过。
-独立进程补测通过两例。首个工作器在独立 Python 进程中领取任务。测试在 HTTP 请求体发送完毕且尚未读取响应时终止该进程，替换工作器拒绝重发并将任务转入死信，耗时 358887600 ns。另一例在效果记录提交后终止进程，替换工作器复用同一响应并完成任务，耗时 53511500 ns。计时从替换工作器开始领取算起，不含租约等待。这两例覆盖 SQL 队列与效果存储的组合，测试处理器不运行完整诊断图。
-调用、用量、并发与耗时归档复核通过 11 项测试。续跑补测发布了脱敏 JUnit、测试源码哈希和两项独立计时。真实模型场景的计时范围为队列及效果接管，完整图续跑由受控测试验证。实际账单仍未知。[原始计时](../evaluation/results/durable-replay/v1/run-004/summary.json)
-
-同一批 27 份 v2 快照的结果分布如下。需补证据是模型报告的处置，人工接手是规则报告的处置。四组均为离线回放。
-
-| 模式 | 故障 Top-1 | 控制达标 | 候选报告 | 需补证据 | 人工接手 | 诊断门禁通过 | 流程失败 |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 规则 | 0/18 | 6/9 | 0 | 0 | 24 | 0 | 3 |
-| 单次模型 | 8/18 | 0/9 | 15 | 8 | 0 | 13 | 4 |
-| 受控图 | 8/18 | 0/9 | 15 | 8 | 0 | 13 | 4 |
-| 受控图加模拟历史 | 11/18 | 0/9 | 14 | 9 | 0 | 4 | 4 |
-
-规则的三次失败来自来源不可用。三个模型模式各保存一次 `INVALID_RESPONSE` 调用失败，其余流程失败的归因以逐例记录为准。单次模型和受控图的 101 条支持引用均可在对应 Evidence 批次解析。模拟历史批次使用不同代码版本，真实已关闭历史仍未测。
-自主调查 v5 的 40 条证据均绑定同一案例下的记录，逐条验证内容哈希及对应工具调用，六场景清理后均为 HTTP 200。C2 的只读调查、故障信号及来源验证通过。模型在内存泄漏案例仍未识别具体信号，六场景中的四次人工接手继续计入结果。[逐例证据](../evaluation/results/autonomous-live/v5/evidence)
-
-最终自动回归通过 3,034 项，核心源码 14,287 条语句与 3,904 个分支均已覆盖。默认跳过的两项真实模型进程中断测试已独立通过。首次回归暴露旧断言与 RUNNING 状态幂等语义不一致，修正后全量通过。[回归摘要](../evaluation/results/final-regression/v1/summary.json)
-
-| 验收项 | 对应证据 |
-| --- | --- |
-| C2 只读调查、故障信号与来源 | [自主实测和 40 条证据](../evaluation/results/autonomous-live/v5/results.json) |
-| C3 持久化、队列与检查点 | [并发注册工作流](../evaluation/results/concurrent-registered/v1/README.md)、[完整图受控续跑](../evaluation/results/durable-replay/v1/run-002/README.md) |
-| C4 真实待审批与安全边界 | [门禁、策略及审批绑定](../evaluation/results/registered-live/v12/approval-binding.json) |
-| C5 冻结样本及评分 | [冻结计划](../evaluation/real_protocol/v2/capture-plan.json)、[配对评分](../evaluation/results/real-holdout/v2/README.md) |
-| C6 对照、负载、韧性与失败分布 | 本报告的 v2 对照表、[安全矩阵](../evaluation/results/safety-matrix/v1/README.md)、[真实调用进程中断](../evaluation/results/durable-replay/v1/run-004/summary.json) |
-| C7 模拟操作员 | [归档评审](../evaluation/results/simulated-operator/README.md) |
-
-真实人工审批、人工收益和真实历史记忆未测。隔离实验中的实际审批决策与恢复执行为零。
-
-后续诊断质量复核逐例重算了 v2 九个控制样本。三个正常样本在三个模型模式中都
-没有候选、没有门禁通过，模型处置为 `NEEDS_MORE_EVIDENCE`，而图终态已经是人工接手；
-旧结果导出仍使用模型处置，冻结评分只接受 `HUMAN_HANDOFF`，因此这九项中的正常部分
-是终态导出语义不一致。三个证据不足样本的 20/20 冻结读取均按控制变换标记为不可用，
-旧运行在第一个工具错误处终止，未进入缺证据报告。三个反证样本来自正常父样本，只把
-操作员的未验证部署假设加入告警；旧报告没有保存反证引用或已处置标记，其中两次另因
-解释字段超长成为无效响应。以上是旧三模式均为 0/9 的逐例原因，不改变既有冻结分数。
-
-自主调查 v5 内存案例的最终 24,000 字节诊断输入包含订单 TRACE Evidence
-`ev-a68535f08cc270da-r0-gateway_traces`，其中订单服务按 span 时间为
-5,242,880、7,340,032、8,388,608 字节；另一份重复覆盖该跨服务链路的订单 TRACE、
-两份日志因整记录预算竞争被排除。输入同时包含无上一版本的订单部署记录，模型最终
-误选 `order-v2-rollout-latency`。后续实现把保留量按服务和时间排序、去重并绑定 Evidence
-ID，单列预算纳入/排除清单和不可用读取；部署摘要显式声明只证明版本事实。单元验证覆盖
-三点持续上涨、正常无信号、两点短时上涨和单纯部署记录。实际模型前后对照仍须在相同
-快照和配置上复测，不能由单元验证替代。
-
-同快照复测标准已在任何 transport 1.4.0 实际请求前冻结。计划绑定 `f6c4acb`、v2 的
-27 个输入哈希、原 v1 评分规则、相同 DeepSeek 模型参数和三个模式；模拟历史继续单独标识，
-不冒充真实已关闭历史。复测结果尚未产生。[冻结计划](../evaluation/real_protocol/v3/quality-retest-plan.json)
-
-同快照复测完成 81/81 个 outcome。单次模型、受控图、受控图加模拟历史的 Top-1/Top-3
-均为 11/18；控制达标分别为 9/9、8/9、9/9；流程失败分别为 1/27、3/27、2/27。
-旧单次模型与受控图为 8/18、0/9、4/27，旧模拟历史为 11/18、0/9、4/27。
-这说明预期的控制/失败路由改善；不同时间的实际请求仍可能有提供方波动，不能把所有差值
-归因于单一代码改动。受控图唯一未达标控制是解释字段超长导致的无效响应。三模式合计
-199 次真实请求、15 个门禁通过、75 份报告和 150 条 Evidence 引用；150/150 同事件可解析，
-Artifact 内容哈希 150/150 匹配。三组内存泄漏在每个模式仍为 0/3 Top-1，因此留出集没有
-证明内存召回已改善。[完整复测](../evaluation/results/diagnosis-quality/v1/README.md)
-
-压缩事实的 Evidence 引用边界随后补齐：进入内存保留量或部署事实摘要的 Evidence ID
-即使其完整记录因字节预算被排除，仍会进入模型可引用集合，并在预算审计中单独列出；
-未形成压缩事实的完整排除记录仍不可引用。这只修复可解析引用的一致性，不构成实际模型
-识别内存泄漏的证据，后者仍需独立冻结回放。
-
-独立泛化批次已在请求模型前冻结：一例按两个原始 manifest 哈希重放 v5 内存案例的
-8 条 Evidence，另有正常、两点上涨、仅部署和三点持续上涨四个新样本。输入计划与评估
-标签物理分文件，运行器只加载输入；此处只记录协议冻结，尚无模型结果。
-
-首次直接回放在第一例收到 `INVALID_RESPONSE` 后暴露运行器先聚合、后落盘的审计缺口；
-该次尝试独立保留，后四例没有调用，使用量和响应哈希不可恢复。运行器随后改为每例立即
-持久化，结构化失败后继续，并自动记录证据加载、上下文构建和模型调用阶段耗时。此改动
-不重写首次失败，也不改变冻结输入或标签。
-
-第二次运行完成 5/5 次调用并逐例落盘。正常、两点上涨和仅部署三个控制均安全转人工；
-两个正例 Top-1 为 0/2。v5 同证据回放因 explanation 超长成为无效响应，新三点上涨样本
-正确描述 6→13 MiB，却因窗口短、低于 64 MiB 上限且缺少与告警的关联而保守转人工。
-因此本批次没有证明内存泄漏识别已修复。证据加载、上下文构建、模型调用合计分别为
-0、78、10,453 ms；毫秒取整使合成样本的前两阶段显示为零。实际账单、真实人工审批、
-人工工时与真实已关闭历史仍未测，并分别保留独立测量方案。[结果与限制](../evaluation/results/diagnosis-generalization/v1/README.md)
-
-## FC2 结构输出配对实测
-
-transport 1.4.0 与 1.5.0 已在同一冻结的 27 个输入、三个模式上交错完成 81 对、162 个
-真实结果，没有选择性重跑。候选的终止性结构/协议失败由 12/81 降至 4/81，减少 8 个
-（相对基线失败数减少 66.7%）；有效结果由 69/81 升至 76/81，增加 7 个或 8.64 个百分点。
-该有效率差的配对 95% 区间为 0 至 18.52 个百分点，FC1 判为 `NO_PROVEN_IMPROVEMENT`。
-
-候选在三个模式的安全控制数分别为 8/9、8/9、9/9，均不低于基线的 7/9、8/9、8/9。
-两组共 301 条引用全部解析到本事件 Evidence，且 301/301 Artifact 内容哈希匹配。但候选
-未达到预声明的零终止无效验收：两次有界修复本身仍返回无效结构，另两次在四调用预算末端
-出现无效结构或事件不匹配。另有一个受控图结果在最后一次模型输出有效后以非结构原因失败。
-
-修复调用也带来资源回退：中位耗时 4,844→5,453ms（+609ms），输入 token
-9,515→10,655（+1,140），输出 token 626→712（+86），费率上界中位数
-3,585,300→4,039,800 nUSD（+454,500）。四项配对区间的主要统计量均在有害方向，FC1
-标为 `REGRESSED`；实际账单仍未测。FC2 保持开放，下一版必须在不增加四调用预算、不降低
-严格 schema/Evidence Gate 的前提下清零剩余无效，并重新冻结和实测。
-[完整前后数据与复现说明](../evaluation/results/structured-reliability/v1/README.md)
-
-剩余失败逐例分类后，两个终止失败是修复响应仍超过 `explanation` 的 512 字符上限；另两
-个发生在四调用预算末端，分别再次产生 `steps_note` 和错误 Incident ID。一个非结构失败
-由前序 Incident 修复占用调用额度、重规划后无法完成最终诊断引起。candidate 1.6 因此只
-增加 schema 派生的机器可读生成约束：精确字段集合、低于实际 schema 上限的字符安全余量、
-以及必须逐字复制的 Incident ID。输出仍由原严格 schema 完整验证，禁止字段不会被删除，
-超长文本不会被截断，调用上限仍为四次，修复仍至多一次且不适用于写提案。该实现结果必须
-由下一轮冻结 1.5/1.6 配对实测决定，单元测试不能代替改善证据。
-
-1.5/1.6 配对实测随后完成 81 对、162 个真实 outcome。两组终止性 schema/协议错误均为
-0/81；1.5 的 9 次初始无效与 1.6 的 4 次初始无效均在唯一一次有界修复内成功。三模式的
-安全控制两组均为 9/9。1.5 的 149 条和 1.6 的 160 条 Evidence 引用全部同事件解析且
-Artifact 哈希匹配。预声明的 FC2d 验收因此通过。
-
-整体有效结果只从 77/81 升至 78/81（+1.23 个百分点），配对 95% 区间为 -3.70 至
-+6.17 个百分点，FC1 判为 `NO_PROVEN_IMPROVEMENT`。中位耗时 5,234→5,297ms，输入
-token 10,179→10,650，输出 token 675→694，费率上界 3,809,700→3,920,700 nUSD；
-成本/时延门槛失败，实际账单仍未知。Top-1/Top-3 总数两组均为 33/54。
-
-逐例复核又显示，1.6 的三个流程失败都在 PLAN 修复成功后发生：额外调用占用了四调用
-预算，图在后续重规划/诊断时触发额度上限。1.5 有四个同类失败。这不是终止无效报告，
-但仍是结构偏差引起的连锁失败，不能用较窄的预声明指标掩盖。FC2 顶层继续开放，FC2e
-要求在启动重规划前确定剩余额度足以完成完整转换；不足时保留已验证报告并安全转人工，
-不得增加调用、跳过校验或截断输出。[完整结果](../evaluation/results/structured-reliability/v2/README.md)
-
-candidate 1.7 已把这一要求实现为确定性、可审计的预算决策。重规划前预留四次剩余调用，
-覆盖重规划与最终诊断各自的一次正常调用和一次最坏情况修复；不足则不启动半程转换，保留
-当前已验证报告并进入人工接管。历史 profile 至 1.6 行为保持不变，四调用上限、严格验证、
-Evidence Gate 和只读边界均未改变。该实现是否消除连锁失败，必须由冻结后的 1.6/1.7
-同窗配对实测确认，不能由单元测试替代。
-
-1.6/1.7 的 v6 方案已在 provider 调用前冻结，绑定实现提交、27 个输入、三种模式、模拟
-历史、后置评分标签、runner、transport、workflow 和两层 scorer。除预算决策外其余条件
-保持一致，执行顺序继续按输入与模式奇偶交错。新增的预声明验收要求 candidate 在成功修复
-后不得再有流程失败，并继续要求零终止结构/协议错误、逐模式安全控制不劣和全部 Evidence/
-Artifact 引用完整；失败、转人工和不确定先验效果都保留在分母中。
-
-v6 实测完成全部 162 个结果。1.7 将成功修复后的流程失败从 3 降到 0，并产生 37 次有审计
-记录的预算不足转人工；没有开始无法保证完成的重规划。有效结果从 77/81 增至 80/81
-（+3.70 个百分点，配对 95% 区间 0 至 +8.64），但 Holm 校正后 FC1 仍为
-`NO_PROVEN_IMPROVEMENT`。安全控制两组逐模式均为 9/9，全部 158/149 个引用可解析并匹配。
-
-整体验收没有通过：1.7 有一个 DIAGNOSE 候选级语义错误，唯一修复再次触发同一校验器，
-所以候选终止结构/协议无效仍为 1/81。资源门槛虽然通过（中位耗时 5,703→5,094ms，输入
-token 10,847→9,360，费率上界 3,928,800→3,628,800 nUSD），但主要来自更早安全转人工，
-且关键安全门失败，不能解释为完成诊断的效率提升。FC2 保持开放，下一步只针对该候选语义
-不变量增加机器可读约束并重新冻结，不放宽 schema、预算或失败分母。
-
-1.7/1.8 的最终 FC2 复测完成 162 个结果并通过全部预声明安全门：两组均 81/81 有效，
-终止结构/协议无效和修复后失败均为零；逐模式安全控制均 9/9，全部 156/150 个引用完整。
-Top-1/Top-3 两组均为 36/54。中位耗时 5,312→5,235ms 未证明改善，输入 token
-9,326→9,476 与费率上界 3,616,800→3,690,900 nUSD 被 FC1 判为回退。因此 FC2 关闭只
-代表冻结集上的结构可靠性验收完成，不构成诊断质量、成本或整体效率提升声明。
-
-FC3 的第一步将内存证据判别从“三个上升点”拆成确定性序列契约。持续保留必须至少有五个
-有序样本、完整 GC 前后配对、正净分配和 GC 后仍未回落；短序列或缺 GC 只能标为证据不足，
-GC 回收、释放抵消或非单调走势分别形成正常预热、反证或短暂上升。每个样本仍绑定唯一
-Evidence ID，重复/冲突时间戳直接拒绝。后续批次才会把它接入候选上下文并冻结对照数据。
-
-候选上下文现已独立接入该契约，输出分类、斜率、净分配、GC 配对数、GC 回收字节及其
-Evidence ID；原构造器未修改，仍可作为公平对照。候选不会把五个上升点在缺少 GC 对照时
-标为持续泄漏。该工程测试仍不能替代冻结数据与真实模型前后对照。
-
-五类未见变体已形成标签隔离数据：输入只含 opaque case ID、服务、内存序列和部署事实；
-预热、短升、持续保留、仅部署与 GC/释放反证标签仅存在 evaluator-only 文件。确定性测试
-先验证标签与契约一致；runner、scorer 和全部哈希尚未冻结前，不允许模型接触这些输入。
-
-配对 runner 与后置 scorer 已实现。runner 的接口没有 labels 参数，对两个 builder 固定同一
-模型、prompt、观测和调用预算，并交错先后顺序；所有成功或失败都会写入结果。scorer 才
-读取 evaluator-only 标签，分别报告正确数、持续保留检出、安全负例、失败和资源总量。
-
-首轮五对真实调用全部完成。正确数 3/5→4/5，持续保留检出 0/1→1/1；但冻结词法 scorer
-把候选明确写出的“normal warmup, not a leak”因包含 memory retention 一词计作正例，导致
-安全负例仍为 3/4，验收失败。该结果不事后改分；修复 scorer 后必须重新冻结和重跑两臂。
-
-FC3g 已增加显式的否定语义评分配置：v2 会排除 “not a leak”、正常预热、证据不足和
-“does not establish”等否定结论，未知配置拒绝执行；v1 仍是默认配置，确保首轮失败结果
-可以按原口径逐字复算。此处只是修复并验证评分器，尚未产生新的提升数据；下一步会先冻结
-v2 的代码和输入哈希，再重新调用两组，而不是用新评分器重算旧输出。
-
-v2 配对计划现已冻结：模型、prompt、观测、输出 schema、修复策略、调用预算和评分配置
-保持一致，唯一自变量仍是原始上下文与 GC-aware 候选上下文。计划要求产生十个全新结果，
-任何提供方或协议失败保留在分母中；冻结完成本身不代表验收通过或产生提升。
-
-v2 已产生十个全新真实模型结果并通过预声明机制门槛。基线与候选正确数为 3/5→5/5
-（+2，+40 个百分点），持续保留检出 0/1→1/1，安全负例 3/4→4/4，失败 0→0；全部引用
-均解析到对应事件。资源总量为耗时 10,312→9,797ms（-515）、输入 token
-12,632→11,863（-769）、输出 972→1,052（+80）、费率上界 4,956,000→4,821,300 nUSD
-（-134,700）。五对样本只证明冻结机制变体上的改进，不支持统计效率、生产发生率、MTTR
-或整体诊断质量声明。FC3 下一步接入真实 simulator/runtime 采集和告警时间对齐。
-
-真实路径补齐分三步进行：先让有硬上限的 simulator 发射累计分配/释放和真实 GC 前后点，
-再验证 trace/log 到不可变 Incident-owned Evidence 的传输与上下文预算审计，最后把内存、
-延迟、错误和部署事实统一限制在告警窗口。每步独立验收，未完成前不扩充模型对照集。
-
-第一步已完成：fixture 以累计计数区分分配与释放，在确定的第 3/4 次分配发射同一 GC cycle
-的 BEFORE/AFTER，AFTER 前执行真实 `gc.collect()`；保留对象仍有硬上限，释放计数不会超过
-实际保留块。新增字段必须通过结构化日志白名单，未知字段拒绝策略保持不变。
-
-第二步首先处理两个已识别风险：Tempo 摘要达到上限时，错误 span 之后仍需优先保留内存
-证据 span；compact facts 不能绕过原始 observation 的上下文字节预算。候选与基线将共用
-同一预算算法，事实先占位，超限则整组拒绝并记录被排除的 Evidence ID。
-
-第二步现已完成。截断策略为 error→memory evidence→other，provenance 记录策略版本和丢弃数；
-GC/释放字段经 Artifact 完整性链进入 tenant/incident 绑定的 Evidence，跨 Incident 读取返回空。
-compact facts 与原始 observations 共用总字节上限，审计分别给出 raw、compact、总纳入字节及
-两类排除 Evidence ID；事实本身超过预算时不做截断猜测，而是整组 fail-closed。
-
-第三步先建立统一时间边界：Evidence 的 observed_from/observed_to 随恢复和新采集进入上下文，
-真实诊断构造器同时接收告警起止。窗口外、缺少时间范围或范围非法的记录不会进入 compact
-facts 或原始观测，并在预算审计中列出；合成评估兼容入口未传窗口时保持原冻结语义。
-
-该时间边界已接入真实工作流：查询的起止时间写入 Evidence 的 observation bounds，收集时间
-仍单独记录；恢复不会丢失范围。真实构造器要求时区明确且递增的双端点，stale/unscoped
-Evidence ID 进入排除审计且不进入 referenceable IDs。下一步仍需提取同窗延迟/错误事实并
-补齐矛盾观测的端到端拒绝，因此 FC3h3 尚未关闭。
-
-下一批把同窗 trace 压缩为服务级成功/错误计数和 nearest-rank P95 延迟；精确相同的
-service/name/start/end 若同时报告成功与错误，输出 `CONTRADICTORY` 和双方 Evidence ID，
-不以数量、顺序或模型置信度选择其中一方。
-
-该批已完成：同窗服务 facts 给出成功/错误计数、nearest-rank P95、可解析 Evidence IDs 和
-精确记录冲突集合；部署和内存 facts 使用相同时间筛选与总预算。FC3h 因此关闭。FC3 仍不
-关闭：必须先以真实 Docker simulator 经 Tempo/Loki 捕获并发布字段/窗口/预算审计，再冻结
-扩大后的新成对实验，不能复用五对 v1/v2 输出。
-
-FC3i1 的捕获器已实现为单次、不可覆盖输出：固定注入 memory fixture、执行六次请求、等待
-有界导出、经现有只读 gateway adapter 查询 trace/log/deployment，随后无条件 evaluator
-cleanup 并验证恢复后的 HTTP 200。输出同时保留 raw observations、provenance、派生 facts、
-总预算审计和 `recovery_credit=false`；真实运行将在该实现提交后执行。
-
-首次预运行暴露本机代理环境会接管 httpx loopback 健康探针；固定 curl 直连和 Compose 健康
-均为 200，且 finally 已清理故障，未写结果。捕获器随后对固定 127.0.0.1 连接设置
-`trust_env=false`，与现有 telemetry adapter 的边界一致；这次失败不计正式样本或选择性重跑。
-
-修复代理后 run-001 完成六次 HTTP 200，Loki/部署观测和 cleanup→HTTP 200 均存在，但 Tempo
-在固定六秒等待后返回空数组，所以 GC/retention facts 为空。该结果作为正式失败保留。捕获器
-新增最多 30 秒的有界 trace 轮询及机器验收：六次成功、SUSTAINED_RETENTION、至少一组 GC、
-release 字段、2.0.0 部署和 cleanup 全部为真才 accepted；新运行不得覆盖 run-001。
-
-run-002 在有界轮询后通过全部捕获门：六次 faulted checkout 和 cleanup 后请求均为 HTTP 200；
-Tempo trace 给出六个有序样本、一个完整 GC pair、五个净分配、零释放并分类为
-SUSTAINED_RETENTION；部署事实为 2.0.0。上下文纳入 15,546/24,000 bytes，其中 compact
-facts 1,441 bytes；raw log observation 因总预算排除。该结果只证明本地真实传输与预算机制，
-下一步仍需用新变体冻结扩大成对模型实验。
-
-扩大集现包含十个 opaque case：两个持续保留正例和八个不同安全控制，新增 stale Evidence
-时间范围与相同 span 身份冲突。标签仍在 evaluator-only 文件；确定性测试证明候选分类只在
-两个预期正例上为 SUSTAINED_RETENTION、stale 被排除、冲突为 CONTRADICTORY。runner 兼容
-原输入并为新 schema 启用告警窗口；provider 调用继续等待实现与哈希冻结。
-
-二十结果计划已在调用前冻结：两组共享模型、prompt、观测、告警窗口、Evidence IDs、schema、
-修复策略、调用预算和 v2 scorer，只改变 context builder。候选须零失败、检出两个正例、通过
-八个安全负例、不低于基线且引用全可解析；所有 provider/protocol 失败保留在分母中。
-
-二十个新结果完成并通过全部门槛。基线与候选正确数 9/10→10/10（+1，+10 个百分点），
-持续保留检出 1/2→2/2（+1，正例内 +50 个百分点），安全负例 8/8→8/8，失败 0→0，引用
-全可解析。资源为耗时 20,549→20,689ms（+140）、输入 token 26,865→25,198（-1,667）、
-输出 2,186→2,212（+26）、费率上界 10,682,700→10,213,800 nUSD（-468,900）。十对且仅
-一个准确性 discordant pair，不构成统计优越声明。FC3 关闭于内存机制和真实传输范围；
-综合 untouched 质量、人工效率、MTTR 和生产效果仍未由此证明。
+| FC0 | `unmapped_legacy_items` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC0 | `duplicate_work_ids` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC0 | `schema_valid` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC1 | `absolute_delta` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC1 | `relative_delta` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC1 | `confidence_interval` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC1 | `paired_test` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC1 | `arithmetic_reproducibility` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC2 | `invalid_response_rate` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC2 | `safe_control_rate` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC2 | `evidence_integrity_rate` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC2 | `calls` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC2 | `tokens` | `NO_PROVEN_IMPROVEMENT` | Observed deltas do not establish statistical superiority. |
+| FC2 | `latency` | `NO_PROVEN_IMPROVEMENT` | Observed deltas do not establish statistical superiority. |
+| FC2 | `cost` | `NO_PROVEN_IMPROVEMENT` | Observed deltas do not establish statistical superiority. |
+| FC3 | `memory_top1` | `NO_PROVEN_IMPROVEMENT` | Observed deltas do not establish statistical superiority. |
+| FC3 | `normal_safe_handoff` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC3 | `fabricated_reference_rate` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC3 | `context_bytes` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC3 | `latency` | `NO_PROVEN_IMPROVEMENT` | Observed deltas do not establish statistical superiority. |
+| FC3 | `tokens` | `NO_PROVEN_IMPROVEMENT` | Observed deltas do not establish statistical superiority. |
+| FC4 | `top1` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC4 | `top3` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC4 | `safe_controls` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC4 | `valid_report_rate` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC4 | `unsupported_conclusion_rate` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC4 | `gate_precision` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC4 | `gate_recall` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC4 | `latency` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC4 | `tokens` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC4 | `cost` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC5 | `retrieval_coverage` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC5 | `retrieval_precision` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC5 | `top1` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC5 | `top3` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC5 | `safe_controls` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC5 | `failures` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC5 | `latency` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC5 | `tokens` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC5 | `cost` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC6 | `time_to_correct_diagnosis` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC6 | `active_labor` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC6 | `approval_time` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC6 | `mttr` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC6 | `correct_action_rate` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC6 | `unsafe_action_attempts` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC6 | `workload` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC6 | `recurrence` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC7 | `proposal_correctness` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC7 | `approval_outcomes` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC7 | `execution_success` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC7 | `duplicate_execution` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC7 | `unapproved_execution` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC7 | `verifier_pass` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC7 | `time_to_stable_recovery` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC7 | `mttr` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC7 | `active_labor` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC7 | `recurrence` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC8 | `cost_per_attempt` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC8 | `cost_per_valid_diagnosis` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC8 | `cost_per_correct_diagnosis` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC8 | `cost_per_safe_recovery` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC8 | `invoice_match_rate` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
+| FC9 | `completion_rate` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC9 | `duplicate_effects` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC9 | `lost_evidence` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC9 | `resume_latency` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC9 | `total_latency` | `NO_PROVEN_IMPROVEMENT` | The paired 95% delta interval crosses zero. |
+| FC9 | `calls` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC9 | `tokens` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC9 | `cost` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC9 | `terminal_route` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC10 | `throughput` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC10 | `queue_wait` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC10 | `workflow_latency` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC10 | `error_rate` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC10 | `lease_contention` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC10 | `cpu` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC10 | `process_heap` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC10 | `database_load` | `FAILED` | Statement count was measured; PostgreSQL CPU, memory and I/O were not captured. |
+| FC11 | `attack_block_rate` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC11 | `safe_handoff_rate` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC11 | `false_block_rate` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC11 | `route_correctness` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC11 | `latency` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC11 | `cost` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC11 | `critical_failures` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC12 | `requirement_satisfied` | `NOT_REQUIRED` | No named current-version requirement justifies the optional capability. |
+| FC12 | `safety_regression` | `NOT_REQUIRED` | No named current-version requirement justifies the optional capability. |
+| FC12 | `latency_overhead` | `NOT_REQUIRED` | No named current-version requirement justifies the optional capability. |
+| FC12 | `cost_overhead` | `NOT_REQUIRED` | No named current-version requirement justifies the optional capability. |
+| FC12 | `operational_complexity` | `NOT_REQUIRED` | No named current-version requirement justifies the optional capability. |
+| FC13 | `metric_coverage` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC13 | `arithmetic_reproducibility` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC13 | `artifact_integrity` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC13 | `legacy_open_items` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+| FC13 | `credential_findings` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
+
+## Baseline/candidate comparisons
+
+| Work | Metric | Statistic | Baseline | Candidate | Absolute delta | Relative delta | 95% delta interval | Status |
+| --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
+| FC2 | `valid-outcome` (rate) | rate | 0.950617 | 0.962963 | 0.0123457 | 0.012987 | [-0.037037, 0.0617284] | `NO_PROVEN_IMPROVEMENT` |
+| FC2 | `safe-control` (rate) | rate | 1 | 1 | 0 | 0 | [0, 0] | `NO_PROVEN_IMPROVEMENT` |
+| FC2 | `evidence-integrity` (rate) | rate | 1 | 1 | 0 | 0 | [0, 0] | `NO_PROVEN_IMPROVEMENT` |
+| FC2 | `duration-ms` (duration-ms) | median | 5234 | 5297 | 63 | 0.0120367 | [-438, 469] | `NO_PROVEN_IMPROVEMENT` |
+| FC2 | `duration-ms` (duration-ms) | p95 | 12047 | 12921 | 874 | 0.0725492 | [78, 2062] | `NO_PROVEN_IMPROVEMENT` |
+| FC2 | `input-tokens` (input-tokens) | median | 10179 | 10650 | 471 | 0.0462717 | [-498, 1183] | `NO_PROVEN_IMPROVEMENT` |
+| FC2 | `input-tokens` (input-tokens) | p95 | 26406 | 29975 | 3569 | 0.135159 | [545, 5282] | `NO_PROVEN_IMPROVEMENT` |
+| FC2 | `output-tokens` (output-tokens) | median | 675 | 694 | 19 | 0.0281481 | [-37, 88] | `NO_PROVEN_IMPROVEMENT` |
+| FC2 | `output-tokens` (output-tokens) | p95 | 1557 | 1544 | -13 | -0.00834939 | [-142, 116] | `NO_PROVEN_IMPROVEMENT` |
+| FC2 | `cost-upper-bound` (cost-upper-bound) | median | 3.8097e+06 | 3.9207e+06 | 111000 | 0.0291362 | [-135300, 419400] | `NO_PROVEN_IMPROVEMENT` |
+| FC2 | `cost-upper-bound` (cost-upper-bound) | p95 | 9.8094e+06 | 1.07361e+07 | 926700 | 0.0944706 | [138600, 1.7913e+06] | `NO_PROVEN_IMPROVEMENT` |
+| FC2 | `initial-schema-protocol-invalids` (outcomes) | value | 9 | 4 | -5 | -0.555556 | N/A | `MEASURED` |
+| FC3 | `correct-diagnosis-rate` (rate) | value | 0.9 | 1 | 0.1 | 0.111111 | N/A | `NO_PROVEN_IMPROVEMENT` |
+| FC3 | `sustained-retention-detection-rate` (rate) | value | 0.5 | 1 | 0.5 | 1 | N/A | `NO_PROVEN_IMPROVEMENT` |
+| FC3 | `safe-negative-rate` (rate) | value | 1 | 1 | 0 | 0 | N/A | `MEASURED` |
+| FC3 | `failure-count` (outcomes) | value | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC3 | `duration` (ms) | value | 20549 | 20689 | 140 | 0.00681298 | N/A | `NO_PROVEN_IMPROVEMENT` |
+| FC3 | `input-tokens` (tokens) | value | 26865 | 25198 | -1667 | -0.062051 | N/A | `NO_PROVEN_IMPROVEMENT` |
+| FC3 | `output-tokens` (tokens) | value | 2186 | 2212 | 26 | 0.0118939 | N/A | `NO_PROVEN_IMPROVEMENT` |
+| FC3 | `cost-upper-bound` (nUSD) | value | 10682700 | 10213800 | -468900 | -0.0438934 | N/A | `NO_PROVEN_IMPROVEMENT` |
+| FC9 | `terminal-route-match-rate` (rate) | value | 1 | 1 | 0 | 0 | N/A | `MEASURED` |
+| FC9 | `duplicate_external_effects` (events) | value | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC9 | `ambiguous_result_redispatches` (events) | value | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC9 | `lost_evidence_records` (events) | value | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC9 | `total-latency` (ms) | arm-median | 86 | 108.5 | 22.5 | 0.261628 | N/A | `NO_PROVEN_IMPROVEMENT` |
+| FC9 | `paired-total-latency-delta` (ms) | median-paired-delta | 0 | 13 | 13 | N/A | [-32, 44] | `NO_PROVEN_IMPROVEMENT` |
+| FC9 | `resume-latency` (ms) | median-paired-delta | 0 | 67 | 67 | N/A | [25, 84] | `MEASURED` |
+| FC9 | `model_calls` (calls) | value | 16 | 14 | -2 | -0.125 | N/A | `MEASURED` |
+| FC9 | `tool_calls` (calls) | value | 16 | 15 | -1 | -0.0625 | N/A | `MEASURED` |
+| FC9 | `input_tokens` (tokens) | value | 1760 | 1520 | -240 | -0.136364 | N/A | `MEASURED` |
+| FC9 | `output_tokens` (tokens) | value | 880 | 760 | -120 | -0.136364 | N/A | `MEASURED` |
+| FC9 | `rate_card_upper_bound_nusd` (nUSD) | value | 14080 | 12160 | -1920 | -0.136364 | N/A | `MEASURED` |
+| FC10 | `throughput:1-to-2-workers` (jobs/s) | median | 17.227 | 28.946 | 11.719 | 0.680269 | N/A | `MEASURED` |
+| FC10 | `queue-wait-p95:1-to-2-workers` (ms) | median | 3297 | 1858 | -1439 | -0.436457 | N/A | `MEASURED` |
+| FC10 | `workflow-latency-p95:1-to-2-workers` (ms) | median | 3318 | 1882 | -1436 | -0.432791 | N/A | `MEASURED` |
+| FC10 | `error-count:1-to-2-workers` (events) | median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `duplicate-job-ownership:1-to-2-workers` (events) | median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `process-cpu:1-to-2-workers` (ms) | median | 2046 | 1937 | -109 | -0.0532747 | N/A | `MEASURED` |
+| FC10 | `python-heap-peak:1-to-2-workers` (bytes) | median | 222139 | 247001 | 24862 | 0.111921 | N/A | `MEASURED` |
+| FC10 | `database-statement-count:1-to-2-workers` (statements) | median | 450 | 453 | 3 | 0.00666667 | N/A | `MEASURED` |
+| FC10 | `throughput-paired-delta:1-to-2-workers` (jobs/s) | median-paired-delta | 0 | 12.093 | 12.093 | N/A | [11.08, 13.114] | `MEASURED` |
+| FC10 | `lease-contentions:1-to-2-workers` (events) | 11-repetition-total | 0 | 1 | 1 | N/A | N/A | `MEASURED` |
+| FC10 | `throughput:1-to-4-workers` (jobs/s) | median | 17.227 | 28.959 | 11.732 | 0.681024 | N/A | `MEASURED` |
+| FC10 | `queue-wait-p95:1-to-4-workers` (ms) | median | 3297 | 1866 | -1431 | -0.434031 | N/A | `MEASURED` |
+| FC10 | `workflow-latency-p95:1-to-4-workers` (ms) | median | 3318 | 1912 | -1406 | -0.423749 | N/A | `MEASURED` |
+| FC10 | `error-count:1-to-4-workers` (events) | median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `duplicate-job-ownership:1-to-4-workers` (events) | median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `process-cpu:1-to-4-workers` (ms) | median | 2046 | 2015 | -31 | -0.0151515 | N/A | `MEASURED` |
+| FC10 | `python-heap-peak:1-to-4-workers` (bytes) | median | 222139 | 356255 | 134116 | 0.603748 | N/A | `MEASURED` |
+| FC10 | `database-statement-count:1-to-4-workers` (statements) | median | 450 | 459 | 9 | 0.02 | N/A | `MEASURED` |
+| FC10 | `throughput-paired-delta:1-to-4-workers` (jobs/s) | median-paired-delta | 0 | 11.807 | 11.807 | N/A | [11.022, 13.018] | `MEASURED` |
+| FC10 | `lease-contentions:1-to-4-workers` (events) | 11-repetition-total | 0 | 6 | 6 | N/A | N/A | `MEASURED` |
+| FC10 | `throughput:1-to-8-workers` (jobs/s) | median | 17.227 | 21.011 | 3.784 | 0.219655 | N/A | `MEASURED` |
+| FC10 | `queue-wait-p95:1-to-8-workers` (ms) | median | 3297 | 2608 | -689 | -0.208978 | N/A | `MEASURED` |
+| FC10 | `workflow-latency-p95:1-to-8-workers` (ms) | median | 3318 | 2692 | -626 | -0.188668 | N/A | `MEASURED` |
+| FC10 | `error-count:1-to-8-workers` (events) | median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `duplicate-job-ownership:1-to-8-workers` (events) | median | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC10 | `process-cpu:1-to-8-workers` (ms) | median | 2046 | 2765 | 719 | 0.351417 | N/A | `MEASURED` |
+| FC10 | `python-heap-peak:1-to-8-workers` (bytes) | median | 222139 | 1011183 | 789044 | 3.55203 | N/A | `MEASURED` |
+| FC10 | `database-statement-count:1-to-8-workers` (statements) | median | 450 | 483 | 33 | 0.0733333 | N/A | `MEASURED` |
+| FC10 | `throughput-paired-delta:1-to-8-workers` (jobs/s) | median-paired-delta | 0 | 5.175 | 5.175 | N/A | [2.103, 7.034] | `MEASURED` |
+| FC10 | `lease-contentions:1-to-8-workers` (events) | 11-repetition-total | 0 | 43 | 43 | N/A | N/A | `MEASURED` |
+| FC11 | `attack_block` (rate) | value | 1 | 1 | 0 | 0 | N/A | `MEASURED` |
+| FC11 | `safe_handoff` (rate) | value | 1 | 1 | 0 | 0 | N/A | `MEASURED` |
+| FC11 | `false_block` (rate) | value | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC11 | `route_correctness` (rate) | value | 1 | 1 | 0 | 0 | N/A | `MEASURED` |
+| FC11 | `critical_failures` (events) | value | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+| FC11 | `duration_ms` (ms) | value | 829 | 10188 | 9359 | 11.2895 | N/A | `MEASURED` |
+| FC11 | `provider_cost_nusd` (nUSD) | value | 0 | 0 | 0 | N/A | N/A | `MEASURED` |
+
+## External blockers
+
+- **FC4 — Untouched held-out diagnosis comparison:** Tenant-authorized redacted confirmed closed incidents for the required fourth arm; Retention and consent decision for confirmed-history use.
+- **FC5 — Confirmed historical-memory effect:** Tenant-authorized redacted confirmed closed incidents; Retention and consent decision.
+- **FC6 — Randomized human response study:** Authorized consenting operators; Scheduled lab environment; Statistician-reviewed protocol.
+- **FC7 — Actually approved recovery comparison:** Authorized approvers; Lab-only automation-eligible faults.
+- **FC8 — Actual cost reconciliation:** Provider invoice or billing export; Infrastructure allocation rule; Human labor rate decision.
+
+## Limitations
+
+- FC4-FC8 remain blocked by explicitly named authorized human, history, approval or billing data.
+- No result establishes human labor reduction, MTTR reduction, actual provider cost savings or production reliability.
+- Local capacity results exclude PostgreSQL/container resource consumption and cannot set production capacity.
+- Rate-card upper bounds are not provider invoices.
+
+## Integrity and reproduction
+
+The JSON publication records SHA-256 for every source artifact. Reproduce with:
+
+- `.venv/Scripts/python -m evaluation.final_report --output evaluation/results/final-comparative-report/v1 --doc docs/REAL_EVALUATION_REPORT.md`
+- `.venv/Scripts/pytest -q --no-cov tests/unit/test_final_report.py`

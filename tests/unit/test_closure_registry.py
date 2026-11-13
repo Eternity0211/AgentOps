@@ -32,7 +32,7 @@ def test_external_blocks_and_sample_size_decisions_are_explicit() -> None:
         if item.status is WorkStatus.BLOCKED_EXTERNAL_DATA
     ]
 
-    assert {item.work_id for item in blocked} == {"FC5", "FC6", "FC7", "FC8"}
+    assert {item.work_id for item in blocked} == {"FC4", "FC5", "FC6", "FC7", "FC8"}
     assert all(item.external_requirements for item in blocked)
     assert all(item.sample_size.method for item in registry.experiments)
 

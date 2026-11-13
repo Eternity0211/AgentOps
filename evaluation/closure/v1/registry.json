@@ -40,13 +40,14 @@
       "artifact_paths": ["evaluation/memory_signal/v2/", "evaluation/results/memory-evidence/v2/"], "external_requirements": []
     },
     {
-      "work_id": "FC4", "title": "Untouched held-out diagnosis comparison", "status": "PLANNED", "owner": "agentops-evaluation", "prerequisites": ["FC1", "FC2", "FC3"],
+      "work_id": "FC4", "title": "Untouched held-out diagnosis comparison", "status": "BLOCKED_EXTERNAL_DATA", "owner": "agentops-evaluation", "prerequisites": ["FC1", "FC2", "FC3"],
       "baseline": {"arm_id": "four-baseline-current", "description": "Rules, single, graph and eligible memory baseline on frozen inputs."},
       "candidate": {"arm_id": "four-baseline-candidate", "description": "Same four groups after FC2 and FC3 changes."},
       "independent_variable": "Declared strategy, orchestration or confirmed-memory access per pair.",
       "metrics": ["top1", "top3", "safe_controls", "valid_report_rate", "unsupported_conclusion_rate", "gate_precision", "gate_recall", "latency", "tokens", "cost"],
       "sample_size": {"status": "POWER_ANALYSIS_REQUIRED", "method": "Separate pilot and paired confirmatory study sized for the declared minimum relevant Top-1 delta.", "fixed_pairs": null},
-      "artifact_paths": ["evaluation/real_protocol/v4/", "evaluation/results/final-diagnosis-comparison/v1/"], "external_requirements": []
+      "artifact_paths": ["evaluation/real_protocol/v4/", "evaluation/results/final-diagnosis-comparison/v1/"],
+      "external_requirements": ["Tenant-authorized redacted confirmed closed incidents for the required fourth arm", "Retention and consent decision for confirmed-history use"]
     },
     {
       "work_id": "FC5", "title": "Confirmed historical-memory effect", "status": "BLOCKED_EXTERNAL_DATA", "owner": "agentops-evaluation", "prerequisites": ["FC1", "FC4"],

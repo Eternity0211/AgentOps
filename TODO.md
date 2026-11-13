@@ -219,6 +219,10 @@ measurement shows no need; closing it does not mean implementing it.
         fell 468,900 nUSD; these resource deltas are descriptive, not significance claims.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
+  - External boundary recorded: the required confirmed-history fourth arm cannot run until the
+    tenant-authorized, redacted closed-incident cohort and its retention/consent decision exist.
+    The rules, single-model and controlled-graph arms may proceed, but they cannot close FC4 or be
+    relabeled as a four-arm comparison.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,
     counter-evidence and prompt-injection controls. Prevent exact IDs/payloads from appearing in
     development, historical-reference or prompt-tuning data.

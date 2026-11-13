@@ -313,7 +313,7 @@ measurement shows no need; closing it does not mean implementing it.
     calls/tokens/cost and terminal route. Acceptance: zero duplicate external effects and zero
     ambiguous-result redispatch; publish latency/cost overhead rather than only pass/fail tests.
 
-- [ ] FC10 Measure capacity and decide scaling/broker needs from data.
+- [x] FC10 Measure capacity and decide scaling/broker needs from data.
   - [x] FC10a freeze the 1/2/4/8-worker three-repetition pilot, exact local resource scope,
     correctness gates, variance-based confirmatory sizing rule and joint broker threshold.
   - [x] FC10b implement and execute the migrated-PostgreSQL pilot without selective reruns, then
@@ -325,11 +325,15 @@ measurement shows no need; closing it does not mean implementing it.
       - [x] All twelve pilot repetitions completed 64/64 Jobs with zero errors/duplicate ownership.
         Median throughput for 1/2/4/8 workers was 16.473/29.223/30.331/24.051 Jobs/s; the frozen
         variance rule selected 11 confirmatory repetitions per level.
-  - [ ] FC10c execute the separately frozen confirmatory run and publish the one-worker baseline,
+  - [x] FC10c execute the separately frozen confirmatory run and publish the one-worker baseline,
     every horizontal-worker value, deltas, intervals and the measured broker decision.
     - [x] FC10c1 extend the source-bound runner to the frozen 44-run census, deterministic bootstrap
       intervals, correctness gate and exact joint broker decision without changing pilot artifacts.
-    - [ ] FC10c2 execute once, publish and close FC10 only after all 44 repetitions are retained.
+    - [x] FC10c2 execute once, publish and close FC10 only after all 44 repetitions are retained.
+      - [x] Median throughput was 17.227/28.946/28.959/21.011 Jobs/s for 1/2/4/8 workers; all
+        44 repetitions completed with zero errors and duplicate ownership. The measured 8/4
+        throughput ratio 0.726 and queue-P95 ratio 1.398 crossed the frozen joint threshold, so
+        `BROKER_EVALUATION_REQUIRED`; this does not authorize adding a broker without FC12 evidence.
   - Run the same frozen workload at declared 1/2/4/8 worker and incident concurrency levels with
     PostgreSQL queue only; repeat on a clean environment and retain CPU, process heap, database,
     queue wait, workflow latency, throughput, error and lease-contention distributions.

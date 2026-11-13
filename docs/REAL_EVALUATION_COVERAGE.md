@@ -129,6 +129,10 @@ confirmatory 44 次运行方案已在执行前冻结，pilot 的 8-worker 回落
 FC10c1 已把 confirmatory 方案接入同一 runner：正式输出必须含 11×4 全部 repetition、基线
 差值、确定性 bootstrap 区间、correctness gate 与联合 broker 阈值。runner hash 已在任何
 confirmatory 执行前写入冻结计划。
+FC10 confirmatory 44 次全部完成，错误与重复 ownership 为 0；1/2/4/8 workers 吞吐中位数
+17.227/28.946/28.959/21.011 Jobs/s。8/4 吞吐比 0.726、queue-wait P95 比 1.398，越过联合
+阈值，结论为 `BROKER_EVALUATION_REQUIRED`，不是直接引入 Kafka/NATS；FC12 必须先做同负载
+替代方案对照和 superseding ADR。
 
 | 测量项目 | 已有证据与结果 | 结论及剩余边界 |
 | --- | --- | --- |

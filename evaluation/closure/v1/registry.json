@@ -99,7 +99,7 @@
       "artifact_paths": ["evaluation/durability/v2/", "evaluation/results/final-durability/v1/"], "external_requirements": []
     },
     {
-      "work_id": "FC10", "title": "Capacity and scaling decision", "status": "PLANNED", "owner": "agentops-evaluation", "prerequisites": ["FC1", "FC9"],
+      "work_id": "FC10", "title": "Capacity and scaling decision", "status": "COMPLETE", "owner": "agentops-evaluation", "prerequisites": ["FC1", "FC9"],
       "baseline": {"arm_id": "postgres-single-worker", "description": "PostgreSQL queue with one worker and one incident at a time."},
       "candidate": {"arm_id": "postgres-horizontal-workers", "description": "The same queue with 2, 4 and 8 workers and incident concurrency."},
       "independent_variable": "Worker and incident concurrency only.",

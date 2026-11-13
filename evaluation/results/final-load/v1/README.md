@@ -14,3 +14,9 @@ deltas and deterministic 95% bootstrap intervals.
 CPU and heap observations cover the local Python process only; SQL statement count is not database
 CPU or memory. Neither pilot nor confirmatory results may be labeled production capacity,
 availability or MTTR.
+
+The confirmatory run retained all 44 repetitions. Median throughput at 1/2/4/8 workers was
+17.227/28.946/28.959/21.011 Jobs/s, with zero errors and zero duplicate ownership. The eight/four
+throughput ratio was 0.726 and queue-wait P95 ratio was 1.398, crossing the predeclared joint
+threshold. The resulting decision is `BROKER_EVALUATION_REQUIRED`, not “add Kafka/NATS”: queue
+tuning or an alternative must beat this exact workload in a superseding ADR before adoption.

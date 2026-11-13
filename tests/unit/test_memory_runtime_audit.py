@@ -49,3 +49,6 @@ def test_runtime_audit_reports_comparison_ready_cleanup_and_evidence() -> None:
     assert document["referenceable_evidence_ids"] == ["runtime-traces"]
     assert document["context_budget"]["admitted_bytes"] <= document["context_budget"]["limit_bytes"]
     assert document["service_facts"][0]["p95_duration_ms"] == 100.0
+    assert document["accepted"] is False
+    assert document["acceptance"]["six_successful_checkouts"] is False
+    assert document["acceptance"]["release_counter_observed"] is True

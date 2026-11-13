@@ -23,7 +23,16 @@ from evaluation.run_live_diagnosis import ENVIRONMENT, ROOT, checkout, ready, wa
 async def _collect(start: datetime, end: datetime) -> list[dict[str, str]]:
     observations: list[dict[str, str]] = []
     for tool in ("query_traces", "query_logs", "query_deployments"):
-        result = await LocalReadAdapter(tool, start, end).invoke(None, {"service": "order"})  # type: ignore[arg-type]
+        deadline = time.monotonic() + (30 if tool == "query_traces" else 0)
+        while True:
+            result = await LocalReadAdapter(tool, start, end).invoke(None, {"service": "order"})  # type: ignore[arg-type]
+            if (
+                tool != "query_traces"
+                or "process.memory.retained_bytes" in str(result["summary"])
+                or time.monotonic() >= deadline
+            ):
+                break
+            await asyncio.sleep(2)
         observations.append(
             {
                 "id": f"runtime-{tool.removeprefix('query_')}",
@@ -32,6 +41,8 @@ async def _collect(start: datetime, end: datetime) -> list[dict[str, str]]:
                 "observed_from": start.isoformat(),
                 "observed_to": end.isoformat(),
                 "provenance": str(result["provenance"]),
+                "records_seen": str(result["records_seen"]),
+                "complete_window": str(result["complete_window"]).lower(),
             }
         )
     return observations
@@ -54,7 +65,7 @@ def build_audit_document(
     context = build_candidate_diagnosis_context(
         context_inputs, {}, window_start=start, window_end=end
     )
-    return {
+    document = {
         "schema_version": "memory-runtime-audit/1.0.0",
         "evaluator_run_id": run_id,
         "window_start": start.isoformat(),
@@ -71,6 +82,22 @@ def build_audit_document(
         "after_cleanup_status": after_cleanup_status,
         "recovery_credit": False,
     }
+    memory = document["memory_facts"]
+    raw = "\n".join(observation["summary"] for observation in observations)
+    document["acceptance"] = {
+        "six_successful_checkouts": document["checkout_statuses"] == [200] * 6,
+        "sustained_retention": any(
+            fact.get("classification") == "SUSTAINED_RETENTION" for fact in memory
+        ),
+        "complete_gc_pair": any(fact.get("gc_pair_count", 0) >= 1 for fact in memory),
+        "release_counter_observed": "process.memory.retention_releases" in raw,
+        "fault_deployment_observed": any(
+            fact.get("version") == "2.0.0" for fact in document["deployment_facts"]
+        ),
+        "cleanup_verified": cleanup_exit == 0 and after_cleanup_status == 200,
+    }
+    document["accepted"] = all(document["acceptance"].values())
+    return document
 
 
 def capture(output: Path) -> None:
@@ -111,12 +138,10 @@ def capture(output: Path) -> None:
         cleanup_exit=cleanup_exit,
         after_cleanup_status=after_cleanup_status,
     )
-    if document["checkout_statuses"] != [200] * 6:
-        raise RuntimeError("memory capture checkout failed")
-    if cleanup_exit != 0 or after_cleanup_status != 200:
-        raise RuntimeError("memory capture cleanup verification failed")
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if not document["accepted"]:
+        raise RuntimeError("memory runtime audit acceptance failed")
 
 
 def main() -> None:

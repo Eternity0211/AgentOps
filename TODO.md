@@ -198,6 +198,9 @@ measurement shows no need; closing it does not mean implementing it.
     that reports baseline, candidate and deltas without reusing v1/v2 outputs.
     - [ ] FC3i1 add a bounded one-command capture that always cleans the evaluator fault, verifies
       post-cleanup HTTP 200, and records raw trace/log/deployment observations plus derived audits.
+      - [ ] Preserve failed run-001: all checkouts and cleanup passed, but Tempo returned no trace
+        within the original fixed six-second wait, so GC/retention acceptance failed. Add bounded
+        trace polling and explicit machine-readable acceptance before a fresh run.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,

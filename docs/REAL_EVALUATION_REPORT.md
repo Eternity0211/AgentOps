@@ -329,3 +329,8 @@ cleanup 并验证恢复后的 HTTP 200。输出同时保留 raw observations、p
 首次预运行暴露本机代理环境会接管 httpx loopback 健康探针；固定 curl 直连和 Compose 健康
 均为 200，且 finally 已清理故障，未写结果。捕获器随后对固定 127.0.0.1 连接设置
 `trust_env=false`，与现有 telemetry adapter 的边界一致；这次失败不计正式样本或选择性重跑。
+
+修复代理后 run-001 完成六次 HTTP 200，Loki/部署观测和 cleanup→HTTP 200 均存在，但 Tempo
+在固定六秒等待后返回空数组，所以 GC/retention facts 为空。该结果作为正式失败保留。捕获器
+新增最多 30 秒的有界 trace 轮询及机器验收：六次成功、SUSTAINED_RETENTION、至少一组 GC、
+release 字段、2.0.0 部署和 cleanup 全部为真才 accepted；新运行不得覆盖 run-001。

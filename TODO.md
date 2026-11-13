@@ -196,6 +196,8 @@ measurement shows no need; closing it does not mean implementing it.
   - [ ] FC3i run the real Docker simulator memory scenario through Tempo/Loki collection, publish
     the captured GC/release/window/budget audit, then freeze and run an expanded paired comparison
     that reports baseline, candidate and deltas without reusing v1/v2 outputs.
+    - [ ] FC3i1 add a bounded one-command capture that always cleans the evaluator fault, verifies
+      post-cleanup HTTP 200, and records raw trace/log/deployment observations plus derived audits.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,

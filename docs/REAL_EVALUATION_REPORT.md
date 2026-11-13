@@ -320,3 +320,8 @@ service/name/start/end 若同时报告成功与错误，输出 `CONTRADICTORY` �
 精确记录冲突集合；部署和内存 facts 使用相同时间筛选与总预算。FC3h 因此关闭。FC3 仍不
 关闭：必须先以真实 Docker simulator 经 Tempo/Loki 捕获并发布字段/窗口/预算审计，再冻结
 扩大后的新成对实验，不能复用五对 v1/v2 输出。
+
+FC3i1 的捕获器已实现为单次、不可覆盖输出：固定注入 memory fixture、执行六次请求、等待
+有界导出、经现有只读 gateway adapter 查询 trace/log/deployment，随后无条件 evaluator
+cleanup 并验证恢复后的 HTTP 200。输出同时保留 raw observations、provenance、派生 facts、
+总预算审计和 `recovery_credit=false`；真实运行将在该实现提交后执行。

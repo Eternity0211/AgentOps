@@ -1,6 +1,10 @@
 {
   "schema_version": "capacity-pilot-plan/1.0.0",
   "status": "FROZEN_BEFORE_PILOT",
+  "implementation_binding_note": "The levels, repetitions, metrics, sizing and broker rules were frozen before the runner existed. This source hash was added after a discarded exploratory validation and before the create-only formal pilot.",
+  "source_bindings": {
+    "evaluation/run_capacity_pilot.py": "5f090447cf1a84a1e47d82b352456ff900766a6102126b074a71e13cd28aef35"
+  },
   "queue": "PostgreSQL JobRepository claim/lease; no broker or control-plane Redis",
   "operations_per_repetition": 64,
   "worker_levels": [1, 2, 4, 8],

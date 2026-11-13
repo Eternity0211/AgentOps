@@ -120,6 +120,9 @@ Evidence 丢失 0。总时延差中位数 +13ms，配对 bootstrap 区间 -32 �
 FC10a 已冻结容量 pilot：同一 64-Job PostgreSQL 队列分别用 1/2/4/8 workers，每级三次；
 pilot 只用于按 log-throughput 方差确定 5–30 次 confirmatory 重复数。Kafka/NATS 只有在最终
 4→8 workers 吞吐不超过 1.05 倍且 queue-wait P95 至少恶化 1.25 倍时才进入后续 ADR。
+FC10b1 已实现真实 JobRepository claim/complete runner，记录逐 Job queue/workflow 时间、空
+claim 竞争、SQL statement、进程 CPU 与 Python heap。一次探索运行已丢弃；正式 pilot 必须
+在 runner hash 写入计划后新建，并据正式方差冻结 confirmatory 次数。
 
 | 测量项目 | 已有证据与结果 | 结论及剩余边界 |
 | --- | --- | --- |

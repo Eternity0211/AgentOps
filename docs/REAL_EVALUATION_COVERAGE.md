@@ -133,6 +133,10 @@ FC10 confirmatory 44 次全部完成，错误与重复 ownership 为 0；1/2/4/8
 17.227/28.946/28.959/21.011 Jobs/s。8/4 吞吐比 0.726、queue-wait P95 比 1.398，越过联合
 阈值，结论为 `BROKER_EVALUATION_REQUIRED`，不是直接引入 Kafka/NATS；FC12 必须先做同负载
 替代方案对照和 superseding ADR。
+FC11 十三类固定安全/混沌语义对照已完成：attack block 8/8→8/8、safe handoff 4/4→4/4、
+false block 0/1→0/1、route correctness 13/13→13/13，差值均为 0 个百分点，critical failure
+为 0。JUnit 本地时间 829→10,188ms（+9,359ms），含 fresh PostgreSQL setup，不解释为运行时
+安全开销；两组无 provider 调用，成本 0→0。
 
 | 测量项目 | 已有证据与结果 | 结论及剩余边界 |
 | --- | --- | --- |

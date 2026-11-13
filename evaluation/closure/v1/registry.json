@@ -108,7 +108,7 @@
       "artifact_paths": ["evaluation/load/v2/", "evaluation/results/final-load/v1/"], "external_requirements": []
     },
     {
-      "work_id": "FC11", "title": "Adversarial and chaos comparison", "status": "PLANNED", "owner": "agentops-evaluation", "prerequisites": ["FC1", "FC2"],
+      "work_id": "FC11", "title": "Adversarial and chaos comparison", "status": "COMPLETE", "owner": "agentops-evaluation", "prerequisites": ["FC1", "FC2"],
       "baseline": {"arm_id": "current-security-boundary", "description": "Current production safety boundary on the frozen attack matrix."},
       "candidate": {"arm_id": "candidate-security-boundary", "description": "Post-fix boundary on the identical matrix."},
       "independent_variable": "Declared safety or resilience fix only.",

@@ -152,6 +152,8 @@ measurement shows no need; closing it does not mean implementing it.
     - [ ] FC2g4 isolate the remaining opportunity to DIAGNOSE/REMEDIATE schema compaction while
       keeping PLAN byte-identical to 1.8. Run one final frozen 1.8/candidate comparison; stop this
       optimization line after that result whether it improves, is null or regresses.
+      - [x] FC2g4a implement candidate 1.11 with PLAN byte-equivalent to 1.8 and schema-only
+        compaction limited to DIAGNOSE/REMEDIATE; retain frozen fingerprints through 1.10.
 
 - [x] FC3 Make memory-leak evidence discriminative before asking the model to classify it.
   - Capture a longer bounded series including retained bytes before/after GC, allocation and

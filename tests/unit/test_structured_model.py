@@ -361,6 +361,33 @@ def test_candidate_1_10_compacts_only_schema_whitespace(purpose: ModelPurpose) -
     )
 
 
+@pytest.mark.parametrize("purpose", list(ModelPurpose))
+def test_candidate_1_11_keeps_plan_bytes_and_compacts_other_schemas(
+    purpose: ModelPurpose,
+) -> None:
+    context = {"incident_id": "incident-1", "evidence_ids": ["e1", "e2"]}
+    baseline = StructuredEvaluationModel.request_payload(
+        purpose,
+        context,
+        profile=StructuredTransportProfile.CANDIDATE_1_8,
+    )
+    candidate = StructuredEvaluationModel.request_payload(
+        purpose,
+        context,
+        profile=StructuredTransportProfile.CANDIDATE_1_11,
+    )
+
+    if purpose is ModelPurpose.PLAN:
+        assert candidate | {"model": baseline["model"]} == baseline
+        return
+    baseline_user = baseline["messages"][1]["content"]
+    candidate_user = candidate["messages"][1]["content"]
+    assert candidate | {"messages": baseline["messages"]} == baseline
+    assert candidate["messages"][0] == baseline["messages"][0]
+    assert json.loads(candidate_user) == json.loads(baseline_user)
+    assert len(candidate_user.encode()) < len(baseline_user.encode())
+
+
 def test_profiles_through_1_8_keep_frozen_request_fingerprints() -> None:
     context = {"incident_id": "incident-1", "evidence_ids": ["e1", "e2"]}
     expected = {
@@ -393,6 +420,11 @@ def test_profiles_through_1_8_keep_frozen_request_fingerprints() -> None:
             "PLAN": "ac425cebc7050b5168c767650b90823031401d9617700873c430ebcbdb41ecd9",
             "DIAGNOSE": "da63f05d9a55a91f18e9f6ae7c2b7d911e44459f9814cf93cabee78399487fcc",
             "REMEDIATE": "2a1e6a63833d1d3ed37afe95869034017967391ce25549435e0701e9b69fafde",
+        },
+        StructuredTransportProfile.CANDIDATE_1_10: {
+            "PLAN": "5d5510ae426a666bbf16424bdc783e858853dce3e783a31a3c13978e4cf286c5",
+            "DIAGNOSE": "b6da88e6c0388c265eec99cdc5b3fb538484fda27a1ad1e6bf51a1232b0f254c",
+            "REMEDIATE": "def2a85a54e72ec758baa36599db63750d914600c0dcf248f6bb5df2bc8dc477",
         },
     }
 

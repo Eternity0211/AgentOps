@@ -135,6 +135,8 @@ measurement shows no need; closing it does not mean implementing it.
     81/81 candidate validity, zero terminal invalids, zero failures after successful repair, safe
     controls and Evidence integrity no worse than 1.8; token/cost improvement is claimed only from
     the frozen paired intervals and all null or regressed results remain publishable.
+    - [x] FC2g1 implement candidate 1.9, lock historical 1.4–1.8 request fingerprints, prove
+      parsed-request equivalence and freeze the 162-outcome 1.8/1.9 plan before provider calls.
 
 - [x] FC3 Make memory-leak evidence discriminative before asking the model to classify it.
   - Capture a longer bounded series including retained bytes before/after GC, allocation and

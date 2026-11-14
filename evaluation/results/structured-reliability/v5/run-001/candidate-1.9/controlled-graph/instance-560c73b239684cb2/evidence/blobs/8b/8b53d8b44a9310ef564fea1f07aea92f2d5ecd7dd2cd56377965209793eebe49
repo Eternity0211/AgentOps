@@ -1,0 +1,1 @@
+{"provenance":"{\"attempts\":1,\"call_id\":\"call-cee74aa800f2d02d-r0-payment-logs\",\"error_code\":\"SNAPSHOT_SOURCE_UNAVAILABLE\",\"records_seen\":0,\"source_available\":false,\"tool\":\"query_logs\",\"version\":\"2.0.0\"}","summary":"{\"error_code\": \"SNAPSHOT_SOURCE_UNAVAILABLE\", \"status\": \"UNAVAILABLE\"}"}

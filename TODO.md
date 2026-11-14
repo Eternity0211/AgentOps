@@ -137,6 +137,10 @@ measurement shows no need; closing it does not mean implementing it.
     the frozen paired intervals and all null or regressed results remain publishable.
     - [x] FC2g1 implement candidate 1.9, lock historical 1.4–1.8 request fingerprints, prove
       parsed-request equivalence and freeze the 162-outcome 1.8/1.9 plan before provider calls.
+    - [x] FC2g2 retain and publish the failed 1.8/1.9 run without selective reruns. Input tokens
+      improved 9,672→9,284 with a paired median interval [-585, -58], but candidate validity was
+      80/81 and safe controls 26/27 after one PLAN repeated forbidden `steps_note` through repair.
+      Safety/reliability takes precedence, so candidate 1.9 is rejected and no improvement claimed.
 
 - [x] FC3 Make memory-leak evidence discriminative before asking the model to classify it.
   - Capture a longer bounded series including retained bytes before/after GC, allocation and

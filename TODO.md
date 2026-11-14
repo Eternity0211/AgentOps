@@ -250,6 +250,24 @@ measurement shows no need; closing it does not mean implementing it.
         fell 468,900 nUSD; these resource deltas are descriptive, not significance claims.
 
 - [ ] FC4 Improve diagnosis quality on an untouched, adequately sized held-out set.
+  - [x] FC4a Freeze the project-effect scorecard and development execution order.
+    Define core outcomes, critical safety guardrails and supporting engineering metrics in the
+    machine-readable `evaluation/scorecard/v1/scorecard.json` and the human-readable
+    `docs/PROJECT_EFFECT_SCORECARD.md`. Every metric names its arms, direction, current evidence or
+    explicit missing state, measurability and completion prerequisite. Verification covers the
+    scorecard contract, closure registry, planning documents, Ruff and strict mypy.
+  - [ ] FC4b Build and freeze a new label-isolated lab holdout before exposing it to any candidate.
+    Cover all six fault families, normal, insufficient Evidence, counter-evidence, prompt injection,
+    cross-service dependency and deployment-timing variants. This produces development evidence and
+    does not by itself satisfy the confirmed-history fourth arm.
+  - [ ] FC4c Classify the existing diagnosis errors and optimize only on separate development data.
+    Attribute each miss to decisive-Evidence absence, selection, causal correlation, ranking,
+    counter-evidence handling or unsupported conclusion; preserve schemas, Gate and authority.
+  - [ ] FC4d Freeze the resulting implementation and run the untouched rules/single/graph lab
+    comparison once. Publish baseline, candidate, delta, 95% interval and failures for every metric;
+    null or negative outcomes remain valid results and selective reruns are forbidden.
+  - [ ] FC4e Add the confirmed-history fourth arm only when the named external data and consent
+    prerequisites exist. Until then FC4 remains open even if FC4b-FC4d complete.
   - External boundary recorded: the required confirmed-history fourth arm cannot run until the
     tenant-authorized, redacted closed-incident cohort and its retention/consent decision exist.
     The rules, single-model and controlled-graph arms may proceed, but they cannot close FC4 or be

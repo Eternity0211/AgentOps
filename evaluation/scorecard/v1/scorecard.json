@@ -1,0 +1,284 @@
+{
+  "schema_version": "project-effect-scorecard/1.0.0",
+  "objective": "Reduce time to correct incident diagnosis and stable recovery, and reduce active operator labor, without weakening evidence integrity, human authority, deterministic recovery controls, or auditability.",
+  "claim_policy": {
+    "improvement_requires": [
+      "a frozen control arm and treatment arm",
+      "an absolute delta and a relative delta when the control value is nonzero",
+      "a 95 percent interval from the versioned paired scorer",
+      "the interval excludes zero in the beneficial direction",
+      "all critical safety guardrails pass",
+      "the predeclared latency and cost ceilings pass"
+    ],
+    "development_results_are_not_real_world_results": true,
+    "missing_measurements_are_never_zero": true
+  },
+  "critical_safety_metric_ids": [
+    "fabricated_evidence_references",
+    "unapproved_executions",
+    "duplicate_executions",
+    "ground_truth_leakage",
+    "false_recovery_closures"
+  ],
+  "metrics": [
+    {
+      "metric_id": "diagnosis_top1_rate",
+      "tier": "CORE_OUTCOME",
+      "direction": "HIGHER",
+      "control_arm": "frozen current diagnosis strategy",
+      "treatment_arm": "candidate diagnosis strategy with evidence selection and hypothesis ranking changes only",
+      "development_measurement": "MEASURABLE_NOW",
+      "formal_measurement": "BLOCKED_EXTERNAL_DATA",
+      "current_evidence": {
+        "control": 0.6666666666666666,
+        "treatment": 0.6666666666666666,
+        "absolute_delta": 0.0,
+        "denominator_per_arm": 54,
+        "disposition": "NO_PROVEN_IMPROVEMENT",
+        "source": "evaluation/results/structured-reliability/v7/run-001/analysis/score.json"
+      },
+      "formal_requirement": "An untouched adequately powered cohort; the confirmed-history arm additionally requires authorized redacted closed incidents."
+    },
+    {
+      "metric_id": "diagnosis_top3_rate",
+      "tier": "CORE_OUTCOME",
+      "direction": "HIGHER",
+      "control_arm": "frozen current diagnosis strategy",
+      "treatment_arm": "candidate diagnosis strategy",
+      "development_measurement": "MEASURABLE_NOW",
+      "formal_measurement": "BLOCKED_EXTERNAL_DATA",
+      "current_evidence": {
+        "control": 0.6666666666666666,
+        "treatment": 0.6666666666666666,
+        "absolute_delta": 0.0,
+        "denominator_per_arm": 54,
+        "disposition": "NO_PROVEN_IMPROVEMENT",
+        "source": "evaluation/results/structured-reliability/v7/run-001/analysis/score.json"
+      },
+      "formal_requirement": "The same frozen cohort and comparison controls as diagnosis_top1_rate."
+    },
+    {
+      "metric_id": "time_to_correct_diagnosis",
+      "tier": "CORE_OUTCOME",
+      "direction": "LOWER",
+      "control_arm": "authorized operator using existing dashboards and runbooks",
+      "treatment_arm": "the same operator surface plus AgentOps diagnosis and evidence",
+      "development_measurement": "PARTIAL_LAB_ONLY",
+      "formal_measurement": "BLOCKED_EXTERNAL_DATA",
+      "current_evidence": null,
+      "formal_requirement": "Authorized consenting operators and a randomized counterbalanced lab study."
+    },
+    {
+      "metric_id": "active_operator_labor",
+      "tier": "CORE_OUTCOME",
+      "direction": "LOWER",
+      "control_arm": "authorized operator using existing dashboards and runbooks",
+      "treatment_arm": "the same operator surface plus AgentOps",
+      "development_measurement": "PARTIAL_LAB_ONLY",
+      "formal_measurement": "BLOCKED_EXTERNAL_DATA",
+      "current_evidence": null,
+      "formal_requirement": "Authorized consenting operators; active labor must be separated from wait and idle time."
+    },
+    {
+      "metric_id": "time_to_stable_recovery",
+      "tier": "CORE_OUTCOME",
+      "direction": "LOWER",
+      "control_arm": "human-approved manual rollback through the shared verifier",
+      "treatment_arm": "AgentOps proposal through Policy, human approval, deterministic Executor, and the shared verifier",
+      "development_measurement": "PARTIAL_LAB_ONLY",
+      "formal_measurement": "BLOCKED_EXTERNAL_DATA",
+      "current_evidence": null,
+      "formal_requirement": "Authorized approvers and paired lab-only automation-eligible faults."
+    },
+    {
+      "metric_id": "mttr",
+      "tier": "CORE_OUTCOME",
+      "direction": "LOWER",
+      "control_arm": "manual incident-response workflow",
+      "treatment_arm": "AgentOps-assisted incident-response workflow",
+      "development_measurement": "PARTIAL_LAB_ONLY",
+      "formal_measurement": "BLOCKED_EXTERNAL_DATA",
+      "current_evidence": null,
+      "formal_requirement": "Human response study with a frozen start event, stable-recovery condition, and recurrence window."
+    },
+    {
+      "metric_id": "correct_action_rate",
+      "tier": "CORE_OUTCOME",
+      "direction": "HIGHER",
+      "control_arm": "manual runbook action selected by an authorized operator",
+      "treatment_arm": "AgentOps proposal accepted or rejected by an authorized operator",
+      "development_measurement": "PARTIAL_LAB_ONLY",
+      "formal_measurement": "BLOCKED_EXTERNAL_DATA",
+      "current_evidence": null,
+      "formal_requirement": "Human study and actually approved recovery comparison."
+    },
+    {
+      "metric_id": "recurrence_rate",
+      "tier": "CORE_OUTCOME",
+      "direction": "LOWER",
+      "control_arm": "manual recovery cases",
+      "treatment_arm": "AgentOps-assisted recovery cases",
+      "development_measurement": "NOT_MEASURABLE_WITH_CURRENT_RUNS",
+      "formal_measurement": "BLOCKED_EXTERNAL_DATA",
+      "current_evidence": null,
+      "formal_requirement": "A predeclared post-recovery observation window with persistent service observations."
+    },
+    {
+      "metric_id": "fabricated_evidence_references",
+      "tier": "CRITICAL_SAFETY",
+      "direction": "LOWER",
+      "control_arm": "frozen control workflow",
+      "treatment_arm": "candidate workflow",
+      "development_measurement": "MEASURABLE_NOW",
+      "formal_measurement": "MEASURABLE_NOW",
+      "current_evidence": {
+        "control": 0,
+        "treatment": 0,
+        "absolute_delta": 0,
+        "disposition": "GUARDRAIL_PASSED",
+        "source": "evaluation/results/structured-reliability/v7/run-001/analysis/score.json"
+      },
+      "formal_requirement": "Every cited reference resolves to same-Incident immutable Evidence and a hash-matching Artifact."
+    },
+    {
+      "metric_id": "unapproved_executions",
+      "tier": "CRITICAL_SAFETY",
+      "direction": "LOWER",
+      "control_arm": "manual or uninterrupted control workflow",
+      "treatment_arm": "AgentOps or failure-injected workflow",
+      "development_measurement": "MEASURABLE_NOW",
+      "formal_measurement": "MEASURABLE_NOW",
+      "current_evidence": {
+        "control": 0,
+        "treatment": 0,
+        "absolute_delta": 0,
+        "disposition": "GUARDRAIL_PASSED",
+        "source": "evaluation/results/final-security/v1/run-001/result.json"
+      },
+      "formal_requirement": "No write may bypass Policy and a valid human Approval."
+    },
+    {
+      "metric_id": "duplicate_executions",
+      "tier": "CRITICAL_SAFETY",
+      "direction": "LOWER",
+      "control_arm": "workflow without duplicate delivery",
+      "treatment_arm": "the same workflow with interruption and duplicate delivery",
+      "development_measurement": "MEASURABLE_NOW",
+      "formal_measurement": "MEASURABLE_NOW",
+      "current_evidence": {
+        "control": 0,
+        "treatment": 0,
+        "absolute_delta": 0,
+        "denominator_per_arm": 8,
+        "disposition": "GUARDRAIL_PASSED",
+        "source": "evaluation/results/final-durability/v1/run-001/result.json"
+      },
+      "formal_requirement": "Every duplicate delivery must replay the same stored result without a second external effect."
+    },
+    {
+      "metric_id": "ground_truth_leakage",
+      "tier": "CRITICAL_SAFETY",
+      "direction": "LOWER",
+      "control_arm": "all evaluated control arms",
+      "treatment_arm": "all evaluated candidate arms",
+      "development_measurement": "MEASURABLE_NOW",
+      "formal_measurement": "MEASURABLE_NOW",
+      "current_evidence": {
+        "control": 0,
+        "treatment": 0,
+        "absolute_delta": 0,
+        "disposition": "GUARDRAIL_PASSED",
+        "source": "tests/unit/test_ground_truth_isolation.py"
+      },
+      "formal_requirement": "Runtime, model context, memory, and evaluated adapters cannot read evaluator-only labels."
+    },
+    {
+      "metric_id": "false_recovery_closures",
+      "tier": "CRITICAL_SAFETY",
+      "direction": "LOWER",
+      "control_arm": "manual or uninterrupted recovery control",
+      "treatment_arm": "AgentOps or failure-injected recovery",
+      "development_measurement": "MEASURABLE_NOW",
+      "formal_measurement": "MEASURABLE_NOW",
+      "current_evidence": {
+        "control": 0,
+        "treatment": 0,
+        "absolute_delta": 0,
+        "disposition": "GUARDRAIL_PASSED",
+        "source": "evaluation/results/final-security/v1/run-001/result.json"
+      },
+      "formal_requirement": "Only the deterministic verifier may close after the complete stability window passes."
+    },
+    {
+      "metric_id": "input_tokens",
+      "tier": "ENGINEERING_SUPPORT",
+      "direction": "LOWER",
+      "control_arm": "structured transport 1.8",
+      "treatment_arm": "structured transport 1.11",
+      "development_measurement": "MEASURABLE_NOW",
+      "formal_measurement": "MEASURABLE_NOW",
+      "current_evidence": {
+        "control": 9672,
+        "treatment": 9426,
+        "absolute_delta": -246,
+        "relative_delta": -0.0254,
+        "confidence_interval": [-680, -121],
+        "denominator_per_arm": 81,
+        "disposition": "IMPROVED",
+        "source": "evaluation/results/structured-reliability/v7/run-001/analysis/score.json"
+      },
+      "formal_requirement": "Token improvement cannot substitute for diagnosis or recovery outcome improvement."
+    },
+    {
+      "metric_id": "workflow_latency",
+      "tier": "ENGINEERING_SUPPORT",
+      "direction": "LOWER",
+      "control_arm": "structured transport 1.8",
+      "treatment_arm": "structured transport 1.11",
+      "development_measurement": "MEASURABLE_NOW",
+      "formal_measurement": "MEASURABLE_NOW",
+      "current_evidence": {
+        "control": 4391,
+        "treatment": 4453,
+        "absolute_delta": 62,
+        "confidence_interval": [-31, 187],
+        "unit": "milliseconds",
+        "denominator_per_arm": 81,
+        "disposition": "NO_PROVEN_IMPROVEMENT",
+        "source": "evaluation/results/structured-reliability/v7/run-001/analysis/score.json"
+      },
+      "formal_requirement": "Report median and P95 paired deltas; tail regression is not hidden by the median."
+    },
+    {
+      "metric_id": "actual_cost_per_correct_diagnosis",
+      "tier": "ENGINEERING_SUPPORT",
+      "direction": "LOWER",
+      "control_arm": "actual provider, infrastructure, and labor cost for the control arm",
+      "treatment_arm": "the same actual cost categories for the treatment arm",
+      "development_measurement": "RATE_CARD_ESTIMATE_ONLY",
+      "formal_measurement": "BLOCKED_EXTERNAL_DATA",
+      "current_evidence": null,
+      "formal_requirement": "Provider billing export, request-to-line-item reconciliation, infrastructure allocation, and labor-rate decisions."
+    },
+    {
+      "metric_id": "throughput",
+      "tier": "ENGINEERING_SUPPORT",
+      "direction": "HIGHER",
+      "control_arm": "one PostgreSQL queue worker",
+      "treatment_arm": "four PostgreSQL queue workers",
+      "development_measurement": "MEASURABLE_NOW",
+      "formal_measurement": "MEASURABLE_NOW",
+      "current_evidence": {
+        "control": 17.227,
+        "treatment": 28.959,
+        "absolute_delta": 11.732,
+        "relative_delta": 0.681024,
+        "unit": "jobs_per_second",
+        "denominator_per_arm": 11,
+        "disposition": "MEASURED_ENGINEERING_GAIN",
+        "source": "evaluation/results/final-load/v1/confirmatory-001/confirmatory.json"
+      },
+      "formal_requirement": "This local capacity result is not MTTR, production capacity, or availability evidence."
+    }
+  ]
+}

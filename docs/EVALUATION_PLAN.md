@@ -1,5 +1,20 @@
 # AgentOps Incident Commander Evaluation Plan
 
+## Project outcome scorecard
+
+The project-level effect contract is defined in
+[`PROJECT_EFFECT_SCORECARD.md`](PROJECT_EFFECT_SCORECARD.md) and its machine-readable authority at
+[`evaluation/scorecard/v1/scorecard.json`](../evaluation/scorecard/v1/scorecard.json). It makes
+time to correct diagnosis, time to stable recovery/MTTR, active operator labor, diagnosis/action
+correctness, and recurrence the core outcomes. Safety is a hard gate; tokens, latency, cost,
+durability and throughput are supporting engineering measurements rather than substitutes for
+those outcomes.
+
+The next development-stage measurement is a new untouched lab holdout with frozen rules, single-
+model and controlled-graph arms. A simulated-history arm is exploratory only. The formal confirmed-
+history arm, human study, approved recovery comparison, actual cost reconciliation, and recurrence
+claim remain blocked until their explicitly named external inputs exist.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

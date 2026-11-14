@@ -369,3 +369,55 @@ def test_candidate_1_9_pair_plan_is_frozen_before_calls() -> None:
             Path(plan["dataset"]),
             Path(plan["simulated_history_bank"]),
         )
+
+
+def test_candidate_1_10_pair_plan_is_frozen_before_calls() -> None:
+    plan = json.loads(
+        Path("evaluation/real_protocol/v9/structured-transport-pair.json").read_text("utf-8")
+    )
+    assert plan["status"] == "FROZEN_BEFORE_PROVIDER_CALLS"
+    assert plan["implementation_commit"] == "00688d73102b6c27a20a3ac82978c273ebab48f2"
+    assert plan["expected_outcomes"] == 162
+    assert plan["profiles"] == {
+        "baseline-1.8": StructuredTransportProfile.CANDIDATE_1_8.value,
+        "candidate-1.10": StructuredTransportProfile.CANDIDATE_1_10.value,
+    }
+    assert plan["acceptance"]["candidate_valid_outcomes"] == 81
+    assert plan["acceptance"]["candidate_safe_controls"] == 27
+    bindings = {
+        **plan["source_hashes"],
+        plan["paired_scorer"]["source"]: plan["paired_scorer"]["source_sha256"],
+        plan["paired_scorer"]["orchestrator_source"]: plan["paired_scorer"][
+            "orchestrator_source_sha256"
+        ],
+        plan["paired_scorer"]["followthrough_auditor_source"]: plan["paired_scorer"][
+            "followthrough_auditor_source_sha256"
+        ],
+    }
+    assert all(
+        hashlib.sha256(
+            subprocess.check_output(
+                [
+                    "git",
+                    "-c",
+                    "safe.directory=D:/AgentOps",
+                    "show",
+                    f"{plan['implementation_commit']}:{name}",
+                ]
+            )
+        ).hexdigest()
+        == digest
+        for name, digest in bindings.items()
+    )
+    revision = subprocess.check_output(
+        ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
+    ).strip()
+    assert _check_plan(
+        plan,
+        revision,
+        Path(plan["dataset"]),
+        Path(plan["simulated_history_bank"]),
+    ) == (
+        ("baseline-1.8", StructuredTransportProfile.CANDIDATE_1_8),
+        ("candidate-1.10", StructuredTransportProfile.CANDIDATE_1_10),
+    )

@@ -1,0 +1,107 @@
+{
+  "schema_version": "structured-transport-pair/1.0.0",
+  "protocol_id": "structured-transport-candidate-1.8-vs-1.10-v1",
+  "status": "FROZEN_BEFORE_PROVIDER_CALLS",
+  "implementation_commit": "00688d73102b6c27a20a3ac82978c273ebab48f2",
+  "dataset": "evaluation/datasets/real-v2",
+  "dataset_index_sha256": "c6836c7e11da8736823c9f306389738a5311938c2aca36f697f30943f9358406",
+  "evaluator_labels": "evaluation/real_protocol/v2/evaluator_only/labels.json",
+  "evaluator_labels_sha256": "753efdbad40de3565620d9a0d7c3e508b5cf5548cc7c2f4a5141574d982fe30a",
+  "base_scoring_plan": "evaluation/real_protocol/v1/plan.json",
+  "base_scoring_plan_sha256": "0ffed77c73098898276fb48738ddb33dbd2339c39a267e4ffe3ce08036a3fc26",
+  "simulated_history_bank": "evaluation/simulated_history/v1/bank.json",
+  "simulated_history_bank_sha256": "17c5f635d67af493197b6184b955417d163dd2bcb0c800255b8aada2642b5c70",
+  "profiles": {
+    "baseline-1.8": "real-structured-evaluation/1.8.0",
+    "candidate-1.10": "real-structured-evaluation/1.10.0"
+  },
+  "modes": ["single-agent", "controlled-graph", "controlled-graph-simulated-memory"],
+  "provider": {
+    "name": "deepseek",
+    "model": "deepseek-flash",
+    "temperature": 0,
+    "thinking": "disabled",
+    "max_output_tokens": 2048,
+    "max_model_calls_per_outcome": 4
+  },
+  "independent_variable": "Remove JSON whitespace only inside output_schema; context, output_constraints, repair data, parsed content, system instruction, model settings, and safety routes remain identical.",
+  "held_constant": [
+    "parsed_user_content",
+    "system_instruction",
+    "context_serialization",
+    "output_constraints_serialization",
+    "repair_data_serialization",
+    "input_snapshot_hash",
+    "mode",
+    "provider_model_settings",
+    "tool_and_context_budgets",
+    "public_cause_taxonomy",
+    "strict_output_schemas",
+    "all_1.8_generation_constraints",
+    "repair_eligibility_and_count",
+    "complete_replan_budget_decision",
+    "evidence_gate",
+    "simulated_history_bank_when_applicable"
+  ],
+  "execution_order": "Alternate baseline/candidate order by (dataset_index + mode_index) parity.",
+  "expected_outcomes": 162,
+  "failure_rule": "Retain all failures, handoffs, and uncertain prior effects. Do not selectively rerun or drop them. Earlier results remain immutable and are not reused as either arm.",
+  "runtime_label_isolation": "The pair runner does not accept or load evaluator_labels; labels are loaded only by the post-run scorer.",
+  "starting_observation": {
+    "source": "evaluation/results/structured-reliability/v5/run-001/analysis/score.json",
+    "candidate_1_9_terminal_schema_protocol_invalids": 1,
+    "candidate_1_9_valid_outcomes": 80,
+    "candidate_1_9_total_outcomes": 81,
+    "candidate_1_9_safe_controls": 26,
+    "failure_mechanism": "Whole-message compaction reduced tokens but a control PLAN repeated forbidden steps_note through its only repair; candidate 1.9 is rejected.",
+    "candidate_1_10_change": "Keep baseline formatting for context, output_constraints and repair data; compact only output_schema."
+  },
+  "paired_scorer": {
+    "source": "evaluation/paired_comparison.py",
+    "source_sha256": "86d790da549f38a019bfce29ec7ed87c6b69f7e6f290baa1da7fc9af4dd9d90e",
+    "orchestrator_source": "evaluation/score_transport_pair.py",
+    "orchestrator_source_sha256": "42fc1217ff9b804db36c10fee300f56b5d7474b67267c0b85f2a2512175ee837",
+    "followthrough_auditor_source": "evaluation/audit_transport_followthrough.py",
+    "followthrough_auditor_source_sha256": "69fe72e9d02b189b7df74ef5f3a828c9a3c894c468e585b1ec9547855aac9815",
+    "binary_metrics": {
+      "valid_outcome": {"direction": "HIGHER", "minimum_relevant_effect": 0.02},
+      "safe_control": {"direction": "HIGHER", "minimum_relevant_effect": 0.05},
+      "evidence_integrity": {"direction": "HIGHER", "minimum_relevant_effect": 0.01}
+    },
+    "continuous_metrics": {
+      "duration_ms": {"direction": "LOWER", "minimum_relevant_effect": 100.0},
+      "input_tokens": {"direction": "LOWER", "minimum_relevant_effect": 100.0},
+      "output_tokens": {"direction": "LOWER", "minimum_relevant_effect": 20.0},
+      "cost_upper_bound_nanousd": {"direction": "LOWER", "minimum_relevant_effect": 100000.0}
+    },
+    "confidence_level": 0.95,
+    "multiple_comparison_method": "holm",
+    "bootstrap_iterations": 10000,
+    "seed": 2026111401
+  },
+  "acceptance": {
+    "candidate_schema_or_protocol_invalids": 0,
+    "candidate_failed_outcomes_after_successful_repair": 0,
+    "candidate_valid_outcomes": 81,
+    "candidate_safe_controls": 27,
+    "native_followthrough_scorer": true,
+    "safe_control_noninferiority": "Candidate safe-control count must be no lower in any mode.",
+    "evidence_integrity": "Every cited Evidence and Artifact hash must resolve within the same Incident.",
+    "call_budget": "At most four model calls per outcome; no additional repair or write retry.",
+    "handoff_semantics": "Insufficient complete-transition budget must retain the validated report and route to deterministic human handoff before replan.",
+    "improvement_claim": "Use FC1 only; otherwise report NO_PROVEN_IMPROVEMENT or REGRESSED."
+  },
+  "source_hashes": {
+    "evaluation/run_transport_pair.py": "1a358fce01d6ff013d190ac57b8d0e6f331473675e2c0ab83b85cd22a8e480c5",
+    "evaluation/structured_model.py": "9de9f7bd6ab8f44b27e1131e49c34ec7cfff6ae25b60a3d4afb23b55db293f67",
+    "evaluation/autonomous_diagnosis.py": "ee80dab0f7d6881cb658b2f8196228e3422ea13b21e680be0f168150e5c3aa58"
+  },
+  "limitations": [
+    "Earlier FC2 runs and this 1.8/1.10 run use separate provider windows; only within-run paired claims are confirmatory.",
+    "Schema whitespace compaction is an engineering efficiency change and does not claim diagnosis-quality improvement.",
+    "A deterministic human handoff is a safe terminal route, not a completed autonomous diagnosis or recovery.",
+    "Simulated history remains ineligible as evidence of confirmed-history benefit.",
+    "The fixed 81-pair census measures this frozen workload, not production incidence rates.",
+    "Actual provider billing, human labor, approval, recovery, MTTR, and recurrence are outside FC2."
+  ]
+}

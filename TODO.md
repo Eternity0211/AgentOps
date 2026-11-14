@@ -144,6 +144,8 @@ measurement shows no need; closing it does not mean implementing it.
     - [ ] FC2g3 replace whole-message compaction with candidate 1.10 schema-only compaction,
       preserving 1.8 formatting for context, output constraints and repair data. Freeze and rerun
       against 1.8 with the same safety-first acceptance before making any efficiency claim.
+      - [x] FC2g3a freeze the 162-outcome 1.8/1.10 plan against the exact implementation commit,
+        scorer, dataset and source hashes before any provider call.
 
 - [x] FC3 Make memory-leak evidence discriminative before asking the model to classify it.
   - Capture a longer bounded series including retained bytes before/after GC, allocation and

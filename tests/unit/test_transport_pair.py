@@ -419,3 +419,54 @@ def test_candidate_1_10_pair_plan_is_frozen_before_calls() -> None:
             Path(plan["dataset"]),
             Path(plan["simulated_history_bank"]),
         )
+
+
+def test_candidate_1_11_pair_plan_is_frozen_before_calls() -> None:
+    plan = json.loads(
+        Path("evaluation/real_protocol/v10/structured-transport-pair.json").read_text("utf-8")
+    )
+    assert plan["status"] == "FROZEN_BEFORE_PROVIDER_CALLS"
+    assert plan["implementation_commit"] == "c307a8f408ef9317d53bc4cc61067f227aa5f73a"
+    assert plan["expected_outcomes"] == 162
+    assert plan["profiles"] == {
+        "baseline-1.8": StructuredTransportProfile.CANDIDATE_1_8.value,
+        "candidate-1.11": StructuredTransportProfile.CANDIDATE_1_11.value,
+    }
+    assert plan["starting_observation"]["stopping_rule"].startswith("Stop this compaction")
+    bindings = {
+        **plan["source_hashes"],
+        plan["paired_scorer"]["source"]: plan["paired_scorer"]["source_sha256"],
+        plan["paired_scorer"]["orchestrator_source"]: plan["paired_scorer"][
+            "orchestrator_source_sha256"
+        ],
+        plan["paired_scorer"]["followthrough_auditor_source"]: plan["paired_scorer"][
+            "followthrough_auditor_source_sha256"
+        ],
+    }
+    assert all(
+        hashlib.sha256(
+            subprocess.check_output(
+                [
+                    "git",
+                    "-c",
+                    "safe.directory=D:/AgentOps",
+                    "show",
+                    f"{plan['implementation_commit']}:{name}",
+                ]
+            )
+        ).hexdigest()
+        == digest
+        for name, digest in bindings.items()
+    )
+    revision = subprocess.check_output(
+        ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
+    ).strip()
+    assert _check_plan(
+        plan,
+        revision,
+        Path(plan["dataset"]),
+        Path(plan["simulated_history_bank"]),
+    ) == (
+        ("baseline-1.8", StructuredTransportProfile.CANDIDATE_1_8),
+        ("candidate-1.11", StructuredTransportProfile.CANDIDATE_1_11),
+    )

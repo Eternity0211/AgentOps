@@ -154,6 +154,8 @@ measurement shows no need; closing it does not mean implementing it.
       optimization line after that result whether it improves, is null or regresses.
       - [x] FC2g4a implement candidate 1.11 with PLAN byte-equivalent to 1.8 and schema-only
         compaction limited to DIAGNOSE/REMEDIATE; retain frozen fingerprints through 1.10.
+      - [x] FC2g4b freeze the final 162-outcome 1.8/1.11 pair with an explicit stopping rule,
+        exact implementation/scorer hashes and the unchanged safety-first acceptance.
 
 - [x] FC3 Make memory-leak evidence discriminative before asking the model to classify it.
   - Capture a longer bounded series including retained bytes before/after GC, allocation and

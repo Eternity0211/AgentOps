@@ -84,6 +84,30 @@ def test_database_resource_coverage_is_measured_and_retains_paired_intervals() -
     assert sum(item["delta_95pct_interval"] is not None for item in resource_rows) == 45
 
 
+def test_latest_fc2_pair_proves_only_median_input_token_improvement() -> None:
+    report = build_report()
+    token_rows = [
+        item
+        for item in report["comparisons"]
+        if item["work_id"] == "FC2" and item["metric"] == "input-tokens"
+    ]
+    improved = [item for item in token_rows if item["status"] == "IMPROVED"]
+
+    assert len(improved) == 1
+    assert improved[0]["statistic"] == "median"
+    assert improved[0]["baseline"] == 9672
+    assert improved[0]["candidate"] == 9426
+    assert improved[0]["delta_95pct_interval"] == [-680, -121]
+    assert (
+        next(
+            item
+            for item in report["coverage"]
+            if item["work_id"] == "FC2" and item["metric"] == "tokens"
+        )["status"]
+        == "MEASURED"
+    )
+
+
 def test_external_data_is_not_fabricated_or_silently_omitted() -> None:
     report = build_report()
 

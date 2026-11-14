@@ -5,7 +5,7 @@ No externally blocked metric is replaced by simulation or inference.
 
 ## Outcome
 
-Structured-output acceptance, the eight-pair durability safety gate and the 13-case security census passed. The designed memory set changed 9/10→10/10, but the ten-pair sample does not prove superiority. PostgreSQL throughput improved through four local workers and regressed at eight; the current supported local cap is four.
+Structured-output acceptance, the eight-pair durability safety gate and the 13-case security census passed. Diagnosis-schema transport compaction reduced median input tokens 9,672→9,426 without changing validity, safe controls or Evidence integrity. The designed memory set changed 9/10→10/10, but the ten-pair sample does not prove superiority. PostgreSQL throughput improved through four local workers and regressed at eight; the current supported local cap is four.
 Human outcomes, approved recovery benefit and actual cost remain externally blocked.
 
 ## Metric coverage
@@ -24,7 +24,7 @@ Human outcomes, approved recovery benefit and actual cost remain externally bloc
 | FC2 | `safe_control_rate` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
 | FC2 | `evidence_integrity_rate` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
 | FC2 | `calls` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
-| FC2 | `tokens` | `NO_PROVEN_IMPROVEMENT` | Observed deltas do not establish statistical superiority. |
+| FC2 | `tokens` | `MEASURED` | Latest frozen pair proves a bounded median input-token improvement. |
 | FC2 | `latency` | `NO_PROVEN_IMPROVEMENT` | Observed deltas do not establish statistical superiority. |
 | FC2 | `cost` | `NO_PROVEN_IMPROVEMENT` | Observed deltas do not establish statistical superiority. |
 | FC3 | `memory_top1` | `NO_PROVEN_IMPROVEMENT` | Observed deltas do not establish statistical superiority. |
@@ -32,7 +32,7 @@ Human outcomes, approved recovery benefit and actual cost remain externally bloc
 | FC3 | `fabricated_reference_rate` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
 | FC3 | `context_bytes` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
 | FC3 | `latency` | `NO_PROVEN_IMPROVEMENT` | Observed deltas do not establish statistical superiority. |
-| FC3 | `tokens` | `NO_PROVEN_IMPROVEMENT` | Observed deltas do not establish statistical superiority. |
+| FC3 | `tokens` | `MEASURED` | Measured or deterministically verified in the cited frozen artifact. |
 | FC4 | `top1` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
 | FC4 | `top3` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
 | FC4 | `safe_controls` | `BLOCKED_EXTERNAL_DATA` | Required authorized external observations do not exist. |
@@ -114,18 +114,18 @@ Human outcomes, approved recovery benefit and actual cost remain externally bloc
 
 | Work | Metric | Statistic | Baseline | Candidate | Absolute delta | Relative delta | 95% delta interval | Status |
 | --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
-| FC2 | `valid-outcome` (rate) | rate | 0.950617 | 0.962963 | 0.0123457 | 0.012987 | [-0.037037, 0.0617284] | `NO_PROVEN_IMPROVEMENT` |
+| FC2 | `valid-outcome` (rate) | rate | 1 | 1 | 0 | 0 | [0, 0] | `NO_PROVEN_IMPROVEMENT` |
 | FC2 | `safe-control` (rate) | rate | 1 | 1 | 0 | 0 | [0, 0] | `NO_PROVEN_IMPROVEMENT` |
 | FC2 | `evidence-integrity` (rate) | rate | 1 | 1 | 0 | 0 | [0, 0] | `NO_PROVEN_IMPROVEMENT` |
-| FC2 | `duration-ms` (duration-ms) | median | 5234 | 5297 | 63 | 0.0120367 | [-438, 469] | `NO_PROVEN_IMPROVEMENT` |
-| FC2 | `duration-ms` (duration-ms) | p95 | 12047 | 12921 | 874 | 0.0725492 | [78, 2062] | `NO_PROVEN_IMPROVEMENT` |
-| FC2 | `input-tokens` (input-tokens) | median | 10179 | 10650 | 471 | 0.0462717 | [-498, 1183] | `NO_PROVEN_IMPROVEMENT` |
-| FC2 | `input-tokens` (input-tokens) | p95 | 26406 | 29975 | 3569 | 0.135159 | [545, 5282] | `NO_PROVEN_IMPROVEMENT` |
-| FC2 | `output-tokens` (output-tokens) | median | 675 | 694 | 19 | 0.0281481 | [-37, 88] | `NO_PROVEN_IMPROVEMENT` |
-| FC2 | `output-tokens` (output-tokens) | p95 | 1557 | 1544 | -13 | -0.00834939 | [-142, 116] | `NO_PROVEN_IMPROVEMENT` |
-| FC2 | `cost-upper-bound` (cost-upper-bound) | median | 3.8097e+06 | 3.9207e+06 | 111000 | 0.0291362 | [-135300, 419400] | `NO_PROVEN_IMPROVEMENT` |
-| FC2 | `cost-upper-bound` (cost-upper-bound) | p95 | 9.8094e+06 | 1.07361e+07 | 926700 | 0.0944706 | [138600, 1.7913e+06] | `NO_PROVEN_IMPROVEMENT` |
-| FC2 | `initial-schema-protocol-invalids` (outcomes) | value | 9 | 4 | -5 | -0.555556 | N/A | `MEASURED` |
+| FC2 | `duration-ms` (duration-ms) | median | 4391 | 4453 | 62 | 0.0141198 | [-31, 187] | `NO_PROVEN_IMPROVEMENT` |
+| FC2 | `duration-ms` (duration-ms) | p95 | 4922 | 5281 | 359 | 0.0729378 | [78, 2203] | `NO_PROVEN_IMPROVEMENT` |
+| FC2 | `input-tokens` (input-tokens) | median | 9672 | 9426 | -246 | -0.0254342 | [-680, -121] | `IMPROVED` |
+| FC2 | `input-tokens` (input-tokens) | p95 | 11997 | 12000 | 3 | 0.000250063 | [-177, 896] | `NO_PROVEN_IMPROVEMENT` |
+| FC2 | `output-tokens` (output-tokens) | median | 652 | 652 | 0 | 0 | [-29, 14] | `NO_PROVEN_IMPROVEMENT` |
+| FC2 | `output-tokens` (output-tokens) | p95 | 755 | 769 | 14 | 0.018543 | [-40, 255] | `NO_PROVEN_IMPROVEMENT` |
+| FC2 | `cost-upper-bound` (cost-upper-bound) | median | 3.6972e+06 | 3.6174e+06 | -79800 | -0.0215839 | [-148200, -30600] | `NO_PROVEN_IMPROVEMENT` |
+| FC2 | `cost-upper-bound` (cost-upper-bound) | p95 | 4.4481e+06 | 4.4364e+06 | -11700 | -0.00263034 | [-99600, 482700] | `NO_PROVEN_IMPROVEMENT` |
+| FC2 | `initial-schema-protocol-invalids` (outcomes) | value | 0 | 2 | 2 | N/A | N/A | `MEASURED` |
 | FC3 | `correct-diagnosis-rate` (rate) | value | 0.9 | 1 | 0.1 | 0.111111 | N/A | `NO_PROVEN_IMPROVEMENT` |
 | FC3 | `sustained-retention-detection-rate` (rate) | value | 0.5 | 1 | 0.5 | 1 | N/A | `NO_PROVEN_IMPROVEMENT` |
 | FC3 | `safe-negative-rate` (rate) | value | 1 | 1 | 0 | 0 | N/A | `MEASURED` |

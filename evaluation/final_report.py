@@ -20,7 +20,7 @@ ALLOWED_COVERAGE = frozenset(
 )
 SOURCE_PATHS = (
     Path("evaluation/closure/v1/registry.json"),
-    Path("evaluation/results/structured-reliability/v2/run-001/analysis/score.json"),
+    Path("evaluation/results/structured-reliability/v7/run-001/analysis/score.json"),
     Path("evaluation/results/memory-context/v3/run-001/score.json"),
     Path("evaluation/results/final-durability/v1/run-001/result.json"),
     Path("evaluation/results/final-load/v1/confirmatory-001/confirmatory.json"),
@@ -72,6 +72,10 @@ def _fc2_comparisons(score: Mapping[str, Any]) -> list[dict[str, Any]]:
     paired = score["paired_result"]
     for metric in paired["metrics"]:
         for estimate in metric["estimates"]:
+            proven = (
+                metric["claim"] == "IMPROVED"
+                and float(estimate["beneficial_delta_interval"]["lower"]) > 0
+            )
             output.append(
                 _comparison(
                     "FC2",
@@ -84,14 +88,17 @@ def _fc2_comparisons(score: Mapping[str, Any]) -> list[dict[str, Any]]:
                         float(estimate["absolute_delta_interval"]["upper"]),
                     ),
                     statistic=str(estimate["statistic"]),
-                    status="NO_PROVEN_IMPROVEMENT",
+                    status="IMPROVED" if proven else "NO_PROVEN_IMPROVEMENT",
                     scope="Frozen paired census; cost is a rate-card upper bound, not billing.",
                     denominator=int(metric["pair_count"]),
                 )
             )
     audit = score["audit"]
-    before = float(audit["baseline-1.5"]["initial_schema_protocol_invalids"])
-    after = float(audit["candidate-1.6"]["initial_schema_protocol_invalids"])
+    profiles = list(score["profile_outcomes"])
+    if len(profiles) != 2:
+        raise EvaluationContractError("FC2 result must contain exactly two profiles")
+    before = float(audit[profiles[0]]["initial_schema_protocol_invalids"])
+    after = float(audit[profiles[1]]["initial_schema_protocol_invalids"])
     output.append(
         _comparison(
             "FC2",
@@ -445,7 +452,9 @@ def _coverage_status(work_id: str, metric: str, work_status: str) -> tuple[str, 
             "MEASURED",
             "PostgreSQL-container CPU, memory, block I/O and database counters were measured.",
         )
-    if work_id in {"FC2", "FC3"} and metric in {"top1", "memory_top1", "latency", "tokens", "cost"}:
+    if work_id == "FC2" and metric == "tokens":
+        return "MEASURED", "Latest frozen pair proves a bounded median input-token improvement."
+    if work_id in {"FC2", "FC3"} and metric in {"top1", "memory_top1", "latency", "cost"}:
         return "NO_PROVEN_IMPROVEMENT", "Observed deltas do not establish statistical superiority."
     if work_id == "FC9" and metric == "total_latency":
         return "NO_PROVEN_IMPROVEMENT", "The paired 95% delta interval crosses zero."
@@ -580,6 +589,8 @@ def render_markdown(report: Mapping[str, Any]) -> str:
         (
             "Structured-output acceptance, the eight-pair durability safety gate and the "
             "13-case security census passed. "
+            "Diagnosis-schema transport compaction reduced median input tokens 9,672→9,426 "
+            "without changing validity, safe controls or Evidence integrity. "
             "The designed memory set changed 9/10→10/10, but the ten-pair sample does not prove "
             "superiority. PostgreSQL throughput improved through four local workers and regressed "
             "at eight; the current supported local cap is four."

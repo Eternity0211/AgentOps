@@ -83,16 +83,16 @@
   ],
   "comparisons": [
     {
-      "absolute_delta": 0.012345679012345623,
-      "baseline": 0.9506172839506173,
-      "candidate": 0.9629629629629629,
+      "absolute_delta": 0.0,
+      "baseline": 1.0,
+      "candidate": 1.0,
       "delta_95pct_interval": [
-        -0.03703703703703709,
-        0.06172839506172845
+        0.0,
+        0.0
       ],
       "denominator": 81,
       "metric": "valid-outcome",
-      "relative_delta": 0.012987012987012927,
+      "relative_delta": 0.0,
       "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
       "statistic": "rate",
       "status": "NO_PROVEN_IMPROVEMENT",
@@ -134,16 +134,16 @@
       "work_id": "FC2"
     },
     {
-      "absolute_delta": 63.0,
-      "baseline": 5234.0,
-      "candidate": 5297.0,
+      "absolute_delta": 62.0,
+      "baseline": 4391.0,
+      "candidate": 4453.0,
       "delta_95pct_interval": [
-        -438.0,
-        469.0
+        -31.0,
+        187.0
       ],
       "denominator": 81,
       "metric": "duration-ms",
-      "relative_delta": 0.01203668322506687,
+      "relative_delta": 0.014119790480528353,
       "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
       "statistic": "median",
       "status": "NO_PROVEN_IMPROVEMENT",
@@ -151,16 +151,16 @@
       "work_id": "FC2"
     },
     {
-      "absolute_delta": 874.0,
-      "baseline": 12047.0,
-      "candidate": 12921.0,
+      "absolute_delta": 359.0,
+      "baseline": 4922.0,
+      "candidate": 5281.0,
       "delta_95pct_interval": [
         78.0,
-        2062.0
+        2203.0
       ],
       "denominator": 81,
       "metric": "duration-ms",
-      "relative_delta": 0.07254918236905454,
+      "relative_delta": 0.07293783015034538,
       "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
       "statistic": "p95",
       "status": "NO_PROVEN_IMPROVEMENT",
@@ -168,33 +168,33 @@
       "work_id": "FC2"
     },
     {
-      "absolute_delta": 471.0,
-      "baseline": 10179.0,
-      "candidate": 10650.0,
+      "absolute_delta": -246.0,
+      "baseline": 9672.0,
+      "candidate": 9426.0,
       "delta_95pct_interval": [
-        -498.0,
-        1183.0
+        -680.0,
+        -121.0
       ],
       "denominator": 81,
       "metric": "input-tokens",
-      "relative_delta": 0.04627173592690834,
+      "relative_delta": -0.02543424317617866,
       "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
       "statistic": "median",
-      "status": "NO_PROVEN_IMPROVEMENT",
+      "status": "IMPROVED",
       "unit": "input-tokens",
       "work_id": "FC2"
     },
     {
-      "absolute_delta": 3569.0,
-      "baseline": 26406.0,
-      "candidate": 29975.0,
+      "absolute_delta": 3.0,
+      "baseline": 11997.0,
+      "candidate": 12000.0,
       "delta_95pct_interval": [
-        545.0,
-        5282.0
+        -177.0,
+        896.0
       ],
       "denominator": 81,
       "metric": "input-tokens",
-      "relative_delta": 0.13515867605847157,
+      "relative_delta": 0.00025006251562890725,
       "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
       "statistic": "p95",
       "status": "NO_PROVEN_IMPROVEMENT",
@@ -202,16 +202,16 @@
       "work_id": "FC2"
     },
     {
-      "absolute_delta": 19.0,
-      "baseline": 675.0,
-      "candidate": 694.0,
+      "absolute_delta": 0.0,
+      "baseline": 652.0,
+      "candidate": 652.0,
       "delta_95pct_interval": [
-        -37.0,
-        88.0
+        -29.0,
+        14.0
       ],
       "denominator": 81,
       "metric": "output-tokens",
-      "relative_delta": 0.028148148148148148,
+      "relative_delta": 0.0,
       "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
       "statistic": "median",
       "status": "NO_PROVEN_IMPROVEMENT",
@@ -219,16 +219,16 @@
       "work_id": "FC2"
     },
     {
-      "absolute_delta": -13.0,
-      "baseline": 1557.0,
-      "candidate": 1544.0,
+      "absolute_delta": 14.0,
+      "baseline": 755.0,
+      "candidate": 769.0,
       "delta_95pct_interval": [
-        -142.0,
-        116.0
+        -40.0,
+        255.0
       ],
       "denominator": 81,
       "metric": "output-tokens",
-      "relative_delta": -0.008349389852280027,
+      "relative_delta": 0.018543046357615896,
       "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
       "statistic": "p95",
       "status": "NO_PROVEN_IMPROVEMENT",
@@ -236,16 +236,16 @@
       "work_id": "FC2"
     },
     {
-      "absolute_delta": 111000.0,
-      "baseline": 3809700.0,
-      "candidate": 3920700.0,
+      "absolute_delta": -79800.0,
+      "baseline": 3697200.0,
+      "candidate": 3617400.0,
       "delta_95pct_interval": [
-        -135300.0,
-        419400.0
+        -148200.0,
+        -30600.0
       ],
       "denominator": 81,
       "metric": "cost-upper-bound",
-      "relative_delta": 0.029136152452949052,
+      "relative_delta": -0.021583901330736774,
       "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
       "statistic": "median",
       "status": "NO_PROVEN_IMPROVEMENT",
@@ -253,16 +253,16 @@
       "work_id": "FC2"
     },
     {
-      "absolute_delta": 926700.0,
-      "baseline": 9809400.0,
-      "candidate": 10736100.0,
+      "absolute_delta": -11700.0,
+      "baseline": 4448100.0,
+      "candidate": 4436400.0,
       "delta_95pct_interval": [
-        138600.0,
-        1791300.0
+        -99600.0,
+        482700.0
       ],
       "denominator": 81,
       "metric": "cost-upper-bound",
-      "relative_delta": 0.09447060982323077,
+      "relative_delta": -0.0026303365481891144,
       "scope": "Frozen paired census; cost is a rate-card upper bound, not billing.",
       "statistic": "p95",
       "status": "NO_PROVEN_IMPROVEMENT",
@@ -270,13 +270,13 @@
       "work_id": "FC2"
     },
     {
-      "absolute_delta": -5.0,
-      "baseline": 9.0,
-      "candidate": 4.0,
+      "absolute_delta": 2.0,
+      "baseline": 0.0,
+      "candidate": 2.0,
       "delta_95pct_interval": null,
       "denominator": 81,
       "metric": "initial-schema-protocol-invalids",
-      "relative_delta": -0.5555555555555556,
+      "relative_delta": null,
       "scope": "81 outcomes per arm; bounded repair made terminal invalids 0→0.",
       "statistic": "value",
       "status": "MEASURED",
@@ -2567,8 +2567,8 @@
     },
     {
       "metric": "tokens",
-      "note": "Observed deltas do not establish statistical superiority.",
-      "status": "NO_PROVEN_IMPROVEMENT",
+      "note": "Latest frozen pair proves a bounded median input-token improvement.",
+      "status": "MEASURED",
       "work_id": "FC2"
     },
     {
@@ -2615,8 +2615,8 @@
     },
     {
       "metric": "tokens",
-      "note": "Observed deltas do not establish statistical superiority.",
-      "status": "NO_PROVEN_IMPROVEMENT",
+      "note": "Measured or deterministically verified in the cited frozen artifact.",
+      "status": "MEASURED",
       "work_id": "FC3"
     },
     {
@@ -3177,12 +3177,9 @@
     "FC10_error_count": 0,
     "FC11_critical_failures": 0,
     "FC2_provider_error_codes": {
-      "baseline-1.5": {
-        "INCIDENT_MISMATCH": 2,
-        "INVALID_RESPONSE": 7
-      },
-      "candidate-1.6": {
-        "INVALID_RESPONSE": 4
+      "baseline-1.8": {},
+      "candidate-1.11": {
+        "INVALID_RESPONSE": 2
       }
     },
     "FC3_baseline_failures": 0,
@@ -3193,8 +3190,8 @@
     "FC10_database_resource_plan_sha256": "18a4677ac33e6892cb8f07552c0f64ba47e0dad118d8e295186a45bef93dd422",
     "FC10_plan_sha256": "10f5042a0f74a7ba7a40bf4a877af96a3dd50001f3b47d8536e5c584e3c3ba3d",
     "FC11_plan_sha256": "a7657f1eadcf6a9c3b7f2f2c4c4ed2773ec4a12d899f306ae72e5bd449b0bee0",
-    "FC2_comparison_request_sha256": "3d597eb7595f814c1501afa040311a769f5e576e10fed2eb2900f6b6bb0a7f19",
-    "FC2_protocol_sha256": "26f1314146c03b0f05f30acbe6f3e73923c0cbf66756ae1a682bed655e81db31",
+    "FC2_comparison_request_sha256": "3645f896ad6e413a6b24955f4b7fe7722fb2ada0e90b4e6fcf94cdb2d712e03d",
+    "FC2_protocol_sha256": "eb5bab2eef66d2a945476d15aca4d8a50ef3b05e2faa9baa82efdf81a4112fef",
     "FC9_plan_sha256": "9ee44d769836a969aacbfba3e8350424ed2f03a2ec0bb32c2d8e9942137a4ade"
   },
   "key_results": {
@@ -3226,8 +3223,8 @@
       "sha256": "6537cee102e390bbaf81e8fc5398621f5dc3e393ca59a99b74d6b6e4f5016b26"
     },
     {
-      "path": "evaluation/results/structured-reliability/v2/run-001/analysis/score.json",
-      "sha256": "b8553b8aed07278fcee5eebb502ad218542479f5251565a9573ba5f3213c463f"
+      "path": "evaluation/results/structured-reliability/v7/run-001/analysis/score.json",
+      "sha256": "3812777fb33a58a36eedcc5d48bcec97164ef63eff0d73ea9f029037992d3008"
     },
     {
       "path": "evaluation/results/memory-context/v3/run-001/score.json",

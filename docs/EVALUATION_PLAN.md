@@ -15,6 +15,27 @@ model and controlled-graph arms. A simulated-history arm is exploratory only. Th
 history arm, human study, approved recovery comparison, actual cost reconciliation, and recurrence
 claim remain blocked until their explicitly named external inputs exist.
 
+### Frozen FC4 development holdout
+
+The create-once runtime inputs are under
+[`evaluation/datasets/lab-holdout-v1`](../evaluation/datasets/lab-holdout-v1), while labels, power
+arithmetic, and the complete hash manifest are separately stored under
+[`evaluation/lab_holdout/v1/evaluator_only`](../evaluation/lab_holdout/v1/evaluator_only). The set
+contains 120 fault cases, twenty for each of the six declared fault families, plus ten each of
+normal, insufficient-evidence, counter-evidence, and prompt-injection controls. Fault cases cross
+direct/cross-service dependency, recent/old/no deployment change, and three bounded signal levels.
+
+The pre-run sizing contract declares a 15-percentage-point minimum relevant paired Top-1 effect,
+two-sided alpha 0.05, power 0.80, and a 0.30 discordant-pair assumption. Its fixed calculation
+requires 103 fault pairs; the dataset freezes 120. This adequacy statement is conditional on those
+assumptions and does not guarantee significance. The generator, plan, every input, runtime index,
+labels, and power file are hash-bound. Publication tests reject changed bytes, reused prior IDs or
+input hashes, runtime label fields, incomplete strata, or changed power arithmetic.
+
+The dataset is frozen before FC4c candidate work. Development/error analysis must use other data.
+FC4d may run this set once after the candidate and scorer are frozen; failures stay in the
+denominator and selective reruns remain forbidden.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

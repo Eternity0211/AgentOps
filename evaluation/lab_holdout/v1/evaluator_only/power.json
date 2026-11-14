@@ -1,0 +1,12 @@
+{
+  "metric": "paired Top-1 rate",
+  "test": "two-sided McNemar normal approximation used only for pre-run sizing",
+  "alpha": 0.05,
+  "power": 0.8,
+  "minimum_relevant_absolute_delta": 0.15,
+  "assumed_discordant_pair_rate": 0.3,
+  "required_fault_pairs": 103,
+  "frozen_fault_pairs": 120,
+  "decision": "ADEQUATE_FOR_DECLARED_ASSUMPTIONS",
+  "recomputed_required_fault_pairs": 103
+}

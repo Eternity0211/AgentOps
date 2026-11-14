@@ -1,0 +1,45 @@
+{
+  "schema_version": "lab-holdout-plan/1.0.0",
+  "dataset_version": "lab-holdout-v1",
+  "seed": 2026111401,
+  "fault_families": [
+    "http-500",
+    "db-pool-exhaustion",
+    "redis-timeout",
+    "downstream-latency",
+    "memory-leak",
+    "bad-configuration"
+  ],
+  "fault_cases_per_family": 20,
+  "control_strata": [
+    "normal",
+    "insufficient-evidence",
+    "counter-evidence",
+    "prompt-injection"
+  ],
+  "control_cases_per_stratum": 10,
+  "total_fault_cases": 120,
+  "total_control_cases": 40,
+  "total_cases": 160,
+  "variant_axes": {
+    "dependency_scope": ["direct", "cross-service"],
+    "deployment_timing": ["recent-correlated", "old-uncorrelated", "no-change"],
+    "signal_strength": ["bounded-low", "bounded-medium", "bounded-high"]
+  },
+  "power": {
+    "metric": "paired Top-1 rate",
+    "test": "two-sided McNemar normal approximation used only for pre-run sizing",
+    "alpha": 0.05,
+    "power": 0.8,
+    "minimum_relevant_absolute_delta": 0.15,
+    "assumed_discordant_pair_rate": 0.3,
+    "required_fault_pairs": 103,
+    "frozen_fault_pairs": 120,
+    "decision": "ADEQUATE_FOR_DECLARED_ASSUMPTIONS"
+  },
+  "arms": ["rules", "single-model", "controlled-graph"],
+  "simulated_memory_disposition": "EXPLORATORY_ONLY",
+  "confirmed_history_disposition": "BLOCKED_EXTERNAL_DATA",
+  "selective_reruns_allowed": false,
+  "ground_truth_runtime_access": false
+}

@@ -256,10 +256,13 @@ measurement shows no need; closing it does not mean implementing it.
     `docs/PROJECT_EFFECT_SCORECARD.md`. Every metric names its arms, direction, current evidence or
     explicit missing state, measurability and completion prerequisite. Verification covers the
     scorecard contract, closure registry, planning documents, Ruff and strict mypy.
-  - [ ] FC4b Build and freeze a new label-isolated lab holdout before exposing it to any candidate.
-    Cover all six fault families, normal, insufficient Evidence, counter-evidence, prompt injection,
-    cross-service dependency and deployment-timing variants. This produces development evidence and
-    does not by itself satisfy the confirmed-history fourth arm.
+  - [x] FC4b Build and freeze a new label-isolated lab holdout before exposing it to any candidate.
+    The create-once v1 set has 120 fault cases (20 for each family) and 40 controls spanning normal,
+    insufficient Evidence, counter-evidence and prompt injection. Fault variants cross direct versus
+    cross-service dependency, three deployment timings and three signal strengths. The frozen power
+    contract requires 103 fault pairs for a 15-point Top-1 effect under its declared assumptions and
+    supplies 120. Runtime inputs contain no evaluator fields; all 160 IDs and hashes are disjoint
+    from prior dataset indexes. This is development evidence, not a confirmed-history fourth arm.
   - [ ] FC4c Classify the existing diagnosis errors and optimize only on separate development data.
     Attribute each miss to decisive-Evidence absence, selection, causal correlation, ranking,
     counter-evidence handling or unsupported conclusion; preserve schemas, Gate and authority.

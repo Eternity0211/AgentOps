@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import json
 import secrets
 from collections.abc import Callable
 from datetime import UTC, datetime
+from enum import StrEnum
 from itertools import pairwise
 from pathlib import Path
 from typing import Any, Protocol, cast
@@ -67,7 +69,7 @@ from agentops_incident_commander.workflows import (
 from evaluation.baselines.controlled_graph import _Progress
 from evaluation.durable_effects import StoredModelResult, WorkflowEffectStore
 from evaluation.live_evidence import ExperimentEvidence
-from evaluation.live_gateway import SOURCES, LocalReadAdapter, local_definitions
+from evaluation.live_gateway import SERVICES, SOURCES, LocalReadAdapter, local_definitions
 from evaluation.memory_evidence import GcPhase, MemorySample, assess_memory_series
 from evaluation.registered_model import RegisteredModelInvoker
 from evaluation.structured_model import (
@@ -105,6 +107,34 @@ class FixedPromptReference:
     ) -> None:
         if state.prompt.content_fingerprint != fingerprint(INSTRUCTIONS):
             raise ValueError("evaluation prompt fingerprint mismatch")
+
+
+class EvidenceStrategy(StrEnum):
+    """Explicit evaluation-only evidence strategy; never an execution authority."""
+
+    LEGACY = "legacy/1.0.0"
+    GC_AWARE = "gc-aware/1.0.0"
+    GC_AWARE_CAUSAL_SCOPE = "gc-aware-causal-scope/1.0.0"
+
+
+def _completed_evidence_query(evidence: Evidence) -> tuple[str, str] | None:
+    parameters = evidence.normalized_query.as_dict()
+    encoded = "".join(
+        value
+        for name, value in sorted(parameters.items())
+        if name.startswith("request_spec_") and name != "request_spec_encoding"
+    )
+    if not encoded:
+        return None
+    encoded += "=" * (-len(encoded) % 4)
+    try:
+        request = json.loads(base64.urlsafe_b64decode(encoded))
+    except (ValueError, json.JSONDecodeError):
+        return None
+    tool, service = request.get("tool"), request.get("service")
+    if isinstance(tool, str) and isinstance(service, str):
+        return tool, service
+    return None
 
 
 def _attribute_value(attribute: dict[str, Any]) -> object | None:
@@ -161,12 +191,8 @@ def memory_retention_by_service(
                 {
                     "observed_at_unix_nano": timestamp_value,
                     "retained_bytes": retained_value,
-                    "retention_limit_bytes": attributes.get(
-                        "process.memory.retention_limit_bytes"
-                    ),
-                    "retention_allocations": attributes.get(
-                        "process.memory.retention_allocations"
-                    ),
+                    "retention_limit_bytes": attributes.get("process.memory.retention_limit_bytes"),
+                    "retention_allocations": attributes.get("process.memory.retention_allocations"),
                     "evidence_ids": [],
                 },
             )
@@ -224,6 +250,7 @@ def discriminative_memory_retention_by_service(
                 for item in span["attributes"]
                 if isinstance(item, dict) and isinstance(item.get("key"), str)
             }
+
             def integer(value: object) -> int:
                 if isinstance(value, bool) or not isinstance(value, (str, int)):
                     raise ValueError("invalid memory integer")
@@ -385,9 +412,7 @@ def alert_aligned_service_facts(
             )
             previous = identities.get(identity)
             if previous is not None and previous[0] != outcome:
-                contradictions.setdefault(service, set()).update(
-                    (previous[1], observation["id"])
-                )
+                contradictions.setdefault(service, set()).update((previous[1], observation["id"]))
             else:
                 identities[identity] = (outcome, observation["id"])
             fact = grouped.setdefault(
@@ -413,15 +438,102 @@ def alert_aligned_service_facts(
                 "success_count": fact["success_count"],
                 "error_count": fact["error_count"],
                 "p95_duration_ms": (
-                    durations[max(0, (95 * len(durations) + 99) // 100 - 1)]
-                    if durations
-                    else None
+                    durations[max(0, (95 * len(durations) + 99) // 100 - 1)] if durations else None
                 ),
                 "evidence_ids": sorted(fact["evidence_ids"]),
                 "contradictory_evidence_ids": conflicting,
             }
         )
     return result
+
+
+def _record_attributes(record: dict[str, Any]) -> dict[str, object | None]:
+    return {
+        item["key"]: _attribute_value(item)
+        for item in record.get("attributes", [])
+        if isinstance(item, dict) and isinstance(item.get("key"), str)
+    }
+
+
+def _record_is_error(record: dict[str, Any], attributes: dict[str, object | None]) -> bool:
+    raw_status = attributes.get("http.response.status_code") or attributes.get(
+        "http_response_status_code"
+    )
+    try:
+        status_is_error = (
+            isinstance(raw_status, (str, int))
+            and not isinstance(raw_status, bool)
+            and int(raw_status) >= 500
+        )
+    except (TypeError, ValueError):
+        status_is_error = False
+    span_status = record.get("status")
+    return status_is_error or (
+        isinstance(span_status, dict) and span_status.get("code") in (2, "STATUS_CODE_ERROR")
+    )
+
+
+def _has_decisive_service_reads(service: str, completed_queries: set[tuple[str, str]]) -> bool:
+    return ("query_deployments", service) in completed_queries and any(
+        (tool, service) in completed_queries
+        for tool in ("query_logs", "query_metrics", "query_traces")
+    )
+
+
+def required_downstream_causal_scope(
+    observations: list[dict[str, str]],
+    completed_queries: set[tuple[str, str]],
+) -> str | None:
+    """Select one deepest observed failing dependency that still lacks decisive reads."""
+    edges: dict[str, set[str]] = {}
+    error_targets: set[str] = set()
+    for observation in observations:
+        try:
+            records = json.loads(observation["summary"])
+        except (KeyError, TypeError, json.JSONDecodeError):
+            continue
+        if not isinstance(records, list):
+            continue
+        if observation.get("source") == "topology":
+            for record in records:
+                if not isinstance(record, dict):
+                    continue
+                source, target = record.get("source"), record.get("target")
+                if source in SERVICES and target in SERVICES:
+                    edges.setdefault(source, set()).add(target)
+        if observation.get("source") not in ("traces", "logs"):
+            continue
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+            attributes = _record_attributes(record)
+            stream = record.get("stream")
+            if isinstance(stream, dict):
+                attributes.update(stream)
+            target = attributes.get("server.address") or attributes.get("server_address")
+            if target in SERVICES and _record_is_error(record, attributes):
+                error_targets.add(target)
+
+    observed_services = {
+        service for tool, service in completed_queries if tool in ("query_traces", "query_logs")
+    }
+    topology_targets = {target for targets in edges.values() for target in targets}
+    roots = sorted(observed_services - topology_targets) or sorted(observed_services)
+    depths: dict[str, int] = {service: 0 for service in roots}
+    frontier = list(roots)
+    while frontier:
+        source = frontier.pop(0)
+        for target in sorted(edges.get(source, set())):
+            proposed = depths[source] + 1
+            if target not in depths or proposed < depths[target]:
+                depths[target] = proposed
+                frontier.append(target)
+
+    observed_targets = [service for service in error_targets if depths.get(service, 0) > 0]
+    if not observed_targets:
+        return None
+    target = max(observed_targets, key=lambda service: (depths[service], service))
+    return None if _has_decisive_service_reads(target, completed_queries) else target
 
 
 def build_diagnosis_context(
@@ -492,17 +604,9 @@ def _build_diagnosis_context(
     deployment_records = deployment_facts(all_observations)
     service_records = alert_aligned_service_facts(all_observations)
     all_compact_fact_evidence_ids = sorted(
-        {
-            evidence_id
-            for fact in memory_facts
-            for evidence_id in _memory_fact_evidence_ids(fact)
-        }
+        {evidence_id for fact in memory_facts for evidence_id in _memory_fact_evidence_ids(fact)}
         | {fact["evidence_id"] for fact in deployment_records}
-        | {
-            evidence_id
-            for fact in service_records
-            for evidence_id in fact["evidence_ids"]
-        }
+        | {evidence_id for fact in service_records for evidence_id in fact["evidence_ids"]}
     )
     compact_fact_bytes = len(
         json.dumps(
@@ -542,17 +646,9 @@ def _build_diagnosis_context(
         for call_id, value in sorted(failed_reads.items())
     ]
     compact_fact_evidence_ids = sorted(
-        {
-            evidence_id
-            for fact in memory_facts
-            for evidence_id in _memory_fact_evidence_ids(fact)
-        }
+        {evidence_id for fact in memory_facts for evidence_id in _memory_fact_evidence_ids(fact)}
         | {fact["evidence_id"] for fact in deployment_records}
-        | {
-            evidence_id
-            for fact in service_records
-            for evidence_id in fact["evidence_ids"]
-        }
+        | {evidence_id for fact in service_records for evidence_id in fact["evidence_ids"]}
     )
     admitted_evidence_ids = [item["id"] for item in observations]
     referenceable_evidence_ids = list(
@@ -602,13 +698,9 @@ class AutonomousServices:
         effects: WorkflowEffectStore | None = None,
         end: datetime | None = None,
         allow_incomplete_reads: bool = False,
+        evidence_strategy: EvidenceStrategy = EvidenceStrategy.LEGACY,
     ) -> None:
-        if (
-            end is None
-            or start.tzinfo is None
-            or end.tzinfo is None
-            or start >= end
-        ):
+        if end is None or start.tzinfo is None or end.tzinfo is None or start >= end:
             raise ValueError("autonomous evidence window must be timezone-aware and increasing")
         self.model, self.gateway, self.registry = model, gateway, registry
         self.incident, self.alert, self.root, self.start, self.end = (
@@ -637,10 +729,14 @@ class AutonomousServices:
         self.scope = hashlib.sha256(incident.encode()).hexdigest()[:16]
         self.effects = effects
         self.allow_incomplete_reads = allow_incomplete_reads
+        self.evidence_strategy = evidence_strategy
+        self.completed_queries: set[tuple[str, str]] = set()
+        self.required_causal_scope: str | None = None
         self.failed_reads: dict[str, dict[str, Any]] = {}
         self.input_hash = fingerprint(
             {
                 "alert": alert,
+                "evidence_strategy": evidence_strategy.value,
                 "start": start.isoformat(),
                 "end": end.isoformat() if end else None,
                 "instructions": INSTRUCTIONS,
@@ -763,12 +859,36 @@ class AutonomousServices:
             for c in compiled.calls
         ]
 
+    def refresh_required_causal_scope(self) -> None:
+        if self.evidence_strategy is not EvidenceStrategy.GC_AWARE_CAUSAL_SCOPE:
+            self.required_causal_scope = None
+            return
+        top_candidate = (
+            self.report.candidates[0].candidate_id
+            if self.report is not None and self.report.candidates
+            else None
+        )
+        if self.required_causal_scope is None and top_candidate != "http-500":
+            return
+        observed = required_downstream_causal_scope(
+            self.evidence.observations if self.evidence is not None else [],
+            self.completed_queries,
+        )
+        if observed is not None:
+            self.required_causal_scope = observed
+        elif self.required_causal_scope is not None and _has_decisive_service_reads(
+            self.required_causal_scope, self.completed_queries
+        ):
+            self.required_causal_scope = None
+
     async def plan(self, state: DiagnosisGraphState, *, operation_id: str) -> PlanNodeResult:
         self.round = state.budgets.used_replans
         if state.evidence_ids and self.evidence is None:
             await self.restore_evidence(state, completed_round=self.round - 1)
         if state.budgets.used_replans and self.report is None:
             await self.restore_report(state, self.round - 1)
+        if state.budgets.used_replans:
+            self.refresh_required_causal_scope()
         remaining = 12 - state.budgets.used_tool_calls
         context = {
             "incident_id": self.incident,
@@ -781,6 +901,21 @@ class AutonomousServices:
             if self.report
             else [],
             "previous_evidence": self.evidence.observations[:2] if self.evidence else [],
+            "required_causal_scope": (
+                {
+                    "service": self.required_causal_scope,
+                    "required_reads": [
+                        "query_deployments",
+                        "one of query_logs/query_metrics/query_traces",
+                    ],
+                    "reason": (
+                        "A current failing downstream dependency was observed, but its own "
+                        "configuration and telemetry Evidence are absent."
+                    ),
+                }
+                if self.required_causal_scope is not None
+                else None
+            ),
             "prior_queries": [call for call in state.tool_query_fingerprints],
             "prior_tool_queries": await self.prior_tool_queries(state),
             "replan_instruction": (
@@ -899,6 +1034,10 @@ class AutonomousServices:
             self.failed_reads[tool_call_id] = value
         else:
             self.results[tool_call_id] = value
+            arguments = json.loads(selected.arguments_json)
+            service = arguments.get("service")
+            if isinstance(service, str):
+                self.completed_queries.add((selected.tool_name, service))
 
     async def persist_evidence(
         self, state: DiagnosisGraphState, *, operation_id: str
@@ -925,6 +1064,10 @@ class AutonomousServices:
                     self.failed_reads[identifier] = value
                     continue
                 self.results[identifier] = value
+                arguments = json.loads(call.arguments_json)
+                service = arguments.get("service")
+                if isinstance(service, str):
+                    self.completed_queries.add((call.tool_name, service))
         if self.effects is None:
             return await self._persist_evidence(state)
 
@@ -1042,13 +1185,27 @@ class AutonomousServices:
                 at=self.clock(),
             )
         assert self.evidence is not None
+        restored_records: object = getattr(self.evidence, "records", None)
+        if isinstance(restored_records, dict):
+            completed_queries: set[tuple[str, str]] = getattr(self, "completed_queries", set())
+            completed_queries.update(
+                query
+                for record in cast(dict[EvidenceId, Evidence], restored_records).values()
+                if (query := _completed_evidence_query(record)) is not None
+            )
+            self.completed_queries = completed_queries
 
     async def hypothesize(
         self, state: DiagnosisGraphState, *, operation_id: str
     ) -> HypothesisNodeResult:
         await self.restore_evidence(state)
         assert self.evidence is not None
-        context = build_diagnosis_context(
+        context_builder = (
+            build_diagnosis_context
+            if self.evidence_strategy is EvidenceStrategy.LEGACY
+            else build_candidate_diagnosis_context
+        )
+        context = context_builder(
             self.evidence.observations,
             self.failed_reads,
             window_start=self.start,
@@ -1131,8 +1288,10 @@ class AutonomousServices:
                 evaluate_evidence_gate(claim, resolution, rules=EvidenceGateRules(), at=now)
             )
         passed = any(item.outcome is EvidenceGateOutcome.PASS for item in self.gates)
+        self.refresh_required_causal_scope()
+        scope_incomplete = self.required_causal_scope is not None
         can_replan = (
-            not passed
+            (not passed or scope_incomplete)
             and bool(self.report.candidates)
             and state.budgets.used_replans < state.budgets.max_replans
             and state.budgets.used_tool_calls < state.budgets.max_tool_calls
@@ -1140,15 +1299,25 @@ class AutonomousServices:
         if can_replan:
             can_replan = self.model.allows_complete_replan()
         return GateNodeResult(
-            fingerprint([str(item) for item in self.gates]),
-            GateRoute.PASS
-            if passed
-            else (
-                GateRoute.REPLAN
-                if can_replan
-                else GateRoute.HUMAN_HANDOFF
+            fingerprint(
+                {
+                    "gate_decisions": [str(item) for item in self.gates],
+                    "required_causal_scope": self.required_causal_scope,
+                    "evidence_strategy": self.evidence_strategy.value,
+                }
             ),
-            None if passed else "EVIDENCE_GATE_NOT_PASSED",
+            GateRoute.PASS
+            if passed and not scope_incomplete
+            else (GateRoute.REPLAN if can_replan else GateRoute.HUMAN_HANDOFF),
+            (
+                None
+                if passed and not scope_incomplete
+                else (
+                    "DOWNSTREAM_CAUSAL_SCOPE_INCOMPLETE"
+                    if scope_incomplete
+                    else "EVIDENCE_GATE_NOT_PASSED"
+                )
+            ),
         )
 
     async def record_handoff(self, state: DiagnosisGraphState, *, operation_id: str) -> None:
@@ -1174,6 +1343,7 @@ async def investigate(
     evaluation_at: datetime | None = None,
     effects: WorkflowEffectStore | None = None,
     allow_incomplete_reads: bool = False,
+    evidence_strategy: EvidenceStrategy = EvidenceStrategy.LEGACY,
 ) -> tuple[DiagnosisGraphState, AutonomousServices]:
     if max_replans not in (0, 1):
         raise ValueError("autonomous investigation permits zero or one replan")
@@ -1206,6 +1376,7 @@ async def investigate(
         effects,
         end,
         allow_incomplete_reads,
+        evidence_strategy,
     )
     if evaluation_at is not None:
         services.clock = lambda: evaluation_at

@@ -274,6 +274,18 @@ measurement shows no need; closing it does not mean implementing it.
       changes until decisive Evidence is present.
     - [ ] FC4c2 Implement the bounded candidate-only evidence changes and verify them on separate
       development data without opening the frozen FC4 lab holdout.
+      - [x] FC4c2a Add an explicit evaluation-only strategy that composes the FC3 GC-aware context
+        with a deterministic causal-scope guard. When current trace/log Evidence shows a deeper
+        failing dependency but the model proposes only the upstream HTTP symptom, the guard selects
+        at most the deepest observed allowlisted service and requests one bounded replan for its
+        deployment plus one independent read. Every added call still passes through the typed Tool
+        Gateway, graph budgets, audit and Evidence persistence; a missing budget or incomplete
+        follow-up routes to handoff, never an inferred cause. A label-free synthetic development
+        fixture proves 3 gateway reads + 2 payment reads, 1 replan, 4 successful model calls and a
+        final Gate-passing bad-configuration candidate. The frozen FC4 inputs remain unopened.
+      - [ ] FC4c2b Run the frozen-before-call development baseline/candidate comparison with equal
+        provider/tool ceilings, score every outcome, and accept or revise the strategy from the
+        declared quality and safety thresholds.
   - [ ] FC4d Freeze the resulting implementation and run the untouched rules/single/graph lab
     comparison once. Publish baseline, candidate, delta, 95% interval and failures for every metric;
     null or negative outcomes remain valid results and selective reruns are forbidden.

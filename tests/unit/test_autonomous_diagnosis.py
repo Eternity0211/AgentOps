@@ -11,9 +11,11 @@ from typing import Any
 import httpx
 import pytest
 from evaluation.autonomous_diagnosis import (
+    EvidenceStrategy,
     build_candidate_diagnosis_context,
     build_diagnosis_context,
     investigate,
+    required_downstream_causal_scope,
 )
 from evaluation.live_gateway import SOURCES, LocalReadAdapter, local_definitions
 from evaluation.structured_model import StructuredEvaluationModel, StructuredTransportProfile
@@ -106,6 +108,82 @@ def test_candidate_memory_context_refuses_three_rises_without_gc() -> None:
     assert candidate["memory_evidence_contract"] == "gc-aware/1.0.0"
 
 
+def test_candidate_causal_scope_selects_one_deepest_unread_failure() -> None:
+    observations = [
+        {
+            "id": "topology",
+            "source": "topology",
+            "summary": json.dumps(
+                [
+                    {"source": "gateway", "target": "order"},
+                    {"source": "order", "target": "payment"},
+                ]
+            ),
+        },
+        {
+            "id": "trace",
+            "source": "traces",
+            "summary": json.dumps(
+                [
+                    {
+                        "status": {"code": "STATUS_CODE_ERROR"},
+                        "attributes": [
+                            {"key": "server.address", "value": {"stringValue": "order"}},
+                            {
+                                "key": "http.response.status_code",
+                                "value": {"intValue": "502"},
+                            },
+                        ],
+                    },
+                    {
+                        "status": {"code": "STATUS_CODE_ERROR"},
+                        "attributes": [
+                            {"key": "server.address", "value": {"stringValue": "payment"}},
+                            {
+                                "key": "http.response.status_code",
+                                "value": {"intValue": "503"},
+                            },
+                        ],
+                    },
+                ]
+            ),
+        },
+    ]
+    initial = {("get_service_topology", "gateway"), ("query_traces", "gateway")}
+
+    assert required_downstream_causal_scope(observations, initial) == "payment"
+    assert (
+        required_downstream_causal_scope(
+            observations,
+            initial | {("query_deployments", "payment"), ("query_logs", "payment")},
+        )
+        is None
+    )
+
+
+def test_pending_causal_scope_cannot_be_evaded_by_renaming_candidate() -> None:
+    from types import SimpleNamespace
+    from typing import cast
+
+    from evaluation.autonomous_diagnosis import AutonomousServices
+
+    service = AutonomousServices.__new__(AutonomousServices)
+    service.evidence_strategy = EvidenceStrategy.GC_AWARE_CAUSAL_SCOPE
+    service.required_causal_scope = "payment"
+    service.completed_queries = {("query_deployments", "payment")}
+    service.report = cast(
+        Any, SimpleNamespace(candidates=[SimpleNamespace(candidate_id="bad-configuration")])
+    )
+    service.evidence = cast(Any, SimpleNamespace(observations=[]))
+
+    service.refresh_required_causal_scope()
+    assert service.required_causal_scope == "payment"
+
+    service.completed_queries.add(("query_logs", "payment"))
+    service.refresh_required_causal_scope()
+    assert service.required_causal_scope is None
+
+
 def test_diagnosis_context_binds_chronological_memory_facts_to_evidence() -> None:
     observations = [
         {
@@ -184,9 +262,7 @@ def test_normal_short_rise_and_deployment_only_do_not_claim_sustained_memory_gro
     assert normal["memory_retention_by_service"] == []
     assert short_rise["memory_retention_by_service"][0]["sustained_increase_observed"] is False
     assert deployment_only["memory_retention_by_service"] == []
-    assert deployment_only["deployment_facts"][0]["causal_inference"].startswith(
-        "NOT_ESTABLISHED"
-    )
+    assert deployment_only["deployment_facts"][0]["causal_inference"].startswith("NOT_ESTABLISHED")
 
 
 def test_compact_facts_keep_excluded_raw_evidence_referenceable_and_accounted() -> None:
@@ -259,9 +335,7 @@ def test_diagnosis_context_excludes_stale_and_unscoped_evidence() -> None:
         {"id": "unscoped", "source": "logs", "summary": "old error"},
     ]
 
-    context = build_diagnosis_context(
-        observations, {}, window_start=start, window_end=end
-    )
+    context = build_diagnosis_context(observations, {}, window_start=start, window_end=end)
 
     assert [item["id"] for item in context["observations"]] == ["current"]
     assert context["context_budget"]["temporally_excluded_evidence_ids"] == [
@@ -304,9 +378,7 @@ def test_alert_aligned_facts_report_latency_errors_and_exact_record_conflicts() 
         },
     ]
 
-    context = build_diagnosis_context(
-        observations, {}, window_start=start, window_end=end
-    )
+    context = build_diagnosis_context(observations, {}, window_start=start, window_end=end)
     fact = context["alert_aligned_service_facts"][0]
     assert fact["classification"] == "CONTRADICTORY"
     assert (fact["success_count"], fact["error_count"], fact["p95_duration_ms"]) == (1, 1, 100.0)
@@ -467,8 +539,7 @@ def test_autonomous_plan_gateway_evidence_and_gate(
     assert services.gates[0].outcome.value == ("FAIL" if budget_guard else "PASS")
     if budget_guard:
         assert any(
-            event.get("kind") == "model-budget-decision"
-            and event["decision"] == "HUMAN_HANDOFF"
+            event.get("kind") == "model-budget-decision" and event["decision"] == "HUMAN_HANDOFF"
             for event in events
         )
     assert len([event for event in events if event.get("kind") == "tool-audit"]) >= 4
@@ -497,6 +568,221 @@ def test_autonomous_plan_gateway_evidence_and_gate(
         "request_spec_00"
         in next(iter(services.evidence.records.values())).normalized_query.as_dict()
     )
+
+
+def test_candidate_strategy_replans_for_deepest_failing_service(tmp_path: Path) -> None:
+    events: list[dict[str, Any]] = []
+    dispatched: list[tuple[str, str]] = []
+    diagnosed_contexts: list[dict[str, Any]] = []
+
+    class Adapter:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+        async def invoke(self, context: Any, arguments: Any) -> dict[str, Any]:
+            service = arguments["service"]
+            dispatched.append((self.name, service))
+            if self.name == "get_service_topology":
+                records: Any = [
+                    {"source": "gateway", "target": "order"},
+                    {"source": "order", "target": "payment"},
+                ]
+            elif self.name == "query_traces":
+                records = [
+                    {
+                        "service": "gateway",
+                        "status": {"code": "STATUS_CODE_ERROR"},
+                        "attributes": [
+                            {"key": "server.address", "value": {"stringValue": "payment"}},
+                            {
+                                "key": "http.response.status_code",
+                                "value": {"intValue": "503"},
+                            },
+                        ],
+                    }
+                ]
+            elif self.name == "query_deployments":
+                records = [
+                    {"service": service, "version": "broken-v2", "previous_version": "stable-v1"}
+                ]
+            else:
+                records = [
+                    {
+                        "event": "configuration_rejected" if service == "payment" else "request",
+                        "stream": {
+                            "server_address": "payment",
+                            "http_response_status_code": "503",
+                        },
+                    }
+                ]
+            return {
+                "source": SOURCES[self.name],
+                "summary": json.dumps(records),
+                "provenance": json.dumps(
+                    {"tool": self.name, "version": "2.0.0", "service": service}
+                ),
+                "complete_window": True,
+                "records_seen": len(records),
+            }
+
+    calls = 0
+
+    def report(context: dict[str, Any], candidate_id: str) -> dict[str, Any]:
+        sources = {item["source"]: item["id"] for item in context["observations"]}
+        support = (
+            [sources["traces"], sources["logs"]]
+            if candidate_id == "http-500"
+            else [sources["deployments"], sources["logs"]]
+        )
+        return {
+            "schema_version": "1.0.0",
+            "incident_id": "incident-1",
+            "disposition": "CANDIDATES",
+            "candidates": [
+                {
+                    "candidate_id": candidate_id,
+                    "rank": 1,
+                    "statement": "Evidence-bounded candidate",
+                    "supporting_evidence_ids": support,
+                    "counter_evidence_ids": [],
+                    "counter_evidence_treatment": "NOT_APPLICABLE",
+                    "counter_evidence_explanation": None,
+                    "missing_evidence": [],
+                    "uncertainty": "Bounded to current observations",
+                    "confidence_basis_points": 7000,
+                }
+            ],
+            "missing_evidence": [],
+            "explanation": "Current evidence",
+        }
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        body = json.loads(request.content)
+        supplied = json.loads(body["messages"][1]["content"])
+        context = supplied["context"]
+        schema = supplied["output_schema"]
+        if "plan" in schema["properties"]:
+            if calls == 1:
+                selected = [
+                    ("topology", "get_service_topology"),
+                    ("traces", "query_traces"),
+                    ("logs", "query_logs"),
+                ]
+                output = {
+                    "plan": {
+                        "schema_version": "1.0.0",
+                        "plan_id": "initial",
+                        "summary": "Inspect gateway failure",
+                        "steps": [
+                            {
+                                "step_id": step,
+                                "objective": "Inspect current evidence",
+                                "expected_source": {
+                                    "topology": "TOPOLOGY",
+                                    "traces": "TRACE",
+                                    "logs": "LOG",
+                                }[step],
+                                "parallel_group": 0,
+                            }
+                            for step, _ in selected
+                        ],
+                    },
+                    "tool_calls": [
+                        {
+                            "step_id": step,
+                            "tool_name": tool,
+                            "tool_version": "2.0.0",
+                            "arguments": {"service": "gateway"},
+                        }
+                        for step, tool in selected
+                    ],
+                }
+            else:
+                assert context["required_causal_scope"]["service"] == "payment"
+                output = {
+                    "plan": {
+                        "schema_version": "1.0.0",
+                        "plan_id": "causal-scope",
+                        "summary": "Inspect the observed failing dependency",
+                        "steps": [
+                            {
+                                "step_id": "payment-deployment",
+                                "objective": "Inspect deployment",
+                                "expected_source": "DEPLOYMENT",
+                                "parallel_group": 0,
+                            },
+                            {
+                                "step_id": "payment-logs",
+                                "objective": "Inspect service errors",
+                                "expected_source": "LOG",
+                                "parallel_group": 0,
+                            },
+                        ],
+                    },
+                    "tool_calls": [
+                        {
+                            "step_id": "payment-deployment",
+                            "tool_name": "query_deployments",
+                            "tool_version": "2.0.0",
+                            "arguments": {"service": "payment"},
+                        },
+                        {
+                            "step_id": "payment-logs",
+                            "tool_name": "query_logs",
+                            "tool_version": "2.0.0",
+                            "arguments": {"service": "payment"},
+                        },
+                    ],
+                }
+        else:
+            diagnosed_contexts.append(context)
+            output = report(context, "http-500" if calls == 2 else "bad-configuration")
+        return httpx.Response(
+            200,
+            json={
+                "usage": {"prompt_tokens": 100, "completion_tokens": 100, "total_tokens": 200},
+                "choices": [{"finish_reason": "stop", "message": {"content": json.dumps(output)}}],
+            },
+        )
+
+    now = datetime.now(UTC)
+    model = StructuredEvaluationModel(
+        "test-only",
+        events.append,
+        transport=httpx.MockTransport(respond),
+        max_calls=6,
+        profile=StructuredTransportProfile.CANDIDATE_1_11,
+    )
+    state, services = asyncio.run(
+        investigate(
+            model,
+            "incident-1",
+            "Checkout returns 502",
+            tmp_path,
+            now - timedelta(minutes=1),
+            now,
+            events.append,
+            adapters={
+                definition.identity: Adapter(definition.name) for definition in local_definitions()
+            },
+            evidence_strategy=EvidenceStrategy.GC_AWARE_CAUSAL_SCOPE,
+        )
+    )
+
+    assert state.phase.value == "COMPLETE"
+    assert state.budgets.used_replans == 1
+    assert state.budgets.used_tool_calls == 5
+    assert state.budgets.used_model_calls == 4
+    assert services.report is not None
+    assert services.report.candidates[0].candidate_id == "bad-configuration"
+    assert services.required_causal_scope is None
+    assert diagnosed_contexts[0]["memory_evidence_contract"] == "gc-aware/1.0.0"
+    assert dispatched[-2:] == [
+        ("query_deployments", "payment"),
+        ("query_logs", "payment"),
+    ]
 
 
 def test_loki_status_and_dependency_metadata_are_preserved() -> None:

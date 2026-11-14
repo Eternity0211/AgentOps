@@ -53,6 +53,21 @@ The analysis is post-hoc and is not a new quality measurement. It hashes the eva
 labels, frozen outcomes and analyzer source, publishes no provider response body, and cannot be
 used to tune or inspect the untouched FC4 lab holdout.
 
+The candidate implementation is selected explicitly by `EvidenceStrategy`; the existing legacy
+path remains the default. `GC_AWARE` changes only context construction. `GC_AWARE_CAUSAL_SCOPE`
+also applies a deterministic route guard when a proposed `http-500` cause is supported only by
+upstream Evidence while a deeper allowlisted failing dependency is directly observed. The guard
+uses current topology plus error spans/logs, chooses at most the deepest observed service, and is
+satisfied only by that service's deployment Evidence plus one logs/metrics/traces read. It cannot
+name a cause, issue a write, bypass the Gate, or expand a second service. If the bounded replan or
+provider-call reserve is unavailable, the result is human handoff.
+
+The snapshot runner records the evidence strategy and provider-call ceiling in each runtime
+manifest. This permits the next development comparison to give baseline and candidate identical
+ceilings while changing only the declared strategy. The integration fixture is a behavior and
+safety test, not a measured quality-effect claim; FC4c2 remains open until the separate development
+comparison is frozen, executed and scored.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

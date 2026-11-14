@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+from evaluation.autonomous_diagnosis import EvidenceStrategy
 from evaluation.live_gateway import SERVICES, local_definitions
 from evaluation.observation_snapshot import write_snapshot
 from evaluation.outcome_ledger import OutcomeLedger
@@ -248,6 +249,8 @@ def test_snapshot_runtime_binds_transport_profile(tmp_path: Path) -> None:
         key="test-only",
         transport=httpx.MockTransport(respond),
         profile=StructuredTransportProfile.BASELINE_1_4,
+        evidence_strategy=EvidenceStrategy.GC_AWARE,
+        model_max_calls=6,
     )
     runtime = json.loads(
         (tmp_path / "run/single-agent/instance-0000000000000001/runtime.json").read_text(
@@ -255,3 +258,5 @@ def test_snapshot_runtime_binds_transport_profile(tmp_path: Path) -> None:
         )
     )
     assert runtime["structured_transport_profile"] == "real-structured-evaluation/1.4.0"
+    assert runtime["evidence_strategy"] == "gc-aware/1.0.0"
+    assert runtime["model_provider_call_ceiling"] == 6

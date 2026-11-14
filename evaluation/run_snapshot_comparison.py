@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from agentops_incident_commander.domain import EvidenceGateDecision
-from evaluation.autonomous_diagnosis import investigate
+from evaluation.autonomous_diagnosis import EvidenceStrategy, investigate
 from evaluation.historical_context import MemoryReplaySource
 from evaluation.live_gateway import local_definitions
 from evaluation.observation_snapshot import SnapshotReadAdapter, load_snapshot, sanitize_output
@@ -65,6 +65,8 @@ def run_snapshot(
     transport: Any = None,
     memory_source: MemoryReplaySource | None = None,
     profile: StructuredTransportProfile = StructuredTransportProfile.CANDIDATE_1_5,
+    evidence_strategy: EvidenceStrategy = EvidenceStrategy.LEGACY,
+    model_max_calls: int = 4,
 ) -> Outcome:
     if mode not in RUN_MODES:
         raise ValueError("unknown comparison mode")
@@ -104,6 +106,8 @@ def run_snapshot(
         "evidence_clock": "CAPTURE_WINDOW_END_PLUS_ONE_SECOND",
         "provider_timing": "REAL_MONOTONIC",
         "structured_transport_profile": profile.value,
+        "evidence_strategy": evidence_strategy.value,
+        "model_provider_call_ceiling": model_max_calls,
     }
     with (run_root / "runtime.json").open("x", encoding="utf-8") as stream:
         json.dump(runtime, stream, sort_keys=True)
@@ -117,7 +121,7 @@ def run_snapshot(
             os.fsync(stream.fileno())
 
     model = ComparisonModel(
-        key, journal, max_calls=4, transport=transport, profile=profile
+        key, journal, max_calls=model_max_calls, transport=transport, profile=profile
     )
     started = time.monotonic_ns()
     values: dict[str, Any] = {}
@@ -162,6 +166,7 @@ def run_snapshot(
                 single_pass=mode == "single-agent",
                 evaluation_at=datetime.fromisoformat(snapshot["window_end"]) + timedelta(seconds=1),
                 allow_incomplete_reads=True,
+                evidence_strategy=evidence_strategy,
             )
         )
         if services.report is None:

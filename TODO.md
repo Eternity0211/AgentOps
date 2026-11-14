@@ -141,11 +141,17 @@ measurement shows no need; closing it does not mean implementing it.
       improved 9,672→9,284 with a paired median interval [-585, -58], but candidate validity was
       80/81 and safe controls 26/27 after one PLAN repeated forbidden `steps_note` through repair.
       Safety/reliability takes precedence, so candidate 1.9 is rejected and no improvement claimed.
-    - [ ] FC2g3 replace whole-message compaction with candidate 1.10 schema-only compaction,
+    - [x] FC2g3 replace whole-message compaction with candidate 1.10 schema-only compaction,
       preserving 1.8 formatting for context, output constraints and repair data. Freeze and rerun
       against 1.8 with the same safety-first acceptance before making any efficiency claim.
       - [x] FC2g3a freeze the 162-outcome 1.8/1.10 plan against the exact implementation commit,
         scorer, dataset and source hashes before any provider call.
+      - [x] FC2g3b publish all 162 outcomes: both arms were 81/81 valid with 27/27 safe controls,
+        but schema compaction triggered ten extra PLAN repairs. Input tokens were 9,672→9,913 and
+        all efficiency claims were `NO_PROVEN_IMPROVEMENT`, so candidate 1.10 is not adopted.
+    - [ ] FC2g4 isolate the remaining opportunity to DIAGNOSE/REMEDIATE schema compaction while
+      keeping PLAN byte-identical to 1.8. Run one final frozen 1.8/candidate comparison; stop this
+      optimization line after that result whether it improves, is null or regresses.
 
 - [x] FC3 Make memory-leak evidence discriminative before asking the model to classify it.
   - Capture a longer bounded series including retained bytes before/after GC, allocation and

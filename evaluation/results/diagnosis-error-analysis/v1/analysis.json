@@ -1,0 +1,271 @@
+{
+  "category_counts": {
+    "DOWNSTREAM_CAUSAL_SCOPE_NOT_EXPANDED": 9,
+    "EVIDENCE_CONSTRUCTION_GAP": 9
+  },
+  "census": {
+    "fault_outcomes": 54,
+    "top1_correct": 36,
+    "top1_errors": 18,
+    "top1_rate": 0.6666666666666666
+  },
+  "errors": [
+    {
+      "category": "DOWNSTREAM_CAUSAL_SCOPE_NOT_EXPANDED",
+      "disposition": "CANDIDATES",
+      "expected": "bad-configuration",
+      "instance_id": "instance-10ffc297a2a14418",
+      "missing_evidence_count": 0,
+      "mode": "controlled-graph",
+      "predicted": "http-500",
+      "reason": "Only gateway Evidence was collected after the gateway trace localized the failure downstream.",
+      "retrieved_services": [
+        "gateway"
+      ]
+    },
+    {
+      "category": "EVIDENCE_CONSTRUCTION_GAP",
+      "disposition": "HUMAN_HANDOFF",
+      "expected": "memory-leak",
+      "instance_id": "instance-60c331d45bdf42c2",
+      "missing_evidence_count": 4,
+      "mode": "controlled-graph",
+      "predicted": null,
+      "reason": "The legacy context did not expose the GC-aware retained-memory facts later validated by FC3.",
+      "retrieved_services": [
+        "gateway"
+      ]
+    },
+    {
+      "category": "EVIDENCE_CONSTRUCTION_GAP",
+      "disposition": "HUMAN_HANDOFF",
+      "expected": "memory-leak",
+      "instance_id": "instance-6c63085545e6472e",
+      "missing_evidence_count": 3,
+      "mode": "controlled-graph",
+      "predicted": null,
+      "reason": "The legacy context did not expose the GC-aware retained-memory facts later validated by FC3.",
+      "retrieved_services": [
+        "gateway"
+      ]
+    },
+    {
+      "category": "EVIDENCE_CONSTRUCTION_GAP",
+      "disposition": "HUMAN_HANDOFF",
+      "expected": "memory-leak",
+      "instance_id": "instance-76a2ace7a4604a40",
+      "missing_evidence_count": 4,
+      "mode": "controlled-graph",
+      "predicted": null,
+      "reason": "The legacy context did not expose the GC-aware retained-memory facts later validated by FC3.",
+      "retrieved_services": [
+        "gateway"
+      ]
+    },
+    {
+      "category": "DOWNSTREAM_CAUSAL_SCOPE_NOT_EXPANDED",
+      "disposition": "CANDIDATES",
+      "expected": "bad-configuration",
+      "instance_id": "instance-8f7a34e84ab14ebf",
+      "missing_evidence_count": 0,
+      "mode": "controlled-graph",
+      "predicted": "http-500",
+      "reason": "Only gateway Evidence was collected after the gateway trace localized the failure downstream.",
+      "retrieved_services": [
+        "gateway"
+      ]
+    },
+    {
+      "category": "DOWNSTREAM_CAUSAL_SCOPE_NOT_EXPANDED",
+      "disposition": "CANDIDATES",
+      "expected": "bad-configuration",
+      "instance_id": "instance-d17cfb35589748e8",
+      "missing_evidence_count": 2,
+      "mode": "controlled-graph",
+      "predicted": "http-500",
+      "reason": "Only gateway Evidence was collected after the gateway trace localized the failure downstream.",
+      "retrieved_services": [
+        "gateway"
+      ]
+    },
+    {
+      "category": "DOWNSTREAM_CAUSAL_SCOPE_NOT_EXPANDED",
+      "disposition": "CANDIDATES",
+      "expected": "bad-configuration",
+      "instance_id": "instance-10ffc297a2a14418",
+      "missing_evidence_count": 2,
+      "mode": "controlled-graph-simulated-memory",
+      "predicted": "http-500",
+      "reason": "Only gateway Evidence was collected after the gateway trace localized the failure downstream.",
+      "retrieved_services": [
+        "gateway"
+      ]
+    },
+    {
+      "category": "EVIDENCE_CONSTRUCTION_GAP",
+      "disposition": "HUMAN_HANDOFF",
+      "expected": "memory-leak",
+      "instance_id": "instance-60c331d45bdf42c2",
+      "missing_evidence_count": 4,
+      "mode": "controlled-graph-simulated-memory",
+      "predicted": null,
+      "reason": "The legacy context did not expose the GC-aware retained-memory facts later validated by FC3.",
+      "retrieved_services": [
+        "gateway"
+      ]
+    },
+    {
+      "category": "EVIDENCE_CONSTRUCTION_GAP",
+      "disposition": "HUMAN_HANDOFF",
+      "expected": "memory-leak",
+      "instance_id": "instance-6c63085545e6472e",
+      "missing_evidence_count": 3,
+      "mode": "controlled-graph-simulated-memory",
+      "predicted": null,
+      "reason": "The legacy context did not expose the GC-aware retained-memory facts later validated by FC3.",
+      "retrieved_services": [
+        "gateway"
+      ]
+    },
+    {
+      "category": "EVIDENCE_CONSTRUCTION_GAP",
+      "disposition": "HUMAN_HANDOFF",
+      "expected": "memory-leak",
+      "instance_id": "instance-76a2ace7a4604a40",
+      "missing_evidence_count": 4,
+      "mode": "controlled-graph-simulated-memory",
+      "predicted": null,
+      "reason": "The legacy context did not expose the GC-aware retained-memory facts later validated by FC3.",
+      "retrieved_services": [
+        "gateway"
+      ]
+    },
+    {
+      "category": "DOWNSTREAM_CAUSAL_SCOPE_NOT_EXPANDED",
+      "disposition": "CANDIDATES",
+      "expected": "bad-configuration",
+      "instance_id": "instance-8f7a34e84ab14ebf",
+      "missing_evidence_count": 0,
+      "mode": "controlled-graph-simulated-memory",
+      "predicted": "http-500",
+      "reason": "Only gateway Evidence was collected after the gateway trace localized the failure downstream.",
+      "retrieved_services": [
+        "gateway"
+      ]
+    },
+    {
+      "category": "DOWNSTREAM_CAUSAL_SCOPE_NOT_EXPANDED",
+      "disposition": "CANDIDATES",
+      "expected": "bad-configuration",
+      "instance_id": "instance-d17cfb35589748e8",
+      "missing_evidence_count": 2,
+      "mode": "controlled-graph-simulated-memory",
+      "predicted": "http-500",
+      "reason": "Only gateway Evidence was collected after the gateway trace localized the failure downstream.",
+      "retrieved_services": [
+        "gateway"
+      ]
+    },
+    {
+      "category": "DOWNSTREAM_CAUSAL_SCOPE_NOT_EXPANDED",
+      "disposition": "CANDIDATES",
+      "expected": "bad-configuration",
+      "instance_id": "instance-10ffc297a2a14418",
+      "missing_evidence_count": 2,
+      "mode": "single-agent",
+      "predicted": "http-500",
+      "reason": "Only gateway Evidence was collected after the gateway trace localized the failure downstream.",
+      "retrieved_services": [
+        "gateway"
+      ]
+    },
+    {
+      "category": "EVIDENCE_CONSTRUCTION_GAP",
+      "disposition": "HUMAN_HANDOFF",
+      "expected": "memory-leak",
+      "instance_id": "instance-60c331d45bdf42c2",
+      "missing_evidence_count": 4,
+      "mode": "single-agent",
+      "predicted": null,
+      "reason": "The legacy context did not expose the GC-aware retained-memory facts later validated by FC3.",
+      "retrieved_services": [
+        "gateway"
+      ]
+    },
+    {
+      "category": "EVIDENCE_CONSTRUCTION_GAP",
+      "disposition": "HUMAN_HANDOFF",
+      "expected": "memory-leak",
+      "instance_id": "instance-6c63085545e6472e",
+      "missing_evidence_count": 4,
+      "mode": "single-agent",
+      "predicted": null,
+      "reason": "The legacy context did not expose the GC-aware retained-memory facts later validated by FC3.",
+      "retrieved_services": [
+        "gateway"
+      ]
+    },
+    {
+      "category": "EVIDENCE_CONSTRUCTION_GAP",
+      "disposition": "HUMAN_HANDOFF",
+      "expected": "memory-leak",
+      "instance_id": "instance-76a2ace7a4604a40",
+      "missing_evidence_count": 4,
+      "mode": "single-agent",
+      "predicted": null,
+      "reason": "The legacy context did not expose the GC-aware retained-memory facts later validated by FC3.",
+      "retrieved_services": [
+        "gateway"
+      ]
+    },
+    {
+      "category": "DOWNSTREAM_CAUSAL_SCOPE_NOT_EXPANDED",
+      "disposition": "CANDIDATES",
+      "expected": "bad-configuration",
+      "instance_id": "instance-8f7a34e84ab14ebf",
+      "missing_evidence_count": 0,
+      "mode": "single-agent",
+      "predicted": "http-500",
+      "reason": "Only gateway Evidence was collected after the gateway trace localized the failure downstream.",
+      "retrieved_services": [
+        "gateway"
+      ]
+    },
+    {
+      "category": "DOWNSTREAM_CAUSAL_SCOPE_NOT_EXPANDED",
+      "disposition": "CANDIDATES",
+      "expected": "bad-configuration",
+      "instance_id": "instance-d17cfb35589748e8",
+      "missing_evidence_count": 0,
+      "mode": "single-agent",
+      "predicted": "http-500",
+      "reason": "Only gateway Evidence was collected after the gateway trace localized the failure downstream.",
+      "retrieved_services": [
+        "gateway"
+      ]
+    }
+  ],
+  "expected_cause_counts": {
+    "bad-configuration": 9,
+    "memory-leak": 9
+  },
+  "limitations": [
+    "This is a deterministic post-hoc classification of frozen development outcomes, not a new quality measurement.",
+    "Evaluator labels are used only after outcomes exist and are never passed to runtime or a model.",
+    "The optimization decision must be tested on separate development data before the untouched FC4 holdout is opened."
+  ],
+  "optimization_decision": {
+    "causal_scope": "Add bounded deterministic read-only downstream Evidence expansion after a failing dependency is observed; do not infer a cause or perform a write.",
+    "memory_evidence": "Adopt the already validated FC3 GC-aware context contract in the candidate path.",
+    "ranking": "Do not tune ranking until decisive downstream Evidence is present."
+  },
+  "schema_version": "diagnosis-error-analysis/1.0.0",
+  "source": {
+    "analyzer_sha256": "c82a18bb36f2aea704267f46f7fa5387009347db22c3c4b3b6670237ce268c94",
+    "labels_path": "evaluation/real_protocol/v2/evaluator_only/labels.json",
+    "labels_sha256": "753efdbad40de3565620d9a0d7c3e508b5cf5548cc7c2f4a5141574d982fe30a",
+    "outcome_count": 81,
+    "outcomes_sha256": "34ffb3525d0b3b066d95667cc619e9a32eb1f99fcf9dcb6596552f0b1d9a2d9f",
+    "run_path": "evaluation/results/structured-reliability/v7/run-001/candidate-1.11"
+  }
+}

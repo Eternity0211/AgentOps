@@ -266,6 +266,14 @@ measurement shows no need; closing it does not mean implementing it.
   - [ ] FC4c Classify the existing diagnosis errors and optimize only on separate development data.
     Attribute each miss to decisive-Evidence absence, selection, causal correlation, ranking,
     counter-evidence handling or unsupported conclusion; preserve schemas, Gate and authority.
+    - [x] FC4c1 Freeze the candidate-1.11 miss census before changing the candidate. Across 54
+      fault outcomes, Top-1 was 36/54 and all 18 misses were deterministically classified: nine
+      memory cases lacked the later FC3 GC-aware context, and nine bad-configuration cases stopped
+      at gateway Evidence without bounded downstream causal-scope expansion. The analysis hashes
+      its labels, outcomes and analyzer, contains no model response bodies, and defers ranking
+      changes until decisive Evidence is present.
+    - [ ] FC4c2 Implement the bounded candidate-only evidence changes and verify them on separate
+      development data without opening the frozen FC4 lab holdout.
   - [ ] FC4d Freeze the resulting implementation and run the untouched rules/single/graph lab
     comparison once. Publish baseline, candidate, delta, 95% interval and failures for every metric;
     null or negative outcomes remain valid results and selective reruns are forbidden.

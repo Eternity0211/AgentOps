@@ -46,7 +46,7 @@
       "independent_variable": "Declared strategy, orchestration or confirmed-memory access per pair.",
       "metrics": ["top1", "top3", "safe_controls", "valid_report_rate", "unsupported_conclusion_rate", "gate_precision", "gate_recall", "latency", "tokens", "cost"],
       "sample_size": {"status": "POWER_ANALYSIS_REQUIRED", "method": "Separate pilot and paired confirmatory study sized for the declared minimum relevant Top-1 delta.", "fixed_pairs": null},
-      "artifact_paths": ["evaluation/scorecard/v1/scorecard.json", "docs/PROJECT_EFFECT_SCORECARD.md", "evaluation/datasets/lab-holdout-v1/", "evaluation/lab_holdout/v1/", "evaluation/real_protocol/v4/", "evaluation/results/final-diagnosis-comparison/v1/"],
+      "artifact_paths": ["evaluation/scorecard/v1/scorecard.json", "docs/PROJECT_EFFECT_SCORECARD.md", "evaluation/datasets/lab-holdout-v1/", "evaluation/lab_holdout/v1/", "evaluation/results/diagnosis-error-analysis/v1/", "evaluation/real_protocol/v4/", "evaluation/results/final-diagnosis-comparison/v1/"],
       "external_requirements": ["Tenant-authorized redacted confirmed closed incidents for the required fourth arm", "Retention and consent decision for confirmed-history use"]
     },
     {

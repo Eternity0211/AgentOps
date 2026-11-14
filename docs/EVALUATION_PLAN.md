@@ -36,6 +36,23 @@ The dataset is frozen before FC4c candidate work. Development/error analysis mus
 FC4d may run this set once after the candidate and scorer are frozen; failures stay in the
 denominator and selective reruns remain forbidden.
 
+### Frozen FC4 development error census
+
+Before candidate changes, the existing candidate-1.11 development outcomes were classified by
+[`evaluation.diagnosis_error_analysis`](../evaluation/diagnosis_error_analysis.py). Its immutable
+publication is under
+[`evaluation/results/diagnosis-error-analysis/v1`](../evaluation/results/diagnosis-error-analysis/v1).
+Among 54 fault outcomes, 36 were Top-1 correct and 18 were misses. Nine memory-leak misses safely
+handed off because the legacy main context omitted the independently validated FC3 GC-aware facts.
+Nine bad-configuration misses emitted the observed HTTP symptom after collecting only gateway
+Evidence, without downstream configuration or deployment Evidence. The candidate response is
+therefore limited to the already validated context contract plus bounded deterministic read-only
+downstream expansion. Ranking changes remain out of scope until decisive Evidence is present.
+
+The analysis is post-hoc and is not a new quality measurement. It hashes the evaluator-only
+labels, frozen outcomes and analyzer source, publishes no provider response body, and cannot be
+used to tune or inspect the untouched FC4 lab holdout.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

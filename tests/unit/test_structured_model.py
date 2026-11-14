@@ -328,6 +328,39 @@ def test_candidate_1_9_compacts_only_json_whitespace(purpose: ModelPurpose) -> N
     assert len(candidate_user.encode()) < len(baseline_user.encode())
 
 
+@pytest.mark.parametrize("purpose", list(ModelPurpose))
+def test_candidate_1_10_compacts_only_schema_whitespace(purpose: ModelPurpose) -> None:
+    context = {"incident_id": "incident-1", "evidence_ids": ["e1", "e2"]}
+    baseline = StructuredEvaluationModel.request_payload(
+        purpose,
+        context,
+        profile=StructuredTransportProfile.CANDIDATE_1_8,
+    )
+    aggressive = StructuredEvaluationModel.request_payload(
+        purpose,
+        context,
+        profile=StructuredTransportProfile.CANDIDATE_1_9,
+    )
+    candidate = StructuredEvaluationModel.request_payload(
+        purpose,
+        context,
+        profile=StructuredTransportProfile.CANDIDATE_1_10,
+    )
+    baseline_user = baseline["messages"][1]["content"]
+    aggressive_user = aggressive["messages"][1]["content"]
+    candidate_user = candidate["messages"][1]["content"]
+    parsed = json.loads(baseline_user)
+
+    assert candidate | {"messages": baseline["messages"]} == baseline
+    assert candidate["messages"][0] == baseline["messages"][0]
+    assert json.loads(candidate_user) == parsed
+    assert json.dumps(parsed["context"]) in candidate_user
+    assert json.dumps(parsed["output_constraints"]) in candidate_user
+    assert (
+        len(aggressive_user.encode()) < len(candidate_user.encode()) < len(baseline_user.encode())
+    )
+
+
 def test_profiles_through_1_8_keep_frozen_request_fingerprints() -> None:
     context = {"incident_id": "incident-1", "evidence_ids": ["e1", "e2"]}
     expected = {
@@ -355,6 +388,11 @@ def test_profiles_through_1_8_keep_frozen_request_fingerprints() -> None:
             "PLAN": "33152dbe62dfe348b63305fc7906af5e3c0f31e0fb84211aa5b7c47411baac2f",
             "DIAGNOSE": "795fc0bebe1df71eea5b5496e3f11947c43daf250fb2d08165b788313b223267",
             "REMEDIATE": "837619f95f0194d935f5c15eaf9d72f6d69d4a142af008178aad1d90c9f72ad2",
+        },
+        StructuredTransportProfile.CANDIDATE_1_9: {
+            "PLAN": "ac425cebc7050b5168c767650b90823031401d9617700873c430ebcbdb41ecd9",
+            "DIAGNOSE": "da63f05d9a55a91f18e9f6ae7c2b7d911e44459f9814cf93cabee78399487fcc",
+            "REMEDIATE": "2a1e6a63833d1d3ed37afe95869034017967391ce25549435e0701e9b69fafde",
         },
     }
 

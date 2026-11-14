@@ -34,12 +34,13 @@ from agentops_incident_commander.workflows import (
     RemediationProposal,
 )
 
-VERSION = "real-structured-evaluation/1.9.0"
+VERSION = "real-structured-evaluation/1.10.0"
 BASELINE_VERSION = "real-structured-evaluation/1.4.0"
 CANDIDATE_1_5_VERSION = "real-structured-evaluation/1.5.0"
 CANDIDATE_1_6_VERSION = "real-structured-evaluation/1.6.0"
 CANDIDATE_1_7_VERSION = "real-structured-evaluation/1.7.0"
 CANDIDATE_1_8_VERSION = "real-structured-evaluation/1.8.0"
+CANDIDATE_1_9_VERSION = "real-structured-evaluation/1.9.0"
 
 
 class ModelPurpose(StrEnum):
@@ -54,7 +55,8 @@ class StructuredTransportProfile(StrEnum):
     CANDIDATE_1_6 = CANDIDATE_1_6_VERSION
     CANDIDATE_1_7 = CANDIDATE_1_7_VERSION
     CANDIDATE_1_8 = CANDIDATE_1_8_VERSION
-    CANDIDATE_1_9 = VERSION
+    CANDIDATE_1_9 = CANDIDATE_1_9_VERSION
+    CANDIDATE_1_10 = VERSION
 
 
 class ToolProposal(BaseModel):
@@ -165,6 +167,7 @@ def _output_constraints(
         if profile in (
             StructuredTransportProfile.CANDIDATE_1_8,
             StructuredTransportProfile.CANDIDATE_1_9,
+            StructuredTransportProfile.CANDIDATE_1_10,
         ):
             constraints["candidate_invariants"] = {
                 "ranks": "consecutive integers starting at 1 in array order",
@@ -191,6 +194,24 @@ def fingerprint(value: object) -> str:
     return hashlib.sha256(
         json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
+
+
+def _serialize_user_content(
+    user_content: dict[str, Any], profile: StructuredTransportProfile
+) -> str:
+    if profile is StructuredTransportProfile.CANDIDATE_1_9:
+        return json.dumps(user_content, separators=(",", ":"))
+    if profile is not StructuredTransportProfile.CANDIDATE_1_10:
+        return json.dumps(user_content)
+    fields = []
+    for name, value in user_content.items():
+        encoded = (
+            json.dumps(value, separators=(",", ":"))
+            if name == "output_schema"
+            else json.dumps(value)
+        )
+        fields.append(f"{json.dumps(name)}: {encoded}")
+    return "{" + ", ".join(fields) + "}"
 
 
 class StructuredModelFailure(RuntimeError):
@@ -252,6 +273,7 @@ class StructuredEvaluationModel:
             StructuredTransportProfile.CANDIDATE_1_7,
             StructuredTransportProfile.CANDIDATE_1_8,
             StructuredTransportProfile.CANDIDATE_1_9,
+            StructuredTransportProfile.CANDIDATE_1_10,
         ):
             return True
         required_calls = 4
@@ -289,6 +311,7 @@ class StructuredEvaluationModel:
             StructuredTransportProfile.CANDIDATE_1_7,
             StructuredTransportProfile.CANDIDATE_1_8,
             StructuredTransportProfile.CANDIDATE_1_9,
+            StructuredTransportProfile.CANDIDATE_1_10,
         ):
             instruction += (
                 " Obey output_constraints as hard generation rules. Character caps count Unicode "
@@ -309,6 +332,7 @@ class StructuredEvaluationModel:
             StructuredTransportProfile.CANDIDATE_1_7,
             StructuredTransportProfile.CANDIDATE_1_8,
             StructuredTransportProfile.CANDIDATE_1_9,
+            StructuredTransportProfile.CANDIDATE_1_10,
         ):
             user_content["output_constraints"] = _output_constraints(purpose, context, profile)
         if repair is not None:
@@ -323,11 +347,7 @@ class StructuredEvaluationModel:
                 {"role": "system", "content": instruction},
                 {
                     "role": "user",
-                    "content": (
-                        json.dumps(user_content, separators=(",", ":"))
-                        if profile is StructuredTransportProfile.CANDIDATE_1_9
-                        else json.dumps(user_content)
-                    ),
+                    "content": (_serialize_user_content(user_content, profile)),
                 },
             ],
         }

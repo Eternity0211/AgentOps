@@ -362,12 +362,10 @@ def test_candidate_1_9_pair_plan_is_frozen_before_calls() -> None:
     revision = subprocess.check_output(
         ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
     ).strip()
-    assert _check_plan(
-        plan,
-        revision,
-        Path(plan["dataset"]),
-        Path(plan["simulated_history_bank"]),
-    ) == (
-        ("baseline-1.8", StructuredTransportProfile.CANDIDATE_1_8),
-        ("candidate-1.9", StructuredTransportProfile.CANDIDATE_1_9),
-    )
+    with pytest.raises(ValueError, match="transport source hash mismatch"):
+        _check_plan(
+            plan,
+            revision,
+            Path(plan["dataset"]),
+            Path(plan["simulated_history_bank"]),
+        )

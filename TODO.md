@@ -141,6 +141,9 @@ measurement shows no need; closing it does not mean implementing it.
       improved 9,672→9,284 with a paired median interval [-585, -58], but candidate validity was
       80/81 and safe controls 26/27 after one PLAN repeated forbidden `steps_note` through repair.
       Safety/reliability takes precedence, so candidate 1.9 is rejected and no improvement claimed.
+    - [ ] FC2g3 replace whole-message compaction with candidate 1.10 schema-only compaction,
+      preserving 1.8 formatting for context, output constraints and repair data. Freeze and rerun
+      against 1.8 with the same safety-first acceptance before making any efficiency claim.
 
 - [x] FC3 Make memory-leak evidence discriminative before asking the model to classify it.
   - Capture a longer bounded series including retained bytes before/after GC, allocation and

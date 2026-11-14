@@ -129,6 +129,12 @@ measurement shows no need; closing it does not mean implementing it.
       terminal invalids and zero post-repair failures; controls and Evidence integrity were perfect.
       Quality was 36/54 in both arms. FC1 reports no reliability/quality improvement and marks
       input tokens plus rate-card estimate `REGRESSED`, so closing FC2 is not an efficiency claim.
+  - [ ] FC2g remove transport-only JSON whitespace without changing the 1.8 request semantics,
+    schemas, constraints, budgets or safety routes, then freeze and run a fresh 1.8/1.9 paired
+    comparison. Historical profiles through 1.8 must remain byte-compatible. Acceptance requires
+    81/81 candidate validity, zero terminal invalids, zero failures after successful repair, safe
+    controls and Evidence integrity no worse than 1.8; token/cost improvement is claimed only from
+    the frozen paired intervals and all null or regressed results remain publishable.
 
 - [x] FC3 Make memory-leak evidence discriminative before asking the model to classify it.
   - Capture a longer bounded series including retained bytes before/after GC, allocation and

@@ -14,6 +14,7 @@ from evaluation.structured_model import (
     StructuredModelFailure,
     StructuredTransportProfile,
     compile_real_plan,
+    fingerprint,
 )
 
 from agentops_incident_commander.application import (
@@ -148,9 +149,7 @@ def test_schema_repair_is_attempted_only_once() -> None:
         "test-only", events.append, max_calls=4, transport=httpx.MockTransport(handle)
     )
     with pytest.raises(StructuredModelFailure, match="INVALID_RESPONSE"):
-        model.invoke(
-            ModelPurpose.DIAGNOSE, {"incident_id": "incident-1", "evidence_ids": ["e1"]}
-        )
+        model.invoke(ModelPurpose.DIAGNOSE, {"incident_id": "incident-1", "evidence_ids": ["e1"]})
 
     assert calls == 2
     assert [event["repair_attempt"] for event in events] == [0, 0, 1, 1]
@@ -173,9 +172,7 @@ def test_frozen_baseline_profile_has_old_prompt_and_never_repairs() -> None:
         transport=httpx.MockTransport(handle),
     )
     with pytest.raises(StructuredModelFailure, match="INVALID_RESPONSE"):
-        model.invoke(
-            ModelPurpose.DIAGNOSE, {"incident_id": "incident-1", "evidence_ids": ["e1"]}
-        )
+        model.invoke(ModelPurpose.DIAGNOSE, {"incident_id": "incident-1", "evidence_ids": ["e1"]})
 
     assert len(requests) == 1
     payload = json.loads(requests[0].content)
@@ -205,9 +202,7 @@ def test_field_budgets_are_explicit_and_repair_never_applies_to_remediation() ->
         "test-only",
         events.append,
         max_calls=4,
-        transport=httpx.MockTransport(
-            lambda request: httpx.Response(200, json=body(invalid))
-        ),
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json=body(invalid))),
     )
     with pytest.raises(StructuredModelFailure, match="INVALID_RESPONSE"):
         model.invoke(ModelPurpose.REMEDIATE, {"incident_id": "incident-1"}, gate=gate)
@@ -223,9 +218,7 @@ def test_candidate_1_6_adds_machine_readable_generation_constraints() -> None:
     )
     user = json.loads(diagnosis["messages"][1]["content"])
 
-    assert user["output_constraints"]["required_literal_values"] == {
-        "incident_id": "incident-1"
-    }
+    assert user["output_constraints"]["required_literal_values"] == {"incident_id": "incident-1"}
     assert user["output_constraints"]["safe_text_caps_characters"]["explanation"] == 320
     assert "Copy every required literal value exactly" in diagnosis["messages"][0]["content"]
 
@@ -256,9 +249,7 @@ def test_candidate_1_7_reserves_complete_replan_transition() -> None:
         events.append,
         max_calls=4,
         profile=StructuredTransportProfile.CANDIDATE_1_7,
-        transport=httpx.MockTransport(
-            lambda request: httpx.Response(200, json=body(report()))
-        ),
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json=body(report()))),
     )
     context = {"incident_id": "incident-1", "evidence_ids": ["e1"]}
     model.invoke(ModelPurpose.DIAGNOSE, context)
@@ -294,9 +285,7 @@ def test_candidate_1_8_adds_machine_readable_candidate_invariants() -> None:
         context,
         profile=StructuredTransportProfile.CANDIDATE_1_7,
     )
-    candidate_constraints = json.loads(candidate["messages"][1]["content"])[
-        "output_constraints"
-    ]
+    candidate_constraints = json.loads(candidate["messages"][1]["content"])["output_constraints"]
     frozen_constraints = json.loads(frozen["messages"][1]["content"])["output_constraints"]
 
     assert candidate_constraints["candidate_invariants"] == {
@@ -315,6 +304,71 @@ def test_candidate_1_8_adds_machine_readable_candidate_invariants() -> None:
         },
     }
     assert "candidate_invariants" not in frozen_constraints
+
+
+@pytest.mark.parametrize("purpose", list(ModelPurpose))
+def test_candidate_1_9_compacts_only_json_whitespace(purpose: ModelPurpose) -> None:
+    context = {"incident_id": "incident-1", "evidence_ids": ["e1", "e2"]}
+    baseline = StructuredEvaluationModel.request_payload(
+        purpose,
+        context,
+        profile=StructuredTransportProfile.CANDIDATE_1_8,
+    )
+    candidate = StructuredEvaluationModel.request_payload(
+        purpose,
+        context,
+        profile=StructuredTransportProfile.CANDIDATE_1_9,
+    )
+    baseline_user = baseline["messages"][1]["content"]
+    candidate_user = candidate["messages"][1]["content"]
+
+    assert candidate | {"messages": baseline["messages"]} == baseline
+    assert candidate["messages"][0] == baseline["messages"][0]
+    assert json.loads(candidate_user) == json.loads(baseline_user)
+    assert len(candidate_user.encode()) < len(baseline_user.encode())
+
+
+def test_profiles_through_1_8_keep_frozen_request_fingerprints() -> None:
+    context = {"incident_id": "incident-1", "evidence_ids": ["e1", "e2"]}
+    expected = {
+        StructuredTransportProfile.BASELINE_1_4: {
+            "PLAN": "de0be9f0e20c27017b38a0ad48a65e4c7d4bdc2bf3cff98defc57b10fde3db54",
+            "DIAGNOSE": "2baec1fbc1dc9c2e4b8cf4f3791e23f9f10cc6734a15695da4841a187ce9fd07",
+            "REMEDIATE": "a7a27094819f01e6fe5299665ac8fafea1a98dee170ebafd18824c6507b46971",
+        },
+        StructuredTransportProfile.CANDIDATE_1_5: {
+            "PLAN": "d393dcdd9d2a40e6b6f3b00b696eca38db1db04089e1581b12324d97e25f185f",
+            "DIAGNOSE": "6e1e98fc56302ed809aa3987ee749a0f0b30671b2843202a8c84331d47e9d717",
+            "REMEDIATE": "b9916555b2996cec4ec48ad5fd02944c095f77fa571125db2d0f44df2e73cda2",
+        },
+        StructuredTransportProfile.CANDIDATE_1_6: {
+            "PLAN": "33152dbe62dfe348b63305fc7906af5e3c0f31e0fb84211aa5b7c47411baac2f",
+            "DIAGNOSE": "ab24645ea36e0b5edce87ab1604ab28338bfebb754de372e7929c625a179d411",
+            "REMEDIATE": "837619f95f0194d935f5c15eaf9d72f6d69d4a142af008178aad1d90c9f72ad2",
+        },
+        StructuredTransportProfile.CANDIDATE_1_7: {
+            "PLAN": "33152dbe62dfe348b63305fc7906af5e3c0f31e0fb84211aa5b7c47411baac2f",
+            "DIAGNOSE": "ab24645ea36e0b5edce87ab1604ab28338bfebb754de372e7929c625a179d411",
+            "REMEDIATE": "837619f95f0194d935f5c15eaf9d72f6d69d4a142af008178aad1d90c9f72ad2",
+        },
+        StructuredTransportProfile.CANDIDATE_1_8: {
+            "PLAN": "33152dbe62dfe348b63305fc7906af5e3c0f31e0fb84211aa5b7c47411baac2f",
+            "DIAGNOSE": "795fc0bebe1df71eea5b5496e3f11947c43daf250fb2d08165b788313b223267",
+            "REMEDIATE": "837619f95f0194d935f5c15eaf9d72f6d69d4a142af008178aad1d90c9f72ad2",
+        },
+    }
+
+    actual = {
+        profile: {
+            purpose.value: fingerprint(
+                StructuredEvaluationModel.request_payload(purpose, context, profile=profile)
+            )
+            for purpose in ModelPurpose
+        }
+        for profile in expected
+    }
+
+    assert actual == expected
 
 
 @pytest.mark.parametrize(

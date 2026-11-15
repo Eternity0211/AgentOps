@@ -1,0 +1,20 @@
+{
+  "schema_version": "evidence-strategy-development-plan/1.0.0",
+  "dataset_version": "fc4-evidence-strategy-development-v1",
+  "status": "FROZEN_BEFORE_PROVIDER_CALLS",
+  "purpose": "Separate development validation only; never substitute for the untouched FC4 lab holdout.",
+  "fault_families": [
+    "http-500",
+    "db-pool-exhaustion",
+    "redis-timeout",
+    "downstream-latency",
+    "memory-leak",
+    "bad-configuration"
+  ],
+  "control_strata": ["normal", "insufficient-evidence", "counter-evidence"],
+  "cases_per_stratum": 3,
+  "total_cases": 27,
+  "identity_namespace": "fc4-evidence-strategy-development-v1",
+  "label_isolation": "Runtime inputs and pair runner contain no evaluator label or expected cause.",
+  "stopping_rule": "Run every frozen pair once, retain all failures, and score before any strategy revision."
+}

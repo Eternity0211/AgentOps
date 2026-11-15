@@ -286,6 +286,16 @@ measurement shows no need; closing it does not mean implementing it.
       - [ ] FC4c2b Run the frozen-before-call development baseline/candidate comparison with equal
         provider/tool ceilings, score every outcome, and accept or revise the strategy from the
         declared quality and safety thresholds.
+        - [x] FC4c2b1 Freeze a separate 27-case, label-isolated development set before the pair
+          protocol or provider calls. It contains three parameterized cases for every six fault
+          families and three safety-control strata; IDs and input hashes are disjoint from real-v1,
+          real-v2 and the untouched FC4 lab holdout. Publication tests bind the generator, every
+          input, labels and manifest and prove that the memory and causal-scope changes are both
+          exercised. The pair runner holds transport/profile and budgets constant, alternates arm
+          order, resumes only exact completed pairs and never loads labels.
+        - [ ] FC4c2b2 Freeze the implementation-bound pair protocol in a separate commit, run all
+          54 real-provider graph outcomes once, then publish the paired quality/resource score and
+          the accept/revise decision without selective reruns.
   - [ ] FC4d Freeze the resulting implementation and run the untouched rules/single/graph lab
     comparison once. Publish baseline, candidate, delta, 95% interval and failures for every metric;
     null or negative outcomes remain valid results and selective reruns are forbidden.

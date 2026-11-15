@@ -136,14 +136,9 @@ def test_candidate_causal_scope_selects_one_deepest_unread_failure() -> None:
                         ],
                     },
                     {
-                        "status": {"code": "STATUS_CODE_ERROR"},
-                        "attributes": [
-                            {"key": "server.address", "value": {"stringValue": "payment"}},
-                            {
-                                "key": "http.response.status_code",
-                                "value": {"intValue": "503"},
-                            },
-                        ],
+                        "status": "ERROR",
+                        "downstream": "payment",
+                        "attributes": [],
                     },
                 ]
             ),

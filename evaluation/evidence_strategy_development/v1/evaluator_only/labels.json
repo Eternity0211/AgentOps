@@ -1,0 +1,110 @@
+[
+  {
+    "instance_id": "instance-064ad13a458c1266",
+    "stratum": "normal"
+  },
+  {
+    "instance_id": "instance-0883dc137a788bc6",
+    "stratum": "memory-leak"
+  },
+  {
+    "instance_id": "instance-11bab1cb941981a6",
+    "stratum": "db-pool-exhaustion"
+  },
+  {
+    "instance_id": "instance-2000b7493b28e29f",
+    "stratum": "http-500"
+  },
+  {
+    "instance_id": "instance-29f2c2a6a70ab3fd",
+    "stratum": "counter-evidence"
+  },
+  {
+    "instance_id": "instance-3d9d0c44e2e0ce26",
+    "stratum": "normal"
+  },
+  {
+    "instance_id": "instance-3dd4940162020240",
+    "stratum": "memory-leak"
+  },
+  {
+    "instance_id": "instance-41bff8cd4dded65d",
+    "stratum": "bad-configuration"
+  },
+  {
+    "instance_id": "instance-59423e27d30401bb",
+    "stratum": "downstream-latency"
+  },
+  {
+    "instance_id": "instance-62ced7d282ab3d15",
+    "stratum": "memory-leak"
+  },
+  {
+    "instance_id": "instance-70986df027e988f2",
+    "stratum": "normal"
+  },
+  {
+    "instance_id": "instance-71e44fa04a6302e2",
+    "stratum": "downstream-latency"
+  },
+  {
+    "instance_id": "instance-772ad9b8ae8593bd",
+    "stratum": "insufficient-evidence"
+  },
+  {
+    "instance_id": "instance-77baf5471c93cf94",
+    "stratum": "http-500"
+  },
+  {
+    "instance_id": "instance-8f7a9eaa516e39a5",
+    "stratum": "counter-evidence"
+  },
+  {
+    "instance_id": "instance-94091e2cd8295e9a",
+    "stratum": "downstream-latency"
+  },
+  {
+    "instance_id": "instance-a8db6c9148f9a87b",
+    "stratum": "db-pool-exhaustion"
+  },
+  {
+    "instance_id": "instance-b0e2e76a44c66362",
+    "stratum": "bad-configuration"
+  },
+  {
+    "instance_id": "instance-b3c50a086bd14da4",
+    "stratum": "http-500"
+  },
+  {
+    "instance_id": "instance-b7405bfd99656e9d",
+    "stratum": "insufficient-evidence"
+  },
+  {
+    "instance_id": "instance-bea7a3e06701ae99",
+    "stratum": "insufficient-evidence"
+  },
+  {
+    "instance_id": "instance-c2b8dfa3dfc9d583",
+    "stratum": "bad-configuration"
+  },
+  {
+    "instance_id": "instance-c5f0680209f4b704",
+    "stratum": "redis-timeout"
+  },
+  {
+    "instance_id": "instance-cd4a79d36d5ec479",
+    "stratum": "db-pool-exhaustion"
+  },
+  {
+    "instance_id": "instance-d8f1b952dd5127bf",
+    "stratum": "redis-timeout"
+  },
+  {
+    "instance_id": "instance-db88653f4caa6847",
+    "stratum": "counter-evidence"
+  },
+  {
+    "instance_id": "instance-ffefeff723faf580",
+    "stratum": "redis-timeout"
+  }
+]

@@ -468,8 +468,10 @@ def _record_is_error(record: dict[str, Any], attributes: dict[str, object | None
     except (TypeError, ValueError):
         status_is_error = False
     span_status = record.get("status")
-    return status_is_error or (
-        isinstance(span_status, dict) and span_status.get("code") in (2, "STATUS_CODE_ERROR")
+    return (
+        status_is_error
+        or (isinstance(span_status, dict) and span_status.get("code") in (2, "STATUS_CODE_ERROR"))
+        or span_status in (2, "ERROR", "STATUS_CODE_ERROR")
     )
 
 
@@ -510,7 +512,11 @@ def required_downstream_causal_scope(
             stream = record.get("stream")
             if isinstance(stream, dict):
                 attributes.update(stream)
-            target = attributes.get("server.address") or attributes.get("server_address")
+            target = (
+                attributes.get("server.address")
+                or attributes.get("server_address")
+                or record.get("downstream")
+            )
             if target in SERVICES and _record_is_error(record, attributes):
                 error_targets.add(target)
 

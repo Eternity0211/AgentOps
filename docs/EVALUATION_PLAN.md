@@ -68,6 +68,28 @@ ceilings while changing only the declared strategy. The integration fixture is a
 safety test, not a measured quality-effect claim; FC4c2 remains open until the separate development
 comparison is frozen, executed and scored.
 
+### Separate FC4 candidate-development set
+
+The strategy is not tuned on either the candidate-1.11 error census or the untouched FC4 lab
+holdout. A create-once development set lives under
+[`evaluation/datasets/evidence-strategy-development-v1`](../evaluation/datasets/evidence-strategy-development-v1),
+with its isolated labels and complete file manifest under
+[`evaluation/evidence_strategy_development/v1/evaluator_only`](../evaluation/evidence_strategy_development/v1/evaluator_only).
+It contains 27 cases: three variants for each six fault families and three each for normal,
+insufficient-Evidence and counter-evidence controls. Its IDs and input hashes are disjoint from
+real-v1, real-v2 and the FC4 lab holdout. The memory cases contain five GC-bound retained-memory
+samples; bad-configuration cases contain an observed cross-service failure that exercises the
+bounded causal-scope route.
+
+The label-free pair runner in
+[`evaluation/run_evidence_strategy_pair.py`](../evaluation/run_evidence_strategy_pair.py) changes
+only the declared `EvidenceStrategy`. Both arms use transport 1.11, the same provider settings,
+six-call provider ceiling, twelve-call tool ceiling, frozen snapshots and controlled-graph mode.
+Arm order alternates by case. Runtime manifests bind the selected strategy and ceiling. Existing
+outcomes may be resumed only when the protocol and input hashes match; partial directories become
+retained failures. Evaluator labels are loaded only by the post-run paired scorer. A separate
+implementation-bound protocol commit is required before any provider call.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

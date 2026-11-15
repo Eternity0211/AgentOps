@@ -1,0 +1,127 @@
+{
+  "schema_version": "evidence-strategy-error-analysis/1.0.0",
+  "analysis_id": "fc4-evidence-strategy-development-run-002-error-analysis-v3",
+  "source_run": "evaluation/results/evidence-strategy-development/v1/run-002",
+  "score_sha256": "1cc56a6208f1ad355a40ef431f467710bc28852ca4b2a922b19ec3f03eab8027",
+  "protocol_sha256": "af0abd29503d57899ee0181c46099c9a0c7084de8acb6cc5fc9afcd34c9ec697",
+  "observed_top1": {
+    "baseline_correct": 11,
+    "candidate_correct": 12,
+    "candidate_gain": 1,
+    "candidate_better_pairs": 4,
+    "baseline_better_pairs": 3,
+    "ties": 11,
+    "acceptance_minimum_gain": 2,
+    "accepted": false
+  },
+  "discordant_pairs": [
+    {
+      "instance_id": "instance-0883dc137a788bc6",
+      "stratum": "memory-leak",
+      "direction": "CANDIDATE_BETTER",
+      "initial_request_hash": "94f279354c4a1578d48af20972efedf726be3a11895fcf1f13b9981b8e830441",
+      "baseline_initial_response_hash": "419afb519caa0c06777d11c5104ac604ecc996e6f04b8e3c62a3d8588cfa130d",
+      "candidate_initial_response_hash": "4cfed06a404975f4be600dd1c2704be86e78b878ab2db33aec5f15ccaff01d68",
+      "candidate_initial_status": "SUCCEEDED"
+    },
+    {
+      "instance_id": "instance-3dd4940162020240",
+      "stratum": "memory-leak",
+      "direction": "CANDIDATE_BETTER",
+      "initial_request_hash": "1f199f1fb45eb5c1553c7ed1feed06d372076369e42f78e96118654df3d381b5",
+      "baseline_initial_response_hash": "25196591c471f4350a4f45d4a6466d07f6ea3bb9ec9d933a135a50eace3f16f8",
+      "candidate_initial_response_hash": "63e7e2401129ce6f999edd4d40dba6fd127ec489c4e61507310ac81a0b5bf94f",
+      "candidate_initial_status": "SUCCEEDED"
+    },
+    {
+      "instance_id": "instance-41bff8cd4dded65d",
+      "stratum": "bad-configuration",
+      "direction": "CANDIDATE_BETTER",
+      "initial_request_hash": "5f0e5bc23dc1d0be728aaa4b5bcce7975b153f0f68dbcf6794a9a864a35bbbbc",
+      "baseline_initial_response_hash": "75977b7310833dee923a3792224da668bbc84e6b083216c8f54d8fea4d766a64",
+      "candidate_initial_response_hash": "241de0e4e0bcee392f4bf100fb81fe58c7d02f188659c462dadc42c97d0e0487",
+      "candidate_initial_status": "SUCCEEDED"
+    },
+    {
+      "instance_id": "instance-59423e27d30401bb",
+      "stratum": "downstream-latency",
+      "direction": "BASELINE_BETTER",
+      "initial_request_hash": "7aad665c7a5154cca5b0ca5292ec6385ffdd76d76dcc3663fa2683cfad8af01e",
+      "baseline_initial_response_hash": "1ea6b98fda1a9db28aa220176dc377cfef6dd9e6012ffd746f89a7d3aa243f4d",
+      "candidate_initial_response_hash": "b73f532008188591a2258ccb0c00cba743816b304fbdeb3e31d272deda736b5d",
+      "candidate_initial_status": "SUCCEEDED"
+    },
+    {
+      "instance_id": "instance-b3c50a086bd14da4",
+      "stratum": "http-500",
+      "direction": "BASELINE_BETTER",
+      "initial_request_hash": "b72fe4abf9e30ab0cde3fa1724acc8e7454b8b4abed9361f3fd27823887ee3d0",
+      "baseline_initial_response_hash": "8f9edd43b57a73dad08a204be2f736d0fb8bc4031a40d82bfb2b4eeef873ecf4",
+      "candidate_initial_response_hash": "ee32e21d65ce682dfa800e6bcf2f5904f1ce2b5d82c545abe9536edd0995fcb7",
+      "candidate_initial_status": "SUCCEEDED"
+    },
+    {
+      "instance_id": "instance-c5f0680209f4b704",
+      "stratum": "redis-timeout",
+      "direction": "BASELINE_BETTER",
+      "initial_request_hash": "38ff1f770c2ff0ebe284c078fb18346abd3e30a6f6e855aae40a96b74a634d82",
+      "baseline_initial_response_hash": "87fd02efd6635bd96b9a74fea68916a0b48c3e3750ffe3b142b9e6bd130cc497",
+      "candidate_initial_response_hash": "1e2dfbcc39ec594f666c5e1feec419cdecf16cfa0bac4f44f2c317b90f3b397f",
+      "candidate_initial_status": "FAILED",
+      "candidate_initial_error_code": "INVALID_RESPONSE"
+    },
+    {
+      "instance_id": "instance-d8f1b952dd5127bf",
+      "stratum": "redis-timeout",
+      "direction": "CANDIDATE_BETTER",
+      "initial_request_hash": "c6236e9ac331aabb874b88ccaa17dba35fc0a8f28a8b63085a1968cc6687884c",
+      "baseline_initial_response_hash": "43218d37f833fbd34d308f2c6983bedfe5c2299db7806bb1b5375d1f131c2b25",
+      "candidate_initial_response_hash": "3c42a4743dfd56156683d68b35413522ff7a0957b49a80f6d261475869b18eb2",
+      "candidate_initial_status": "SUCCEEDED"
+    }
+  ],
+  "discordance_interpretation": {
+    "identical_initial_requests": 7,
+    "different_initial_responses": 7,
+    "classification": "PRE_STRATEGY_PROVIDER_VARIATION_PRESENT",
+    "causal_claim": "The observed +4/-3 discordance cannot be attributed solely to EvidenceStrategy because the provider diverged before the strategy-specific diagnosis context or causal-scope guard could act.",
+    "raw_provider_content_retained_here": false
+  },
+  "shared_incorrect_pairs": [
+    {
+      "instance_id": "instance-62ced7d282ab3d15",
+      "stratum": "memory-leak",
+      "classification": "INITIAL_PLAN_OMITTED_MEMORY_RETENTION_SERIES",
+      "action": "Do not add label-aware reads; retain safe handoff and measure whether the final candidate context improves cases where discriminative memory samples are actually selected."
+    },
+    {
+      "instance_id": "instance-b0e2e76a44c66362",
+      "stratum": "bad-configuration",
+      "classification": "OBSERVED_DOWNSTREAM_FAILURE_WITHOUT_CANDIDATE_DID_NOT_REPLAN",
+      "action": "Permit the existing one bounded read-only causal-scope replan when deterministic telemetry identifies an unread failing downstream service even if the model reports HUMAN_HANDOFF with no candidate."
+    },
+    {
+      "instance_id": "instance-ffefeff723faf580",
+      "stratum": "redis-timeout",
+      "classification": "INITIAL_PLAN_SELECTED_ONLY_HEALTHY_AGGREGATES",
+      "action": "Do not add label-aware reads; retain safe handoff unless current telemetry deterministically exposes a failing downstream scope."
+    }
+  ],
+  "v3_changes": [
+    "When no discriminative memory-retention facts exist, candidate diagnosis context is byte-identical to the legacy context.",
+    "A directly observed unread downstream failure may trigger the same one bounded causal-scope replan after a no-candidate HUMAN_HANDOFF.",
+    "Schema validation, Tool Gateway read-only enforcement, deterministic Evidence Gate, model/tool budgets and human/write boundaries remain unchanged."
+  ],
+  "final_development_run_rule": {
+    "run_id": "run-003",
+    "single_execution": true,
+    "selective_reruns_forbidden": true,
+    "stop_after_run": true,
+    "decision": "Apply the frozen acceptance criteria once. If they fail, reject this candidate revision for FC4 confirmation and retain the negative result; do not tune again on this development set."
+  },
+  "limitations": [
+    "This is post-run error analysis on the development set, not confirmatory evidence.",
+    "Provider response hashes prove divergence but do not identify the provider's internal cause.",
+    "No FC4 confirmatory holdout inputs or labels were opened for this analysis."
+  ]
+}

@@ -5,9 +5,8 @@ import json
 import subprocess
 from pathlib import Path
 
-from evaluation.autonomous_diagnosis import EvidenceStrategy
+import pytest
 from evaluation.run_evidence_strategy_pair import BOUND_SOURCES, check_plan
-from evaluation.structured_model import StructuredTransportProfile
 
 PLAN = Path("evaluation/evidence_strategy_development/v2/pair-plan.json")
 DATASET = Path("evaluation/datasets/evidence-strategy-development-v1")
@@ -28,7 +27,6 @@ def test_run_002_protocol_is_implementation_bound_and_label_isolated() -> None:
     assert plan["acceptance"]["minimum_top1_correct_gain"] == 2
 
     for name, expected in plan["source_hashes"].items():
-        assert hashlib.sha256(Path(name).read_bytes()).hexdigest() == expected
         committed = subprocess.check_output(
             [
                 "git",
@@ -46,20 +44,10 @@ def test_run_002_protocol_is_implementation_bound_and_label_isolated() -> None:
     assert hashlib.sha256(labels.read_bytes()).hexdigest() == plan["evaluator_labels_sha256"]
 
 
-def test_run_002_protocol_passes_preflight_without_provider_work() -> None:
+def test_run_002_protocol_refuses_evolved_source_without_provider_work() -> None:
     plan = json.loads(PLAN.read_text(encoding="utf-8"))
     revision = subprocess.check_output(
         ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
     ).strip()
-    assert check_plan(plan, revision, DATASET) == (
-        (
-            "baseline-legacy",
-            StructuredTransportProfile.CANDIDATE_1_11,
-            EvidenceStrategy.LEGACY,
-        ),
-        (
-            "candidate-causal-scope",
-            StructuredTransportProfile.CANDIDATE_1_11,
-            EvidenceStrategy.GC_AWARE_CAUSAL_SCOPE,
-        ),
-    )
+    with pytest.raises(ValueError, match="source hash mismatch"):
+        check_plan(plan, revision, DATASET)

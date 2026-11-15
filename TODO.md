@@ -340,10 +340,23 @@ measurement shows no need; closing it does not mean implementing it.
               so acceptance remains false. Candidate medians changed by +234 ms, +137 input
               tokens, +97 output tokens and +129,600 rate-card nUSD; all are
               `NO_PROVEN_IMPROVEMENT` and within the frozen non-regression margins.
-            - [ ] Classify run-002's seven discordant fault pairs and three shared misses before a
-              final development revision. Preserve the two memory and one configuration gains;
-              determine whether non-memory context perturbation caused the downstream/HTTP/Redis
-              losses. Freeze a stopping rule before any run-003 calls; do not inspect FC4 holdout.
+            - [x] Classify run-002's seven discordant fault pairs and three shared misses before a
+              final development revision. All seven discordant pairs sent byte-identical initial
+              PLAN requests across arms but received different provider responses before the
+              strategy-specific diagnosis context or route could act; one candidate response was
+              initially schema-invalid and repaired. The +4/-3 discordance therefore cannot be
+              attributed solely to `EvidenceStrategy`. The hash-bound v3 error analysis preserves
+              no response bodies and records the three shared misses without opening FC4 holdout.
+            - [x] Remove avoidable non-target perturbation and close the observed no-candidate
+              causal-route gap. Candidate diagnosis context is byte-identical to legacy whenever
+              there are no discriminative GC-aware memory facts. A directly observed failing,
+              unread downstream service may now trigger the same one bounded read-only replan even
+              after a no-candidate `HUMAN_HANDOFF`; schemas, Gate, budgets and write authority are
+              unchanged. Focused behavior, publication, Ruff and mypy checks pass.
+            - [ ] Freeze and execute run-003 exactly once as the final development-set revision.
+              Precommit the unchanged acceptance criteria and the stopping rule before calls. If
+              run-003 fails acceptance, reject this candidate for FC4d and retain the negative
+              result; do not tune again or selectively rerun this 27-case development set.
   - [ ] FC4d Freeze the resulting implementation and run the untouched rules/single/graph lab
     comparison once. Publish baseline, candidate, delta, 95% interval and failures for every metric;
     null or negative outcomes remain valid results and selective reruns are forbidden.

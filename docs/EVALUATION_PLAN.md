@@ -169,10 +169,32 @@ tokens, +97 output tokens and +129,600 rate-card nUSD. Their intervals cross zer
 claim is `NO_PROVEN_IMPROVEMENT`, and the frozen non-regression margins pass. These costs are rate-
 card bounds rather than billing, and workflow duration is not human diagnosis time.
 
-Before a final development revision, the seven discordant pairs and three shared misses must be
-classified without opening the FC4 holdout. In particular, the analysis must distinguish a real
-strategy effect from non-target prompt/context perturbation or provider variation. Any run-003
-requires a precommitted stopping rule and a new complete pair; run-002 remains immutable.
+The versioned run-002 error analysis is frozen at
+[`evaluation/evidence_strategy_development/v3/error-analysis.json`](../evaluation/evidence_strategy_development/v3/error-analysis.json).
+All seven Top-1 discordant pairs sent byte-identical initial PLAN requests across arms, yet all
+seven received different provider responses before the strategy-specific diagnosis context or
+causal-scope guard could act. Six initial responses validated; the seventh candidate response was
+schema-invalid and then repaired. Thus the observed four candidate gains and three candidate
+losses contain pre-strategy provider variation and cannot be attributed solely to the evidence
+strategy. The artifact binds the immutable score and protocol hashes, records response hashes but
+no response bodies, and has a regression test that recomputes every comparison from the archived
+events.
+
+The three shared misses identify only one safe, label-free route change. The bad-configuration case
+directly observed an unread failing downstream service but the model handed off without a
+candidate, so the old `bool(candidates)` condition prevented the already bounded causal replan.
+The final revision permits that same one read-only replan when deterministic current Evidence
+identifies the missing scope. It also returns the exact legacy diagnosis context whenever no
+discriminative GC-aware memory facts exist, eliminating avoidable non-memory prompt perturbation.
+The memory and Redis shared misses selected only insufficient or healthy aggregates; they remain
+safe handoffs rather than receiving label-aware reads. Schemas, typed Tool Gateway checks, Evidence
+Gate, budgets and all write-authority boundaries are unchanged.
+
+Run-003 is the final development-set revision. Its protocol must be committed before calls, retain
+the run-002 acceptance thresholds, execute all 54 outcomes once, preserve every failure, and forbid
+selective reruns. After scoring, development tuning stops regardless of result. Failure means the
+candidate is rejected for FC4d and the negative result is retained; it does not authorize another
+revision on these 27 cases. The untouched FC4 holdout remains unopened throughout.
 
 ## Implemented foundation
 

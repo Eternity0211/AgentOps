@@ -311,11 +311,20 @@ def build_candidate_diagnosis_context(
     selected, temporally_excluded = _select_alert_window(
         all_observations, window_start=window_start, window_end=window_end
     )
+    memory_facts = discriminative_memory_retention_by_service(selected)
+    if not memory_facts:
+        return build_diagnosis_context(
+            all_observations,
+            failed_reads,
+            byte_budget=byte_budget,
+            window_start=window_start,
+            window_end=window_end,
+        )
     context = _build_diagnosis_context(
         selected,
         failed_reads,
         byte_budget=byte_budget,
-        memory_facts=discriminative_memory_retention_by_service(selected),
+        memory_facts=memory_facts,
         temporally_excluded_evidence_ids=temporally_excluded,
     )
     context["memory_evidence_contract"] = "gc-aware/1.0.0"
@@ -882,7 +891,7 @@ class AutonomousServices:
             if self.report is not None and self.report.candidates
             else None
         )
-        if self.required_causal_scope is None and top_candidate != "http-500":
+        if self.required_causal_scope is None and top_candidate not in (None, "http-500"):
             return
         observed = required_downstream_causal_scope(
             self.evidence.observations if self.evidence is not None else [],
@@ -1329,7 +1338,7 @@ class AutonomousServices:
         scope_incomplete = self.required_causal_scope is not None
         can_replan = (
             (not passed or scope_incomplete)
-            and bool(self.report.candidates)
+            and (bool(self.report.candidates) or scope_incomplete)
             and state.budgets.used_replans < state.budgets.max_replans
             and state.budgets.used_tool_calls < state.budgets.max_tool_calls
         )

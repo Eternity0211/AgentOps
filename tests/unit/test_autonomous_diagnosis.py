@@ -108,6 +108,32 @@ def test_candidate_memory_context_refuses_three_rises_without_gc() -> None:
     assert candidate["memory_evidence_contract"] == "gc-aware/1.0.0"
 
 
+def test_candidate_context_is_byte_identical_without_memory_samples() -> None:
+    observations = [
+        {
+            "id": "evidence-trace-a",
+            "source": "traces",
+            "summary": json.dumps(
+                [
+                    {
+                        "service": "gateway",
+                        "status": "ERROR",
+                        "attributes": [
+                            {"key": "server.address", "value": {"stringValue": "inventory"}}
+                        ],
+                    }
+                ]
+            ),
+        }
+    ]
+
+    baseline = build_diagnosis_context(observations, {})
+    candidate = build_candidate_diagnosis_context(observations, {})
+
+    assert candidate == baseline
+    assert "memory_evidence_contract" not in candidate
+
+
 def test_candidate_causal_scope_selects_one_deepest_unread_failure() -> None:
     observations = [
         {
@@ -651,6 +677,16 @@ def test_candidate_strategy_replans_for_deepest_failing_service(tmp_path: Path) 
             "explanation": "Current evidence",
         }
 
+    def handoff() -> dict[str, Any]:
+        return {
+            "schema_version": "1.0.0",
+            "incident_id": "incident-1",
+            "disposition": "HUMAN_HANDOFF",
+            "candidates": [],
+            "missing_evidence": ["Inspect the directly observed failing payment dependency"],
+            "explanation": "Current upstream evidence is insufficient",
+        }
+
     def respond(request: httpx.Request) -> httpx.Response:
         nonlocal calls
         calls += 1
@@ -745,7 +781,7 @@ def test_candidate_strategy_replans_for_deepest_failing_service(tmp_path: Path) 
                 }
         else:
             diagnosed_contexts.append(context)
-            output = report(context, "http-500" if calls == 2 else "bad-configuration")
+            output = handoff() if calls == 2 else report(context, "bad-configuration")
         return httpx.Response(
             200,
             json={
@@ -785,7 +821,7 @@ def test_candidate_strategy_replans_for_deepest_failing_service(tmp_path: Path) 
     assert services.report is not None
     assert services.report.candidates[0].candidate_id == "bad-configuration"
     assert services.required_causal_scope is None
-    assert diagnosed_contexts[0]["memory_evidence_contract"] == "gc-aware/1.0.0"
+    assert "memory_evidence_contract" not in diagnosed_contexts[0]
     assert dispatched[-2:] == [
         ("query_deployments", "payment"),
         ("query_logs", "payment"),

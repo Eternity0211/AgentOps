@@ -74,6 +74,15 @@ error analysis and optimization finish on separate development data.
 5. Prepare human-study, approved-recovery, recurrence, and billing instrumentation without
    claiming their unavailable outcomes.
 
+The latest strategy-development pair (run-002) removed the earlier repeated-read reliability
+failure but did not meet its quality acceptance floor: Top-1 was 11/18→12/18 (+1 case, +5.56
+points), while the frozen minimum was +2 cases. Its seven discordant pairs all had identical
+initial PLAN requests but different provider responses before the compared strategy could act, so
+the +4 gains and -3 losses are not treated as pure strategy effects. A final run-003 revision will
+remove avoidable non-memory context differences and close one deterministic no-candidate causal
+replan gap. The predeclared stopping rule ends development-set tuning after that complete pair,
+whether it passes or fails; the untouched FC4 holdout is not used for optimization.
+
 ## External completion boundaries
 
 - Confirmed historical-memory effect requires authorized, redacted, confirmed closed incidents

@@ -354,9 +354,13 @@ measurement shows no need; closing it does not mean implementing it.
               after a no-candidate `HUMAN_HANDOFF`; schemas, Gate, budgets and write authority are
               unchanged. Focused behavior, publication, Ruff and mypy checks pass.
             - [ ] Freeze and execute run-003 exactly once as the final development-set revision.
-              Precommit the unchanged acceptance criteria and the stopping rule before calls. If
-              run-003 fails acceptance, reject this candidate for FC4d and retain the negative
-              result; do not tune again or selectively rerun this 27-case development set.
+              - [x] Freeze the implementation-bound v3 protocol before provider calls. It binds
+                commit `3a1ecff9`, the unchanged 27 inputs and isolated labels, all runtime/scorer
+                hashes, equal 6/4/12 provider/graph/tool ceilings, original acceptance thresholds,
+                parity interleaving, run-002 error analysis and the unconditional stopping rule.
+              - [ ] Execute and score all 54 outcomes without selective reruns. If run-003 fails
+                acceptance, reject this candidate for FC4d and retain the negative result; do not
+                tune again on this 27-case development set.
   - [ ] FC4d Freeze the resulting implementation and run the untouched rules/single/graph lab
     comparison once. Publish baseline, candidate, delta, 95% interval and failures for every metric;
     null or negative outcomes remain valid results and selective reruns are forbidden.

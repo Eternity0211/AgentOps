@@ -1,0 +1,118 @@
+{
+  "schema_version": "evidence-strategy-pair/1.0.0",
+  "protocol_id": "fc4-evidence-strategy-development-pair-v3",
+  "status": "FROZEN_BEFORE_PROVIDER_CALLS",
+  "implementation_commit": "3a1ecff92c3b662ab600b75bb75c0d6721c30627",
+  "dataset": "evaluation/datasets/evidence-strategy-development-v1",
+  "dataset_index_sha256": "acaaceff3311dacbcff8726a166f22ec143ab3f08d635c3305dac1bb104933ea",
+  "evaluator_labels": "evaluation/evidence_strategy_development/v1/evaluator_only/labels.json",
+  "evaluator_labels_sha256": "1112a1a77452f3f9384142433be3647df2f45692f0788a441b54882100c5025b",
+  "error_analysis": "evaluation/evidence_strategy_development/v3/error-analysis.json",
+  "error_analysis_sha256": "662fac0f7f105a027b92bf118790ab8b1b9cd418509e44bc3e03b183461585ad",
+  "profiles": {
+    "baseline-legacy": "real-structured-evaluation/1.11.0",
+    "candidate-causal-scope": "real-structured-evaluation/1.11.0"
+  },
+  "arms": {
+    "baseline-legacy": {
+      "transport_profile": "real-structured-evaluation/1.11.0",
+      "evidence_strategy": "legacy/1.0.0"
+    },
+    "candidate-causal-scope": {
+      "transport_profile": "real-structured-evaluation/1.11.0",
+      "evidence_strategy": "gc-aware-causal-scope/1.0.0"
+    }
+  },
+  "modes": ["controlled-graph"],
+  "provider": {
+    "name": "deepseek",
+    "model": "deepseek-flash",
+    "temperature": 0,
+    "thinking": "disabled",
+    "max_output_tokens": 2048
+  },
+  "model_provider_call_ceiling": 6,
+  "graph_model_call_ceiling": 4,
+  "tool_call_ceiling": 12,
+  "independent_variable": "EvidenceStrategy only: legacy context/route versus targeted GC-aware context plus one bounded deterministic causal-scope replan guard, including after an evidence-scoped no-candidate handoff.",
+  "shared_replan_filter": "Deterministic novel-read filter: validate the complete typed replan, remove exact prior tool/version/argument fingerprints, recompile novel reads, and route all-repeated plans to graph handoff before dispatch.",
+  "held_constant": [
+    "transport profile 1.11",
+    "provider model and generation settings",
+    "provider, graph and tool ceilings",
+    "strict schemas and public cause taxonomy",
+    "input snapshot hash and observation window",
+    "typed Tool Gateway and read-only catalog",
+    "deterministic novel-read filter and all-repeated handoff",
+    "Evidence construction, persistence and deterministic Gate",
+    "no historical-memory input",
+    "controlled-graph mode"
+  ],
+  "execution_order": "Alternate baseline/candidate order by frozen dataset index parity.",
+  "expected_outcomes": 54,
+  "failure_rule": "Retain every failure, handoff and unknown resource value. Never selectively rerun, delete or replace an outcome.",
+  "runtime_label_isolation": "The pair runner has no evaluator-label parameter and never imports the labels path; labels enter only after both arms finish.",
+  "starting_observation": {
+    "source": "evaluation/results/evidence-strategy-development/v1/run-002/analysis/score.json",
+    "baseline_top1_correct": 11,
+    "candidate_top1_correct": 12,
+    "baseline_failures": 0,
+    "candidate_failures": 0,
+    "acceptance_passed": false,
+    "discordant_pairs": 7,
+    "identical_initial_plan_requests": 7,
+    "different_initial_plan_responses": 7
+  },
+  "paired_scorer": {
+    "source": "evaluation/score_evidence_strategy_pair.py",
+    "binary_metrics": {
+      "top1": {"direction": "HIGHER", "minimum_relevant_effect": 0.10},
+      "top3": {"direction": "HIGHER", "minimum_relevant_effect": 0.05},
+      "safe_control": {"direction": "HIGHER", "minimum_relevant_effect": 0.05},
+      "valid": {"direction": "HIGHER", "minimum_relevant_effect": 0.02},
+      "integrity": {"direction": "HIGHER", "minimum_relevant_effect": 0.01}
+    },
+    "continuous_metrics": {
+      "duration_ms": {"direction": "LOWER", "minimum_relevant_effect": 10000.0},
+      "input_tokens": {"direction": "LOWER", "minimum_relevant_effect": 12000.0},
+      "output_tokens": {"direction": "LOWER", "minimum_relevant_effect": 2000.0},
+      "cost_upper_bound_nanousd": {"direction": "LOWER", "minimum_relevant_effect": 6000000.0}
+    },
+    "confidence_level": 0.95,
+    "multiple_comparison_method": "holm",
+    "bootstrap_iterations": 10000,
+    "seed": 2026111501
+  },
+  "acceptance": {
+    "minimum_top1_correct_gain": 2,
+    "top3_noninferiority": "Candidate Top-3 correct count must be no lower than baseline.",
+    "safe_control_noninferiority": "Candidate safe-control count must be no lower than baseline.",
+    "candidate_failures": 0,
+    "candidate_terminal_schema_protocol_invalids": 0,
+    "evidence_integrity": "Every cited Evidence and Artifact hash resolves within the same Incident.",
+    "resource_noninferiority": "Median duration and rate-card cost must remain within the frozen continuous margins.",
+    "decision": "Accept only when every criterion passes; otherwise reject this candidate for FC4 confirmation."
+  },
+  "development_stopping_rule": {
+    "final_development_run": true,
+    "single_complete_pair": true,
+    "selective_reruns_forbidden": true,
+    "stop_after_scoring_regardless_of_result": true,
+    "on_acceptance_failure": "Reject this candidate for FC4 confirmation, retain the negative result, and do not tune again on this development set."
+  },
+  "source_hashes": {
+    "evaluation/autonomous_diagnosis.py": "ef56276892b176894ae56eb284bfd876f04738c81908b4b960cb423e024d929a",
+    "evaluation/run_evidence_strategy_pair.py": "d7ab44c3d923f7def94b12d9bee99537e7b99ff594d95d5886c6bc48b8e32b96",
+    "evaluation/run_snapshot_comparison.py": "30211ad579fa553efc3b528d2dd26bc6b94c387de6fd2179dced2962f30a978e",
+    "evaluation/score_evidence_strategy_pair.py": "4f2457fb18fe7e9852810eb0b9c9e638c13bcd53153efd1e84c62b70ae5043d9",
+    "evaluation/score_transport_pair.py": "42fc1217ff9b804db36c10fee300f56b5d7474b67267c0b85f2a2512175ee837",
+    "evaluation/structured_model.py": "7aa69baad7056337ef5ebb1d9ee876e94696755e4d798ef94bdad5e7b76191e5"
+  },
+  "limitations": [
+    "This is the final strategy-development comparison and cannot substitute for the untouched adequately sized FC4 confirmatory holdout.",
+    "The deterministic rate-card cost is not actual provider billing.",
+    "Workflow duration is not human diagnosis time, active labor, recovery time or MTTR.",
+    "Provider outputs may vary despite temperature zero; the paired result must retain all pre-strategy variation rather than selectively rerun it.",
+    "No confirmed historical incidents, human approvals, recovery execution or recurrence outcomes are present."
+  ]
+}

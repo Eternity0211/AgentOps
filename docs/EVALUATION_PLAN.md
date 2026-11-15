@@ -196,6 +196,15 @@ selective reruns. After scoring, development tuning stops regardless of result. 
 candidate is rejected for FC4d and the negative result is retained; it does not authorize another
 revision on these 27 cases. The untouched FC4 holdout remains unopened throughout.
 
+The create-once protocol is now frozen at
+[`evaluation/evidence_strategy_development/v3/pair-plan.json`](../evaluation/evidence_strategy_development/v3/pair-plan.json).
+It binds implementation commit `3a1ecff9`, the unchanged dataset and evaluator-only label hashes,
+the v3 error analysis, all six runtime/scorer source hashes, transport 1.11, identical DeepSeek
+settings, equal six-provider/four-graph/twelve-tool ceilings, parity interleaving, and the original
++2-case acceptance floor plus safety/resource conditions. The machine-readable stopping rule says
+that this single complete pair ends development-set tuning whether it passes or fails. No run-003
+provider call may precede this protocol commit.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

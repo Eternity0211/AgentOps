@@ -296,6 +296,12 @@ measurement shows no need; closing it does not mean implementing it.
         - [ ] FC4c2b2 Freeze the implementation-bound pair protocol in a separate commit, run all
           54 real-provider graph outcomes once, then publish the paired quality/resource score and
           the accept/revise decision without selective reruns.
+          - [x] Add a strategy-specific FC1 scorer that treats Top-1, Top-3, safe controls, valid
+            outcomes and Evidence integrity as paired binary metrics and latency, input/output
+            tokens and rate-card cost as paired continuous metrics. It publishes both arm values,
+            absolute/relative deltas, 95% bootstrap intervals, paired tests, failures and a frozen
+            accept/revise decision; tests prove the reported 12→18 Top-1 fixture is a +6-case,
+            +33.3-point delta rather than a one-sided candidate-only number.
   - [ ] FC4d Freeze the resulting implementation and run the untouched rules/single/graph lab
     comparison once. Publish baseline, candidate, delta, 95% interval and failures for every metric;
     null or negative outcomes remain valid results and selective reruns are forbidden.

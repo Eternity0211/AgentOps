@@ -22,6 +22,7 @@ BOUND_SOURCES = {
     "evaluation/autonomous_diagnosis.py",
     "evaluation/run_evidence_strategy_pair.py",
     "evaluation/run_snapshot_comparison.py",
+    "evaluation/score_evidence_strategy_pair.py",
     "evaluation/score_transport_pair.py",
     "evaluation/structured_model.py",
 }

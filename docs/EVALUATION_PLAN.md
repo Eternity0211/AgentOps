@@ -90,6 +90,16 @@ outcomes may be resumed only when the protocol and input hashes match; partial d
 retained failures. Evaluator labels are loaded only by the post-run paired scorer. A separate
 implementation-bound protocol commit is required before any provider call.
 
+The dedicated scorer in
+[`evaluation/score_evidence_strategy_pair.py`](../evaluation/score_evidence_strategy_pair.py)
+publishes paired Top-1, Top-3, safe-control, valid-outcome and Evidence-integrity rates plus paired
+duration, input-token, output-token and deterministic rate-card cost distributions. Every metric
+contains baseline, candidate, absolute and relative change, a 95% interval and its paired test.
+Fault failures count as incorrect diagnoses, control failures count as unsafe, and unknown resource
+pairs remain visible and close the resource gate. Candidate acceptance additionally requires the
+frozen minimum Top-1 correct-count gain, Top-3 and control non-inferiority, zero candidate failures,
+zero terminal schema/protocol invalids, complete Evidence resolution and the latency/cost gate.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

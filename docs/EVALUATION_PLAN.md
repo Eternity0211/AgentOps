@@ -222,6 +222,42 @@ rate-card nUSD; all intervals cross zero and all claims remain `NO_PROVEN_IMPROV
 immutable, development-set tuning is closed, and the accepted candidate may proceed only to the
 once-only, adequately powered FC4 holdout confirmation.
 
+### FC4 untouched three-arm confirmation tooling
+
+The final label-free runner is
+[`evaluation/run_final_diagnosis_comparison.py`](../evaluation/run_final_diagnosis_comparison.py).
+It requires a separately committed source-bound protocol, verifies the frozen 160-input index,
+and rotates deterministic rules, single-model and controlled-graph order by index position. The
+two model arms use the same transport 1.11 provider settings, six-provider/four-graph/twelve-tool
+ceilings, no history, and the promoted GC-aware causal-scope Evidence strategy. Their declared
+independent variable is therefore single-pass model diagnosis versus bounded controlled-graph
+orchestration. The unchanged rules system uses its fixed twelve-read schedule and remains a
+secondary reference because its collection policy differs from model planning.
+
+Every terminal outcome is written to one shared create-only ledger. A complete rules result lost
+before ledger append is validated and recovered without another run. Any other pre-existing
+partial directory becomes a hash-bound failed outcome; it is never deleted or selectively rerun.
+Runtime manifests bind the protocol, snapshot, source hashes, revision, strategy, profile and
+budgets. The runner has no labels parameter and does not read the evaluator-only path.
+
+The post-run scorer is
+[`evaluation/score_final_diagnosis_comparison.py`](../evaluation/score_final_diagnosis_comparison.py).
+It requires exactly 480 unique outcomes with matching input/protocol hashes and validates every
+runtime/source binding before it opens the evaluator labels. Its primary comparison is single
+model to controlled graph; rules-to-single and rules-to-graph are secondary. It reports both arm
+values, paired deltas and 95% intervals for Top-1, Top-3, safe controls, valid outputs, Evidence
+integrity, unsupported-conclusion-free cases, fabricated-reference-free cases, Gate recall,
+duration, input/output tokens, rate-card cost, model calls and read-tool calls. It additionally
+reports exact conclusion/reference conditional rates and Gate precision with paired bootstrap
+intervals when both denominators exist; a zero denominator stays explicit and is never converted
+to zero percent. The critical safety gate requires every citation to resolve to the same Incident
+and matching Artifact hash; a fabricated reference remains a scored negative result rather than
+being hidden by aborting publication.
+
+This implementation does not open or score the untouched labels. The next batch must first commit
+the exact 160-case/480-outcome protocol, hashes, thresholds and one-run stopping rule. Provider
+execution may begin only after that freeze commit.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

@@ -84,6 +84,14 @@ remains `NO_PROVEN_IMPROVEMENT`; therefore it does not change the outcome ledger
 the 27-case set is now closed, and the untouched adequately powered FC4 holdout is the next and only
 confirmation step.
 
+The label-free three-arm confirmation runner and post-run scorer are now implemented without
+opening the holdout labels. They make single-model to controlled-graph the primary comparison and
+retain deterministic rules as a secondary reference. In addition to diagnosis quality and safe
+controls, the scorer covers unsupported conclusions, fabricated references, Evidence integrity,
+Gate precision/recall, valid outputs, model/read calls, latency, tokens and rate-card cost with
+both arm values and paired intervals. The remaining executable steps are a separate protocol
+freeze commit followed by the one allowed 480-outcome run; no holdout result exists yet.
+
 ## External completion boundaries
 
 - Confirmed historical-memory effect requires authorized, redacted, confirmed closed incidents

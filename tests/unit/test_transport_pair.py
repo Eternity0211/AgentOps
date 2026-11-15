@@ -421,7 +421,7 @@ def test_candidate_1_10_pair_plan_is_frozen_before_calls() -> None:
         )
 
 
-def test_candidate_1_11_pair_plan_is_frozen_before_calls() -> None:
+def test_candidate_1_11_pair_plan_is_frozen_and_refuses_current_source_drift() -> None:
     plan = json.loads(
         Path("evaluation/real_protocol/v10/structured-transport-pair.json").read_text("utf-8")
     )
@@ -461,12 +461,10 @@ def test_candidate_1_11_pair_plan_is_frozen_before_calls() -> None:
     revision = subprocess.check_output(
         ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
     ).strip()
-    assert _check_plan(
-        plan,
-        revision,
-        Path(plan["dataset"]),
-        Path(plan["simulated_history_bank"]),
-    ) == (
-        ("baseline-1.8", StructuredTransportProfile.CANDIDATE_1_8),
-        ("candidate-1.11", StructuredTransportProfile.CANDIDATE_1_11),
-    )
+    with pytest.raises(ValueError, match="transport source hash mismatch"):
+        _check_plan(
+            plan,
+            revision,
+            Path(plan["dataset"]),
+            Path(plan["simulated_history_bank"]),
+        )

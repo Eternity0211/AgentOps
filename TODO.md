@@ -263,7 +263,7 @@ measurement shows no need; closing it does not mean implementing it.
     contract requires 103 fault pairs for a 15-point Top-1 effect under its declared assumptions and
     supplies 120. Runtime inputs contain no evaluator fields; all 160 IDs and hashes are disjoint
     from prior dataset indexes. This is development evidence, not a confirmed-history fourth arm.
-  - [ ] FC4c Classify the existing diagnosis errors and optimize only on separate development data.
+  - [x] FC4c Classify the existing diagnosis errors and optimize only on separate development data.
     Attribute each miss to decisive-Evidence absence, selection, causal correlation, ranking,
     counter-evidence handling or unsupported conclusion; preserve schemas, Gate and authority.
     - [x] FC4c1 Freeze the candidate-1.11 miss census before changing the candidate. Across 54
@@ -272,7 +272,7 @@ measurement shows no need; closing it does not mean implementing it.
       at gateway Evidence without bounded downstream causal-scope expansion. The analysis hashes
       its labels, outcomes and analyzer, contains no model response bodies, and defers ranking
       changes until decisive Evidence is present.
-    - [ ] FC4c2 Implement the bounded candidate-only evidence changes and verify them on separate
+    - [x] FC4c2 Implement the bounded candidate-only evidence changes and verify them on separate
       development data without opening the frozen FC4 lab holdout.
       - [x] FC4c2a Add an explicit evaluation-only strategy that composes the FC3 GC-aware context
         with a deterministic causal-scope guard. When current trace/log Evidence shows a deeper
@@ -283,7 +283,7 @@ measurement shows no need; closing it does not mean implementing it.
         follow-up routes to handoff, never an inferred cause. A label-free synthetic development
         fixture proves 3 gateway reads + 2 payment reads, 1 replan, 4 successful model calls and a
         final Gate-passing bad-configuration candidate. The frozen FC4 inputs remain unopened.
-      - [ ] FC4c2b Run the frozen-before-call development baseline/candidate comparison with equal
+      - [x] FC4c2b Run the frozen-before-call development baseline/candidate comparison with equal
         provider/tool ceilings, score every outcome, and accept or revise the strategy from the
         declared quality and safety thresholds.
         - [x] FC4c2b1 Freeze a separate 27-case, label-isolated development set before the pair
@@ -293,7 +293,7 @@ measurement shows no need; closing it does not mean implementing it.
           input, labels and manifest and prove that the memory and causal-scope changes are both
           exercised. The pair runner holds transport/profile and budgets constant, alternates arm
           order, resumes only exact completed pairs and never loads labels.
-        - [ ] FC4c2b2 Freeze the implementation-bound pair protocol in a separate commit, run all
+        - [x] FC4c2b2 Freeze the implementation-bound pair protocol in a separate commit, run all
           54 real-provider graph outcomes once, then publish the paired quality/resource score and
           the accept/revise decision without selective reruns.
           - [x] Add a strategy-specific FC1 scorer that treats Top-1, Top-3, safe controls, valid
@@ -368,6 +368,24 @@ measurement shows no need; closing it does not mean implementing it.
   - [ ] FC4d Freeze the resulting implementation and run the untouched rules/single/graph lab
     comparison once. Publish baseline, candidate, delta, 95% interval and failures for every metric;
     null or negative outcomes remain valid results and selective reruns are forbidden.
+    - [x] FC4d1 Implement the source-bound, label-free three-arm runner and post-run scorer before
+      freezing the protocol. The runner rotates rules/single/graph order, uses the unchanged rules
+      schedule and candidate-1.11 GC-aware causal-scope strategy, retains interruption directories
+      as bound failures, and recovers a completely written rules result without rerunning it. The
+      scorer refuses anything other than 480 exact hash-bound outcomes before opening labels and
+      publishes paired Top-1/Top-3, safe controls, valid outputs, unsupported conclusions,
+      fabricated references, Evidence integrity, Gate precision/recall, model/tool calls, duration,
+      tokens and rate-card cost. Rules retain explicit zero-denominator conditional rates rather
+      than fabricated percentages. Fourteen focused runner/ledger/snapshot tests pass; Ruff and
+      strict mypy pass. Full regression: 3,221 passed, two skipped, 100% source statement/branch
+      coverage; the stale v10 transport protocol explicitly refuses current source drift. Protocol
+      freeze and provider execution remain separate batches.
+    - [ ] FC4d2 Freeze the implementation-bound 160-case/480-outcome protocol in a separate commit,
+      including source/input/label hashes, identical provider settings and budgets, arm rotation,
+      thresholds, failure policy and the single-model-to-controlled-graph primary comparison.
+    - [ ] FC4d3 Execute the frozen protocol once, retain every result/failure, score only after all
+      outcomes validate, publish raw outcomes plus every baseline/candidate/delta/95% interval, and
+      update the project scorecard without selective reruns or post-hoc tuning.
   - [ ] FC4e Add the confirmed-history fourth arm only when the named external data and consent
     prerequisites exist. Until then FC4 remains open even if FC4b-FC4d complete.
   - External boundary recorded: the required confirmed-history fourth arm cannot run until the

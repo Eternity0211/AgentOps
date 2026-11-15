@@ -152,6 +152,28 @@ thresholds and parity interleaving as run-001. Its held-constant list explicitly
 filter and all-repeated handoff in both arms. No run-002 provider call may precede this protocol
 commit.
 
+Run-002 is published under
+[`evaluation/results/evidence-strategy-development/v1/run-002`](../evaluation/results/evidence-strategy-development/v1/run-002).
+All 54 outcomes completed: failures are 0/27 in both arms, safe controls are 9/9 in both arms,
+and all 112 cited Evidence references resolve within their Incident with matching Artifact hashes.
+The filter emitted 22 content-free audit events; 15 removed at least one exact prior query, and no
+comparison failed. The reliability defect from run-001 is therefore resolved on this development
+set.
+
+The frozen quality acceptance still fails. Top-1 and Top-3 are 11/18→12/18, a gain of one case or
+5.56 percentage points, with paired 95% interval -22.22 to +33.33 points; the protocol required at
+least two additional correct cases. Candidate gains occur on two memory-leak cases, one
+bad-configuration case and one Redis case, while it loses one downstream-latency, one HTTP-500 and
+one Redis case; three cases are wrong in both arms. Median candidate deltas are +234 ms, +137 input
+tokens, +97 output tokens and +129,600 rate-card nUSD. Their intervals cross zero, every resource
+claim is `NO_PROVEN_IMPROVEMENT`, and the frozen non-regression margins pass. These costs are rate-
+card bounds rather than billing, and workflow duration is not human diagnosis time.
+
+Before a final development revision, the seven discordant pairs and three shared misses must be
+classified without opening the FC4 holdout. In particular, the analysis must distinguish a real
+strategy effect from non-target prompt/context perturbation or provider variation. Any run-003
+requires a precommitted stopping rule and a new complete pair; run-002 remains immutable.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

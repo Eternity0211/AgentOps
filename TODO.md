@@ -332,8 +332,18 @@ measurement shows no need; closing it does not mean implementing it.
               dataset/isolated labels, transport 1.11, six provider calls, four successful graph
               model calls, twelve reads and the original acceptance thresholds. Both arms receive
               the same filter, so `EvidenceStrategy` remains the only independent variable.
-            - [ ] Execute all 54 run-002 outcomes and publish every failure plus the unchanged
-              quality, safety and resource acceptance decision.
+            - [x] Execute all 54 run-002 outcomes and publish every failure plus the unchanged
+              quality, safety and resource acceptance decision. Both arms completed 27/27 with
+              zero failures, 9/9 safe controls and complete Evidence integrity, proving the filter
+              removed the run-001 reliability defect. Top-1/Top-3 were 11/18→12/18 (+1 case,
+              +5.56 points; paired 95% interval -22.22 to +33.33), below the frozen +2-case floor,
+              so acceptance remains false. Candidate medians changed by +234 ms, +137 input
+              tokens, +97 output tokens and +129,600 rate-card nUSD; all are
+              `NO_PROVEN_IMPROVEMENT` and within the frozen non-regression margins.
+            - [ ] Classify run-002's seven discordant fault pairs and three shared misses before a
+              final development revision. Preserve the two memory and one configuration gains;
+              determine whether non-memory context perturbation caused the downstream/HTTP/Redis
+              losses. Freeze a stopping rule before any run-003 calls; do not inspect FC4 holdout.
   - [ ] FC4d Freeze the resulting implementation and run the untouched rules/single/graph lab
     comparison once. Publish baseline, candidate, delta, 95% interval and failures for every metric;
     null or negative outcomes remain valid results and selective reruns are forbidden.

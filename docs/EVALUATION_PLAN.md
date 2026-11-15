@@ -144,6 +144,14 @@ filter applies to both development arms; therefore the next frozen pair still ch
 `EvidenceStrategy`. Run-002 must be a new complete 27-case-per-arm experiment, not a repair or
 selective rerun of run-001.
 
+The create-once run-002 protocol is frozen at
+[`evaluation/evidence_strategy_development/v2/pair-plan.json`](../evaluation/evidence_strategy_development/v2/pair-plan.json).
+It binds implementation commit `7d3d2e3`, the new filter-bearing workflow and transport hashes,
+the unchanged dataset and isolated labels, and the same provider settings, ceilings, scorer,
+thresholds and parity interleaving as run-001. Its held-constant list explicitly includes the
+filter and all-repeated handoff in both arms. No run-002 provider call may precede this protocol
+commit.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

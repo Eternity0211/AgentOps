@@ -327,9 +327,12 @@ measurement shows no need; closing it does not mean implementing it.
               Mixed and all-repeated tests prove novel-only dispatch and zero-read handoff; durable
               restore recompiles the same filtered plan. No schema, Gate, budget or write path was
               relaxed.
-            - [ ] Freeze the implementation-bound run-002 pair protocol in a separate commit and
-              execute all 54 outcomes. Both arms receive the same filter so `EvidenceStrategy`
-              remains the only independent variable; publish every failure and the unchanged
+            - [x] Freeze the implementation-bound run-002 pair protocol in a separate commit.
+              It binds implementation `7d3d2e3`, all six runtime/scorer sources, the unchanged
+              dataset/isolated labels, transport 1.11, six provider calls, four successful graph
+              model calls, twelve reads and the original acceptance thresholds. Both arms receive
+              the same filter, so `EvidenceStrategy` remains the only independent variable.
+            - [ ] Execute all 54 run-002 outcomes and publish every failure plus the unchanged
               quality, safety and resource acceptance decision.
   - [ ] FC4d Freeze the resulting implementation and run the untouched rules/single/graph lab
     comparison once. Publish baseline, candidate, delta, 95% interval and failures for every metric;

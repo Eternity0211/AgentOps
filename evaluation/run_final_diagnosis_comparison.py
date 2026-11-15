@@ -34,6 +34,7 @@ BOUND_SOURCES = {
     "evaluation/paired_comparison.py",
     "evaluation/real_scoring.py",
     "evaluation/run_final_diagnosis_comparison.py",
+    "evaluation/run_real_batch.py",
     "evaluation/run_snapshot_comparison.py",
     "evaluation/score_final_diagnosis_comparison.py",
     "evaluation/score_transport_pair.py",
@@ -65,6 +66,8 @@ FAILURE_POLICY = {
     "partial_directories": "RETAIN_AS_FAILED",
     "complete_rules_result": "RECOVER_WITHOUT_RERUN",
 }
+LEGACY_IMPLEMENTATION_COMMIT = "c700481973d3f1ca3239aaa3e1cdf5dc5fd2e6f6"
+LEGACY_BOUND_SOURCES = BOUND_SOURCES - {"evaluation/run_real_batch.py"}
 
 
 def _sha256(path: Path) -> str:
@@ -166,7 +169,12 @@ def check_plan(plan: dict[str, Any], revision: str, dataset: Path) -> None:
     ):
         raise ValueError("final comparison scorer mismatch")
     source_hashes = plan.get("source_hashes", {})
-    if set(source_hashes) != BOUND_SOURCES or any(
+    expected_sources = (
+        LEGACY_BOUND_SOURCES
+        if plan.get("implementation_commit") == LEGACY_IMPLEMENTATION_COMMIT
+        else BOUND_SOURCES
+    )
+    if set(source_hashes) != expected_sources or any(
         _sha256(ROOT / name) != digest for name, digest in source_hashes.items()
     ):
         raise ValueError("final comparison source hash mismatch")
@@ -364,7 +372,7 @@ def run(
         ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
     ).strip()
     check_plan(plan, revision, dataset)
-    rows = preflight(dataset)
+    rows = preflight(dataset, expected_cases=plan["expected_cases"])
     if len(rows) != plan["expected_cases"]:
         raise ValueError("final comparison case count mismatch")
     digest = hashlib.sha256(plan_bytes).hexdigest()

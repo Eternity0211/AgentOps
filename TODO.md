@@ -388,6 +388,10 @@ measurement shows no need; closing it does not mean implementing it.
       primary Top-1 MRE is the powered 15 points; all safety, Gate, validity, call, token, latency
       and cost thresholds are frozen. Six protocol/preflight cases pass, including source-drift
       refusal and a guard proving runtime preflight never reads labels. No provider call occurred.
+      The first execution command exposed a 27-case legacy preflight assumption and stopped before
+      output creation, label access, or provider calls. The corrected validator takes the frozen
+      160-case count and is now included in the source binding; the protocol will be re-frozen
+      before any provider call.
     - [ ] FC4d3 Execute the frozen protocol once, retain every result/failure, score only after all
       outcomes validate, publish raw outcomes plus every baseline/candidate/delta/95% interval, and
       update the project scorecard without selective reruns or post-hoc tuning.

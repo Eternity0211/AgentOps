@@ -17,10 +17,12 @@ from evaluation.simulated_history_source import memory_source
 from evaluation.structured_model import StructuredTransportProfile
 
 
-def preflight(dataset: Path) -> tuple[dict[str, str], ...]:
+def preflight(dataset: Path, *, expected_cases: int = 27) -> tuple[dict[str, str], ...]:
+    if type(expected_cases) is not int or expected_cases <= 0:
+        raise ValueError("expected snapshot count must be a positive integer")
     rows = json.loads((dataset / "index.json").read_text(encoding="utf-8"))
-    if not isinstance(rows, list) or len(rows) != 27:
-        raise ValueError("exactly 27 input snapshots required")
+    if not isinstance(rows, list) or len(rows) != expected_cases:
+        raise ValueError(f"exactly {expected_cases} input snapshots required")
     seen = set()
     for row in rows:
         if (
@@ -55,9 +57,7 @@ def run_batch(
     if (
         not modes
         or len(set(modes)) != len(modes)
-        or any(
-            m not in ("single-agent", "controlled-graph", SIMULATED_MEMORY_MODE) for m in modes
-        )
+        or any(m not in ("single-agent", "controlled-graph", SIMULATED_MEMORY_MODE) for m in modes)
     ):
         raise ValueError("batch modes require configured single/graph/simulated-memory")
     if (SIMULATED_MEMORY_MODE in modes) != (simulated_history_bank is not None):

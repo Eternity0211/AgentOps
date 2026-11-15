@@ -267,6 +267,12 @@ arms, partial work is retained as failure, selective reruns are forbidden, and s
 after 480 outcomes validate. The next batch may execute this protocol once; no holdout result
 exists yet.
 
+The first execution command stopped during label-free preflight, before output creation or any
+provider call, because the shared snapshot validator still carried the earlier 27-case assumption.
+The validator now takes the protocol's explicit expected count, and the final protocol binds that
+shared validator as a runtime dependency. A replacement freeze must be committed before the first
+provider call; the stopped preflight is not an experimental outcome or a rerun.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

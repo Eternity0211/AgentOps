@@ -12,11 +12,14 @@ from evaluation.run_final_diagnosis_comparison import (
     BOUND_SOURCES,
     EXECUTION_ORDER,
     FAILURE_POLICY,
+    LEGACY_BOUND_SOURCES,
+    LEGACY_IMPLEMENTATION_COMMIT,
     MODES,
     PROVIDER,
     RULES_QUERIES,
     check_plan,
 )
+from evaluation.run_real_batch import preflight
 
 PLAN = Path("evaluation/final_diagnosis_comparison/v1/plan.json")
 DATASET = Path("evaluation/datasets/lab-holdout-v1")
@@ -63,7 +66,12 @@ def test_final_diagnosis_protocol_binds_implementation_dataset_and_power() -> No
 
 def test_final_diagnosis_protocol_source_hashes_match_implementation_commit() -> None:
     plan = _plan()
-    assert set(plan["source_hashes"]) == BOUND_SOURCES
+    expected_sources = (
+        LEGACY_BOUND_SOURCES
+        if plan["implementation_commit"] == LEGACY_IMPLEMENTATION_COMMIT
+        else BOUND_SOURCES
+    )
+    assert set(plan["source_hashes"]) == expected_sources
     for name, digest in plan["source_hashes"].items():
         committed = subprocess.check_output(
             [
@@ -80,10 +88,12 @@ def test_final_diagnosis_protocol_source_hashes_match_implementation_commit() ->
 def test_final_diagnosis_preflight_never_opens_evaluator_labels(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    plan = _plan()
+    plan = copy.deepcopy(_plan())
     revision = subprocess.check_output(
         ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
     ).strip()
+    plan["implementation_commit"] = revision
+    plan["source_hashes"] = {name: _sha256(Path(name)) for name in BOUND_SOURCES}
     original = Path.read_bytes
 
     def guarded(path: Path) -> bytes:
@@ -94,6 +104,12 @@ def test_final_diagnosis_preflight_never_opens_evaluator_labels(
     monkeypatch.setattr(Path, "read_bytes", guarded)
 
     check_plan(plan, revision, DATASET)
+
+
+def test_final_diagnosis_dataset_preflight_accepts_frozen_case_count() -> None:
+    rows = preflight(DATASET, expected_cases=160)
+
+    assert len(rows) == 160
 
 
 @pytest.mark.parametrize(

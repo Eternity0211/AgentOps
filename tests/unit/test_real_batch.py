@@ -44,6 +44,17 @@ def test_batch_without_key_makes_no_output(tmp_path: Path) -> None:
     assert not output.exists()
 
 
+@pytest.mark.parametrize("expected_cases", [0, 1.0])
+def test_preflight_rejects_invalid_expected_case_count(expected_cases: object) -> None:
+    with pytest.raises(ValueError, match="positive integer"):
+        preflight(DATASET, expected_cases=expected_cases)  # type: ignore[arg-type]
+
+
+def test_preflight_rejects_dataset_count_mismatch() -> None:
+    with pytest.raises(ValueError, match="exactly 26"):
+        preflight(DATASET, expected_cases=26)
+
+
 def test_simulated_memory_mode_requires_frozen_bank(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="frozen simulated bank"):
         run_batch(

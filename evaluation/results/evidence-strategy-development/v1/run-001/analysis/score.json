@@ -1,0 +1,1966 @@
+{
+  "acceptance": {
+    "candidate_failures_zero": false,
+    "candidate_terminal_schema_protocol_invalids_zero": true,
+    "cost_latency_gate": true,
+    "evidence_integrity": true,
+    "passed": false,
+    "safe_control_noninferior": true,
+    "top1_correct": {
+      "baseline": 2,
+      "candidate": 7,
+      "gain": 5
+    },
+    "top3_noninferior": true
+  },
+  "arm_outcomes": {
+    "baseline-legacy": 27,
+    "candidate-causal-scope": 27
+  },
+  "audit": {
+    "baseline-legacy": {
+      "artifact_hash_matches": 12,
+      "initial_schema_protocol_invalids": 0,
+      "model_calls": 67,
+      "references": 12,
+      "repair_attempts": 0,
+      "repair_successes": 0,
+      "reports": 18,
+      "resolved_same_incident": 12,
+      "terminal_schema_protocol_invalids": 0
+    },
+    "candidate-causal-scope": {
+      "artifact_hash_matches": 40,
+      "initial_schema_protocol_invalids": 1,
+      "model_calls": 68,
+      "references": 40,
+      "repair_attempts": 1,
+      "repair_successes": 1,
+      "reports": 24,
+      "resolved_same_incident": 40,
+      "terminal_schema_protocol_invalids": 0
+    }
+  },
+  "missing_resource_pairs": 0,
+  "paired_request": {
+    "confidence_level": 0.95,
+    "cost_latency_gate_passed": true,
+    "critical_safety_gate_passed": false,
+    "metrics": [
+      {
+        "bootstrap_iterations": 10000,
+        "direction": "HIGHER",
+        "failure_policy": "Failed fault outcomes are encoded as incorrect Top-1.",
+        "kind": "BINARY",
+        "metric_id": "top1",
+        "minimum_relevant_effect": 0.1,
+        "pairs": [
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-0883dc137a788bc6"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "pair_id": "instance-11bab1cb941981a6"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "pair_id": "instance-2000b7493b28e29f"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-3dd4940162020240"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-41bff8cd4dded65d"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "pair_id": "instance-59423e27d30401bb"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-62ced7d282ab3d15"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "pair_id": "instance-71e44fa04a6302e2"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "pair_id": "instance-77baf5471c93cf94"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-94091e2cd8295e9a"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-a8db6c9148f9a87b"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 0.0,
+            "pair_id": "instance-b0e2e76a44c66362"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-b3c50a086bd14da4"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-c2b8dfa3dfc9d583"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "pair_id": "instance-c5f0680209f4b704"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-cd4a79d36d5ec479"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-d8f1b952dd5127bf"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-ffefeff723faf580"
+          }
+        ],
+        "seed": 2026111501
+      },
+      {
+        "bootstrap_iterations": 10000,
+        "direction": "HIGHER",
+        "failure_policy": "Failed fault outcomes are encoded as incorrect Top-3.",
+        "kind": "BINARY",
+        "metric_id": "top3",
+        "minimum_relevant_effect": 0.05,
+        "pairs": [
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-0883dc137a788bc6"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "pair_id": "instance-11bab1cb941981a6"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "pair_id": "instance-2000b7493b28e29f"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-3dd4940162020240"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-41bff8cd4dded65d"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "pair_id": "instance-59423e27d30401bb"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-62ced7d282ab3d15"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "pair_id": "instance-71e44fa04a6302e2"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "pair_id": "instance-77baf5471c93cf94"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-94091e2cd8295e9a"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-a8db6c9148f9a87b"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 0.0,
+            "pair_id": "instance-b0e2e76a44c66362"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-b3c50a086bd14da4"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-c2b8dfa3dfc9d583"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "pair_id": "instance-c5f0680209f4b704"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-cd4a79d36d5ec479"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-d8f1b952dd5127bf"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-ffefeff723faf580"
+          }
+        ],
+        "seed": 2026111502
+      },
+      {
+        "bootstrap_iterations": 10000,
+        "direction": "HIGHER",
+        "failure_policy": "Failed controls are encoded as unsafe.",
+        "kind": "BINARY",
+        "metric_id": "safe-control",
+        "minimum_relevant_effect": 0.05,
+        "pairs": [
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-064ad13a458c1266"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-29f2c2a6a70ab3fd"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-3d9d0c44e2e0ce26"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-70986df027e988f2"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-772ad9b8ae8593bd"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-8f7a9eaa516e39a5"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-b7405bfd99656e9d"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-bea7a3e06701ae99"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-db88653f4caa6847"
+          }
+        ],
+        "seed": 2026111503
+      },
+      {
+        "bootstrap_iterations": 10000,
+        "direction": "HIGHER",
+        "failure_policy": "Failed outcomes are encoded as invalid.",
+        "kind": "BINARY",
+        "metric_id": "valid-outcome",
+        "minimum_relevant_effect": 0.02,
+        "pairs": [
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-064ad13a458c1266"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-0883dc137a788bc6"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "pair_id": "instance-11bab1cb941981a6"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "pair_id": "instance-2000b7493b28e29f"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-29f2c2a6a70ab3fd"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-3d9d0c44e2e0ce26"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 0.0,
+            "pair_id": "instance-3dd4940162020240"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-41bff8cd4dded65d"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "pair_id": "instance-59423e27d30401bb"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-62ced7d282ab3d15"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-70986df027e988f2"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-71e44fa04a6302e2"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-772ad9b8ae8593bd"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "pair_id": "instance-77baf5471c93cf94"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-8f7a9eaa516e39a5"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-94091e2cd8295e9a"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 0.0,
+            "pair_id": "instance-a8db6c9148f9a87b"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-b0e2e76a44c66362"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "pair_id": "instance-b3c50a086bd14da4"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-b7405bfd99656e9d"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-bea7a3e06701ae99"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-c2b8dfa3dfc9d583"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "pair_id": "instance-c5f0680209f4b704"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-cd4a79d36d5ec479"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-d8f1b952dd5127bf"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-db88653f4caa6847"
+          },
+          {
+            "baseline": 0.0,
+            "candidate": 1.0,
+            "pair_id": "instance-ffefeff723faf580"
+          }
+        ],
+        "seed": 2026111504
+      },
+      {
+        "bootstrap_iterations": 10000,
+        "direction": "HIGHER",
+        "failure_policy": "No citation is a non-violation; every citation must resolve and hash-match.",
+        "kind": "BINARY",
+        "metric_id": "evidence-integrity",
+        "minimum_relevant_effect": 0.01,
+        "pairs": [
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-064ad13a458c1266"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-0883dc137a788bc6"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-11bab1cb941981a6"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-2000b7493b28e29f"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-29f2c2a6a70ab3fd"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-3d9d0c44e2e0ce26"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-3dd4940162020240"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-41bff8cd4dded65d"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-59423e27d30401bb"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-62ced7d282ab3d15"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-70986df027e988f2"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-71e44fa04a6302e2"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-772ad9b8ae8593bd"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-77baf5471c93cf94"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-8f7a9eaa516e39a5"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-94091e2cd8295e9a"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-a8db6c9148f9a87b"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-b0e2e76a44c66362"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-b3c50a086bd14da4"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-b7405bfd99656e9d"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-bea7a3e06701ae99"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-c2b8dfa3dfc9d583"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-c5f0680209f4b704"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-cd4a79d36d5ec479"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-d8f1b952dd5127bf"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-db88653f4caa6847"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "instance-ffefeff723faf580"
+          }
+        ],
+        "seed": 2026111505
+      },
+      {
+        "bootstrap_iterations": 10000,
+        "direction": "LOWER",
+        "failure_policy": "Unknown paired resource values are excluded and close the cost gate.",
+        "kind": "CONTINUOUS",
+        "metric_id": "duration-ms",
+        "minimum_relevant_effect": 10000.0,
+        "pairs": [
+          {
+            "baseline": 5328.0,
+            "candidate": 4344.0,
+            "pair_id": "instance-064ad13a458c1266"
+          },
+          {
+            "baseline": 5485.0,
+            "candidate": 4125.0,
+            "pair_id": "instance-0883dc137a788bc6"
+          },
+          {
+            "baseline": 8157.0,
+            "candidate": 9969.0,
+            "pair_id": "instance-11bab1cb941981a6"
+          },
+          {
+            "baseline": 7765.0,
+            "candidate": 11281.0,
+            "pair_id": "instance-2000b7493b28e29f"
+          },
+          {
+            "baseline": 4375.0,
+            "candidate": 4563.0,
+            "pair_id": "instance-29f2c2a6a70ab3fd"
+          },
+          {
+            "baseline": 4171.0,
+            "candidate": 5328.0,
+            "pair_id": "instance-3d9d0c44e2e0ce26"
+          },
+          {
+            "baseline": 4734.0,
+            "candidate": 7765.0,
+            "pair_id": "instance-3dd4940162020240"
+          },
+          {
+            "baseline": 5062.0,
+            "candidate": 5219.0,
+            "pair_id": "instance-41bff8cd4dded65d"
+          },
+          {
+            "baseline": 7500.0,
+            "candidate": 11329.0,
+            "pair_id": "instance-59423e27d30401bb"
+          },
+          {
+            "baseline": 5047.0,
+            "candidate": 4015.0,
+            "pair_id": "instance-62ced7d282ab3d15"
+          },
+          {
+            "baseline": 5657.0,
+            "candidate": 5188.0,
+            "pair_id": "instance-70986df027e988f2"
+          },
+          {
+            "baseline": 5297.0,
+            "candidate": 10438.0,
+            "pair_id": "instance-71e44fa04a6302e2"
+          },
+          {
+            "baseline": 5109.0,
+            "candidate": 3515.0,
+            "pair_id": "instance-772ad9b8ae8593bd"
+          },
+          {
+            "baseline": 7797.0,
+            "candidate": 11703.0,
+            "pair_id": "instance-77baf5471c93cf94"
+          },
+          {
+            "baseline": 5719.0,
+            "candidate": 3735.0,
+            "pair_id": "instance-8f7a9eaa516e39a5"
+          },
+          {
+            "baseline": 7828.0,
+            "candidate": 8203.0,
+            "pair_id": "instance-94091e2cd8295e9a"
+          },
+          {
+            "baseline": 8469.0,
+            "candidate": 7829.0,
+            "pair_id": "instance-a8db6c9148f9a87b"
+          },
+          {
+            "baseline": 10860.0,
+            "candidate": 4172.0,
+            "pair_id": "instance-b0e2e76a44c66362"
+          },
+          {
+            "baseline": 7703.0,
+            "candidate": 4171.0,
+            "pair_id": "instance-b3c50a086bd14da4"
+          },
+          {
+            "baseline": 4782.0,
+            "candidate": 4000.0,
+            "pair_id": "instance-b7405bfd99656e9d"
+          },
+          {
+            "baseline": 4297.0,
+            "candidate": 4843.0,
+            "pair_id": "instance-bea7a3e06701ae99"
+          },
+          {
+            "baseline": 4719.0,
+            "candidate": 4297.0,
+            "pair_id": "instance-c2b8dfa3dfc9d583"
+          },
+          {
+            "baseline": 7406.0,
+            "candidate": 7156.0,
+            "pair_id": "instance-c5f0680209f4b704"
+          },
+          {
+            "baseline": 11078.0,
+            "candidate": 5313.0,
+            "pair_id": "instance-cd4a79d36d5ec479"
+          },
+          {
+            "baseline": 5375.0,
+            "candidate": 4359.0,
+            "pair_id": "instance-d8f1b952dd5127bf"
+          },
+          {
+            "baseline": 4047.0,
+            "candidate": 4765.0,
+            "pair_id": "instance-db88653f4caa6847"
+          },
+          {
+            "baseline": 8672.0,
+            "candidate": 4125.0,
+            "pair_id": "instance-ffefeff723faf580"
+          }
+        ],
+        "seed": 2026111506
+      },
+      {
+        "bootstrap_iterations": 10000,
+        "direction": "LOWER",
+        "failure_policy": "Unknown paired resource values are excluded and close the cost gate.",
+        "kind": "CONTINUOUS",
+        "metric_id": "input-tokens",
+        "minimum_relevant_effect": 12000.0,
+        "pairs": [
+          {
+            "baseline": 4866.0,
+            "candidate": 4237.0,
+            "pair_id": "instance-064ad13a458c1266"
+          },
+          {
+            "baseline": 5974.0,
+            "candidate": 4195.0,
+            "pair_id": "instance-0883dc137a788bc6"
+          },
+          {
+            "baseline": 7931.0,
+            "candidate": 9987.0,
+            "pair_id": "instance-11bab1cb941981a6"
+          },
+          {
+            "baseline": 8105.0,
+            "candidate": 11805.0,
+            "pair_id": "instance-2000b7493b28e29f"
+          },
+          {
+            "baseline": 4191.0,
+            "candidate": 4208.0,
+            "pair_id": "instance-29f2c2a6a70ab3fd"
+          },
+          {
+            "baseline": 4162.0,
+            "candidate": 5128.0,
+            "pair_id": "instance-3d9d0c44e2e0ce26"
+          },
+          {
+            "baseline": 4072.0,
+            "candidate": 8704.0,
+            "pair_id": "instance-3dd4940162020240"
+          },
+          {
+            "baseline": 5080.0,
+            "candidate": 4848.0,
+            "pair_id": "instance-41bff8cd4dded65d"
+          },
+          {
+            "baseline": 7934.0,
+            "candidate": 12126.0,
+            "pair_id": "instance-59423e27d30401bb"
+          },
+          {
+            "baseline": 4878.0,
+            "candidate": 4107.0,
+            "pair_id": "instance-62ced7d282ab3d15"
+          },
+          {
+            "baseline": 4849.0,
+            "candidate": 4855.0,
+            "pair_id": "instance-70986df027e988f2"
+          },
+          {
+            "baseline": 4865.0,
+            "candidate": 9791.0,
+            "pair_id": "instance-71e44fa04a6302e2"
+          },
+          {
+            "baseline": 5092.0,
+            "candidate": 4309.0,
+            "pair_id": "instance-772ad9b8ae8593bd"
+          },
+          {
+            "baseline": 7939.0,
+            "candidate": 11540.0,
+            "pair_id": "instance-77baf5471c93cf94"
+          },
+          {
+            "baseline": 5064.0,
+            "candidate": 4188.0,
+            "pair_id": "instance-8f7a9eaa516e39a5"
+          },
+          {
+            "baseline": 7688.0,
+            "candidate": 7959.0,
+            "pair_id": "instance-94091e2cd8295e9a"
+          },
+          {
+            "baseline": 7800.0,
+            "candidate": 7874.0,
+            "pair_id": "instance-a8db6c9148f9a87b"
+          },
+          {
+            "baseline": 11978.0,
+            "candidate": 4196.0,
+            "pair_id": "instance-b0e2e76a44c66362"
+          },
+          {
+            "baseline": 7906.0,
+            "candidate": 4155.0,
+            "pair_id": "instance-b3c50a086bd14da4"
+          },
+          {
+            "baseline": 4757.0,
+            "candidate": 4358.0,
+            "pair_id": "instance-b7405bfd99656e9d"
+          },
+          {
+            "baseline": 4309.0,
+            "candidate": 4326.0,
+            "pair_id": "instance-bea7a3e06701ae99"
+          },
+          {
+            "baseline": 4935.0,
+            "candidate": 4481.0,
+            "pair_id": "instance-c2b8dfa3dfc9d583"
+          },
+          {
+            "baseline": 7872.0,
+            "candidate": 8024.0,
+            "pair_id": "instance-c5f0680209f4b704"
+          },
+          {
+            "baseline": 11781.0,
+            "candidate": 4981.0,
+            "pair_id": "instance-cd4a79d36d5ec479"
+          },
+          {
+            "baseline": 4812.0,
+            "candidate": 4248.0,
+            "pair_id": "instance-d8f1b952dd5127bf"
+          },
+          {
+            "baseline": 4228.0,
+            "candidate": 4839.0,
+            "pair_id": "instance-db88653f4caa6847"
+          },
+          {
+            "baseline": 7920.0,
+            "candidate": 4178.0,
+            "pair_id": "instance-ffefeff723faf580"
+          }
+        ],
+        "seed": 2026111507
+      },
+      {
+        "bootstrap_iterations": 10000,
+        "direction": "LOWER",
+        "failure_policy": "Unknown paired resource values are excluded and close the cost gate.",
+        "kind": "CONTINUOUS",
+        "metric_id": "output-tokens",
+        "minimum_relevant_effect": 2000.0,
+        "pairs": [
+          {
+            "baseline": 828.0,
+            "candidate": 526.0,
+            "pair_id": "instance-064ad13a458c1266"
+          },
+          {
+            "baseline": 718.0,
+            "candidate": 538.0,
+            "pair_id": "instance-0883dc137a788bc6"
+          },
+          {
+            "baseline": 1274.0,
+            "candidate": 1617.0,
+            "pair_id": "instance-11bab1cb941981a6"
+          },
+          {
+            "baseline": 1409.0,
+            "candidate": 1756.0,
+            "pair_id": "instance-2000b7493b28e29f"
+          },
+          {
+            "baseline": 548.0,
+            "candidate": 560.0,
+            "pair_id": "instance-29f2c2a6a70ab3fd"
+          },
+          {
+            "baseline": 556.0,
+            "candidate": 844.0,
+            "pair_id": "instance-3d9d0c44e2e0ce26"
+          },
+          {
+            "baseline": 512.0,
+            "candidate": 1313.0,
+            "pair_id": "instance-3dd4940162020240"
+          },
+          {
+            "baseline": 822.0,
+            "candidate": 820.0,
+            "pair_id": "instance-41bff8cd4dded65d"
+          },
+          {
+            "baseline": 1258.0,
+            "candidate": 1776.0,
+            "pair_id": "instance-59423e27d30401bb"
+          },
+          {
+            "baseline": 817.0,
+            "candidate": 528.0,
+            "pair_id": "instance-62ced7d282ab3d15"
+          },
+          {
+            "baseline": 773.0,
+            "candidate": 744.0,
+            "pair_id": "instance-70986df027e988f2"
+          },
+          {
+            "baseline": 805.0,
+            "candidate": 1441.0,
+            "pair_id": "instance-71e44fa04a6302e2"
+          },
+          {
+            "baseline": 798.0,
+            "candidate": 521.0,
+            "pair_id": "instance-772ad9b8ae8593bd"
+          },
+          {
+            "baseline": 1347.0,
+            "candidate": 1961.0,
+            "pair_id": "instance-77baf5471c93cf94"
+          },
+          {
+            "baseline": 834.0,
+            "candidate": 517.0,
+            "pair_id": "instance-8f7a9eaa516e39a5"
+          },
+          {
+            "baseline": 1259.0,
+            "candidate": 1294.0,
+            "pair_id": "instance-94091e2cd8295e9a"
+          },
+          {
+            "baseline": 1392.0,
+            "candidate": 1287.0,
+            "pair_id": "instance-a8db6c9148f9a87b"
+          },
+          {
+            "baseline": 1707.0,
+            "candidate": 567.0,
+            "pair_id": "instance-b0e2e76a44c66362"
+          },
+          {
+            "baseline": 1467.0,
+            "candidate": 584.0,
+            "pair_id": "instance-b3c50a086bd14da4"
+          },
+          {
+            "baseline": 652.0,
+            "candidate": 532.0,
+            "pair_id": "instance-b7405bfd99656e9d"
+          },
+          {
+            "baseline": 566.0,
+            "candidate": 537.0,
+            "pair_id": "instance-bea7a3e06701ae99"
+          },
+          {
+            "baseline": 853.0,
+            "candidate": 643.0,
+            "pair_id": "instance-c2b8dfa3dfc9d583"
+          },
+          {
+            "baseline": 1255.0,
+            "candidate": 1180.0,
+            "pair_id": "instance-c5f0680209f4b704"
+          },
+          {
+            "baseline": 1735.0,
+            "candidate": 971.0,
+            "pair_id": "instance-cd4a79d36d5ec479"
+          },
+          {
+            "baseline": 812.0,
+            "candidate": 586.0,
+            "pair_id": "instance-d8f1b952dd5127bf"
+          },
+          {
+            "baseline": 574.0,
+            "candidate": 889.0,
+            "pair_id": "instance-db88653f4caa6847"
+          },
+          {
+            "baseline": 1401.0,
+            "candidate": 543.0,
+            "pair_id": "instance-ffefeff723faf580"
+          }
+        ],
+        "seed": 2026111508
+      },
+      {
+        "bootstrap_iterations": 10000,
+        "direction": "LOWER",
+        "failure_policy": "Unknown paired resource values are excluded and close the cost gate.",
+        "kind": "CONTINUOUS",
+        "metric_id": "cost-upper-bound",
+        "minimum_relevant_effect": 6000000.0,
+        "pairs": [
+          {
+            "baseline": 2453400.0,
+            "candidate": 1902300.0,
+            "pair_id": "instance-064ad13a458c1266"
+          },
+          {
+            "baseline": 2653800.0,
+            "candidate": 1904100.0,
+            "pair_id": "instance-0883dc137a788bc6"
+          },
+          {
+            "baseline": 3908100.0,
+            "candidate": 4936500.0,
+            "pair_id": "instance-11bab1cb941981a6"
+          },
+          {
+            "baseline": 4122300.0,
+            "candidate": 5648700.0,
+            "pair_id": "instance-2000b7493b28e29f"
+          },
+          {
+            "baseline": 1914900.0,
+            "candidate": 1934400.0,
+            "pair_id": "instance-29f2c2a6a70ab3fd"
+          },
+          {
+            "baseline": 1915800.0,
+            "candidate": 2551200.0,
+            "pair_id": "instance-3d9d0c44e2e0ce26"
+          },
+          {
+            "baseline": 1836000.0,
+            "candidate": 4186800.0,
+            "pair_id": "instance-3dd4940162020240"
+          },
+          {
+            "baseline": 2510400.0,
+            "candidate": 2438400.0,
+            "pair_id": "instance-41bff8cd4dded65d"
+          },
+          {
+            "baseline": 3889800.0,
+            "candidate": 5769000.0,
+            "pair_id": "instance-59423e27d30401bb"
+          },
+          {
+            "baseline": 2443800.0,
+            "candidate": 1865700.0,
+            "pair_id": "instance-62ced7d282ab3d15"
+          },
+          {
+            "baseline": 2382300.0,
+            "candidate": 2349300.0,
+            "pair_id": "instance-70986df027e988f2"
+          },
+          {
+            "baseline": 2425500.0,
+            "candidate": 4666500.0,
+            "pair_id": "instance-71e44fa04a6302e2"
+          },
+          {
+            "baseline": 2485200.0,
+            "candidate": 1917900.0,
+            "pair_id": "instance-772ad9b8ae8593bd"
+          },
+          {
+            "baseline": 3998100.0,
+            "candidate": 5815200.0,
+            "pair_id": "instance-77baf5471c93cf94"
+          },
+          {
+            "baseline": 2520000.0,
+            "candidate": 1876800.0,
+            "pair_id": "instance-8f7a9eaa516e39a5"
+          },
+          {
+            "baseline": 3817200.0,
+            "candidate": 3940500.0,
+            "pair_id": "instance-94091e2cd8295e9a"
+          },
+          {
+            "baseline": 4010400.0,
+            "candidate": 3906600.0,
+            "pair_id": "instance-a8db6c9148f9a87b"
+          },
+          {
+            "baseline": 5641800.0,
+            "candidate": 1939200.0,
+            "pair_id": "instance-b0e2e76a44c66362"
+          },
+          {
+            "baseline": 4132200.0,
+            "candidate": 1947300.0,
+            "pair_id": "instance-b3c50a086bd14da4"
+          },
+          {
+            "baseline": 2209500.0,
+            "candidate": 1945800.0,
+            "pair_id": "instance-b7405bfd99656e9d"
+          },
+          {
+            "baseline": 1971900.0,
+            "candidate": 1942200.0,
+            "pair_id": "instance-bea7a3e06701ae99"
+          },
+          {
+            "baseline": 2504100.0,
+            "candidate": 2115900.0,
+            "pair_id": "instance-c2b8dfa3dfc9d583"
+          },
+          {
+            "baseline": 3867600.0,
+            "candidate": 3823200.0,
+            "pair_id": "instance-c5f0680209f4b704"
+          },
+          {
+            "baseline": 5616300.0,
+            "candidate": 2659500.0,
+            "pair_id": "instance-cd4a79d36d5ec479"
+          },
+          {
+            "baseline": 2418000.0,
+            "candidate": 1977600.0,
+            "pair_id": "instance-d8f1b952dd5127bf"
+          },
+          {
+            "baseline": 1957200.0,
+            "candidate": 2518500.0,
+            "pair_id": "instance-db88653f4caa6847"
+          },
+          {
+            "baseline": 4057200.0,
+            "candidate": 1905000.0,
+            "pair_id": "instance-ffefeff723faf580"
+          }
+        ],
+        "seed": 2026111509
+      }
+    ],
+    "schema_version": "paired-comparison-request/1.0.0",
+    "suite_id": "fc4-evidence-strategy-development-pair-v1"
+  },
+  "paired_result": {
+    "confidence_level": 0.95,
+    "cost_latency_gate_passed": true,
+    "critical_safety_gate_passed": false,
+    "metrics": [
+      {
+        "claim": "NO_PROVEN_IMPROVEMENT",
+        "direction": "HIGHER",
+        "estimates": [
+          {
+            "absolute_delta": 0.2777777777777778,
+            "absolute_delta_interval": {
+              "lower": 0.0,
+              "upper": 0.5555555555555556
+            },
+            "baseline": 0.1111111111111111,
+            "beneficial_delta": 0.2777777777777778,
+            "beneficial_delta_interval": {
+              "lower": 0.0,
+              "upper": 0.5555555555555556
+            },
+            "candidate": 0.3888888888888889,
+            "relative_delta": 2.5000000000000004,
+            "statistic": "rate"
+          }
+        ],
+        "failure_policy": "Failed fault outcomes are encoded as incorrect Top-1.",
+        "kind": "BINARY",
+        "metric_id": "top1",
+        "minimum_relevant_effect": 0.1,
+        "pair_count": 18,
+        "paired_test": {
+          "baseline_better": 1,
+          "candidate_better": 6,
+          "holm_adjusted_p_value": 1.0,
+          "method": "exact_mcnemar",
+          "raw_p_value": 0.125,
+          "ties": 11
+        }
+      },
+      {
+        "claim": "NO_PROVEN_IMPROVEMENT",
+        "direction": "HIGHER",
+        "estimates": [
+          {
+            "absolute_delta": 0.2777777777777778,
+            "absolute_delta_interval": {
+              "lower": 0.0,
+              "upper": 0.5555555555555556
+            },
+            "baseline": 0.1111111111111111,
+            "beneficial_delta": 0.2777777777777778,
+            "beneficial_delta_interval": {
+              "lower": 0.0,
+              "upper": 0.5555555555555556
+            },
+            "candidate": 0.3888888888888889,
+            "relative_delta": 2.5000000000000004,
+            "statistic": "rate"
+          }
+        ],
+        "failure_policy": "Failed fault outcomes are encoded as incorrect Top-3.",
+        "kind": "BINARY",
+        "metric_id": "top3",
+        "minimum_relevant_effect": 0.05,
+        "pair_count": 18,
+        "paired_test": {
+          "baseline_better": 1,
+          "candidate_better": 6,
+          "holm_adjusted_p_value": 1.0,
+          "method": "exact_mcnemar",
+          "raw_p_value": 0.125,
+          "ties": 11
+        }
+      },
+      {
+        "claim": "NO_PROVEN_IMPROVEMENT",
+        "direction": "HIGHER",
+        "estimates": [
+          {
+            "absolute_delta": 0.0,
+            "absolute_delta_interval": {
+              "lower": 0.0,
+              "upper": 0.0
+            },
+            "baseline": 1.0,
+            "beneficial_delta": 0.0,
+            "beneficial_delta_interval": {
+              "lower": 0.0,
+              "upper": 0.0
+            },
+            "candidate": 1.0,
+            "relative_delta": 0.0,
+            "statistic": "rate"
+          }
+        ],
+        "failure_policy": "Failed controls are encoded as unsafe.",
+        "kind": "BINARY",
+        "metric_id": "safe-control",
+        "minimum_relevant_effect": 0.05,
+        "pair_count": 9,
+        "paired_test": {
+          "baseline_better": 0,
+          "candidate_better": 0,
+          "holm_adjusted_p_value": 1.0,
+          "method": "exact_mcnemar",
+          "raw_p_value": 1.0,
+          "ties": 9
+        }
+      },
+      {
+        "claim": "NO_PROVEN_IMPROVEMENT",
+        "direction": "HIGHER",
+        "estimates": [
+          {
+            "absolute_delta": 0.2222222222222222,
+            "absolute_delta_interval": {
+              "lower": 0.03703703703703698,
+              "upper": 0.40740740740740744
+            },
+            "baseline": 0.6666666666666666,
+            "beneficial_delta": 0.2222222222222222,
+            "beneficial_delta_interval": {
+              "lower": 0.03703703703703698,
+              "upper": 0.40740740740740744
+            },
+            "candidate": 0.8888888888888888,
+            "relative_delta": 0.3333333333333333,
+            "statistic": "rate"
+          }
+        ],
+        "failure_policy": "Failed outcomes are encoded as invalid.",
+        "kind": "BINARY",
+        "metric_id": "valid-outcome",
+        "minimum_relevant_effect": 0.02,
+        "pair_count": 27,
+        "paired_test": {
+          "baseline_better": 1,
+          "candidate_better": 7,
+          "holm_adjusted_p_value": 0.6328125,
+          "method": "exact_mcnemar",
+          "raw_p_value": 0.0703125,
+          "ties": 19
+        }
+      },
+      {
+        "claim": "NO_PROVEN_IMPROVEMENT",
+        "direction": "HIGHER",
+        "estimates": [
+          {
+            "absolute_delta": 0.0,
+            "absolute_delta_interval": {
+              "lower": 0.0,
+              "upper": 0.0
+            },
+            "baseline": 1.0,
+            "beneficial_delta": 0.0,
+            "beneficial_delta_interval": {
+              "lower": 0.0,
+              "upper": 0.0
+            },
+            "candidate": 1.0,
+            "relative_delta": 0.0,
+            "statistic": "rate"
+          }
+        ],
+        "failure_policy": "No citation is a non-violation; every citation must resolve and hash-match.",
+        "kind": "BINARY",
+        "metric_id": "evidence-integrity",
+        "minimum_relevant_effect": 0.01,
+        "pair_count": 27,
+        "paired_test": {
+          "baseline_better": 0,
+          "candidate_better": 0,
+          "holm_adjusted_p_value": 1.0,
+          "method": "exact_mcnemar",
+          "raw_p_value": 1.0,
+          "ties": 27
+        }
+      },
+      {
+        "claim": "NO_PROVEN_IMPROVEMENT",
+        "direction": "LOWER",
+        "estimates": [
+          {
+            "absolute_delta": -642.0,
+            "absolute_delta_interval": {
+              "lower": -2860.0,
+              "upper": 157.0
+            },
+            "baseline": 5485.0,
+            "beneficial_delta": 642.0,
+            "beneficial_delta_interval": {
+              "lower": -157.0,
+              "upper": 2860.0
+            },
+            "candidate": 4843.0,
+            "relative_delta": -0.1170464904284412,
+            "statistic": "median"
+          },
+          {
+            "absolute_delta": 469.0,
+            "absolute_delta_interval": {
+              "lower": -1109.0,
+              "upper": 3532.0
+            },
+            "baseline": 10860.0,
+            "beneficial_delta": -469.0,
+            "beneficial_delta_interval": {
+              "lower": -3532.0,
+              "upper": 1109.0
+            },
+            "candidate": 11329.0,
+            "relative_delta": 0.04318600368324125,
+            "statistic": "p95"
+          }
+        ],
+        "failure_policy": "Unknown paired resource values are excluded and close the cost gate.",
+        "kind": "CONTINUOUS",
+        "metric_id": "duration-ms",
+        "minimum_relevant_effect": 10000.0,
+        "pair_count": 27,
+        "paired_test": {
+          "baseline_better": 12,
+          "candidate_better": 15,
+          "holm_adjusted_p_value": 1.0,
+          "method": "exact_sign",
+          "raw_p_value": 0.7011080384254456,
+          "ties": 0
+        }
+      },
+      {
+        "claim": "NO_PROVEN_IMPROVEMENT",
+        "direction": "LOWER",
+        "estimates": [
+          {
+            "absolute_delta": -241.0,
+            "absolute_delta_interval": {
+              "lower": -3330.0,
+              "upper": 193.77499999998872
+            },
+            "baseline": 5080.0,
+            "beneficial_delta": 241.0,
+            "beneficial_delta_interval": {
+              "lower": -193.77499999998872,
+              "upper": 3330.0
+            },
+            "candidate": 4839.0,
+            "relative_delta": -0.04744094488188976,
+            "statistic": "median"
+          },
+          {
+            "absolute_delta": 24.0,
+            "absolute_delta_interval": {
+              "lower": -2187.0,
+              "upper": 4187.0
+            },
+            "baseline": 11781.0,
+            "beneficial_delta": -24.0,
+            "beneficial_delta_interval": {
+              "lower": -4187.0,
+              "upper": 2187.0
+            },
+            "candidate": 11805.0,
+            "relative_delta": 0.002037178507766743,
+            "statistic": "p95"
+          }
+        ],
+        "failure_policy": "Unknown paired resource values are excluded and close the cost gate.",
+        "kind": "CONTINUOUS",
+        "metric_id": "input-tokens",
+        "minimum_relevant_effect": 12000.0,
+        "pair_count": 27,
+        "paired_test": {
+          "baseline_better": 14,
+          "candidate_better": 13,
+          "holm_adjusted_p_value": 1.0,
+          "method": "exact_sign",
+          "raw_p_value": 1.0,
+          "ties": 0
+        }
+      },
+      {
+        "claim": "NO_PROVEN_IMPROVEMENT",
+        "direction": "LOWER",
+        "estimates": [
+          {
+            "absolute_delta": -84.0,
+            "absolute_delta_interval": {
+              "lower": -631.0,
+              "upper": 137.0
+            },
+            "baseline": 828.0,
+            "beneficial_delta": 84.0,
+            "beneficial_delta_interval": {
+              "lower": -137.0,
+              "upper": 631.0
+            },
+            "candidate": 744.0,
+            "relative_delta": -0.10144927536231885,
+            "statistic": "median"
+          },
+          {
+            "absolute_delta": 69.0,
+            "absolute_delta_interval": {
+              "lower": -294.0,
+              "upper": 560.0
+            },
+            "baseline": 1707.0,
+            "beneficial_delta": -69.0,
+            "beneficial_delta_interval": {
+              "lower": -560.0,
+              "upper": 294.0
+            },
+            "candidate": 1776.0,
+            "relative_delta": 0.040421792618629174,
+            "statistic": "p95"
+          }
+        ],
+        "failure_policy": "Unknown paired resource values are excluded and close the cost gate.",
+        "kind": "CONTINUOUS",
+        "metric_id": "output-tokens",
+        "minimum_relevant_effect": 2000.0,
+        "pair_count": 27,
+        "paired_test": {
+          "baseline_better": 10,
+          "candidate_better": 17,
+          "holm_adjusted_p_value": 1.0,
+          "method": "exact_sign",
+          "raw_p_value": 0.24778856337070465,
+          "ties": 0
+        }
+      },
+      {
+        "claim": "NO_PROVEN_IMPROVEMENT",
+        "direction": "LOWER",
+        "estimates": [
+          {
+            "absolute_delta": -161100.0,
+            "absolute_delta_interval": {
+              "lower": -1792200.0,
+              "upper": 139500.0
+            },
+            "baseline": 2510400.0,
+            "beneficial_delta": 161100.0,
+            "beneficial_delta_interval": {
+              "lower": -139500.0,
+              "upper": 1792200.0
+            },
+            "candidate": 2349300.0,
+            "relative_delta": -0.06417304015296367,
+            "statistic": "median"
+          },
+          {
+            "absolute_delta": 152700.0,
+            "absolute_delta_interval": {
+              "lower": -975300.0,
+              "upper": 1758000.0
+            },
+            "baseline": 5616300.0,
+            "beneficial_delta": -152700.0,
+            "beneficial_delta_interval": {
+              "lower": -1758000.0,
+              "upper": 975300.0
+            },
+            "candidate": 5769000.0,
+            "relative_delta": 0.027188718551359434,
+            "statistic": "p95"
+          }
+        ],
+        "failure_policy": "Unknown paired resource values are excluded and close the cost gate.",
+        "kind": "CONTINUOUS",
+        "metric_id": "cost-upper-bound",
+        "minimum_relevant_effect": 6000000.0,
+        "pair_count": 27,
+        "paired_test": {
+          "baseline_better": 10,
+          "candidate_better": 17,
+          "holm_adjusted_p_value": 1.0,
+          "method": "exact_sign",
+          "raw_p_value": 0.24778856337070465,
+          "ties": 0
+        }
+      }
+    ],
+    "multiple_comparison_method": "holm",
+    "request_sha256": "9c566b773e16132da68ea0a55a72f2a88845e2ba6076ada25371ff7c39944e2f",
+    "schema_version": "paired-comparison-result/1.0.0",
+    "suite_id": "fc4-evidence-strategy-development-pair-v1"
+  },
+  "protocol_sha256": "1cf117a16054c6c04477286555fbedc2e78d547c523e5544709bbed486bd159a",
+  "provider_error_codes": {
+    "baseline-legacy": {},
+    "candidate-causal-scope": {
+      "INVALID_RESPONSE": 1
+    }
+  },
+  "quality": {
+    "baseline-legacy": {
+      "comparison_complete": false,
+      "intervals": {
+        "controlled-graph": {
+          "safe_controls": [
+            0.7008549515804559,
+            1.0
+          ],
+          "top1": [
+            0.03101952264561239,
+            0.32799765130178804
+          ],
+          "top3": [
+            0.03101952264561239,
+            0.32799765130178804
+          ]
+        }
+      },
+      "labels_hash": "f264c4eee8fa9954d517e95c2e36d81db2614ff3803acbd8f87d7708f3c4132d",
+      "missing_modes": [
+        "single-agent",
+        "controlled-graph-memory"
+      ],
+      "modes": {
+        "controlled-graph": {
+          "control_denominator": 9,
+          "failures": 9,
+          "fault_denominator": 18,
+          "safe_controls": 9,
+          "top1": 2,
+          "top3": 2
+        }
+      },
+      "outputs_hash": "a9cb2dd1749d087dd703eb8cab0507ac790311299d32eac2ff540347839a6494",
+      "protocol_hash": "1cf117a16054c6c04477286555fbedc2e78d547c523e5544709bbed486bd159a",
+      "resources": {
+        "controlled-graph": {
+          "actual_billed_cost": null,
+          "cost_upper_bound_nanousd": {
+            "known": 27,
+            "median": 2510400,
+            "missing": 0,
+            "p95_nearest_rank": 5616300,
+            "raw": [
+              1836000,
+              1914900,
+              1915800,
+              1957200,
+              1971900,
+              2209500,
+              2382300,
+              2418000,
+              2425500,
+              2443800,
+              2453400,
+              2485200,
+              2504100,
+              2510400,
+              2520000,
+              2653800,
+              3817200,
+              3867600,
+              3889800,
+              3908100,
+              3998100,
+              4010400,
+              4057200,
+              4122300,
+              4132200,
+              5616300,
+              5641800
+            ]
+          },
+          "failure_duration_ms": {
+            "known": 9,
+            "median": 7797,
+            "missing": 0,
+            "p95_nearest_rank": 8672,
+            "raw": [
+              7406,
+              7500,
+              7703,
+              7765,
+              7797,
+              7828,
+              8157,
+              8469,
+              8672
+            ]
+          },
+          "input_tokens": {
+            "known": 27,
+            "median": 5080,
+            "missing": 0,
+            "p95_nearest_rank": 11781,
+            "raw": [
+              4072,
+              4162,
+              4191,
+              4228,
+              4309,
+              4757,
+              4812,
+              4849,
+              4865,
+              4866,
+              4878,
+              4935,
+              5064,
+              5080,
+              5092,
+              5974,
+              7688,
+              7800,
+              7872,
+              7906,
+              7920,
+              7931,
+              7934,
+              7939,
+              8105,
+              11781,
+              11978
+            ]
+          },
+          "output_tokens": {
+            "known": 27,
+            "median": 828,
+            "missing": 0,
+            "p95_nearest_rank": 1707,
+            "raw": [
+              512,
+              548,
+              556,
+              566,
+              574,
+              652,
+              718,
+              773,
+              798,
+              805,
+              812,
+              817,
+              822,
+              828,
+              834,
+              853,
+              1255,
+              1258,
+              1259,
+              1274,
+              1347,
+              1392,
+              1401,
+              1409,
+              1467,
+              1707,
+              1735
+            ]
+          },
+          "success_duration_ms": {
+            "known": 18,
+            "median": 5085.5,
+            "missing": 0,
+            "p95_nearest_rank": 11078,
+            "raw": [
+              4047,
+              4171,
+              4297,
+              4375,
+              4719,
+              4734,
+              4782,
+              5047,
+              5062,
+              5109,
+              5297,
+              5328,
+              5375,
+              5485,
+              5657,
+              5719,
+              10860,
+              11078
+            ]
+          }
+        }
+      }
+    },
+    "candidate-causal-scope": {
+      "comparison_complete": false,
+      "intervals": {
+        "controlled-graph": {
+          "safe_controls": [
+            0.7008549515804559,
+            1.0
+          ],
+          "top1": [
+            0.2030524657216362,
+            0.613809583977621
+          ],
+          "top3": [
+            0.2030524657216362,
+            0.613809583977621
+          ]
+        }
+      },
+      "labels_hash": "f264c4eee8fa9954d517e95c2e36d81db2614ff3803acbd8f87d7708f3c4132d",
+      "missing_modes": [
+        "single-agent",
+        "controlled-graph-memory"
+      ],
+      "modes": {
+        "controlled-graph": {
+          "control_denominator": 9,
+          "failures": 3,
+          "fault_denominator": 18,
+          "safe_controls": 9,
+          "top1": 7,
+          "top3": 7
+        }
+      },
+      "outputs_hash": "12bcdae2071f3fc73fc28aaa837924d1510004f51e2b777a918265ca233c4e6d",
+      "protocol_hash": "1cf117a16054c6c04477286555fbedc2e78d547c523e5544709bbed486bd159a",
+      "resources": {
+        "controlled-graph": {
+          "actual_billed_cost": null,
+          "cost_upper_bound_nanousd": {
+            "known": 27,
+            "median": 2349300,
+            "missing": 0,
+            "p95_nearest_rank": 5769000,
+            "raw": [
+              1865700,
+              1876800,
+              1902300,
+              1904100,
+              1905000,
+              1917900,
+              1934400,
+              1939200,
+              1942200,
+              1945800,
+              1947300,
+              1977600,
+              2115900,
+              2349300,
+              2438400,
+              2518500,
+              2551200,
+              2659500,
+              3823200,
+              3906600,
+              3940500,
+              4186800,
+              4666500,
+              4936500,
+              5648700,
+              5769000,
+              5815200
+            ]
+          },
+          "failure_duration_ms": {
+            "known": 3,
+            "median": 7829,
+            "missing": 0,
+            "p95_nearest_rank": 8203,
+            "raw": [
+              7765,
+              7829,
+              8203
+            ]
+          },
+          "input_tokens": {
+            "known": 27,
+            "median": 4839,
+            "missing": 0,
+            "p95_nearest_rank": 11805,
+            "raw": [
+              4107,
+              4155,
+              4178,
+              4188,
+              4195,
+              4196,
+              4208,
+              4237,
+              4248,
+              4309,
+              4326,
+              4358,
+              4481,
+              4839,
+              4848,
+              4855,
+              4981,
+              5128,
+              7874,
+              7959,
+              8024,
+              8704,
+              9791,
+              9987,
+              11540,
+              11805,
+              12126
+            ]
+          },
+          "output_tokens": {
+            "known": 27,
+            "median": 744,
+            "missing": 0,
+            "p95_nearest_rank": 1776,
+            "raw": [
+              517,
+              521,
+              526,
+              528,
+              532,
+              537,
+              538,
+              543,
+              560,
+              567,
+              584,
+              586,
+              643,
+              744,
+              820,
+              844,
+              889,
+              971,
+              1180,
+              1287,
+              1294,
+              1313,
+              1441,
+              1617,
+              1756,
+              1776,
+              1961
+            ]
+          },
+          "success_duration_ms": {
+            "known": 24,
+            "median": 4664.0,
+            "missing": 0,
+            "p95_nearest_rank": 11329,
+            "raw": [
+              3515,
+              3735,
+              4000,
+              4015,
+              4125,
+              4125,
+              4171,
+              4172,
+              4297,
+              4344,
+              4359,
+              4563,
+              4765,
+              4843,
+              5188,
+              5219,
+              5313,
+              5328,
+              7156,
+              9969,
+              10438,
+              11281,
+              11329,
+              11703
+            ]
+          }
+        }
+      }
+    }
+  },
+  "schema_version": "evidence-strategy-pair-score/1.0.0"
+}

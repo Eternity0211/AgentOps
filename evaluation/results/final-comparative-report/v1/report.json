@@ -3220,7 +3220,7 @@
   "source_artifacts": [
     {
       "path": "evaluation/closure/v1/registry.json",
-      "sha256": "b580a18d0e260b26090b5ede3fbe3f665e58d6e62a550c1dc81707082feb2e7e"
+      "sha256": "68618e82f93e724d3aa0798de3200cf58a8992665b468c39987c8a3dbbe3cb7b"
     },
     {
       "path": "evaluation/results/structured-reliability/v7/run-001/analysis/score.json",

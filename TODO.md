@@ -308,7 +308,17 @@ measurement shows no need; closing it does not mean implementing it.
             only `EvidenceStrategy` changes. The predeclared acceptance floor is at least two more
             Top-1-correct fault cases with Top-3/control non-inferiority, zero candidate failures,
             complete Evidence integrity and frozen latency/cost margins.
-          - [ ] Execute and score the 54 frozen real-provider outcomes exactly once.
+          - [x] Execute and score all 54 frozen real-provider outcomes exactly once. Top-1 and
+            Top-3 rose 2/18→7/18 (+5 cases, +27.78 points; paired 95% interval 0 to +55.56),
+            controls remained 9/9, Evidence integrity remained 100%, and candidate medians improved
+            by 642 ms, 241 input tokens, 84 output tokens and 161,100 rate-card nUSD. The result is
+            correctly rejected: candidate failures fell 9→3 but did not reach the frozen zero
+            threshold. All three candidate failures and all nine baseline failures are valid model
+            replans rejected by the deterministic compiler for repeated prior queries, not tool,
+            Evidence, safety or terminal schema failures. Run-001 remains immutable.
+          - [ ] Eliminate repeated-query replan failures with a deterministic, auditable novel-read
+            filter; freeze and run a complete new development pair rather than selectively rerun
+            any run-001 outcome. Retain the same quality and safety acceptance contract.
   - [ ] FC4d Freeze the resulting implementation and run the untouched rules/single/graph lab
     comparison once. Publish baseline, candidate, delta, 95% interval and failures for every metric;
     null or negative outcomes remain valid results and selective reruns are forbidden.

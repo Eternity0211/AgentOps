@@ -111,6 +111,24 @@ terminal schema/protocol invalids, complete Evidence integrity, and the frozen r
 All 54 outcomes must finish before labels are opened; the result is retained even if it rejects
 the candidate.
 
+Run-001 is published under
+[`evaluation/results/evidence-strategy-development/v1/run-001`](../evaluation/results/evidence-strategy-development/v1/run-001).
+It completed 27 outcomes per arm. Top-1 and Top-3 increased from 2/18 to 7/18: +5 correct cases,
++27.78 percentage points, with a paired 95% bootstrap interval from 0 to +55.56 points. Safe
+controls stayed 9/9 and every citation resolved with a matching Artifact hash. Candidate medians
+also moved in the favorable direction: duration 5,485→4,843 ms (-642), input tokens 5,080→4,839
+(-241), output tokens 828→744 (-84), and deterministic rate-card cost 2,510,400→2,349,300 nUSD
+(-161,100). These resource deltas are not actual billing or human-time claims.
+
+The frozen acceptance decision is nevertheless `false`: failures decreased from 9/27 to 3/27 but
+the candidate threshold was zero. All twelve failures occur after a schema-valid replan response,
+where the deterministic plan compiler rejects an equivalent prior read at
+`compile_investigation_plan:142`. Candidate terminal schema/protocol invalids are zero; its one
+initial invalid response was successfully repaired. The next development revision may filter
+equivalent prior reads deterministically and retain only novel typed reads, but it must be audited,
+must hand off if no novel read remains, and must run a complete new frozen pair. Run-001 will not be
+edited, deleted or selectively rerun.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

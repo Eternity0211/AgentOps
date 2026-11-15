@@ -358,9 +358,13 @@ measurement shows no need; closing it does not mean implementing it.
                 commit `3a1ecff9`, the unchanged 27 inputs and isolated labels, all runtime/scorer
                 hashes, equal 6/4/12 provider/graph/tool ceilings, original acceptance thresholds,
                 parity interleaving, run-002 error analysis and the unconditional stopping rule.
-              - [ ] Execute and score all 54 outcomes without selective reruns. If run-003 fails
-                acceptance, reject this candidate for FC4d and retain the negative result; do not
-                tune again on this 27-case development set.
+              - [x] Execute and score all 54 outcomes without selective reruns. Top-1/Top-3 rose
+                7/18→11/18 (+4 cases, +22.22 points; paired 95% interval +5.56 to +44.44),
+                controls remained 9/9 and candidate failures were 0/27, so the frozen development
+                acceptance passed. The baseline retained one terminal invalid response. Every one
+                of 95 citations resolved with a matching same-Incident Artifact hash. The Holm-
+                adjusted claim remains `NO_PROVEN_IMPROVEMENT`, so this is an FC4d promotion
+                decision rather than a final effect claim. Development-set tuning now stops.
   - [ ] FC4d Freeze the resulting implementation and run the untouched rules/single/graph lab
     comparison once. Publish baseline, candidate, delta, 95% interval and failures for every metric;
     null or negative outcomes remain valid results and selective reruns are forbidden.

@@ -205,6 +205,23 @@ settings, equal six-provider/four-graph/twelve-tool ceilings, parity interleavin
 that this single complete pair ends development-set tuning whether it passes or fails. No run-003
 provider call may precede this protocol commit.
 
+Run-003 is published under
+[`evaluation/results/evidence-strategy-development/v1/run-003`](../evaluation/results/evidence-strategy-development/v1/run-003).
+All 54 outcomes are retained. Candidate Top-1 and Top-3 are 11/18 versus baseline 7/18: +4 correct
+cases, +22.22 percentage points, with paired 95% interval +5.56 to +44.44 points. Both arms are 9/9
+on safe controls; candidate failures and terminal schema/protocol invalids are zero; every one of
+the 95 citations resolves within the same Incident with a matching Artifact hash. The baseline has
+one retained failure after an invalid response and unsuccessful repair. The frozen development
+acceptance therefore passes.
+
+This promotion result is not itself a final improvement claim. The paired McNemar raw p-value is
+0.125 and becomes 1.0 after the frozen Holm correction; the scorer correctly retains
+`NO_PROVEN_IMPROVEMENT` because the evidence does not establish the predeclared minimum relevant
+effect. Median candidate deltas are +405 ms, +201 input tokens, +112 output tokens and +136,200
+rate-card nUSD; all intervals cross zero and all claims remain `NO_PROVEN_IMPROVEMENT`. Run-003 is
+immutable, development-set tuning is closed, and the accepted candidate may proceed only to the
+once-only, adequately powered FC4 holdout confirmation.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

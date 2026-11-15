@@ -74,14 +74,15 @@ error analysis and optimization finish on separate development data.
 5. Prepare human-study, approved-recovery, recurrence, and billing instrumentation without
    claiming their unavailable outcomes.
 
-The latest strategy-development pair (run-002) removed the earlier repeated-read reliability
-failure but did not meet its quality acceptance floor: Top-1 was 11/18→12/18 (+1 case, +5.56
-points), while the frozen minimum was +2 cases. Its seven discordant pairs all had identical
-initial PLAN requests but different provider responses before the compared strategy could act, so
-the +4 gains and -3 losses are not treated as pure strategy effects. A final run-003 revision will
-remove avoidable non-memory context differences and close one deterministic no-candidate causal
-replan gap. The predeclared stopping rule ends development-set tuning after that complete pair,
-whether it passes or fails; the untouched FC4 holdout is not used for optimization.
+Run-002 removed the repeated-read reliability failure but missed its +2-case quality floor. Its
+seven discordant pairs all had identical initial PLAN requests but different provider responses
+before the compared strategy could act, so those gains and losses were not treated as pure strategy
+effects. The predeclared final development run then measured Top-1/Top-3 at 7/18→11/18 (+4 cases,
++22.22 points; paired 95% interval +5.56 to +44.44), with 9/9 safe controls and zero candidate
+failures. It passes the frozen development promotion rule, but its Holm-adjusted statistical claim
+remains `NO_PROVEN_IMPROVEMENT`; therefore it does not change the outcome ledger above. Tuning on
+the 27-case set is now closed, and the untouched adequately powered FC4 holdout is the next and only
+confirmation step.
 
 ## External completion boundaries
 

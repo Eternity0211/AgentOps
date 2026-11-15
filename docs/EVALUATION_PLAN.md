@@ -129,6 +129,21 @@ equivalent prior reads deterministically and retain only novel typed reads, but 
 must hand off if no novel read remains, and must run a complete new frozen pair. Run-001 will not be
 edited, deleted or selectively rerun.
 
+The run-002 implementation now validates the model's entire replan against the unchanged catalog,
+source-role, payload, risk and resource rules before filtering anything. It then compares the
+compiler's exact tool/version/argument query fingerprints with the already executed history. Only
+novel calls and their plan steps remain; dependencies on removed steps are pruned while retained
+dependencies keep their original order. The filtered plan is compiled again with the prior-query
+set, so filtering cannot admit an invalid or repeated read. The journal records only the round,
+counts, decision and query fingerprints, never provider text or tool arguments.
+
+If every proposed call repeats history, the validated repeated plan is returned to the production
+graph's existing repeated-query guard. The graph consumes the bounded model call, records
+`REPEATED_EQUIVALENT_QUERY`, dispatches no tool and routes to human handoff. The same deterministic
+filter applies to both development arms; therefore the next frozen pair still changes only
+`EvidenceStrategy`. Run-002 must be a new complete 27-case-per-arm experiment, not a repair or
+selective rerun of run-001.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

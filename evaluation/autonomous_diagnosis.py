@@ -74,10 +74,10 @@ from evaluation.memory_evidence import GcPhase, MemorySample, assess_memory_seri
 from evaluation.registered_model import RegisteredModelInvoker
 from evaluation.structured_model import (
     INSTRUCTIONS,
-    InvestigationProposal,
     ModelPurpose,
     StructuredEvaluationModel,
     StructuredResult,
+    compile_novel_replan,
     compile_real_plan,
     fingerprint,
 )
@@ -705,6 +705,7 @@ class AutonomousServices:
         end: datetime | None = None,
         allow_incomplete_reads: bool = False,
         evidence_strategy: EvidenceStrategy = EvidenceStrategy.LEGACY,
+        journal: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
         if end is None or start.tzinfo is None or end.tzinfo is None or start >= end:
             raise ValueError("autonomous evidence window must be timezone-aware and increasing")
@@ -739,6 +740,7 @@ class AutonomousServices:
         self.completed_queries: set[tuple[str, str]] = set()
         self.required_causal_scope: str | None = None
         self.failed_reads: dict[str, dict[str, Any]] = {}
+        self.journal = journal or (lambda _event: None)
         self.input_hash = fingerprint(
             {
                 "alert": alert,
@@ -807,14 +809,20 @@ class AutonomousServices:
         if value is None:
             raise ValueError("checkpoint plan effect missing")
         result = StoredModelResult.model_validate_json(json.dumps(value)).restore(ModelPurpose.PLAN)
-        count = len(cast(InvestigationProposal, result.output).tool_calls)
-        remaining = 12 - (len(state.tool_call_ids) - count)
-        self.compiled = compile_real_plan(
-            result,
-            self.registry,
-            PlanningBudgets(min(8, remaining), 4, 160000, 32000, 1000000000),
-            prior_query_fingerprints=frozenset(state.tool_query_fingerprints[:-count]),
-        )
+        prior_count = state.budgets.used_tool_calls
+        prior_fingerprints = frozenset(state.tool_query_fingerprints[:prior_count])
+        remaining = 12 - prior_count
+        plan_budget = PlanningBudgets(min(8, remaining), 4, 160000, 32000, 1000000000)
+        if prior_fingerprints:
+            self.compiled, _decision = compile_novel_replan(
+                result,
+                self.registry,
+                plan_budget,
+                prior_query_fingerprints=prior_fingerprints,
+            )
+        else:
+            self.compiled = compile_real_plan(result, self.registry, plan_budget)
+        count = len(self.compiled.calls)
         references = tuple(self.call_id(call.step_id) for call in self.compiled.calls)
         if (
             references != state.tool_call_ids[-count:]
@@ -945,12 +953,35 @@ class AutonomousServices:
             ],
         }
         result = await self.invoke_model_effect(state, ModelPurpose.PLAN, context)
-        self.compiled = compile_real_plan(
-            result,
-            self.registry,
-            PlanningBudgets(min(8, remaining), 4, 160000, 32000, 1000000000),
-            prior_query_fingerprints=frozenset(state.tool_query_fingerprints),
+        plan_budget = PlanningBudgets(
+            min(8, remaining), 4, 160000, 32000, 1000000000
         )
+        if state.tool_query_fingerprints:
+            self.compiled, decision = compile_novel_replan(
+                result,
+                self.registry,
+                plan_budget,
+                prior_query_fingerprints=frozenset(state.tool_query_fingerprints),
+            )
+            self.journal(
+                {
+                    "kind": "novel-read-filter",
+                    "schema_version": "1.0.0",
+                    "round": self.round,
+                    "prior_query_count": len(state.tool_query_fingerprints),
+                    "proposed_count": decision.proposed_count,
+                    "retained_count": decision.retained_count,
+                    "dropped_count": len(decision.dropped_query_fingerprints),
+                    "dropped_query_fingerprints": list(
+                        decision.dropped_query_fingerprints
+                    ),
+                    "decision": "HUMAN_HANDOFF"
+                    if decision.all_repeated
+                    else "EXECUTE_NOVEL_READS",
+                }
+            )
+        else:
+            self.compiled = compile_real_plan(result, self.registry, plan_budget)
         self.usage.append({"input": result.input_tokens, "output": result.output_tokens})
         references = tuple(
             PlanToolCallReference(
@@ -1383,6 +1414,7 @@ async def investigate(
         end,
         allow_incomplete_reads,
         evidence_strategy,
+        journal,
     )
     if evaluation_at is not None:
         services.clock = lambda: evaluation_at

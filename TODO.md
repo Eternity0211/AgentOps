@@ -319,6 +319,18 @@ measurement shows no need; closing it does not mean implementing it.
           - [ ] Eliminate repeated-query replan failures with a deterministic, auditable novel-read
             filter; freeze and run a complete new development pair rather than selectively rerun
             any run-001 outcome. Retain the same quality and safety acceptance contract.
+            - [x] Validate the complete replan first, then remove only exact prior
+              tool/version/argument fingerprints, prune dependencies on removed steps and compile
+              the retained reads through the unchanged typed Tool Gateway contract. A content-free
+              audit event records proposed/retained/dropped counts and query hashes. If every read
+              repeats history, the existing graph guard routes to human handoff before dispatch.
+              Mixed and all-repeated tests prove novel-only dispatch and zero-read handoff; durable
+              restore recompiles the same filtered plan. No schema, Gate, budget or write path was
+              relaxed.
+            - [ ] Freeze the implementation-bound run-002 pair protocol in a separate commit and
+              execute all 54 outcomes. Both arms receive the same filter so `EvidenceStrategy`
+              remains the only independent variable; publish every failure and the unchanged
+              quality, safety and resource acceptance decision.
   - [ ] FC4d Freeze the resulting implementation and run the untouched rules/single/graph lab
     comparison once. Publish baseline, candidate, delta, 95% interval and failures for every metric;
     null or negative outcomes remain valid results and selective reruns are forbidden.

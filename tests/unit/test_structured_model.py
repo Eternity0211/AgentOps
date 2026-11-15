@@ -13,6 +13,7 @@ from evaluation.structured_model import (
     StructuredEvaluationModel,
     StructuredModelFailure,
     StructuredTransportProfile,
+    compile_novel_replan,
     compile_real_plan,
     fingerprint,
 )
@@ -566,6 +567,130 @@ def test_real_plan_compiles_against_registry_and_rejects_arbitrary_targets() -> 
         compile_real_plan(malicious, registry, budgets)
     with pytest.raises(InvalidDomainValueError):
         compile_real_plan(result, registry, PlanningBudgets(8, 4, 120000, 1, 1))
+
+
+def test_novel_replan_filter_keeps_only_new_reads_and_prunes_dependencies() -> None:
+    def arguments(service: str) -> dict[str, Any]:
+        return {
+            "service": service,
+            "environment": "staging",
+            "metric": "http_request_error_rate",
+            "start": "2026-11-03T00:00:00+00:00",
+            "end": "2026-11-03T00:01:00+00:00",
+            "step_seconds": 5,
+        }
+
+    output = {
+        "plan": {
+            "schema_version": "1.0.0",
+            "plan_id": "replan-1",
+            "summary": "Inspect bounded metrics",
+            "steps": [
+                {
+                    "step_id": "repeated",
+                    "objective": "Repeat prior read",
+                    "expected_source": "METRIC",
+                    "depends_on": [],
+                    "parallel_group": 0,
+                },
+                {
+                    "step_id": "novel-order",
+                    "objective": "Inspect order",
+                    "expected_source": "METRIC",
+                    "depends_on": ["repeated"],
+                    "parallel_group": 1,
+                },
+                {
+                    "step_id": "novel-payment",
+                    "objective": "Inspect payment",
+                    "expected_source": "METRIC",
+                    "depends_on": ["novel-order"],
+                    "parallel_group": 2,
+                },
+            ],
+        },
+        "tool_calls": [
+            {
+                "step_id": step_id,
+                "tool_name": "query_metrics",
+                "tool_version": "1.0.0",
+                "arguments": arguments(service),
+            }
+            for step_id, service in (
+                ("repeated", "gateway"),
+                ("novel-order", "order"),
+                ("novel-payment", "payment"),
+            )
+        ],
+    }
+    result = client(output, []).invoke(ModelPurpose.PLAN, {})
+    registry = ToolRegistry((query_metrics_definition(),))
+    budgets = PlanningBudgets(8, 4, 360000, 16000, 10000000)
+    validated = compile_real_plan(result, registry, budgets)
+
+    compiled, decision = compile_novel_replan(
+        result,
+        registry,
+        budgets,
+        prior_query_fingerprints=frozenset({validated.calls[0].query_fingerprint}),
+    )
+
+    assert [call.step_id for call in compiled.calls] == ["novel-order", "novel-payment"]
+    assert compiled.plan.steps[0].depends_on == ()
+    assert compiled.plan.steps[1].depends_on == ("novel-order",)
+    assert decision.proposed_count == 3
+    assert decision.retained_count == 2
+    assert decision.dropped_query_fingerprints == (validated.calls[0].query_fingerprint,)
+    assert not decision.all_repeated
+
+
+def test_novel_replan_filter_returns_validated_repeat_for_graph_handoff() -> None:
+    output = {
+        "plan": {
+            "schema_version": "1.0.0",
+            "plan_id": "replan-1",
+            "summary": "Repeat one prior read",
+            "steps": [
+                {
+                    "step_id": "repeated",
+                    "objective": "Repeat prior read",
+                    "expected_source": "METRIC",
+                    "depends_on": [],
+                    "parallel_group": 0,
+                }
+            ],
+        },
+        "tool_calls": [
+            {
+                "step_id": "repeated",
+                "tool_name": "query_metrics",
+                "tool_version": "1.0.0",
+                "arguments": {
+                    "service": "gateway",
+                    "environment": "staging",
+                    "metric": "http_request_error_rate",
+                    "start": "2026-11-03T00:00:00+00:00",
+                    "end": "2026-11-03T00:01:00+00:00",
+                    "step_seconds": 5,
+                },
+            }
+        ],
+    }
+    result = client(output, []).invoke(ModelPurpose.PLAN, {})
+    registry = ToolRegistry((query_metrics_definition(),))
+    budgets = PlanningBudgets(8, 4, 120000, 16000, 10000000)
+    validated = compile_real_plan(result, registry, budgets)
+
+    compiled, decision = compile_novel_replan(
+        result,
+        registry,
+        budgets,
+        prior_query_fingerprints=frozenset({validated.calls[0].query_fingerprint}),
+    )
+
+    assert compiled == validated
+    assert decision.retained_count == 0
+    assert decision.all_repeated
 
 
 def test_remediation_must_bind_exact_gate_and_evaluated_references() -> None:

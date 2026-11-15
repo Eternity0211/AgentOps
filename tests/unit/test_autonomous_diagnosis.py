@@ -703,6 +703,12 @@ def test_candidate_strategy_replans_for_deepest_failing_service(tmp_path: Path) 
                         "summary": "Inspect the observed failing dependency",
                         "steps": [
                             {
+                                "step_id": "gateway-logs-repeat",
+                                "objective": "Repeat already collected gateway logs",
+                                "expected_source": "LOG",
+                                "parallel_group": 0,
+                            },
+                            {
                                 "step_id": "payment-deployment",
                                 "objective": "Inspect deployment",
                                 "expected_source": "DEPLOYMENT",
@@ -717,6 +723,12 @@ def test_candidate_strategy_replans_for_deepest_failing_service(tmp_path: Path) 
                         ],
                     },
                     "tool_calls": [
+                        {
+                            "step_id": "gateway-logs-repeat",
+                            "tool_name": "query_logs",
+                            "tool_version": "2.0.0",
+                            "arguments": {"service": "gateway"},
+                        },
                         {
                             "step_id": "payment-deployment",
                             "tool_name": "query_deployments",
@@ -778,6 +790,11 @@ def test_candidate_strategy_replans_for_deepest_failing_service(tmp_path: Path) 
         ("query_deployments", "payment"),
         ("query_logs", "payment"),
     ]
+    filter_event = next(event for event in events if event.get("kind") == "novel-read-filter")
+    assert filter_event["proposed_count"] == 3
+    assert filter_event["retained_count"] == 2
+    assert filter_event["dropped_count"] == 1
+    assert filter_event["decision"] == "EXECUTE_NOVEL_READS"
 
 
 def test_loki_status_and_dependency_metadata_are_preserved() -> None:

@@ -6,7 +6,7 @@ import hashlib
 import json
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import Any
 
@@ -254,6 +254,16 @@ class StructuredResult:
     # Conservative rate-card reservation, not actual provider billing.
     cost_upper_bound_nanousd: int
     call_id: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class NovelReadFilterDecision:
+    """Content-free audit summary for deterministic replan filtering."""
+
+    proposed_count: int
+    retained_count: int
+    dropped_query_fingerprints: tuple[str, ...]
+    all_repeated: bool
 
 
 class StructuredEvaluationModel:
@@ -635,4 +645,75 @@ def compile_real_plan(
             result.input_tokens + result.output_tokens, result.cost_upper_bound_nanousd
         ),
         prior_query_fingerprints=prior_query_fingerprints,
+    )
+
+
+def compile_novel_replan(
+    result: StructuredResult,
+    registry: ToolRegistry,
+    budgets: PlanningBudgets,
+    *,
+    prior_query_fingerprints: frozenset[str],
+) -> tuple[CompiledInvestigationPlan, NovelReadFilterDecision]:
+    """Validate the complete proposal, then retain only exact novel read queries.
+
+    When every proposed query repeats history, the validated original plan is returned so the
+    graph's existing repeated-query guard routes it to human handoff without dispatching a read.
+    """
+    if not prior_query_fingerprints:
+        raise ValueError("novel replan filtering requires prior query fingerprints")
+    validated = compile_real_plan(result, registry, budgets)
+    retained_ids = {
+        call.step_id
+        for call in validated.calls
+        if call.query_fingerprint not in prior_query_fingerprints
+    }
+    dropped = tuple(
+        call.query_fingerprint
+        for call in validated.calls
+        if call.query_fingerprint in prior_query_fingerprints
+    )
+    decision = NovelReadFilterDecision(
+        proposed_count=len(validated.calls),
+        retained_count=len(retained_ids),
+        dropped_query_fingerprints=dropped,
+        all_repeated=not retained_ids,
+    )
+    if not retained_ids:
+        return validated, decision
+
+    proposal = result.output
+    if not isinstance(proposal, InvestigationProposal):  # pragma: no cover - validated above
+        raise ValueError("planning requires an InvestigationProposal")
+    retained_steps = tuple(
+        step.model_copy(
+            update={
+                "depends_on": tuple(
+                    dependency for dependency in step.depends_on if dependency in retained_ids
+                )
+            }
+        )
+        for step in proposal.plan.steps
+        if step.step_id in retained_ids
+    )
+    filtered = proposal.model_copy(
+        update={
+            "plan": proposal.plan.model_copy(update={"steps": retained_steps}),
+            "tool_calls": tuple(
+                call for call in proposal.tool_calls if call.step_id in retained_ids
+            ),
+        }
+    )
+    filtered_result = replace(
+        result,
+        output=InvestigationProposal.model_validate(filtered.model_dump(mode="python")),
+    )
+    return (
+        compile_real_plan(
+            filtered_result,
+            registry,
+            budgets,
+            prior_query_fingerprints=prior_query_fingerprints,
+        ),
+        decision,
     )

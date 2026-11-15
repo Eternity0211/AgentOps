@@ -5,6 +5,7 @@ import json
 import subprocess
 from pathlib import Path
 
+import pytest
 from evaluation.autonomous_diagnosis import EvidenceStrategy
 from evaluation.run_evidence_strategy_pair import BOUND_SOURCES, check_plan
 from evaluation.structured_model import StructuredTransportProfile
@@ -56,7 +57,7 @@ def test_evidence_strategy_pair_binds_committed_sources_and_inputs() -> None:
     revision = subprocess.check_output(
         ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
     ).strip()
-    assert check_plan(plan, revision, DATASET) == (
+    expected_arms = (
         (
             "baseline-legacy",
             StructuredTransportProfile.CANDIDATE_1_11,
@@ -68,3 +69,13 @@ def test_evidence_strategy_pair_binds_committed_sources_and_inputs() -> None:
             EvidenceStrategy.GC_AWARE_CAUSAL_SCOPE,
         ),
     )
+    source_root = Path(__file__).resolve().parents[2]
+    current_matches_frozen = all(
+        hashlib.sha256((source_root / name).read_bytes()).hexdigest() == expected
+        for name, expected in plan["source_hashes"].items()
+    )
+    if current_matches_frozen:
+        assert check_plan(plan, revision, DATASET) == expected_arms
+    else:
+        with pytest.raises(ValueError, match="source hash mismatch"):
+            check_plan(plan, revision, DATASET)

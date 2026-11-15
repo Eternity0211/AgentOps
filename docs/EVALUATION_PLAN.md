@@ -100,6 +100,17 @@ pairs remain visible and close the resource gate. Candidate acceptance additiona
 frozen minimum Top-1 correct-count gain, Top-3 and control non-inferiority, zero candidate failures,
 zero terminal schema/protocol invalids, complete Evidence resolution and the latency/cost gate.
 
+The provider-call protocol is frozen at
+[`evaluation/evidence_strategy_development/v1/pair-plan.json`](../evaluation/evidence_strategy_development/v1/pair-plan.json).
+It binds implementation commit `18fda0a6`, all runner/workflow/transport/scorer source hashes, the
+dataset index and isolated labels. Both arms use transport 1.11, DeepSeek Flash with identical
+generation settings, a six-call provider ceiling, four successful graph-model-call ceiling and
+twelve read-tool ceiling. The acceptance floor is at least two additional Top-1-correct fault
+cases out of eighteen, with Top-3 and control non-inferiority, zero candidate failures, zero
+terminal schema/protocol invalids, complete Evidence integrity, and the frozen resource margins.
+All 54 outcomes must finish before labels are opened; the result is retained even if it rejects
+the candidate.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

@@ -302,6 +302,13 @@ measurement shows no need; closing it does not mean implementing it.
             absolute/relative deltas, 95% bootstrap intervals, paired tests, failures and a frozen
             accept/revise decision; tests prove the reported 12→18 Top-1 fixture is a +6-case,
             +33.3-point delta rather than a one-sided candidate-only number.
+          - [x] Freeze `pair-plan.json` against implementation commit `18fda0a6`, all runtime and
+            scorer source hashes, the 27 input hashes and isolated label hash before any provider
+            call. Both arms use transport 1.11, six provider/four graph/twelve tool-call ceilings;
+            only `EvidenceStrategy` changes. The predeclared acceptance floor is at least two more
+            Top-1-correct fault cases with Top-3/control non-inferiority, zero candidate failures,
+            complete Evidence integrity and frozen latency/cost margins.
+          - [ ] Execute and score the 54 frozen real-provider outcomes exactly once.
   - [ ] FC4d Freeze the resulting implementation and run the untouched rules/single/graph lab
     comparison once. Publish baseline, candidate, delta, 95% interval and failures for every metric;
     null or negative outcomes remain valid results and selective reruns are forbidden.

@@ -1,0 +1,103 @@
+{
+  "schema_version": "evidence-strategy-pair/1.0.0",
+  "protocol_id": "fc4-evidence-strategy-development-pair-v1",
+  "status": "FROZEN_BEFORE_PROVIDER_CALLS",
+  "implementation_commit": "18fda0a65b485536528c74a4dba21b12956cb6f1",
+  "dataset": "evaluation/datasets/evidence-strategy-development-v1",
+  "dataset_index_sha256": "acaaceff3311dacbcff8726a166f22ec143ab3f08d635c3305dac1bb104933ea",
+  "evaluator_labels": "evaluation/evidence_strategy_development/v1/evaluator_only/labels.json",
+  "evaluator_labels_sha256": "1112a1a77452f3f9384142433be3647df2f45692f0788a441b54882100c5025b",
+  "profiles": {
+    "baseline-legacy": "real-structured-evaluation/1.11.0",
+    "candidate-causal-scope": "real-structured-evaluation/1.11.0"
+  },
+  "arms": {
+    "baseline-legacy": {
+      "transport_profile": "real-structured-evaluation/1.11.0",
+      "evidence_strategy": "legacy/1.0.0"
+    },
+    "candidate-causal-scope": {
+      "transport_profile": "real-structured-evaluation/1.11.0",
+      "evidence_strategy": "gc-aware-causal-scope/1.0.0"
+    }
+  },
+  "modes": ["controlled-graph"],
+  "provider": {
+    "name": "deepseek",
+    "model": "deepseek-flash",
+    "temperature": 0,
+    "thinking": "disabled",
+    "max_output_tokens": 2048
+  },
+  "model_provider_call_ceiling": 6,
+  "graph_model_call_ceiling": 4,
+  "tool_call_ceiling": 12,
+  "independent_variable": "EvidenceStrategy only: legacy context/route versus GC-aware context plus one bounded deterministic causal-scope replan guard.",
+  "held_constant": [
+    "transport profile 1.11",
+    "provider model and generation settings",
+    "provider, graph and tool ceilings",
+    "strict schemas and public cause taxonomy",
+    "input snapshot hash and observation window",
+    "typed Tool Gateway and read-only catalog",
+    "Evidence construction, persistence and deterministic Gate",
+    "no historical-memory input",
+    "controlled-graph mode"
+  ],
+  "execution_order": "Alternate baseline/candidate order by frozen dataset index parity.",
+  "expected_outcomes": 54,
+  "failure_rule": "Retain every failure, handoff and unknown resource value. Never selectively rerun, delete or replace an outcome.",
+  "runtime_label_isolation": "The pair runner has no evaluator-label parameter and never imports the labels path; labels enter only after both arms finish.",
+  "starting_observation": {
+    "source": "evaluation/results/diagnosis-error-analysis/v1/analysis.json",
+    "fault_outcomes": 54,
+    "legacy_top1_correct": 36,
+    "legacy_top1_errors": 18,
+    "memory_context_gap_errors": 9,
+    "downstream_scope_errors": 9
+  },
+  "paired_scorer": {
+    "source": "evaluation/score_evidence_strategy_pair.py",
+    "binary_metrics": {
+      "top1": {"direction": "HIGHER", "minimum_relevant_effect": 0.10},
+      "top3": {"direction": "HIGHER", "minimum_relevant_effect": 0.05},
+      "safe_control": {"direction": "HIGHER", "minimum_relevant_effect": 0.05},
+      "valid": {"direction": "HIGHER", "minimum_relevant_effect": 0.02},
+      "integrity": {"direction": "HIGHER", "minimum_relevant_effect": 0.01}
+    },
+    "continuous_metrics": {
+      "duration_ms": {"direction": "LOWER", "minimum_relevant_effect": 10000.0},
+      "input_tokens": {"direction": "LOWER", "minimum_relevant_effect": 12000.0},
+      "output_tokens": {"direction": "LOWER", "minimum_relevant_effect": 2000.0},
+      "cost_upper_bound_nanousd": {"direction": "LOWER", "minimum_relevant_effect": 6000000.0}
+    },
+    "confidence_level": 0.95,
+    "multiple_comparison_method": "holm",
+    "bootstrap_iterations": 10000,
+    "seed": 2026111501
+  },
+  "acceptance": {
+    "minimum_top1_correct_gain": 2,
+    "top3_noninferiority": "Candidate Top-3 correct count must be no lower than baseline.",
+    "safe_control_noninferiority": "Candidate safe-control count must be no lower than baseline.",
+    "candidate_failures": 0,
+    "candidate_terminal_schema_protocol_invalids": 0,
+    "evidence_integrity": "Every cited Evidence and Artifact hash resolves within the same Incident.",
+    "resource_noninferiority": "Median duration and rate-card cost must remain within the frozen continuous margins.",
+    "decision": "Accept only when every criterion passes; otherwise revise on this development set without opening the FC4 holdout."
+  },
+  "source_hashes": {
+    "evaluation/autonomous_diagnosis.py": "203436f832b4f7868ec920135e746a66eda71120cd4475c48c227b2ecc526523",
+    "evaluation/run_evidence_strategy_pair.py": "d7ab44c3d923f7def94b12d9bee99537e7b99ff594d95d5886c6bc48b8e32b96",
+    "evaluation/run_snapshot_comparison.py": "30211ad579fa553efc3b528d2dd26bc6b94c387de6fd2179dced2962f30a978e",
+    "evaluation/score_evidence_strategy_pair.py": "4f2457fb18fe7e9852810eb0b9c9e638c13bcd53153efd1e84c62b70ae5043d9",
+    "evaluation/score_transport_pair.py": "42fc1217ff9b804db36c10fee300f56b5d7474b67267c0b85f2a2512175ee837",
+    "evaluation/structured_model.py": "8aa989c241740d736a7c58efd315096892f3b4b913f9060d3d3e04339ea17630"
+  },
+  "limitations": [
+    "This is a strategy-development comparison and cannot substitute for the untouched adequately sized FC4 confirmatory holdout.",
+    "The deterministic rate-card cost is not actual provider billing.",
+    "Workflow duration is not human diagnosis time, active labor, recovery time or MTTR.",
+    "No confirmed historical incidents, human approvals, recovery execution or recurrence outcomes are present."
+  ]
+}

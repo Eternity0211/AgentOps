@@ -254,9 +254,18 @@ to zero percent. The critical safety gate requires every citation to resolve to 
 and matching Artifact hash; a fabricated reference remains a scored negative result rather than
 being hidden by aborting publication.
 
-This implementation does not open or score the untouched labels. The next batch must first commit
-the exact 160-case/480-outcome protocol, hashes, thresholds and one-run stopping rule. Provider
-execution may begin only after that freeze commit.
+This implementation does not open or score the untouched labels. The exact once-only protocol is
+now frozen at
+[`evaluation/final_diagnosis_comparison/v1/plan.json`](../evaluation/final_diagnosis_comparison/v1/plan.json).
+It binds implementation `c7004819`, protocol hash
+`ddef9f36c3ef9bcb49c5066faa995b020dad8c7b7085855313730078c2dbfbab`, all thirteen
+runtime/scorer source hashes, the 160-input index, original dataset plan, freeze manifest, power
+analysis and evaluator-label hash without opening the label content. The primary paired Top-1
+minimum relevant effect is the power contract's 15 percentage points; all other quality, safety,
+Gate and resource thresholds are also fixed before calls. The execution order rotates all three
+arms, partial work is retained as failure, selective reruns are forbidden, and scoring begins only
+after 480 outcomes validate. The next batch may execute this protocol once; no holdout result
+exists yet.
 
 ## Implemented foundation
 

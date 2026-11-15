@@ -89,8 +89,11 @@ opening the holdout labels. They make single-model to controlled-graph the prima
 retain deterministic rules as a secondary reference. In addition to diagnosis quality and safe
 controls, the scorer covers unsupported conclusions, fabricated references, Evidence integrity,
 Gate precision/recall, valid outputs, model/read calls, latency, tokens and rate-card cost with
-both arm values and paired intervals. The remaining executable steps are a separate protocol
-freeze commit followed by the one allowed 480-outcome run; no holdout result exists yet.
+both arm values and paired intervals. The protocol is now frozen at
+`evaluation/final_diagnosis_comparison/v1/plan.json`, bound to
+implementation `c7004819`, all dataset/evaluator/source hashes and the powered 15-point primary
+Top-1 minimum relevant effect. The only remaining development-stage confirmation step is its
+single complete 480-outcome execution and post-run scoring; no holdout result exists yet.
 
 ## External completion boundaries
 

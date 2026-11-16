@@ -257,8 +257,8 @@ being hidden by aborting publication.
 This implementation does not open or score the untouched labels. The exact once-only protocol is
 now frozen at
 [`evaluation/final_diagnosis_comparison/v1/plan.json`](../evaluation/final_diagnosis_comparison/v1/plan.json).
-It binds implementation `c7004819`, protocol hash
-`ddef9f36c3ef9bcb49c5066faa995b020dad8c7b7085855313730078c2dbfbab`, all thirteen
+It binds implementation `67614aa4`, protocol hash
+`dd51fe0bbee172bda4248a021ed3a4c924cf5519d416d5f1acdab02c5d9925a5`, all fourteen
 runtime/scorer source hashes, the 160-input index, original dataset plan, freeze manifest, power
 analysis and evaluator-label hash without opening the label content. The primary paired Top-1
 minimum relevant effect is the power contract's 15 percentage points; all other quality, safety,
@@ -269,9 +269,9 @@ exists yet.
 
 The first execution command stopped during label-free preflight, before output creation or any
 provider call, because the shared snapshot validator still carried the earlier 27-case assumption.
-The validator now takes the protocol's explicit expected count, and the final protocol binds that
-shared validator as a runtime dependency. A replacement freeze must be committed before the first
-provider call; the stopped preflight is not an experimental outcome or a rerun.
+The validator now takes the protocol's explicit expected count, and the replacement freeze binds
+that shared validator as a runtime dependency. The stopped preflight is not an experimental
+outcome or a rerun; no provider call occurred before the replacement freeze.
 
 ## Implemented foundation
 

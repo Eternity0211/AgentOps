@@ -42,7 +42,7 @@ def test_final_diagnosis_protocol_binds_implementation_dataset_and_power() -> No
     power = json.loads(power_path.read_text(encoding="utf-8"))
 
     assert plan["status"] == "FROZEN_BEFORE_PROVIDER_CALLS"
-    assert plan["implementation_commit"] == "c700481973d3f1ca3239aaa3e1cdf5dc5fd2e6f6"
+    assert plan["implementation_commit"] == "67614aa4fae309e76a61ffcde0bd7569b6f98bfa"
     assert tuple(plan["modes"]) == MODES
     assert plan["expected_cases"] == 160
     assert plan["expected_outcomes"] == 480

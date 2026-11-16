@@ -383,15 +383,16 @@ measurement shows no need; closing it does not mean implementing it.
     - [x] FC4d2 Freeze the implementation-bound 160-case/480-outcome protocol in a separate commit,
       including source/input/label hashes, identical provider settings and budgets, arm rotation,
       thresholds, failure policy and the single-model-to-controlled-graph primary comparison.
-      The v1 plan binds implementation `c7004819`, thirteen source hashes, the original holdout
+      The replacement v1 plan binds implementation `67614aa4`, fourteen source hashes, the original holdout
       plan/freeze/power records and the evaluator-label hash without opening label content. Its
       primary Top-1 MRE is the powered 15 points; all safety, Gate, validity, call, token, latency
       and cost thresholds are frozen. Six protocol/preflight cases pass, including source-drift
       refusal and a guard proving runtime preflight never reads labels. No provider call occurred.
       The first execution command exposed a 27-case legacy preflight assumption and stopped before
       output creation, label access, or provider calls. The corrected validator takes the frozen
-      160-case count and is now included in the source binding; the protocol will be re-frozen
-      before any provider call.
+      160-case count and is now included in source binding. Replacement protocol hash
+      `dd51fe0bbee172bda4248a021ed3a4c924cf5519d416d5f1acdab02c5d9925a5` was frozen before any
+      provider call.
     - [ ] FC4d3 Execute the frozen protocol once, retain every result/failure, score only after all
       outcomes validate, publish raw outcomes plus every baseline/candidate/delta/95% interval, and
       update the project scorecard without selective reruns or post-hoc tuning.

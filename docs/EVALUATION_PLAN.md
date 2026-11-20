@@ -326,6 +326,16 @@ It does not catch PLAN, REMEDIATE, HTTP, timeout, transport, context or budget f
 1.11 and every prior result remain unchanged. The explicit bounded-replan development fixture and
 resource-ceiling check remain required before 1.12 can be frozen for a new confirmation cohort.
 
+The first FC4f2b graph fixture now exercises the complete bounded path: two initial reads, one
+novel deployment read after a failed Evidence Gate, and a final DIAGNOSE response plus its one
+repair that both violate the unchanged explanation limit. Transport 1.12 ends in a deterministic,
+candidate-free, reference-free human handoff. The fixture retains three same-Incident Evidence
+records, five physical Provider calls, four logical graph model calls, three tool calls, 500 input
+and 500 output fixture tokens, and a 750,000 nUSD fixture rate-card upper bound. Its provider,
+graph and tool counts stay under the declared 6/4/12 ceilings. This deterministic mock transport
+does not estimate actual Provider latency or prove a paired resource effect. A frozen separate
+development comparison remains necessary before FC4f2b or FC4f2 can close.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

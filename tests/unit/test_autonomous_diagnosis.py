@@ -833,6 +833,140 @@ def test_candidate_strategy_replans_for_deepest_failing_service(tmp_path: Path) 
     assert filter_event["decision"] == "EXECUTE_NOVEL_READS"
 
 
+def test_candidate_1_12_terminal_fallback_after_bounded_replan(tmp_path: Path) -> None:
+    """A repaired final diagnosis stays a safe handoff after one novel read wave."""
+    events: list[dict[str, Any]] = []
+    dispatched: list[str] = []
+    requests: list[str] = []
+
+    class Adapter:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+        async def invoke(self, context: Any, arguments: Any) -> dict[str, Any]:
+            dispatched.append(self.name)
+            return {
+                "source": SOURCES[self.name],
+                "summary": "Observed bounded order service state",
+                "provenance": json.dumps(
+                    {"tool": self.name, "version": "2.0.0", "service": arguments["service"]}
+                ),
+                "complete_window": True,
+                "records_seen": 1,
+            }
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        user = json.loads(payload["messages"][1]["content"])
+        is_plan = "plan" in user["output_schema"]["properties"]
+        requests.append("PLAN" if is_plan else "DIAGNOSE")
+        if is_plan:
+            if len(requests) == 1:
+                output = plan()
+            else:
+                output = {
+                    "plan": {
+                        "schema_version": "1.0.0",
+                        "plan_id": "replan",
+                        "summary": "Inspect missing deployment record",
+                        "steps": [
+                            {
+                                "step_id": "deployment",
+                                "objective": "Read deployment",
+                                "expected_source": "DEPLOYMENT",
+                                "parallel_group": 0,
+                            }
+                        ],
+                    },
+                    "tool_calls": [
+                        {
+                            "step_id": "deployment",
+                            "tool_name": "query_deployments",
+                            "tool_version": "2.0.0",
+                            "arguments": {"service": "order"},
+                        }
+                    ],
+                }
+        elif len(requests) == 2:
+            output = diagnosis()
+            sources = {item["source"]: item["id"] for item in user["context"]["observations"]}
+            output["candidates"][0]["supporting_evidence_ids"] = [
+                sources["metrics"],
+                sources["logs"],
+            ]
+            output["candidates"][0]["missing_evidence"] = ["Current deployment record"]
+        else:
+            output = diagnosis()
+            output["explanation"] = "x" * 513
+        return httpx.Response(
+            200,
+            json={
+                "usage": {"prompt_tokens": 100, "completion_tokens": 100, "total_tokens": 200},
+                "choices": [{"finish_reason": "stop", "message": {"content": json.dumps(output)}}],
+            },
+        )
+
+    now = datetime.now(UTC)
+    model = StructuredEvaluationModel(
+        "test-only",
+        events.append,
+        max_calls=6,
+        profile=StructuredTransportProfile.CANDIDATE_1_12,
+        transport=httpx.MockTransport(respond),
+    )
+    state, services = asyncio.run(
+        investigate(
+            model,
+            "incident-1",
+            "Order errors",
+            tmp_path,
+            now - timedelta(minutes=1),
+            now,
+            events.append,
+            adapters={
+                definition.identity: Adapter(definition.name) for definition in local_definitions()
+            },
+        )
+    )
+
+    assert requests == ["PLAN", "DIAGNOSE", "PLAN", "DIAGNOSE", "DIAGNOSE"], [
+        (event.get("purpose"), event.get("status"), event.get("error_code"))
+        for event in events
+        if event.get("purpose") in {"PLAN", "DIAGNOSE"}
+    ]
+    assert dispatched == ["query_metrics", "query_logs", "query_deployments"]
+    assert state.phase.value == "HUMAN_HANDOFF"
+    assert state.budgets.used_replans == 1
+    assert state.budgets.used_model_calls == 4
+    assert state.budgets.used_tool_calls == 3
+    assert services.report is not None
+    assert services.report.disposition.value == "HUMAN_HANDOFF"
+    assert services.report.candidates == ()
+    assert services.gates == []
+    assert (
+        len([event for event in events if event.get("kind") == "terminal-diagnosis-fallback"]) == 1
+    )
+    completed = [
+        event
+        for event in events
+        if event.get("purpose") in {"PLAN", "DIAGNOSE"}
+        and event.get("status") in {"SUCCEEDED", "FAILED"}
+    ]
+    assert len(completed) == 5
+    assert sum(event["usage"]["prompt_tokens"] for event in completed) == 500
+    assert sum(event["usage"]["completion_tokens"] for event in completed) == 500
+    assert state.budgets.used_cost_nanounits == 750_000
+    assert len(completed) <= 6
+    assert state.budgets.used_model_calls <= 4
+    assert state.budgets.used_tool_calls <= 12
+    assert services.evidence is not None
+    assert len(services.evidence.records) == 3
+    assert all(
+        record.incident_id.value == "incident-1" for record in services.evidence.records.values()
+    )
+    assert "x" * 20 not in json.dumps(events)
+
+
 def test_loki_status_and_dependency_metadata_are_preserved() -> None:
     async def run() -> dict[str, Any]:
         def respond(request: httpx.Request) -> httpx.Response:

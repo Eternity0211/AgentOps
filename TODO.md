@@ -445,6 +445,16 @@ measurement shows no need; closing it does not mean implementing it.
         Version 1.11 and all published results remain immutable. Forty focused tests pass.
       - [ ] FC4f2b Build the explicit bounded-replan development fixture and prove candidate 1.12
         has zero failures/integrity defects while staying within the frozen resource ceilings.
+        - [x] Exercise one complete graph replan after a two-read initial wave, then two invalid
+          final DIAGNOSE responses. The 1.12 fallback reaches candidate-free human handoff with
+          three same-Incident Evidence records, five provider calls, four logical model calls,
+          three read calls, 500 input and 500 output fixture tokens, and 750,000 nUSD fixture
+          rate-card upper bound. The 6/4/12 call ceilings pass; this deterministic transport
+          fixture supplies no provider latency comparison or confirmatory quality result.
+        - [ ] Freeze and execute a separate real-provider development pair for the bounded-replan
+          tail and terminal-invalid path. Require zero candidate failures and unresolved citations,
+          and report paired median/P95 latency, tokens and rate-card cost against predeclared
+          ceilings before closing FC4f2b.
     - [ ] FC4f3 Generate, power and freeze a disjoint label-isolated cohort before candidate calls.
       Bind inputs, evaluator-label hash, scorer, implementation, Provider settings, budgets,
       interleaving, failure policy and all quality/safety/resource thresholds.

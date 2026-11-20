@@ -1,0 +1,1 @@
+{"provenance":"{\"attempts\":1,\"call_id\":\"call-cd4d1dccd36081d3-r0-metrics-payment\",\"error_code\":\"SNAPSHOT_SOURCE_UNAVAILABLE\",\"records_seen\":0,\"source_available\":false,\"tool\":\"query_metrics\",\"version\":\"2.0.0\"}","summary":"{\"error_code\": \"SNAPSHOT_SOURCE_UNAVAILABLE\", \"status\": \"UNAVAILABLE\"}"}

@@ -365,7 +365,7 @@ measurement shows no need; closing it does not mean implementing it.
                 of 95 citations resolved with a matching same-Incident Artifact hash. The Holm-
                 adjusted claim remains `NO_PROVEN_IMPROVEMENT`, so this is an FC4d promotion
                 decision rather than a final effect claim. Development-set tuning now stops.
-  - [ ] FC4d Freeze the resulting implementation and run the untouched rules/single/graph lab
+  - [x] FC4d Freeze the resulting implementation and run the untouched rules/single/graph lab
     comparison once. Publish baseline, candidate, delta, 95% interval and failures for every metric;
     null or negative outcomes remain valid results and selective reruns are forbidden.
     - [x] FC4d1 Implement the source-bound, label-free three-arm runner and post-run scorer before
@@ -393,7 +393,7 @@ measurement shows no need; closing it does not mean implementing it.
       160-case count and is now included in source binding. Replacement protocol hash
       `dd51fe0bbee172bda4248a021ed3a4c924cf5519d416d5f1acdab02c5d9925a5` was frozen before any
       provider call.
-    - [ ] FC4d3 Execute the frozen protocol once, retain every result/failure, score only after all
+    - [x] FC4d3 Execute the frozen protocol once, retain every result/failure, score only after all
       outcomes validate, publish raw outcomes plus every baseline/candidate/delta/95% interval, and
       update the project scorecard without selective reruns or post-hoc tuning.
       The once-only execution produced all 480 unique outcomes (160 per arm) with 11 retained
@@ -405,12 +405,37 @@ measurement shows no need; closing it does not mean implementing it.
       `5c7450c01ae222e0e754bf0d9f6f48682903c0332e73cc79af9da7cad646799d` binds patch commit
       `7343c028`, both scorer hashes, the original protocol and unchanged label hash; it explicitly
       forbids metric, threshold, label-value and Provider-run changes.
+      The amended scorer then published the immutable result without any Provider rerun: all 480
+      outcomes remain present (rules 10 failures, single 0, controlled graph 1). Primary Top-1 and
+      Top-3 improved 10/120 to 49/120, +39 cases or +32.5 points; the Top-1 paired 95% interval is
+      +23.33 to +42.50 points and Holm-adjusted p is approximately 3.06e-8. One controlled-graph
+      structured failure makes the predeclared critical-safety gate fail, so the project claim is
+      still `NO_PROVEN_IMPROVEMENT`; median latency, input tokens and rate-card cost regress by
+      508 ms, 201 tokens and 155,100 nUSD. A create-only manifest binds all 5,994 result files.
+      This opened cohort is closed to tuning and every mixed/negative result remains published.
   - [ ] FC4e Add the confirmed-history fourth arm only when the named external data and consent
     prerequisites exist. Until then FC4 remains open even if FC4b-FC4d complete.
   - External boundary recorded: the required confirmed-history fourth arm cannot run until the
     tenant-authorized, redacted closed-incident cohort and its retention/consent decision exist.
     The rules, single-model and controlled-graph arms may proceed, but they cannot close FC4 or be
     relabeled as a four-arm comparison.
+  - [ ] FC4f Restore the project-level improvement gate on separate development data, then run a
+    new untouched confirmation cohort exactly once. FC4d remains immutable and is never reused
+    for tuning or candidate selection.
+    - [ ] FC4f1 Freeze an aggregate-only failure/resource audit before inspecting any new labels.
+      Reproduce the generic structured-output failure class and graph tail overhead on separate
+      development fixtures; bind source hashes, budgets and a stop rule.
+    - [ ] FC4f2 Implement a fail-closed terminal fallback plus bounded context/call optimization.
+      Development acceptance requires zero candidate failures, complete Evidence integrity and
+      fabricated-reference-free coverage, while reducing median and P95 latency, tokens and the
+      rate-card upper bound without weakening schemas, Gate rules or recovery authority.
+    - [ ] FC4f3 Generate, power and freeze a disjoint label-isolated cohort before candidate calls.
+      Bind inputs, evaluator-label hash, scorer, implementation, Provider settings, budgets,
+      interleaving, failure policy and all quality/safety/resource thresholds.
+    - [ ] FC4f4 Execute all frozen arms once with no selective reruns. Publish every outcome and
+      baseline/candidate/delta/95% interval. Completion requires the Top-1 minimum relevant effect,
+      the critical-safety gate and the latency/cost gate to pass together; otherwise publish the
+      valid null/negative result and begin a new disjoint development/confirmation cycle.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,
     counter-evidence and prompt-injection controls. Prevent exact IDs/payloads from appearing in
     development, historical-reference or prompt-tuning data.

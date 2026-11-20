@@ -95,48 +95,59 @@ def test_documented_measured_values_are_bound_to_existing_sources() -> None:
         evidence = metric["current_evidence"]
         if evidence is None:
             continue
-        source = Path(evidence["source"])
-        assert source.exists(), f"missing source for {metric['metric_id']}: {source}"
-
-    structured_score = json.loads(
-        Path("evaluation/results/structured-reliability/v7/run-001/analysis/score.json").read_text(
-            encoding="utf-8"
+        evidence_source = Path(evidence["source"])
+        assert evidence_source.exists(), (
+            f"missing source for {metric['metric_id']}: {evidence_source}"
         )
+
+    final_score = json.loads(
+        Path(
+            "evaluation/results/final-diagnosis-comparison/v1/run-001/analysis/score.json"
+        ).read_text(encoding="utf-8")
     )
-    for metric_id, quality_key in {
+    paired = final_score["comparisons"]["single-to-graph"]["result"]["metrics"]
+    metrics = {metric["metric_id"]: metric for metric in paired}
+    source = "evaluation/results/final-diagnosis-comparison/v1/run-001/analysis/score.json"
+    for scorecard_id, result_id in {
         "diagnosis_top1_rate": "top1",
         "diagnosis_top3_rate": "top3",
     }.items():
-        evidence = by_id[metric_id]["current_evidence"]
-        for profile, scorecard_key in {
-            "baseline-1.8": "control",
-            "candidate-1.11": "treatment",
-        }.items():
-            modes = structured_score["quality"][profile]["modes"].values()
-            numerator = sum(mode[quality_key] for mode in modes)
-            denominator = sum(mode["fault_denominator"] for mode in modes)
-            assert evidence[scorecard_key] == numerator / denominator
-            assert evidence["denominator_per_arm"] == denominator
+        metric = metrics[result_id]
+        estimate = metric["estimates"][0]
+        assert by_id[scorecard_id]["current_evidence"] == {
+            "control": estimate["baseline"],
+            "treatment": estimate["candidate"],
+            "absolute_delta": estimate["absolute_delta"],
+            "relative_delta": estimate["relative_delta"],
+            "confidence_interval": [
+                estimate["absolute_delta_interval"]["lower"],
+                estimate["absolute_delta_interval"]["upper"],
+            ],
+            "denominator_per_arm": metric["pair_count"],
+            "disposition": "NO_PROVEN_IMPROVEMENT_CRITICAL_SAFETY_GATE_FAILED",
+            "source": source,
+        }
 
-    paired_tokens = next(
-        metric
-        for metric in structured_score["paired_result"]["metrics"]
-        if metric["metric_id"] == "input-tokens"
-    )
-    token_median = next(
-        estimate for estimate in paired_tokens["estimates"] if estimate["statistic"] == "median"
-    )
-    tokens = by_id["input_tokens"]["current_evidence"]
-    assert tokens == {
-        "control": token_median["baseline"],
-        "treatment": token_median["candidate"],
-        "absolute_delta": token_median["absolute_delta"],
-        "relative_delta": -0.0254,
-        "confidence_interval": [
-            token_median["absolute_delta_interval"]["lower"],
-            token_median["absolute_delta_interval"]["upper"],
-        ],
-        "denominator_per_arm": paired_tokens["pair_count"],
-        "disposition": "IMPROVED",
-        "source": "evaluation/results/structured-reliability/v7/run-001/analysis/score.json",
-    }
+    for scorecard_id, result_id, unit in (
+        ("input_tokens", "input-tokens", None),
+        ("workflow_latency", "duration-ms", "milliseconds"),
+        ("rate_card_cost_upper_bound", "cost-upper-bound", "nanousd_upper_bound"),
+    ):
+        metric = metrics[result_id]
+        estimate = next(item for item in metric["estimates"] if item["statistic"] == "median")
+        expected = {
+            "control": estimate["baseline"],
+            "treatment": estimate["candidate"],
+            "absolute_delta": estimate["absolute_delta"],
+            "relative_delta": estimate["relative_delta"],
+            "confidence_interval": [
+                estimate["absolute_delta_interval"]["lower"],
+                estimate["absolute_delta_interval"]["upper"],
+            ],
+            "denominator_per_arm": metric["pair_count"],
+            "disposition": "REGRESSED",
+            "source": source,
+        }
+        if unit is not None:
+            expected["unit"] = unit
+        assert by_id[scorecard_id]["current_evidence"] == expected

@@ -30,10 +30,11 @@ results are never relabeled as real-world outcomes.
 
 | Metric | Control | Treatment | Delta | Current conclusion |
 | --- | ---: | ---: | ---: | --- |
-| Diagnosis Top-1, latest comparable model outcomes | 36/54 | 36/54 | 0 percentage points | No proven improvement |
-| Diagnosis Top-3, latest comparable model outcomes | 36/54 | 36/54 | 0 percentage points | No proven improvement |
-| Input-token median | 9,672 | 9,426 | -246 (-2.54%) | Improved; 95% interval [-680, -121] |
-| Workflow-latency median | 4,391 ms | 4,453 ms | +62 ms | No proven improvement; interval [-31, 187] |
+| Diagnosis Top-1, untouched lab faults | 10/120 | 49/120 | +39 cases (+32.5 points) | Quality gain measured; overall claim blocked by critical-safety gate |
+| Diagnosis Top-3, untouched lab faults | 10/120 | 49/120 | +39 cases (+32.5 points) | Quality gain measured; overall claim blocked by critical-safety gate |
+| Input-token median | 4,254 | 4,455 | +201 (+4.72%) | Regressed; 95% interval [+27, +592] |
+| Workflow-latency median | 4,500 ms | 5,008 ms | +508 ms (+11.29%) | Regressed; 95% interval [+281, +813] |
+| Rate-card cost upper-bound median | 1,935,450 nUSD | 2,090,550 nUSD | +155,100 (+8.01%) | Regressed; 95% interval [+47,246, +453,154] nUSD |
 | Local queue throughput, 1 versus 4 workers | 17.227 jobs/s | 28.959 jobs/s | +11.732 (+68.1%) | Measured engineering gain |
 | Time to correct diagnosis | Unmeasured | Unmeasured | Unavailable | Requires humans for a formal claim |
 | Active operator labor | Unmeasured | Unmeasured | Unavailable | Requires humans for a formal claim |
@@ -84,16 +85,18 @@ remains `NO_PROVEN_IMPROVEMENT`; therefore it does not change the outcome ledger
 the 27-case set is now closed, and the untouched adequately powered FC4 holdout is the next and only
 confirmation step.
 
-The label-free three-arm confirmation runner and post-run scorer are now implemented without
-opening the holdout labels. They make single-model to controlled-graph the primary comparison and
-retain deterministic rules as a secondary reference. In addition to diagnosis quality and safe
-controls, the scorer covers unsupported conclusions, fabricated references, Evidence integrity,
-Gate precision/recall, valid outputs, model/read calls, latency, tokens and rate-card cost with
-both arm values and paired intervals. The protocol is now frozen at
-`evaluation/final_diagnosis_comparison/v1/plan.json`, bound to
-implementation `c7004819`, all dataset/evaluator/source hashes and the powered 15-point primary
-Top-1 minimum relevant effect. The only remaining development-stage confirmation step is its
-single complete 480-outcome execution and post-run scoring; no holdout result exists yet.
+The once-only untouched confirmation is now complete with 480 retained outcomes. Single-model to
+controlled-graph Top-1 and Top-3 increased from 10/120 to 49/120: +39 correct cases or +32.5
+percentage points, paired 95% Top-1 interval +23.33 to +42.5 points, Holm-adjusted p approximately
+`3.06e-8`. The result therefore demonstrates a large diagnosis-quality effect on this lab cohort.
+It does not satisfy the stricter project-level improvement claim: one controlled-graph structured
+failure makes Evidence integrity and fabricated-reference-free outcome coverage 159/160, closing
+the critical-safety gate. Median latency, input tokens and rate-card cost also regress by 508 ms,
+201 tokens and 155,100 nUSD respectively, with intervals wholly in the adverse direction. All 11
+failures remain published (rules 10, single model 0, controlled graph 1); no selective rerun is
+allowed. The next development cycle must restore zero candidate failures and reduce bounded graph
+overhead on separate development data, then use a new untouched confirmation cohort rather than
+tuning on these opened labels.
 
 ## External completion boundaries
 

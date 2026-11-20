@@ -264,8 +264,8 @@ analysis and evaluator-label hash without opening the label content. The primary
 minimum relevant effect is the power contract's 15 percentage points; all other quality, safety,
 Gate and resource thresholds are also fixed before calls. The execution order rotates all three
 arms, partial work is retained as failure, selective reruns are forbidden, and scoring begins only
-after 480 outcomes validate. The next batch may execute this protocol once; no holdout result
-exists yet.
+after 480 outcomes validate. The execution is complete; the protocol and opened cohort are now
+closed to tuning.
 
 The first execution command stopped during label-free preflight, before output creation or any
 provider call, because the shared snapshot validator still carried the earlier 27-case assumption.
@@ -288,6 +288,26 @@ SHA-256 `5c7450c01ae222e0e754bf0d9f6f48682903c0332e73cc79af9da7cad646799d`.
 It binds patch commit `7343c028`, the original protocol and scorer hashes, the unchanged label
 hash and the exact eight-field label record. Its four explicit mutation flags are false and
 Provider reruns remain forbidden.
+
+The amended scorer published the immutable result under
+[`evaluation/results/final-diagnosis-comparison/v1/run-001`](../evaluation/results/final-diagnosis-comparison/v1/run-001).
+All 480 outcomes are retained: rules recorded 10 failures, single model zero, and controlled graph
+one. The primary single-model-to-controlled-graph Top-1 and Top-3 rates are 10/120 to 49/120,
++39 cases or +32.5 percentage points. The Top-1 paired 95% interval is +23.33 to +42.50 points and
+the Holm-adjusted p-value is approximately `3.06e-8`. This large lab quality effect is not a
+project-level improvement claim because the one structured controlled-graph failure leaves
+Evidence-integrity and fabricated-reference-free outcome coverage at 159/160, failing the frozen
+critical-safety gate. Median workflow latency, input tokens, and rate-card cost upper bound also
+regress by 508 ms, 201 tokens, and 155,100 nUSD. The create-only `file-hashes.json` manifest binds
+all 5,994 published files; no Provider result was rerun.
+
+The next optimization cycle uses only separate development fixtures. It first binds an
+aggregate-only audit of the generic structured-output failure and graph tail overhead, then may
+add a fail-closed terminal fallback and remove redundant context/calls without relaxing schemas,
+Evidence Gate rules, budgets, or recovery authority. Confirmation requires a newly generated,
+powered, disjoint, label-isolated cohort frozen before candidate calls. That cohort is executed
+once, and Top-1 effect, critical safety, and latency/cost gates must pass together. FC4d inputs or
+opened labels cannot be used for tuning, prompt selection, or candidate selection.
 
 ## Implemented foundation
 

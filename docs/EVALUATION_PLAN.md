@@ -336,6 +336,16 @@ graph and tool counts stay under the declared 6/4/12 ceilings. This deterministi
 does not estimate actual Provider latency or prove a paired resource effect. A frozen separate
 development comparison remains necessary before FC4f2b or FC4f2 can close.
 
+The FC4f2b development runner pairs transport profiles 1.11 and 1.12 on the already separate,
+frozen 27-case evidence-strategy development snapshots. Both arms retain the GC-aware causal-scope
+strategy, controlled-graph mode and 6/4/12 Provider/logical-graph/tool ceilings. It alternates arm
+order, checks implementation and source hashes before any Provider call, never opens labels, and
+retains an interrupted case as a failed outcome instead of reusing partial effects. A later protocol
+commit will bind its exact inputs, label hash for post-run scoring, implementation revision,
+thresholds and stopping rule before the first call. The scorer will report paired safety, validity,
+duration, tokens and rate-card estimates; this is development evidence, not the new untouched FC4f4
+confirmation cohort.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

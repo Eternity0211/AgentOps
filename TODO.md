@@ -455,6 +455,13 @@ measurement shows no need; closing it does not mean implementing it.
           tail and terminal-invalid path. Require zero candidate failures and unresolved citations,
           and report paired median/P95 latency, tokens and rate-card cost against predeclared
           ceilings before closing FC4f2b.
+          - [x] Add a source-bound label-free 1.11/1.12 graph pair runner on the separate 27-case
+            development snapshots. Both arms keep the GC-aware causal-scope strategy and 6/4/12
+            ceilings; alternating arm order and create-only outcomes retain every failure.
+            Preflight refuses source, dataset, profile, budget or isolation drift before Provider
+            work. Three focused runner checks, Ruff and strict mypy pass.
+          - [ ] Freeze the pair protocol and source hashes in a separate commit before any real
+            Provider call; then run and score the complete 54 outcomes without selective reruns.
     - [ ] FC4f3 Generate, power and freeze a disjoint label-isolated cohort before candidate calls.
       Bind inputs, evaluator-label hash, scorer, implementation, Provider settings, budgets,
       interleaving, failure policy and all quality/safety/resource thresholds.

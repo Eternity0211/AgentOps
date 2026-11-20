@@ -273,6 +273,15 @@ The validator now takes the protocol's explicit expected count, and the replacem
 that shared validator as a runtime dependency. The stopped preflight is not an experimental
 outcome or a rerun; no provider call occurred before the replacement freeze.
 
+The once-only run subsequently completed all 480 outcomes. On the first scoring attempt, all
+runtime and result audits passed and the evaluator labels were opened, but score generation stopped
+before producing any metric because the strict scorer model omitted six audit-only fields already
+present in every frozen label record. The compatibility patch declares those exact existing fields;
+only `stratum` remains a scoring input. It does not alter label bytes, outcomes, metrics,
+thresholds, bootstrap settings, or the no-rerun rule. Because this defect was discovered after
+labels were opened, the original protocol remains immutable and a separate source-bound
+compatibility amendment is required before score generation.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

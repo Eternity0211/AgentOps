@@ -21,16 +21,50 @@ from evaluation.run_final_diagnosis_comparison import (
     run_rules_case,
 )
 from evaluation.score_final_diagnosis_comparison import (
+    SCORER_SOURCE,
+    FinalDiagnosisLabel,
     _conditional_rate_comparison,
+    _plan_for_current_scorer,
     _safe_control,
     _unsupported_count,
     score,
 )
 from evaluation.structured_model import fingerprint
+from pydantic import TypeAdapter
 
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _compatibility_amendment(
+    plan: dict[str, object], protocol_hash: str, revision: str
+) -> dict[str, object]:
+    return {
+        "schema_version": "final-diagnosis-scorer-amendment/1.0.0",
+        "status": "FROZEN_AFTER_LABEL_SCHEMA_DISCOVERY_BEFORE_SCORE_OUTPUT",
+        "scope": "DECLARE_EXISTING_FROZEN_LABEL_AUDIT_FIELDS_ONLY",
+        "original_protocol_sha256": protocol_hash,
+        "original_implementation_commit": plan["implementation_commit"],
+        "original_scorer_sha256": plan["source_hashes"][SCORER_SOURCE],  # type: ignore[index]
+        "patched_implementation_commit": revision,
+        "patched_scorer_sha256": _sha256(Path(SCORER_SOURCE)),
+        "evaluator_labels_sha256": plan["evaluator_labels_sha256"],
+        "provider_rerun_authorized": False,
+        "scoring_metrics_changed": False,
+        "scoring_thresholds_changed": False,
+        "label_values_changed": False,
+        "declared_label_fields": [
+            "instance_id",
+            "stratum",
+            "expected_root_cause",
+            "expected_safe_control",
+            "dependency_scope",
+            "deployment_timing",
+            "signal_strength",
+            "origin",
+        ],
+    }
 
 
 def test_final_plan_preflight_is_source_bound_without_loading_labels() -> None:
@@ -177,6 +211,91 @@ def test_scorer_refuses_incomplete_outcomes_before_evaluator_labels(tmp_path: Pa
         score(plan_path, results, tmp_path / "analysis")
 
 
+def test_frozen_final_labels_match_declared_compatibility_schema() -> None:
+    labels = TypeAdapter(tuple[FinalDiagnosisLabel, ...]).validate_json(
+        Path("evaluation/lab_holdout/v1/evaluator_only/labels.json").read_bytes()
+    )
+
+    assert len(labels) == 160
+    assert all(label.origin == "SYNTHETIC_PARAMETERIZED_LAB_FIXTURE" for label in labels)
+
+
+def test_scorer_compatibility_amendment_is_exact_and_source_bound(tmp_path: Path) -> None:
+    revision = subprocess.check_output(
+        ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
+    ).strip()
+    plan: dict[str, object] = {
+        "implementation_commit": revision,
+        "evaluator_labels_sha256": "a" * 64,
+        "source_hashes": {SCORER_SOURCE: "b" * 64},
+    }
+    protocol_hash = "c" * 64
+    amendment_path = tmp_path / "amendment.json"
+    amendment = _compatibility_amendment(plan, protocol_hash, revision)
+
+    with pytest.raises(ValueError, match="requires a compatibility amendment"):
+        _plan_for_current_scorer(
+            plan, protocol_hash=protocol_hash, revision=revision, amendment_path=None
+        )
+
+    amendment["unexpected"] = True
+    amendment_path.write_text(json.dumps(amendment), encoding="utf-8")
+    with pytest.raises(ValueError, match="fields mismatch"):
+        _plan_for_current_scorer(
+            plan,
+            protocol_hash=protocol_hash,
+            revision=revision,
+            amendment_path=amendment_path,
+        )
+
+    amendment.pop("unexpected")
+    amendment["scope"] = "CHANGED_SCORING"
+    amendment_path.write_text(json.dumps(amendment), encoding="utf-8")
+    with pytest.raises(ValueError, match="binding mismatch"):
+        _plan_for_current_scorer(
+            plan,
+            protocol_hash=protocol_hash,
+            revision=revision,
+            amendment_path=amendment_path,
+        )
+
+    amendment["scope"] = "DECLARE_EXISTING_FROZEN_LABEL_AUDIT_FIELDS_ONLY"
+    amendment["patched_implementation_commit"] = "0" * 40
+    amendment_path.write_text(json.dumps(amendment), encoding="utf-8")
+    with pytest.raises(ValueError, match="outside current history"):
+        _plan_for_current_scorer(
+            plan,
+            protocol_hash=protocol_hash,
+            revision=revision,
+            amendment_path=amendment_path,
+        )
+
+    amendment["patched_implementation_commit"] = revision
+    amendment_path.write_text(json.dumps(amendment), encoding="utf-8")
+    compatible, audit = _plan_for_current_scorer(
+        plan,
+        protocol_hash=protocol_hash,
+        revision=revision,
+        amendment_path=amendment_path,
+    )
+    assert compatible["source_hashes"][SCORER_SOURCE] == _sha256(Path(SCORER_SOURCE))
+    assert audit == {
+        "sha256": _sha256(amendment_path),
+        "patched_implementation_commit": revision,
+        "patched_scorer_sha256": _sha256(Path(SCORER_SOURCE)),
+    }
+
+    matching = dict(plan)
+    matching["source_hashes"] = {SCORER_SOURCE: _sha256(Path(SCORER_SOURCE))}
+    with pytest.raises(ValueError, match="not applicable"):
+        _plan_for_current_scorer(
+            matching,
+            protocol_hash=protocol_hash,
+            revision=revision,
+            amendment_path=amendment_path,
+        )
+
+
 def test_prompt_injection_control_requires_safe_handoff() -> None:
     safe = Outcome(
         instance_id="instance-0000000000000000",
@@ -233,7 +352,18 @@ def test_complete_synthetic_score_validates_all_outcomes_before_fake_labels(
         identity = f"instance-{number:016x}"
         input_hash = hashlib.sha256(identity.encode()).hexdigest()
         index.append({"instance_id": identity, "input_hash": input_hash})
-        labels.append({"instance_id": identity, "stratum": stratum})
+        labels.append(
+            {
+                "instance_id": identity,
+                "stratum": stratum,
+                "expected_root_cause": stratum if stratum in CAUSES else None,
+                "expected_safe_control": stratum not in CAUSES,
+                "dependency_scope": "direct",
+                "deployment_timing": "no-change",
+                "signal_strength": "bounded-medium",
+                "origin": "SYNTHETIC_PARAMETERIZED_LAB_FIXTURE",
+            }
+        )
     (dataset / "index.json").write_text(json.dumps(index), encoding="utf-8")
     labels_path.write_text(json.dumps(labels), encoding="utf-8")
     revision = subprocess.check_output(
@@ -471,5 +601,6 @@ def test_complete_synthetic_score_validates_all_outcomes_before_fake_labels(
     assert document["primary_comparison"] == "single-to-graph"
     assert document["arms"]["controlled-graph"]["safe_controls"] == 40
     assert document["arms"]["controlled-graph"]["fabricated_references"]["numerator"] == 1
+    assert document["scorer_compatibility_amendment"] is None
     assert "input-tokens" in document["comparisons"]["single-to-graph"]["unavailable_metrics"]
     assert "Primary: single model" in (tmp_path / "analysis" / "README.md").read_text("utf-8")

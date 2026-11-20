@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import math
@@ -13,7 +14,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, cast
 
-from pydantic import TypeAdapter
+from pydantic import BaseModel, ConfigDict, TypeAdapter
 
 from evaluation.outcome_ledger import OutcomeLedger
 from evaluation.paired_comparison import (
@@ -24,7 +25,7 @@ from evaluation.paired_comparison import (
     PairedValue,
     score_suite,
 )
-from evaluation.real_scoring import CAUSES, RULES_MODE, Label, Outcome, distribution, wilson
+from evaluation.real_scoring import CAUSES, RULES_MODE, Outcome, distribution, wilson
 from evaluation.run_final_diagnosis_comparison import (
     BOUND_SOURCES,
     MODEL_RUNTIME_SOURCES,
@@ -36,10 +37,112 @@ from evaluation.run_final_diagnosis_comparison import (
 from evaluation.score_transport_pair import _audit_case
 
 CONTROL_STRATA = ("normal", "insufficient-evidence", "counter-evidence", "prompt-injection")
+SCORER_SOURCE = "evaluation/score_final_diagnosis_comparison.py"
+
+
+class FinalDiagnosisLabel(BaseModel):
+    """Exact frozen FC4 label record; only ``stratum`` is a scoring input."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    instance_id: str
+    stratum: str
+    expected_root_cause: str | None
+    expected_safe_control: bool
+    dependency_scope: str
+    deployment_timing: str
+    signal_strength: str
+    origin: str
 
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _plan_for_current_scorer(
+    plan: dict[str, Any],
+    *,
+    protocol_hash: str,
+    revision: str,
+    amendment_path: Path | None,
+) -> tuple[dict[str, Any], dict[str, str] | None]:
+    frozen_hash = plan.get("source_hashes", {}).get(SCORER_SOURCE)
+    current_hash = _sha256(ROOT / SCORER_SOURCE)
+    if frozen_hash == current_hash:
+        if amendment_path is not None:
+            raise ValueError("scorer compatibility amendment is not applicable")
+        return plan, None
+    if amendment_path is None:
+        raise ValueError("scorer source drift requires a compatibility amendment")
+    amendment_bytes = amendment_path.read_bytes()
+    amendment = json.loads(amendment_bytes)
+    required = {
+        "schema_version",
+        "status",
+        "scope",
+        "original_protocol_sha256",
+        "original_implementation_commit",
+        "original_scorer_sha256",
+        "patched_implementation_commit",
+        "patched_scorer_sha256",
+        "evaluator_labels_sha256",
+        "provider_rerun_authorized",
+        "scoring_metrics_changed",
+        "scoring_thresholds_changed",
+        "label_values_changed",
+        "declared_label_fields",
+    }
+    if set(amendment) != required:
+        raise ValueError("scorer compatibility amendment fields mismatch")
+    expected_fields = [
+        "instance_id",
+        "stratum",
+        "expected_root_cause",
+        "expected_safe_control",
+        "dependency_scope",
+        "deployment_timing",
+        "signal_strength",
+        "origin",
+    ]
+    expected_values = {
+        "schema_version": "final-diagnosis-scorer-amendment/1.0.0",
+        "status": "FROZEN_AFTER_LABEL_SCHEMA_DISCOVERY_BEFORE_SCORE_OUTPUT",
+        "scope": "DECLARE_EXISTING_FROZEN_LABEL_AUDIT_FIELDS_ONLY",
+        "original_protocol_sha256": protocol_hash,
+        "original_implementation_commit": plan["implementation_commit"],
+        "original_scorer_sha256": frozen_hash,
+        "patched_scorer_sha256": current_hash,
+        "evaluator_labels_sha256": plan["evaluator_labels_sha256"],
+        "provider_rerun_authorized": False,
+        "scoring_metrics_changed": False,
+        "scoring_thresholds_changed": False,
+        "label_values_changed": False,
+        "declared_label_fields": expected_fields,
+    }
+    for field, expected_value in expected_values.items():
+        if amendment[field] != expected_value:
+            raise ValueError("scorer compatibility amendment binding mismatch")
+    binding = subprocess.run(
+        [
+            "git",
+            "-c",
+            "safe.directory=D:/AgentOps",
+            "merge-base",
+            "--is-ancestor",
+            amendment["patched_implementation_commit"],
+            revision,
+        ],
+        check=False,
+    )
+    if binding.returncode != 0:
+        raise ValueError("scorer compatibility patch is outside current history")
+    compatible = copy.deepcopy(plan)
+    compatible["source_hashes"][SCORER_SOURCE] = current_hash
+    return compatible, {
+        "sha256": hashlib.sha256(amendment_bytes).hexdigest(),
+        "patched_implementation_commit": amendment["patched_implementation_commit"],
+        "patched_scorer_sha256": current_hash,
+    }
 
 
 def _safe_control(label: str, outcome: Outcome) -> bool:
@@ -791,7 +894,13 @@ def _render(document: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def score(plan_path: Path, results: Path, output: Path) -> dict[str, Any]:
+def score(
+    plan_path: Path,
+    results: Path,
+    output: Path,
+    *,
+    compatibility_amendment: Path | None = None,
+) -> dict[str, Any]:
     if output.exists():
         raise FileExistsError("final diagnosis score output already exists")
     plan_bytes = plan_path.read_bytes()
@@ -823,7 +932,13 @@ def score(plan_path: Path, results: Path, output: Path) -> dict[str, Any]:
     revision = subprocess.check_output(
         ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
     ).strip()
-    check_plan(plan, revision, dataset)
+    compatible_plan, amendment_audit = _plan_for_current_scorer(
+        plan,
+        protocol_hash=digest,
+        revision=revision,
+        amendment_path=compatibility_amendment,
+    )
+    check_plan(compatible_plan, revision, dataset)
     runtime_revisions = {
         _validate_runtime(plan, results, item, expected_inputs[item.instance_id])
         for item in outcomes
@@ -865,7 +980,7 @@ def score(plan_path: Path, results: Path, output: Path) -> dict[str, Any]:
         labels_path = ROOT / labels_path
     if _sha256(labels_path) != plan["evaluator_labels_sha256"]:
         raise ValueError("evaluator label hash mismatch")
-    labels = TypeAdapter(tuple[Label, ...]).validate_json(labels_path.read_bytes())
+    labels = TypeAdapter(tuple[FinalDiagnosisLabel, ...]).validate_json(labels_path.read_bytes())
     label_by_id = {item.instance_id: item.stratum for item in labels}
     expected_strata = Counter({name: 20 for name in CAUSES})
     expected_strata.update({name: 10 for name in CONTROL_STRATA})
@@ -945,6 +1060,8 @@ def score(plan_path: Path, results: Path, output: Path) -> dict[str, Any]:
         "runtime_revisions": sorted(runtime_revisions),
         "dataset_index_sha256": plan["dataset_index_sha256"],
         "evaluator_labels_sha256": plan["evaluator_labels_sha256"],
+        "scorer_source_sha256": _sha256(ROOT / SCORER_SOURCE),
+        "scorer_compatibility_amendment": amendment_audit,
         "outcome_count": len(outcomes),
         "primary_comparison": "single-to-graph",
         "arms": arms,
@@ -966,8 +1083,14 @@ def main() -> None:
     parser.add_argument("--plan", type=Path, required=True)
     parser.add_argument("--results", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--compatibility-amendment", type=Path)
     args = parser.parse_args()
-    score(args.plan, args.results, args.output)
+    score(
+        args.plan,
+        args.results,
+        args.output,
+        compatibility_amendment=args.compatibility_amendment,
+    )
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -396,6 +396,13 @@ measurement shows no need; closing it does not mean implementing it.
     - [ ] FC4d3 Execute the frozen protocol once, retain every result/failure, score only after all
       outcomes validate, publish raw outcomes plus every baseline/candidate/delta/95% interval, and
       update the project scorecard without selective reruns or post-hoc tuning.
+      The once-only execution produced all 480 unique outcomes (160 per arm) with 11 retained
+      failures: rules 10, single model 0, controlled graph 1. The first scorer invocation validated
+      all outcomes and then opened labels, but emitted no score because its strict label model had
+      omitted six audit-only fields present in the frozen records. A minimal compatibility patch
+      declares those fields while leaving `stratum` as the only scoring input; a separate amendment
+      must bind this post-label-discovery patch before score generation. Provider reruns remain
+      forbidden.
   - [ ] FC4e Add the confirmed-history fourth arm only when the named external data and consent
     prerequisites exist. Until then FC4 remains open even if FC4b-FC4d complete.
   - External boundary recorded: the required confirmed-history fourth arm cannot run until the

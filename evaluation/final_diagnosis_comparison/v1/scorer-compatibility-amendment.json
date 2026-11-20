@@ -1,0 +1,25 @@
+{
+  "schema_version": "final-diagnosis-scorer-amendment/1.0.0",
+  "status": "FROZEN_AFTER_LABEL_SCHEMA_DISCOVERY_BEFORE_SCORE_OUTPUT",
+  "scope": "DECLARE_EXISTING_FROZEN_LABEL_AUDIT_FIELDS_ONLY",
+  "original_protocol_sha256": "dd51fe0bbee172bda4248a021ed3a4c924cf5519d416d5f1acdab02c5d9925a5",
+  "original_implementation_commit": "67614aa4fae309e76a61ffcde0bd7569b6f98bfa",
+  "original_scorer_sha256": "efc919bb6f470641e639c9f2e9d353f989c040810fd574fd2ac380c4ddbcc40a",
+  "patched_implementation_commit": "7343c0286ad111de50adb04410357a6060fd19c0",
+  "patched_scorer_sha256": "506ed7a4741f341fba906aafaa830af009719d0c3f46bc547bebbfdafc59d37a",
+  "evaluator_labels_sha256": "f33bc520a7ce6929f8a01695e90810b0d8444d6f32986e9c640fb40a001e7de0",
+  "provider_rerun_authorized": false,
+  "scoring_metrics_changed": false,
+  "scoring_thresholds_changed": false,
+  "label_values_changed": false,
+  "declared_label_fields": [
+    "instance_id",
+    "stratum",
+    "expected_root_cause",
+    "expected_safe_control",
+    "dependency_scope",
+    "deployment_timing",
+    "signal_strength",
+    "origin"
+  ]
+}

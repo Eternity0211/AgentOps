@@ -282,6 +282,13 @@ thresholds, bootstrap settings, or the no-rerun rule. Because this defect was di
 labels were opened, the original protocol remains immutable and a separate source-bound
 compatibility amendment is required before score generation.
 
+That amendment is now frozen at
+[`evaluation/final_diagnosis_comparison/v1/scorer-compatibility-amendment.json`](../evaluation/final_diagnosis_comparison/v1/scorer-compatibility-amendment.json),
+SHA-256 `5c7450c01ae222e0e754bf0d9f6f48682903c0332e73cc79af9da7cad646799d`.
+It binds patch commit `7343c028`, the original protocol and scorer hashes, the unchanged label
+hash and the exact eight-field label record. Its four explicit mutation flags are false and
+Provider reruns remain forbidden.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

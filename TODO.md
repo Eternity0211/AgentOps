@@ -401,8 +401,10 @@ measurement shows no need; closing it does not mean implementing it.
       all outcomes and then opened labels, but emitted no score because its strict label model had
       omitted six audit-only fields present in the frozen records. A minimal compatibility patch
       declares those fields while leaving `stratum` as the only scoring input; a separate amendment
-      must bind this post-label-discovery patch before score generation. Provider reruns remain
-      forbidden.
+      binds this post-label-discovery patch before score generation. Amendment
+      `5c7450c01ae222e0e754bf0d9f6f48682903c0332e73cc79af9da7cad646799d` binds patch commit
+      `7343c028`, both scorer hashes, the original protocol and unchanged label hash; it explicitly
+      forbids metric, threshold, label-value and Provider-run changes.
   - [ ] FC4e Add the confirmed-history fourth arm only when the named external data and consent
     prerequisites exist. Until then FC4 remains open even if FC4b-FC4d complete.
   - External boundary recorded: the required confirmed-history fourth arm cannot run until the

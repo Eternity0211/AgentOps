@@ -25,6 +25,9 @@ PLAN = Path("evaluation/final_diagnosis_comparison/v1/plan.json")
 DATASET = Path("evaluation/datasets/lab-holdout-v1")
 FREEZE_MANIFEST = Path("evaluation/lab_holdout/v1/evaluator_only/freeze-manifest.json")
 LABELS = Path("evaluation/lab_holdout/v1/evaluator_only/labels.json")
+SCORER_AMENDMENT = Path(
+    "evaluation/final_diagnosis_comparison/v1/scorer-compatibility-amendment.json"
+)
 
 
 def _sha256(path: Path) -> str:
@@ -83,6 +86,25 @@ def test_final_diagnosis_protocol_source_hashes_match_implementation_commit() ->
             ]
         )
         assert hashlib.sha256(committed).hexdigest() == digest
+
+
+def test_final_scorer_compatibility_amendment_is_commit_and_protocol_bound() -> None:
+    plan = _plan()
+    amendment = json.loads(SCORER_AMENDMENT.read_text(encoding="utf-8"))
+    scorer = "evaluation/score_final_diagnosis_comparison.py"
+    committed = subprocess.check_output(
+        ["git", "show", f"{amendment['patched_implementation_commit']}:{scorer}"]
+    )
+
+    assert amendment["original_protocol_sha256"] == _sha256(PLAN)
+    assert amendment["original_implementation_commit"] == plan["implementation_commit"]
+    assert amendment["original_scorer_sha256"] == plan["source_hashes"][scorer]
+    assert hashlib.sha256(committed).hexdigest() == amendment["patched_scorer_sha256"]
+    assert amendment["evaluator_labels_sha256"] == plan["evaluator_labels_sha256"]
+    assert amendment["provider_rerun_authorized"] is False
+    assert amendment["scoring_metrics_changed"] is False
+    assert amendment["scoring_thresholds_changed"] is False
+    assert amendment["label_values_changed"] is False
 
 
 def test_final_diagnosis_preflight_never_opens_evaluator_labels(

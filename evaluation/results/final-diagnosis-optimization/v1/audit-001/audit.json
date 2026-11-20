@@ -1,0 +1,67 @@
+{
+  "development_resource_audit": {
+    "metrics": {
+      "cost_upper_bound_nanousd": {
+        "controlled_graph_median": 3554100,
+        "controlled_graph_p95": 4209300,
+        "median_delta": -15300,
+        "p95_delta": -18900,
+        "single_agent_median": 3569400,
+        "single_agent_p95": 4228200
+      },
+      "duration_ms": {
+        "controlled_graph_median": 4438,
+        "controlled_graph_p95": 5047,
+        "median_delta": 16,
+        "p95_delta": 31,
+        "single_agent_median": 4422,
+        "single_agent_p95": 5016
+      },
+      "input_tokens": {
+        "controlled_graph_median": 9389,
+        "controlled_graph_p95": 11282,
+        "median_delta": 0,
+        "p95_delta": -3,
+        "single_agent_median": 9389,
+        "single_agent_p95": 11285
+      },
+      "model_calls": {
+        "controlled_graph_median": 2,
+        "controlled_graph_p95": 2,
+        "median_delta": 0,
+        "p95_delta": 0,
+        "single_agent_median": 2,
+        "single_agent_p95": 2
+      },
+      "output_tokens": {
+        "controlled_graph_median": 624,
+        "controlled_graph_p95": 723,
+        "median_delta": -16,
+        "p95_delta": 15,
+        "single_agent_median": 640,
+        "single_agent_p95": 708
+      },
+      "tool_calls": {
+        "controlled_graph_median": 4,
+        "controlled_graph_p95": 5,
+        "median_delta": 0,
+        "p95_delta": 0,
+        "single_agent_median": 4,
+        "single_agent_p95": 5
+      }
+    },
+    "pair_count": 27
+  },
+  "label_access": "NONE",
+  "plan_sha256": "6c3b9d7c83c7bd3a5bd2505707ac5513ffcf7e2ea978be4c5a0cf8c8c096f2a2",
+  "schema_version": "final-diagnosis-optimization-audit-result/1.0.0",
+  "terminal_failure_fixture": {
+    "cost_upper_bound_nanousd": 300000,
+    "failure_code": "INVALID_RESPONSE",
+    "input_tokens": 200,
+    "model_calls": 2,
+    "output_tokens": 200,
+    "repair_attempts": 1,
+    "terminal_valid_output": false
+  }
+}

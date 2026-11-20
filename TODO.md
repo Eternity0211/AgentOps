@@ -422,9 +422,15 @@ measurement shows no need; closing it does not mean implementing it.
   - [ ] FC4f Restore the project-level improvement gate on separate development data, then run a
     new untouched confirmation cohort exactly once. FC4d remains immutable and is never reused
     for tuning or candidate selection.
-    - [ ] FC4f1 Freeze an aggregate-only failure/resource audit before inspecting any new labels.
+    - [x] FC4f1 Freeze an aggregate-only failure/resource audit before inspecting any new labels.
       Reproduce the generic structured-output failure class and graph tail overhead on separate
       development fixtures; bind source hashes, budgets and a stop rule.
+      The once-only label-free audit reproduces terminal `INVALID_RESPONSE` after initial and repair
+      failures: two calls, 200/200 input/output tokens, 300,000 nUSD upper bound and no valid report.
+      On 27 separately archived development pairs, ordinary graph overhead is only +16/+31 ms at
+      median/P95, input tokens 0/-3 and model/tool calls 0/0, so the large FC4d tail is not treated
+      as fixed graph overhead. FC4f2 is restricted to deterministic terminal fallback and an
+      explicit bounded-replan fixture; normal evidence context is not reduced.
     - [ ] FC4f2 Implement a fail-closed terminal fallback plus bounded context/call optimization.
       Development acceptance requires zero candidate failures, complete Evidence integrity and
       fabricated-reference-free coverage, while reducing median and P95 latency, tokens and the

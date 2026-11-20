@@ -1,0 +1,35 @@
+{
+  "schema_version": "final-diagnosis-optimization-audit/1.0.0",
+  "protocol_id": "fc4f-development-audit-v1",
+  "implementation_commit": "f7bc907ec8fedcdf72839a42e663b5fffb01a910",
+  "label_access": "FORBIDDEN",
+  "run_count": 1,
+  "stop_rule": "Publish the complete one-run audit before any runtime optimization; never use FC4d inputs, labels, reports, candidates, or per-case errors for tuning.",
+  "development_archive": "evaluation/results/structured-reliability/v7/run-001/candidate-1.11",
+  "development_protocol_sha256": "eb5bab2eef66d2a945476d15aca4d8a50ef3b05e2faa9baa82efdf81a4112fef",
+  "archive_manifest": "evaluation/results/structured-reliability/v7/file-hashes.json",
+  "archive_manifest_sha256": "b3600b8dc591c9d531ba6547fab358d752fcf7ac1338f0f6d6f99788f8087ccd",
+  "expected_pairs": 27,
+  "failure_fixture": {
+    "purpose": "DIAGNOSE",
+    "profile": "real-structured-evaluation/1.11.0",
+    "provider_calls": 2,
+    "first_response": "SCHEMA_INVALID_OVERFLOW",
+    "repair_response": "SCHEMA_INVALID_OVERFLOW",
+    "expected_failure_code": "INVALID_RESPONSE"
+  },
+  "resource_metrics": [
+    "duration_ms",
+    "input_tokens",
+    "output_tokens",
+    "cost_upper_bound_nanousd",
+    "model_calls",
+    "tool_calls"
+  ],
+  "source_hashes": {
+    "evaluation/audit_final_diagnosis_optimization.py": "5b0fc29f2dbdd78de06071e28dd12ee39e7b57c4cf28b89dcbfcc6972ce93fc2",
+    "evaluation/autonomous_diagnosis.py": "ef56276892b176894ae56eb284bfd876f04738c81908b4b960cb423e024d929a",
+    "evaluation/outcome_ledger.py": "a2ba5176c738ab74f255cdadabadab3329b7c75b5f54bf0e027546ae2270863e",
+    "evaluation/structured_model.py": "7aa69baad7056337ef5ebb1d9ee876e94696755e4d798ef94bdad5e7b76191e5"
+  }
+}

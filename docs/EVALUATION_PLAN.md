@@ -309,6 +309,15 @@ powered, disjoint, label-isolated cohort frozen before candidate calls. That coh
 once, and Top-1 effect, critical safety, and latency/cost gates must pass together. FC4d inputs or
 opened labels cannot be used for tuning, prompt selection, or candidate selection.
 
+FC4f audit 001 is now published from a frozen label-free plan. A deterministic development
+transport fixture reproduces the terminal defect as two schema-invalid calls followed by
+`INVALID_RESPONSE`, with 200 input tokens, 200 output tokens and a 300,000 nUSD rate-card upper
+bound but no valid report. A separate 27-pair archived development comparison finds ordinary
+controlled-graph overhead of only +16 ms median and +31 ms P95, input-token deltas of 0/-3, and
+zero model/tool-call deltas. Because it does not reproduce the confirmation-tail regression, the
+next implementation may change only deterministic terminal fallback and an explicit bounded-replan
+fixture; it cannot reduce normal Evidence context based on the opened FC4d cohort.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

@@ -318,6 +318,14 @@ zero model/tool-call deltas. Because it does not reproduce the confirmation-tail
 next implementation may change only deterministic terminal fallback and an explicit bounded-replan
 fixture; it cannot reduce normal Evidence context based on the opened FC4d cohort.
 
+Structured transport 1.12 therefore adds one opt-in deterministic terminal behavior: only when a
+DIAGNOSE response and its single bounded repair both fail a repairable schema/binding check, the
+evaluation adapter emits a candidate-free and reference-free `HUMAN_HANDOFF`. It retains the two
+Provider calls' measured usage, cost upper bound and duration and emits a content-free audit event.
+It does not catch PLAN, REMEDIATE, HTTP, timeout, transport, context or budget failures. Version
+1.11 and every prior result remain unchanged. The explicit bounded-replan development fixture and
+resource-ceiling check remain required before 1.12 can be frozen for a new confirmation cohort.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

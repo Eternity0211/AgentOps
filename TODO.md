@@ -433,8 +433,18 @@ measurement shows no need; closing it does not mean implementing it.
       explicit bounded-replan fixture; normal evidence context is not reduced.
     - [ ] FC4f2 Implement a fail-closed terminal fallback plus bounded context/call optimization.
       Development acceptance requires zero candidate failures, complete Evidence integrity and
-      fabricated-reference-free coverage, while reducing median and P95 latency, tokens and the
-      rate-card upper bound without weakening schemas, Gate rules or recovery authority.
+      fabricated-reference-free coverage, while remaining inside the frozen median/P95 latency,
+      token and rate-card ceilings without weakening schemas, Gate rules or recovery authority.
+      The FC4f1 evidence supersedes the original blanket resource-reduction requirement: ordinary
+      graph paths are already at parity, so optimization targets only invalid-output and bounded
+      replan tails instead of shrinking normal Evidence context.
+      - [x] FC4f2a Add opt-in structured transport 1.12 terminal diagnosis fallback. Only a second
+        repairable DIAGNOSE failure becomes a deterministic candidate-free, reference-free
+        `HUMAN_HANDOFF`; it retains both calls' usage/cost/duration and emits a content-free audit.
+        PLAN, REMEDIATE, HTTP, timeout, transport, budget and context failures remain fail-closed.
+        Version 1.11 and all published results remain immutable. Forty focused tests pass.
+      - [ ] FC4f2b Build the explicit bounded-replan development fixture and prove candidate 1.12
+        has zero failures/integrity defects while staying within the frozen resource ceilings.
     - [ ] FC4f3 Generate, power and freeze a disjoint label-isolated cohort before candidate calls.
       Bind inputs, evaluator-label hash, scorer, implementation, Provider settings, budgets,
       interleaving, failure policy and all quality/safety/resource thresholds.

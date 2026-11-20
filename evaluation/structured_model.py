@@ -29,12 +29,13 @@ from agentops_incident_commander.domain import (
     ToolRegistry,
 )
 from agentops_incident_commander.workflows import (
+    DiagnosisDisposition,
     DiagnosisReport,
     InvestigationPlan,
     RemediationProposal,
 )
 
-VERSION = "real-structured-evaluation/1.11.0"
+VERSION = "real-structured-evaluation/1.12.0"
 BASELINE_VERSION = "real-structured-evaluation/1.4.0"
 CANDIDATE_1_5_VERSION = "real-structured-evaluation/1.5.0"
 CANDIDATE_1_6_VERSION = "real-structured-evaluation/1.6.0"
@@ -42,6 +43,7 @@ CANDIDATE_1_7_VERSION = "real-structured-evaluation/1.7.0"
 CANDIDATE_1_8_VERSION = "real-structured-evaluation/1.8.0"
 CANDIDATE_1_9_VERSION = "real-structured-evaluation/1.9.0"
 CANDIDATE_1_10_VERSION = "real-structured-evaluation/1.10.0"
+CANDIDATE_1_11_VERSION = "real-structured-evaluation/1.11.0"
 
 
 class ModelPurpose(StrEnum):
@@ -58,7 +60,8 @@ class StructuredTransportProfile(StrEnum):
     CANDIDATE_1_8 = CANDIDATE_1_8_VERSION
     CANDIDATE_1_9 = CANDIDATE_1_9_VERSION
     CANDIDATE_1_10 = CANDIDATE_1_10_VERSION
-    CANDIDATE_1_11 = VERSION
+    CANDIDATE_1_11 = CANDIDATE_1_11_VERSION
+    CANDIDATE_1_12 = VERSION
 
 
 class ToolProposal(BaseModel):
@@ -171,6 +174,7 @@ def _output_constraints(
             StructuredTransportProfile.CANDIDATE_1_9,
             StructuredTransportProfile.CANDIDATE_1_10,
             StructuredTransportProfile.CANDIDATE_1_11,
+            StructuredTransportProfile.CANDIDATE_1_12,
         ):
             constraints["candidate_invariants"] = {
                 "ranks": "consecutive integers starting at 1 in array order",
@@ -209,7 +213,15 @@ def _serialize_user_content(
     if profile not in (
         StructuredTransportProfile.CANDIDATE_1_10,
         StructuredTransportProfile.CANDIDATE_1_11,
-    ) or (profile is StructuredTransportProfile.CANDIDATE_1_11 and purpose is ModelPurpose.PLAN):
+        StructuredTransportProfile.CANDIDATE_1_12,
+    ) or (
+        profile
+        in (
+            StructuredTransportProfile.CANDIDATE_1_11,
+            StructuredTransportProfile.CANDIDATE_1_12,
+        )
+        and purpose is ModelPurpose.PLAN
+    ):
         return json.dumps(user_content)
     fields = []
     for name, value in user_content.items():
@@ -293,6 +305,7 @@ class StructuredEvaluationModel:
             StructuredTransportProfile.CANDIDATE_1_9,
             StructuredTransportProfile.CANDIDATE_1_10,
             StructuredTransportProfile.CANDIDATE_1_11,
+            StructuredTransportProfile.CANDIDATE_1_12,
         ):
             return True
         required_calls = 4
@@ -332,6 +345,7 @@ class StructuredEvaluationModel:
             StructuredTransportProfile.CANDIDATE_1_9,
             StructuredTransportProfile.CANDIDATE_1_10,
             StructuredTransportProfile.CANDIDATE_1_11,
+            StructuredTransportProfile.CANDIDATE_1_12,
         ):
             instruction += (
                 " Obey output_constraints as hard generation rules. Character caps count Unicode "
@@ -354,6 +368,7 @@ class StructuredEvaluationModel:
             StructuredTransportProfile.CANDIDATE_1_9,
             StructuredTransportProfile.CANDIDATE_1_10,
             StructuredTransportProfile.CANDIDATE_1_11,
+            StructuredTransportProfile.CANDIDATE_1_12,
         ):
             user_content["output_constraints"] = _output_constraints(purpose, context, profile)
         if repair is not None:
@@ -398,6 +413,11 @@ class StructuredEvaluationModel:
             try:
                 result = self._invoke_once(purpose, context, gate=gate, repair=repair)
             except _RepairableStructuredFailure as repaired_failure:
+                if (
+                    self._profile is StructuredTransportProfile.CANDIDATE_1_12
+                    and purpose is ModelPurpose.DIAGNOSE
+                ):
+                    return self._safe_diagnosis_handoff(context, failure, repaired_failure)
                 raise StructuredModelFailure(repaired_failure.code) from None
             cached = None
             if failure.cached_input_tokens is not None or result.cached_input_tokens is not None:
@@ -415,6 +435,52 @@ class StructuredEvaluationModel:
                 ),
                 call_id=result.call_id,
             )
+
+    def _safe_diagnosis_handoff(
+        self,
+        context: dict[str, Any],
+        initial: _RepairableStructuredFailure,
+        repaired: _RepairableStructuredFailure,
+    ) -> StructuredResult:
+        output = DiagnosisReport.model_validate(
+            {
+                "schema_version": "1.0.0",
+                "incident_id": context["incident_id"],
+                "disposition": DiagnosisDisposition.HUMAN_HANDOFF,
+                "candidates": (),
+                "missing_evidence": ("A valid structured diagnosis was not available.",),
+                "explanation": (
+                    "Model output remained invalid after the bounded repair; "
+                    "human review is required."
+                ),
+            }
+        )
+        cached = None
+        if initial.cached_input_tokens is not None or repaired.cached_input_tokens is not None:
+            cached = (initial.cached_input_tokens or 0) + (repaired.cached_input_tokens or 0)
+        self._journal(
+            {
+                "kind": "terminal-diagnosis-fallback",
+                "purpose": ModelPurpose.DIAGNOSE.value,
+                "version": self._profile.value,
+                "status": "SAFE_HUMAN_HANDOFF",
+                "initial_error_code": initial.code,
+                "repair_error_code": repaired.code,
+                "validated_output_hash": fingerprint(output.model_dump(mode="json")),
+            }
+        )
+        return StructuredResult(
+            output=output,
+            input_tokens=initial.input_tokens + repaired.input_tokens,
+            output_tokens=initial.output_tokens + repaired.output_tokens,
+            cached_input_tokens=cached,
+            request_hash=repaired.request_hash,
+            response_hash=repaired.response_hash,
+            duration_ms=initial.duration_ms + repaired.duration_ms,
+            cost_upper_bound_nanousd=(
+                initial.cost_upper_bound_nanousd + repaired.cost_upper_bound_nanousd
+            ),
+        )
 
     def _invoke_once(
         self,

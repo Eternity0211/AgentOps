@@ -156,6 +156,56 @@ def test_schema_repair_is_attempted_only_once() -> None:
     assert [event["repair_attempt"] for event in events] == [0, 0, 1, 1]
 
 
+def test_candidate_1_12_converts_only_terminal_diagnosis_invalidity_to_safe_handoff() -> None:
+    events: list[dict[str, Any]] = []
+    invalid = report()
+    invalid["explanation"] = "x" * 513
+    model = StructuredEvaluationModel(
+        "test-only",
+        events.append,
+        max_calls=4,
+        profile=StructuredTransportProfile.CANDIDATE_1_12,
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json=body(invalid))),
+    )
+
+    result = model.invoke(
+        ModelPurpose.DIAGNOSE, {"incident_id": "incident-1", "evidence_ids": ["e1"]}
+    )
+
+    assert result.output.disposition == "HUMAN_HANDOFF"  # type: ignore[attr-defined]
+    assert result.output.candidates == ()  # type: ignore[attr-defined]
+    assert result.input_tokens == 200 and result.output_tokens == 200
+    assert result.cached_input_tokens == 100
+    assert result.cost_upper_bound_nanousd == 300000
+    assert [event["status"] for event in events[-3:]] == [
+        "STARTED",
+        "FAILED",
+        "SAFE_HUMAN_HANDOFF",
+    ]
+    assert events[-1]["kind"] == "terminal-diagnosis-fallback"
+    assert "x" * 20 not in json.dumps(events)
+
+
+@pytest.mark.parametrize("case", ["plan", "http"])
+def test_candidate_1_12_does_not_fallback_other_failure_classes(case: str) -> None:
+    output = report()
+    output["explanation"] = "x" * 513
+    status = 200 if case == "plan" else 503
+    model = StructuredEvaluationModel(
+        "test-only",
+        lambda event: None,
+        max_calls=4,
+        profile=StructuredTransportProfile.CANDIDATE_1_12,
+        transport=httpx.MockTransport(lambda request: httpx.Response(status, json=body(output))),
+    )
+
+    with pytest.raises(StructuredModelFailure, match=r"INVALID_RESPONSE|HTTP_503"):
+        model.invoke(
+            ModelPurpose.PLAN if case == "plan" else ModelPurpose.DIAGNOSE,
+            {"incident_id": "incident-1", "evidence_ids": ["e1"]},
+        )
+
+
 def test_frozen_baseline_profile_has_old_prompt_and_never_repairs() -> None:
     requests: list[httpx.Request] = []
 

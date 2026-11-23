@@ -30,11 +30,11 @@ results are never relabeled as real-world outcomes.
 
 | Metric | Control | Treatment | Delta | Current conclusion |
 | --- | ---: | ---: | ---: | --- |
-| Diagnosis Top-1, untouched lab faults | 10/120 | 49/120 | +39 cases (+32.5 points) | Quality gain measured; overall claim blocked by critical-safety gate |
-| Diagnosis Top-3, untouched lab faults | 10/120 | 49/120 | +39 cases (+32.5 points) | Quality gain measured; overall claim blocked by critical-safety gate |
-| Input-token median | 4,254 | 4,455 | +201 (+4.72%) | Regressed; 95% interval [+27, +592] |
-| Workflow-latency median | 4,500 ms | 5,008 ms | +508 ms (+11.29%) | Regressed; 95% interval [+281, +813] |
-| Rate-card cost upper-bound median | 1,935,450 nUSD | 2,090,550 nUSD | +155,100 (+8.01%) | Regressed; 95% interval [+47,246, +453,154] nUSD |
+| Diagnosis Top-1, disjoint lab faults | 14/120 | 47/120 | +33 cases (+27.5 points) | Improved; paired 95% interval +18.33 to +36.67 points, safety and resource ceilings pass |
+| Diagnosis Top-3, disjoint lab faults | 14/120 | 47/120 | +33 cases (+27.5 points) | Improved; paired 95% interval +18.33 to +36.67 points |
+| Input-token median | 4,260.5 | 4,475 | +214.5 (+5.03%) | Regressed; 95% interval [+106.5, +593] |
+| Workflow-latency median | 4,430 ms | 5,031.5 ms | +601.5 ms (+13.58%) | Regressed; 95% interval [+328.5, +1,132.5] |
+| Rate-card cost upper-bound median | 1,940,400 nUSD | 2,129,250 nUSD | +188,850 (+9.73%) | Regressed; 95% interval [+106,950, +491,415] nUSD |
 | Local queue throughput, 1 versus 4 workers | 17.227 jobs/s | 28.959 jobs/s | +11.732 (+68.1%) | Measured engineering gain |
 | Time to correct diagnosis | Unmeasured | Unmeasured | Unavailable | Requires humans for a formal claim |
 | Active operator labor | Unmeasured | Unmeasured | Unavailable | Requires humans for a formal claim |
@@ -103,6 +103,15 @@ predeclared safety and resource ceiling gate passed, but post-run exploratory To
 from 15/18 to 12/18, and neither arm activated the new terminal fallback. Those resource and
 quality differences cannot be attributed to the fallback; the [full development report](FC4F2B_DEVELOPMENT_RESULT.md)
 keeps the adverse point estimate and uncertainty. The outcome ledger above remains unchanged.
+
+The new FC4f3 disjoint cohort and FC4f4 once-only confirmation supersede that ledger's prior
+lab diagnosis comparison. All 480 outcomes are present: 14/120 to 47/120 Top-1 and Top-3,
+with +27.5 points and a paired 95% interval of +18.33 to +36.67 points. Both model arms have
+40/40 safe controls and 160/160 valid outcomes; the graph has 239/239 resolved, hash-matching
+citations and no terminal schema invalids. The frozen safety and median latency/cost ceilings
+pass. Median latency and estimated rate-card cost nevertheless worsen, and P95 overhead is
+larger. This proves a bounded synthetic lab diagnosis-quality gain, not reduced human diagnosis
+time, stable recovery time or actual spending. See the [complete report](FC4F4_CONFIRMATION_RESULT.md).
 
 ## External completion boundaries
 

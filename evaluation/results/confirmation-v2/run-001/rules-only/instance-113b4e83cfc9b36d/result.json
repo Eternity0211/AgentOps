@@ -1,0 +1,70 @@
+{
+  "outcome": {
+    "candidates": [],
+    "cost_upper_bound_nanousd": 0,
+    "counter_evidence_addressed": false,
+    "disposition": null,
+    "duration_ms": 0,
+    "gate_pass": false,
+    "input_hash": "e1bb18c90aeed40e36ad72287652b22fdb596df09c533a42599888c56cf703f9",
+    "input_tokens": 0,
+    "instance_id": "instance-113b4e83cfc9b36d",
+    "missing_evidence_count": 0,
+    "mode": "rules-only",
+    "output_tokens": 0,
+    "proposal_created": false,
+    "protocol_hash": "dd1724863b60cde5184d10c80d34c905a6781cedf9212d23606a4a4a99b1e66a",
+    "status": "FAILED"
+  },
+  "rules_result": {},
+  "snapshot_reads": [
+    {
+      "key": "query_metrics:gateway",
+      "status": "FAILED"
+    },
+    {
+      "key": "query_logs:gateway",
+      "status": "FAILED"
+    },
+    {
+      "key": "query_deployments:gateway",
+      "status": "FAILED"
+    },
+    {
+      "key": "query_metrics:order",
+      "status": "FAILED"
+    },
+    {
+      "key": "query_logs:order",
+      "status": "FAILED"
+    },
+    {
+      "key": "query_deployments:order",
+      "status": "FAILED"
+    },
+    {
+      "key": "query_metrics:inventory",
+      "status": "FAILED"
+    },
+    {
+      "key": "query_logs:inventory",
+      "status": "FAILED"
+    },
+    {
+      "key": "query_deployments:inventory",
+      "status": "FAILED"
+    },
+    {
+      "key": "query_metrics:payment",
+      "status": "FAILED"
+    },
+    {
+      "key": "query_logs:payment",
+      "status": "FAILED"
+    },
+    {
+      "key": "query_deployments:payment",
+      "status": "FAILED"
+    }
+  ]
+}

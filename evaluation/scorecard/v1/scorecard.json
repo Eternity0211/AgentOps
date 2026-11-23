@@ -30,14 +30,14 @@
       "development_measurement": "MEASURABLE_NOW",
       "formal_measurement": "BLOCKED_EXTERNAL_DATA",
       "current_evidence": {
-        "control": 0.08333333333333333,
-        "treatment": 0.4083333333333333,
-        "absolute_delta": 0.325,
-        "relative_delta": 3.9000000000000004,
-        "confidence_interval": [0.2333333333333333, 0.425],
+        "control": 0.11666666666666667,
+        "treatment": 0.39166666666666666,
+        "absolute_delta": 0.275,
+        "relative_delta": 2.357142857142857,
+        "confidence_interval": [0.18333333333333332, 0.36666666666666664],
         "denominator_per_arm": 120,
-        "disposition": "NO_PROVEN_IMPROVEMENT_CRITICAL_SAFETY_GATE_FAILED",
-        "source": "evaluation/results/final-diagnosis-comparison/v1/run-001/analysis/score.json"
+        "disposition": "IMPROVED_LAB_CONFIRMATION_SAFETY_AND_RESOURCE_CEILINGS_PASSED",
+        "source": "evaluation/results/confirmation-v2/run-001/analysis/score.json"
       },
       "formal_requirement": "An untouched adequately powered cohort; the confirmed-history arm additionally requires authorized redacted closed incidents."
     },
@@ -50,14 +50,14 @@
       "development_measurement": "MEASURABLE_NOW",
       "formal_measurement": "BLOCKED_EXTERNAL_DATA",
       "current_evidence": {
-        "control": 0.08333333333333333,
-        "treatment": 0.4083333333333333,
-        "absolute_delta": 0.325,
-        "relative_delta": 3.9000000000000004,
-        "confidence_interval": [0.22500000000000003, 0.41666666666666674],
+        "control": 0.11666666666666667,
+        "treatment": 0.39166666666666666,
+        "absolute_delta": 0.275,
+        "relative_delta": 2.357142857142857,
+        "confidence_interval": [0.18333333333333332, 0.3666666666666667],
         "denominator_per_arm": 120,
-        "disposition": "NO_PROVEN_IMPROVEMENT_CRITICAL_SAFETY_GATE_FAILED",
-        "source": "evaluation/results/final-diagnosis-comparison/v1/run-001/analysis/score.json"
+        "disposition": "IMPROVED_LAB_CONFIRMATION_SAFETY_AND_RESOURCE_CEILINGS_PASSED",
+        "source": "evaluation/results/confirmation-v2/run-001/analysis/score.json"
       },
       "formal_requirement": "The same frozen cohort and comparison controls as diagnosis_top1_rate."
     },
@@ -222,14 +222,14 @@
       "development_measurement": "MEASURABLE_NOW",
       "formal_measurement": "MEASURABLE_NOW",
       "current_evidence": {
-        "control": 4254,
-        "treatment": 4455,
-        "absolute_delta": 201,
-        "relative_delta": 0.04724964739069112,
-        "confidence_interval": [27, 592.0124999999998],
+        "control": 4260.5,
+        "treatment": 4475,
+        "absolute_delta": 214.5,
+        "relative_delta": 0.05034620349724211,
+        "confidence_interval": [106.5, 593],
         "denominator_per_arm": 160,
         "disposition": "REGRESSED",
-        "source": "evaluation/results/final-diagnosis-comparison/v1/run-001/analysis/score.json"
+        "source": "evaluation/results/confirmation-v2/run-001/analysis/score.json"
       },
       "formal_requirement": "Token improvement cannot substitute for diagnosis or recovery outcome improvement."
     },
@@ -242,15 +242,15 @@
       "development_measurement": "MEASURABLE_NOW",
       "formal_measurement": "MEASURABLE_NOW",
       "current_evidence": {
-        "control": 4500,
-        "treatment": 5008,
-        "absolute_delta": 508,
-        "relative_delta": 0.11288888888888889,
-        "confidence_interval": [281, 813],
+        "control": 4430,
+        "treatment": 5031.5,
+        "absolute_delta": 601.5,
+        "relative_delta": 0.1357787810383747,
+        "confidence_interval": [328.5, 1132.5],
         "unit": "milliseconds",
         "denominator_per_arm": 160,
         "disposition": "REGRESSED",
-        "source": "evaluation/results/final-diagnosis-comparison/v1/run-001/analysis/score.json"
+        "source": "evaluation/results/confirmation-v2/run-001/analysis/score.json"
       },
       "formal_requirement": "Report median and P95 paired deltas; tail regression is not hidden by the median."
     },
@@ -263,15 +263,15 @@
       "development_measurement": "RATE_CARD_ESTIMATE_ONLY",
       "formal_measurement": "MEASURABLE_NOW",
       "current_evidence": {
-        "control": 1935450,
-        "treatment": 2090550,
-        "absolute_delta": 155100,
-        "relative_delta": 0.08013640238704177,
-        "confidence_interval": [47246.25000000001, 453153.74999999994],
+        "control": 1940400,
+        "treatment": 2129250,
+        "absolute_delta": 188850,
+        "relative_delta": 0.09732529375386519,
+        "confidence_interval": [106950.0, 491414.99999999977],
         "unit": "nanousd_upper_bound",
         "denominator_per_arm": 160,
         "disposition": "REGRESSED",
-        "source": "evaluation/results/final-diagnosis-comparison/v1/run-001/analysis/score.json"
+        "source": "evaluation/results/confirmation-v2/run-001/analysis/score.json"
       },
       "formal_requirement": "This deterministic rate-card estimate is not an invoice or actual allocated cost."
     },

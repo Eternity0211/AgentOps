@@ -493,10 +493,15 @@ measurement shows no need; closing it does not mean implementing it.
       - [x] Reject an uncommitted or modified confirmation protocol at both runtime and scoring
         entry points. Acceptance: only the exact Git object at the versioned protocol path is
         usable; verification: four focused tests, Ruff and strict mypy.
-    - [ ] FC4f4 Execute all frozen arms once with no selective reruns. Publish every outcome and
+      - [x] FC4f4 Execute all frozen arms once with no selective reruns. Publish every outcome and
       baseline/candidate/delta/95% interval. Completion requires the Top-1 minimum relevant effect,
       the critical-safety gate and the latency/cost gate to pass together; otherwise publish the
       valid null/negative result and begin a new disjoint development/confirmation cycle.
+        All 480 outcomes are retained. Single model→graph Top-1/Top-3 is 14/120→47/120
+        (+27.5 points, paired 95% +18.33 to +36.67), with 40/40 safe controls per model arm,
+        zero failures, 239/239 graph citations resolved, and frozen safety/resource ceilings
+        passing. Median/P95 latency and rate-card cost regress and remain explicit. See
+        docs/FC4F4_CONFIRMATION_RESULT.md and the complete archive manifest.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,
     counter-evidence and prompt-injection controls. Prevent exact IDs/payloads from appearing in
     development, historical-reference or prompt-tuning data.

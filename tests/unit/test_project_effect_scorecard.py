@@ -102,12 +102,12 @@ def test_documented_measured_values_are_bound_to_existing_sources() -> None:
 
     final_score = json.loads(
         Path(
-            "evaluation/results/final-diagnosis-comparison/v1/run-001/analysis/score.json"
+            "evaluation/results/confirmation-v2/run-001/analysis/score.json"
         ).read_text(encoding="utf-8")
     )
     paired = final_score["comparisons"]["single-to-graph"]["result"]["metrics"]
     metrics = {metric["metric_id"]: metric for metric in paired}
-    source = "evaluation/results/final-diagnosis-comparison/v1/run-001/analysis/score.json"
+    source = "evaluation/results/confirmation-v2/run-001/analysis/score.json"
     for scorecard_id, result_id in {
         "diagnosis_top1_rate": "top1",
         "diagnosis_top3_rate": "top3",
@@ -124,7 +124,7 @@ def test_documented_measured_values_are_bound_to_existing_sources() -> None:
                 estimate["absolute_delta_interval"]["upper"],
             ],
             "denominator_per_arm": metric["pair_count"],
-            "disposition": "NO_PROVEN_IMPROVEMENT_CRITICAL_SAFETY_GATE_FAILED",
+            "disposition": "IMPROVED_LAB_CONFIRMATION_SAFETY_AND_RESOURCE_CEILINGS_PASSED",
             "source": source,
         }
 

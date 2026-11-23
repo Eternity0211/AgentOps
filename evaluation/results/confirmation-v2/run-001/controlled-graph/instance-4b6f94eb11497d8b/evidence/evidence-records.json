@@ -1,0 +1,374 @@
+[
+  {
+    "evidence": {
+      "id": {
+        "value": "ev-28d454d9dfb81445-r0-gw-metrics"
+      },
+      "tenant_id": {
+        "value": "local-evaluation"
+      },
+      "incident_id": {
+        "value": "instance-4b6f94eb11497d8b"
+      },
+      "source_type": "METRIC",
+      "source_instance": "local-metrics",
+      "tool_name": "query_metrics",
+      "tool_version": "lab-2.0.0",
+      "tool_schema_version": "lab-2.0.0",
+      "normalized_query": {
+        "parameters": [
+          {
+            "name": "request_spec_00",
+            "value": "eyJjYWxsX2lkIjoiY2FsbC0yOGQ0NTRkOWRmYjgxNDQ1LXIwLWd3LW1ldHJpY3MiLCJmaXh0dXJlX29yaWdpbiI6IlNZTlRIRVRJQ19QQVJBTUVURVJJWkVEX0NPTkZJUk1BVElPTl9GSVhUVVJFX1YyIiwicmVjb3Jkc19zZWVuIjoxLCJzZXJ2aWNlIjoiZ2F0ZXdheSIsInRvb2wiOiJxdWVyeV9tZXRyaWNzIiwidmVyc2lvbiI6ImxhYi0yLjAuMCIsIndpbmRvd19lbmQiOiIyMDI2LTExLTE1VDA4OjE1OjAwKzAwOjAwIiwid2luZG93X3N0YXJ0IjoiMjAyNi0xMS0xNVQwODoxMDowMCswMDowMCJ9"
+          },
+          {
+            "name": "request_spec_encoding",
+            "value": "base64url-json-v1"
+          },
+          {
+            "name": "source",
+            "value": "metrics"
+          }
+        ]
+      },
+      "observed_from": "2026-11-15 08:10:00+00:00",
+      "observed_to": "2026-11-15 08:15:00+00:00",
+      "collected_at": "2026-11-15 08:15:01+00:00",
+      "artifact_id": {
+        "value": "artifact-6025a3a89b41c1a16e13c311b4ebe382b0ea221543058a8a56b01f4fc6f4d1d6"
+      },
+      "content_hash": {
+        "value": "0d794a68d8b094431451f84ed2d8b78bafd2ca676eab206262322d18185f026e"
+      },
+      "parser_version": "1.0.0",
+      "normalizer_version": "1.0.0",
+      "quality": {
+        "score_basis_points": 7500,
+        "reasons": [
+          "source-available",
+          "incomplete-window",
+          "records-observed"
+        ]
+      },
+      "lineage": {
+        "tool_call_id": {
+          "value": "call-28d454d9dfb81445-r0-gw-metrics"
+        },
+        "workflow_run_id": {
+          "value": "workflow-instance-4b6f94eb11497d8b"
+        },
+        "redaction_transform_id": {
+          "value": "redaction-ev-28d454d9dfb81445-r0-gw-metrics"
+        },
+        "parent_evidence_ids": []
+      },
+      "trust": "DIRECT_OBSERVATION",
+      "prompt_injection_status": "NONE",
+      "expires_at": "2026-11-15 09:15:01+00:00",
+      "schema_version": "1.0.0"
+    },
+    "artifact": {
+      "id": {
+        "value": "artifact-6025a3a89b41c1a16e13c311b4ebe382b0ea221543058a8a56b01f4fc6f4d1d6"
+      },
+      "tenant_id": {
+        "value": "local-evaluation"
+      },
+      "incident_id": {
+        "value": "instance-4b6f94eb11497d8b"
+      },
+      "locator": "local-artifact:v1:artifact-6025a3a89b41c1a16e13c311b4ebe382b0ea221543058a8a56b01f4fc6f4d1d6",
+      "media_type": "application/json",
+      "content_schema_version": "1.0.0",
+      "content_hash": {
+        "value": "0d794a68d8b094431451f84ed2d8b78bafd2ca676eab206262322d18185f026e"
+      },
+      "size_bytes": 488,
+      "retention_class": "INCIDENT",
+      "created_at": "2026-11-15 08:15:01+00:00",
+      "expires_at": "2026-11-22 08:15:01+00:00",
+      "redaction_status": "NOT_REQUIRED",
+      "encrypted": false,
+      "metadata_schema_version": "1.0.0"
+    }
+  },
+  {
+    "evidence": {
+      "id": {
+        "value": "ev-28d454d9dfb81445-r0-gw-logs"
+      },
+      "tenant_id": {
+        "value": "local-evaluation"
+      },
+      "incident_id": {
+        "value": "instance-4b6f94eb11497d8b"
+      },
+      "source_type": "LOG",
+      "source_instance": "local-logs",
+      "tool_name": "query_logs",
+      "tool_version": "lab-2.0.0",
+      "tool_schema_version": "lab-2.0.0",
+      "normalized_query": {
+        "parameters": [
+          {
+            "name": "request_spec_00",
+            "value": "eyJjYWxsX2lkIjoiY2FsbC0yOGQ0NTRkOWRmYjgxNDQ1LXIwLWd3LWxvZ3MiLCJmaXh0dXJlX29yaWdpbiI6IlNZTlRIRVRJQ19QQVJBTUVURVJJWkVEX0NPTkZJUk1BVElPTl9GSVhUVVJFX1YyIiwicmVjb3Jkc19zZWVuIjoxLCJzZXJ2aWNlIjoiZ2F0ZXdheSIsInRvb2wiOiJxdWVyeV9sb2dzIiwidmVyc2lvbiI6ImxhYi0yLjAuMCIsIndpbmRvd19lbmQiOiIyMDI2LTExLTE1VDA4OjE1OjAwKzAwOjAwIiwid2luZG93X3N0YXJ0IjoiMjAyNi0xMS0xNVQwODoxMDowMCswMDowMCJ9"
+          },
+          {
+            "name": "request_spec_encoding",
+            "value": "base64url-json-v1"
+          },
+          {
+            "name": "source",
+            "value": "logs"
+          }
+        ]
+      },
+      "observed_from": "2026-11-15 08:10:00+00:00",
+      "observed_to": "2026-11-15 08:15:00+00:00",
+      "collected_at": "2026-11-15 08:15:01+00:00",
+      "artifact_id": {
+        "value": "artifact-8e6ef51551aac0ed6a3f10ebb4502fe78f9b611fd4c1f9b5d5ab383e7da578e9"
+      },
+      "content_hash": {
+        "value": "cc5ca79f6e7d9629e806641b5135291675f812f70f4103faa4f068246551b110"
+      },
+      "parser_version": "1.0.0",
+      "normalizer_version": "1.0.0",
+      "quality": {
+        "score_basis_points": 7500,
+        "reasons": [
+          "source-available",
+          "incomplete-window",
+          "records-observed"
+        ]
+      },
+      "lineage": {
+        "tool_call_id": {
+          "value": "call-28d454d9dfb81445-r0-gw-logs"
+        },
+        "workflow_run_id": {
+          "value": "workflow-instance-4b6f94eb11497d8b"
+        },
+        "redaction_transform_id": {
+          "value": "redaction-ev-28d454d9dfb81445-r0-gw-logs"
+        },
+        "parent_evidence_ids": []
+      },
+      "trust": "DIRECT_OBSERVATION",
+      "prompt_injection_status": "NONE",
+      "expires_at": "2026-11-15 09:15:01+00:00",
+      "schema_version": "1.0.0"
+    },
+    "artifact": {
+      "id": {
+        "value": "artifact-8e6ef51551aac0ed6a3f10ebb4502fe78f9b611fd4c1f9b5d5ab383e7da578e9"
+      },
+      "tenant_id": {
+        "value": "local-evaluation"
+      },
+      "incident_id": {
+        "value": "instance-4b6f94eb11497d8b"
+      },
+      "locator": "local-artifact:v1:artifact-8e6ef51551aac0ed6a3f10ebb4502fe78f9b611fd4c1f9b5d5ab383e7da578e9",
+      "media_type": "application/json",
+      "content_schema_version": "1.0.0",
+      "content_hash": {
+        "value": "cc5ca79f6e7d9629e806641b5135291675f812f70f4103faa4f068246551b110"
+      },
+      "size_bytes": 454,
+      "retention_class": "INCIDENT",
+      "created_at": "2026-11-15 08:15:01+00:00",
+      "expires_at": "2026-11-22 08:15:01+00:00",
+      "redaction_status": "NOT_REQUIRED",
+      "encrypted": false,
+      "metadata_schema_version": "1.0.0"
+    }
+  },
+  {
+    "evidence": {
+      "id": {
+        "value": "ev-28d454d9dfb81445-r0-gw-traces"
+      },
+      "tenant_id": {
+        "value": "local-evaluation"
+      },
+      "incident_id": {
+        "value": "instance-4b6f94eb11497d8b"
+      },
+      "source_type": "TRACE",
+      "source_instance": "local-traces",
+      "tool_name": "query_traces",
+      "tool_version": "lab-2.0.0",
+      "tool_schema_version": "lab-2.0.0",
+      "normalized_query": {
+        "parameters": [
+          {
+            "name": "request_spec_00",
+            "value": "eyJjYWxsX2lkIjoiY2FsbC0yOGQ0NTRkOWRmYjgxNDQ1LXIwLWd3LXRyYWNlcyIsImZpeHR1cmVfb3JpZ2luIjoiU1lOVEhFVElDX1BBUkFNRVRFUklaRURfQ09ORklSTUFUSU9OX0ZJWFRVUkVfVjIiLCJyZWNvcmRzX3NlZW4iOjEsInNlcnZpY2UiOiJnYXRld2F5IiwidG9vbCI6InF1ZXJ5X3RyYWNlcyIsInZlcnNpb24iOiJsYWItMi4wLjAiLCJ3aW5kb3dfZW5kIjoiMjAyNi0xMS0xNVQwODoxNTowMCswMDowMCIsIndpbmRvd19zdGFydCI6IjIwMjYtMTEtMTVUMDg6MTA6MDArMDA6MDAifQ=="
+          },
+          {
+            "name": "request_spec_encoding",
+            "value": "base64url-json-v1"
+          },
+          {
+            "name": "source",
+            "value": "traces"
+          }
+        ]
+      },
+      "observed_from": "2026-11-15 08:10:00+00:00",
+      "observed_to": "2026-11-15 08:15:00+00:00",
+      "collected_at": "2026-11-15 08:15:01+00:00",
+      "artifact_id": {
+        "value": "artifact-1c67637c4e2c2ff81ed097c5cf1d58d00434551eef54da0df066c4ca2b08bc12"
+      },
+      "content_hash": {
+        "value": "7ce91689952050b875b1deb4e8ebedfd6c9be61059343b1ab7bcb1864e881873"
+      },
+      "parser_version": "1.0.0",
+      "normalizer_version": "1.0.0",
+      "quality": {
+        "score_basis_points": 7500,
+        "reasons": [
+          "source-available",
+          "incomplete-window",
+          "records-observed"
+        ]
+      },
+      "lineage": {
+        "tool_call_id": {
+          "value": "call-28d454d9dfb81445-r0-gw-traces"
+        },
+        "workflow_run_id": {
+          "value": "workflow-instance-4b6f94eb11497d8b"
+        },
+        "redaction_transform_id": {
+          "value": "redaction-ev-28d454d9dfb81445-r0-gw-traces"
+        },
+        "parent_evidence_ids": []
+      },
+      "trust": "DIRECT_OBSERVATION",
+      "prompt_injection_status": "NONE",
+      "expires_at": "2026-11-15 09:15:01+00:00",
+      "schema_version": "1.0.0"
+    },
+    "artifact": {
+      "id": {
+        "value": "artifact-1c67637c4e2c2ff81ed097c5cf1d58d00434551eef54da0df066c4ca2b08bc12"
+      },
+      "tenant_id": {
+        "value": "local-evaluation"
+      },
+      "incident_id": {
+        "value": "instance-4b6f94eb11497d8b"
+      },
+      "locator": "local-artifact:v1:artifact-1c67637c4e2c2ff81ed097c5cf1d58d00434551eef54da0df066c4ca2b08bc12",
+      "media_type": "application/json",
+      "content_schema_version": "1.0.0",
+      "content_hash": {
+        "value": "7ce91689952050b875b1deb4e8ebedfd6c9be61059343b1ab7bcb1864e881873"
+      },
+      "size_bytes": 446,
+      "retention_class": "INCIDENT",
+      "created_at": "2026-11-15 08:15:01+00:00",
+      "expires_at": "2026-11-22 08:15:01+00:00",
+      "redaction_status": "NOT_REQUIRED",
+      "encrypted": false,
+      "metadata_schema_version": "1.0.0"
+    }
+  },
+  {
+    "evidence": {
+      "id": {
+        "value": "ev-28d454d9dfb81445-r0-gw-topology"
+      },
+      "tenant_id": {
+        "value": "local-evaluation"
+      },
+      "incident_id": {
+        "value": "instance-4b6f94eb11497d8b"
+      },
+      "source_type": "TOPOLOGY",
+      "source_instance": "local-topology",
+      "tool_name": "get_service_topology",
+      "tool_version": "lab-2.0.0",
+      "tool_schema_version": "lab-2.0.0",
+      "normalized_query": {
+        "parameters": [
+          {
+            "name": "request_spec_00",
+            "value": "eyJjYWxsX2lkIjoiY2FsbC0yOGQ0NTRkOWRmYjgxNDQ1LXIwLWd3LXRvcG9sb2d5IiwiZml4dHVyZV9vcmlnaW4iOiJTWU5USEVUSUNfUEFSQU1FVEVSSVpFRF9DT05GSVJNQVRJT05fRklYVFVSRV9WMiIsInJlY29yZHNfc2VlbiI6NSwic2VydmljZSI6ImdhdGV3YXkiLCJ0b29sIjoiZ2V0X3NlcnZpY2VfdG9wb2xvZ3kiLCJ2ZXJzaW9uIjoibGFiLTIuMC4wIiwid2luZG93X2VuZCI6IjIwMjYtMTEtMTVUMDg6MTU6MDArMDA6MDAiLCJ3aW5kb3dfc3RhcnQiOiIyMDI2LTExLTE1VDA4OjEwOjAwKzAwOjAwIn0="
+          },
+          {
+            "name": "request_spec_encoding",
+            "value": "base64url-json-v1"
+          },
+          {
+            "name": "source",
+            "value": "topology"
+          }
+        ]
+      },
+      "observed_from": "2026-11-15 08:10:00+00:00",
+      "observed_to": "2026-11-15 08:15:00+00:00",
+      "collected_at": "2026-11-15 08:15:01+00:00",
+      "artifact_id": {
+        "value": "artifact-a7d02827f4fd7f33b6de8fc91b49005f149bcb929b68ee8c64583c7f5c58ebab"
+      },
+      "content_hash": {
+        "value": "8f9ea0e233f444bbce14cfb08aef8d0f4709199c6baceea383cfd331890ca888"
+      },
+      "parser_version": "1.0.0",
+      "normalizer_version": "1.0.0",
+      "quality": {
+        "score_basis_points": 7500,
+        "reasons": [
+          "source-available",
+          "incomplete-window",
+          "records-observed"
+        ]
+      },
+      "lineage": {
+        "tool_call_id": {
+          "value": "call-28d454d9dfb81445-r0-gw-topology"
+        },
+        "workflow_run_id": {
+          "value": "workflow-instance-4b6f94eb11497d8b"
+        },
+        "redaction_transform_id": {
+          "value": "redaction-ev-28d454d9dfb81445-r0-gw-topology"
+        },
+        "parent_evidence_ids": []
+      },
+      "trust": "DIRECT_OBSERVATION",
+      "prompt_injection_status": "NONE",
+      "expires_at": "2026-11-15 09:15:01+00:00",
+      "schema_version": "1.0.0"
+    },
+    "artifact": {
+      "id": {
+        "value": "artifact-a7d02827f4fd7f33b6de8fc91b49005f149bcb929b68ee8c64583c7f5c58ebab"
+      },
+      "tenant_id": {
+        "value": "local-evaluation"
+      },
+      "incident_id": {
+        "value": "instance-4b6f94eb11497d8b"
+      },
+      "locator": "local-artifact:v1:artifact-a7d02827f4fd7f33b6de8fc91b49005f149bcb929b68ee8c64583c7f5c58ebab",
+      "media_type": "application/json",
+      "content_schema_version": "1.0.0",
+      "content_hash": {
+        "value": "8f9ea0e233f444bbce14cfb08aef8d0f4709199c6baceea383cfd331890ca888"
+      },
+      "size_bytes": 588,
+      "retention_class": "INCIDENT",
+      "created_at": "2026-11-15 08:15:01+00:00",
+      "expires_at": "2026-11-22 08:15:01+00:00",
+      "redaction_status": "NOT_REQUIRED",
+      "encrypted": false,
+      "metadata_schema_version": "1.0.0"
+    }
+  }
+]

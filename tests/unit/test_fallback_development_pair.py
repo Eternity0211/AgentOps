@@ -12,6 +12,7 @@ import pytest
 from evaluation.run_fallback_development_pair import BOUND_SOURCES, check_plan, run_pair
 
 DATASET = Path("evaluation/datasets/evidence-strategy-development-v1")
+FROZEN_PLAN = Path("evaluation/final_diagnosis_optimization/v2/pair-plan.json")
 
 
 def plan() -> dict[str, Any]:
@@ -73,3 +74,21 @@ def test_development_runner_requires_key_before_creating_output(tmp_path: Path) 
     with pytest.raises(ValueError, match="DEEPSEEK_API_KEY"):
         run_pair(DATASET, tmp_path / "missing.json", tmp_path / "outcomes", key="")
     assert not (tmp_path / "outcomes").exists()
+
+
+def test_frozen_development_protocol_preflights_without_label_values() -> None:
+    frozen = json.loads(FROZEN_PLAN.read_text(encoding="utf-8"))
+    head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    check_plan(frozen, head, DATASET)
+    assert frozen["status"] == "FROZEN_BEFORE_PROVIDER_CALLS"
+    assert frozen["expected_outcomes"] == 54
+    assert frozen["evaluator_labels"] == (
+        "evaluation/evidence_strategy_development/v1/evaluator_only/labels.json"
+    )
+    assert (
+        hashlib.sha256(Path(frozen["evaluator_labels"]).read_bytes()).hexdigest()
+        == (frozen["evaluator_labels_sha256"])
+    )
+    assert "final-diagnosis-comparison" not in FROZEN_PLAN.read_text(encoding="utf-8")
+    for path, digest in frozen["postrun_scorer_hashes"].items():
+        assert hashlib.sha256(Path(path).read_bytes()).hexdigest() == digest

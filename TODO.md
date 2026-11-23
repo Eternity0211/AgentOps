@@ -464,8 +464,13 @@ measurement shows no need; closing it does not mean implementing it.
             then requires zero candidate failures, full citation integrity, and both median and
             P95 latency/token/rate-card deltas inside the frozen ceilings. Missing usage fails the
             resource gate. Five arithmetic/refusal tests and strict mypy pass.
-          - [ ] Freeze the pair protocol and source hashes in a separate commit before any real
-            Provider call; then run and score the complete 54 outcomes without selective reruns.
+          - [x] Freeze the 27-case/54-outcome pair protocol and exact runtime/scorer/data/label
+            hashes in a separate commit before any real Provider call. The 1.11/1.12 arms share
+            graph mode, GC-aware strategy, 6/4/12 ceilings and parity interleaving. Median/P95
+            resource ceilings, zero-failure/integrity gates and stopping rule are predeclared;
+            runtime preflight checks hashes without opening label values.
+          - [ ] Run and score the complete 54 outcomes without selective reruns; retain every
+            negative result and decide FC4f2b from the frozen safety/resource thresholds.
     - [ ] FC4f3 Generate, power and freeze a disjoint label-isolated cohort before candidate calls.
       Bind inputs, evaluator-label hash, scorer, implementation, Provider settings, budgets,
       interleaving, failure policy and all quality/safety/resource thresholds.

@@ -353,6 +353,15 @@ publishes every baseline value, candidate value, delta and frozen ceiling. Passi
 gate permits a new disjoint confirmation protocol; it does not turn a safe handoff into a correct
 diagnosis or substitute for the untouched FC4f4 result.
 
+The frozen FC4f2b pair protocol is
+[`evaluation/final_diagnosis_optimization/v2/pair-plan.json`](../evaluation/final_diagnosis_optimization/v2/pair-plan.json).
+It binds implementation `2dc8b6c1`, all 27 development snapshot hashes, an isolated evaluator-
+label hash, the exact runtime and post-run scorer hashes, 54 outcomes, parity interleaving and a
+single-run stopping rule before any Provider call. The resource gate allows at most +500 ms median
+and +1,500 ms P95 workflow duration, +250/+500 input tokens, +100/+200 output tokens, and
++200,000/+500,000 nUSD rate-card cost. These are maximum acceptable regressions for development
+promotion, not demonstrated improvements. All failures remain in the denominator.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

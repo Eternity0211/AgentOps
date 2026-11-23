@@ -316,7 +316,7 @@ measurement shows no need; closing it does not mean implementing it.
             threshold. All three candidate failures and all nine baseline failures are valid model
             replans rejected by the deterministic compiler for repeated prior queries, not tool,
             Evidence, safety or terminal schema failures. Run-001 remains immutable.
-          - [ ] Eliminate repeated-query replan failures with a deterministic, auditable novel-read
+          - [x] Eliminate repeated-query replan failures with a deterministic, auditable novel-read
             filter; freeze and run a complete new development pair rather than selectively rerun
             any run-001 outcome. Retain the same quality and safety acceptance contract.
             - [x] Validate the complete replan first, then remove only exact prior
@@ -353,7 +353,7 @@ measurement shows no need; closing it does not mean implementing it.
               unread downstream service may now trigger the same one bounded read-only replan even
               after a no-candidate `HUMAN_HANDOFF`; schemas, Gate, budgets and write authority are
               unchanged. Focused behavior, publication, Ruff and mypy checks pass.
-            - [ ] Freeze and execute run-003 exactly once as the final development-set revision.
+            - [x] Freeze and execute run-003 exactly once as the final development-set revision.
               - [x] Freeze the implementation-bound v3 protocol before provider calls. It binds
                 commit `3a1ecff9`, the unchanged 27 inputs and isolated labels, all runtime/scorer
                 hashes, equal 6/4/12 provider/graph/tool ceilings, original acceptance thresholds,
@@ -451,7 +451,7 @@ measurement shows no need; closing it does not mean implementing it.
           three read calls, 500 input and 500 output fixture tokens, and 750,000 nUSD fixture
           rate-card upper bound. The 6/4/12 call ceilings pass; this deterministic transport
           fixture supplies no provider latency comparison or confirmatory quality result.
-        - [ ] Freeze and execute a separate real-provider development pair for the bounded-replan
+        - [x] Freeze and execute a separate real-provider development pair for the bounded-replan
           tail and terminal-invalid path. Require zero candidate failures and unresolved citations,
           and report paired median/P95 latency, tokens and rate-card cost against predeclared
           ceilings before closing FC4f2b.

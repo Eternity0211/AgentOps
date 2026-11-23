@@ -419,7 +419,7 @@ measurement shows no need; closing it does not mean implementing it.
     tenant-authorized, redacted closed-incident cohort and its retention/consent decision exist.
     The rules, single-model and controlled-graph arms may proceed, but they cannot close FC4 or be
     relabeled as a four-arm comparison.
-  - [ ] FC4f Restore the project-level improvement gate on separate development data, then run a
+  - [x] FC4f Restore the project-level improvement gate on separate development data, then run a
     new untouched confirmation cohort exactly once. FC4d remains immutable and is never reused
     for tuning or candidate selection.
     - [x] FC4f1 Freeze an aggregate-only failure/resource audit before inspecting any new labels.

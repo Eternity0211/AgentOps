@@ -45,22 +45,21 @@ results are never relabeled as real-world outcomes.
 The throughput row uses the confirmatory medians retained by ADR 0010. Later paired relative
 analysis may use a different paired statistic; reports must state which statistic they quote.
 
-## Development-stage work that can proceed now
+## Confirmed laboratory comparison
 
-The next executable comparison is an untouched lab generalization study, not a production or
-confirmed-history claim. It will contain parameterized variants of all six fault families plus
-normal, insufficient-evidence, counter-evidence, prompt-injection, cross-service dependency, and
-deployment-timing controls. Ground Truth stays evaluator-only.
+The disjoint lab generalization study is complete. It contains parameterized variants of all six
+fault families plus normal, insufficient-evidence, counter-evidence, prompt-injection,
+cross-service dependency, and deployment-timing controls. Ground Truth remained evaluator-only.
 
-The development comparison has three valid arms:
+The laboratory comparison has three valid arms:
 
 - deterministic rules;
 - a single model without graph orchestration;
 - the controlled Diagnosis LangGraph without historical memory.
 
 A simulated-memory arm may be reported only as exploratory. It cannot satisfy the confirmed-
-history fourth arm or FC5. The frozen lab set will be used once for confirmatory scoring after
-error analysis and optimization finish on separate development data.
+history fourth arm or FC5. The frozen lab set was used once for confirmatory scoring after
+development work on separate data.
 
 ## Optimization decision order
 
@@ -102,7 +101,8 @@ The separate FC4f2b development pair retained 54 additional actual-provider outc
 predeclared safety and resource ceiling gate passed, but post-run exploratory Top-1/Top-3 changed
 from 15/18 to 12/18, and neither arm activated the new terminal fallback. Those resource and
 quality differences cannot be attributed to the fallback; the [full development report](FC4F2B_DEVELOPMENT_RESULT.md)
-keeps the adverse point estimate and uncertainty. The outcome ledger above remains unchanged.
+keeps the adverse point estimate and uncertainty. That development result did not update the
+outcome ledger; the later disjoint confirmation below did.
 
 The new FC4f3 disjoint cohort and FC4f4 once-only confirmation supersede that ledger's prior
 lab diagnosis comparison. All 480 outcomes are present: 14/120 to 47/120 Top-1 and Top-3,

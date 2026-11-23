@@ -22,5 +22,6 @@ recovery. The versioned [runner](../evaluation/run_confirmation_v2.py) and
 arms use transport profile 1.12. Runtime preflight checks dataset, plan, freeze, power, source,
 provider and budget bindings without opening evaluator labels; the scorer opens labels only after
 all 480 outcomes and runtime bindings validate. The complete protocol and exact hashes must be
-frozen in a separate commit before the first Provider call. The 480 older official results remain
+frozen in a separate commit before the first Provider call. Both entry points additionally reject
+protocol bytes that differ from the committed Git object. The 480 older official results remain
 an immutable reference, not a new comparison arm.

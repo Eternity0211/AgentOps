@@ -70,6 +70,24 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def verify_committed_protocol(plan_path: Path, plan_bytes: bytes) -> None:
+    """Fail closed if the frozen protocol differs from the current committed Git object."""
+    try:
+        relative = plan_path.resolve().relative_to(ROOT.resolve()).as_posix()
+    except ValueError as exc:
+        raise ValueError("protocol path is outside repository") from exc
+    if relative != "evaluation/confirmation_v2/plan.json":
+        raise ValueError("unexpected confirmation protocol path")
+    committed = subprocess.run(
+        ["git", "-c", "safe.directory=D:/AgentOps", "show", f"HEAD:{relative}"],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+    )
+    if committed.returncode != 0 or committed.stdout != plan_bytes:
+        raise ValueError("confirmation protocol differs from committed bytes")
+
+
 def check_plan(plan: dict[str, Any], revision: str, dataset: Path) -> None:
     if plan.get("schema_version") != "confirmation-v2-comparison/1.0.0":
         raise ValueError("unknown final diagnosis comparison plan")
@@ -366,6 +384,7 @@ def run(
     if not key:
         raise ValueError("DEEPSEEK_API_KEY required before confirmation start")
     plan_bytes = plan_path.read_bytes()
+    verify_committed_protocol(plan_path, plan_bytes)
     plan = json.loads(plan_bytes)
     revision = subprocess.check_output(
         ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True

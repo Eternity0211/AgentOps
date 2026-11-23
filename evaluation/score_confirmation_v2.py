@@ -33,6 +33,7 @@ from evaluation.run_confirmation_v2 import (
     ROOT,
     RULES_QUERIES,
     check_plan,
+    verify_committed_protocol,
 )
 from evaluation.score_transport_pair import _audit_case
 
@@ -904,6 +905,7 @@ def score(
     if output.exists():
         raise FileExistsError("final diagnosis score output already exists")
     plan_bytes = plan_path.read_bytes()
+    verify_committed_protocol(plan_path, plan_bytes)
     plan = json.loads(plan_bytes)
     digest = hashlib.sha256(plan_bytes).hexdigest()
     dataset = Path(plan["dataset"])

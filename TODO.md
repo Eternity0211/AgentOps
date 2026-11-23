@@ -490,6 +490,9 @@ measurement shows no need; closing it does not mean implementing it.
         480-outcome protocol. Acceptance: 1.12 is fixed in both model arms, preflight binds
         input, plan, freeze and power hashes without opening labels, and the runner retains all
         outcomes. Verification: focused preflight/profile tests, Ruff and strict mypy.
+      - [x] Reject an uncommitted or modified confirmation protocol at both runtime and scoring
+        entry points. Acceptance: only the exact Git object at the versioned protocol path is
+        usable; verification: four focused tests, Ruff and strict mypy.
     - [ ] FC4f4 Execute all frozen arms once with no selective reruns. Publish every outcome and
       baseline/candidate/delta/95% interval. Completion requires the Top-1 minimum relevant effect,
       the critical-safety gate and the latency/cost gate to pass together; otherwise publish the

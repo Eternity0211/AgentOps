@@ -85,6 +85,7 @@ def test_confirmation_runner_passes_frozen_112_profile(
 
     monkeypatch.setattr(runner, "run_rules_case", rules_case)
     monkeypatch.setattr(runner, "run_snapshot", model_case)
+    monkeypatch.setattr(runner, "verify_committed_protocol", lambda *_: None)
     with pytest.raises(RuntimeError, match="profile observed"):
         runner.run(Path(plan["dataset"]), plan_path, tmp_path / "results", key="test-only")
 
@@ -104,5 +105,15 @@ def test_confirmation_scorer_refuses_incomplete_outcomes_before_labels(
         return original(path)
 
     monkeypatch.setattr(Path, "read_bytes", guard)
+    monkeypatch.setattr(
+        "evaluation.score_confirmation_v2.verify_committed_protocol", lambda *_: None
+    )
     with pytest.raises(ValueError, match="outcome count mismatch"):
         score(plan_path, tmp_path / "missing-results", tmp_path / "score")
+
+
+def test_confirmation_refuses_uncommitted_protocol(tmp_path: Path) -> None:
+    plan = tmp_path / "plan.json"
+    plan.write_text("{}", encoding="utf-8")
+    with pytest.raises(ValueError, match="outside repository"):
+        runner.verify_committed_protocol(plan, plan.read_bytes())

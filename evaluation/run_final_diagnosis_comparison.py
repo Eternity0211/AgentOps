@@ -74,7 +74,9 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def check_plan(plan: dict[str, Any], revision: str, dataset: Path) -> None:
+def check_plan(
+    plan: dict[str, Any], revision: str, dataset: Path, *, historical_scoring: bool = True
+) -> None:
     if plan.get("schema_version") != "final-diagnosis-comparison/1.0.0":
         raise ValueError("unknown final diagnosis comparison plan")
     binding = subprocess.run(
@@ -174,10 +176,18 @@ def check_plan(plan: dict[str, Any], revision: str, dataset: Path) -> None:
         if plan.get("implementation_commit") == LEGACY_IMPLEMENTATION_COMMIT
         else BOUND_SOURCES
     )
-    if set(source_hashes) != expected_sources or any(
-        _sha256(ROOT / name) != digest for name, digest in source_hashes.items()
-    ):
+    if set(source_hashes) != expected_sources:
         raise ValueError("final comparison source hash mismatch")
+    for name, digest in source_hashes.items():
+        if historical_scoring and name != "evaluation/score_final_diagnosis_comparison.py":
+            committed = subprocess.check_output(
+                ["git", "show", f"{plan['implementation_commit']}:{name}"], cwd=ROOT
+            )
+            actual = hashlib.sha256(committed).hexdigest()
+        else:
+            actual = _sha256(ROOT / name)
+        if actual != digest:
+            raise ValueError("final comparison source hash mismatch")
 
 
 def _rules_configuration() -> CandidateExecutionConfig:
@@ -371,7 +381,7 @@ def run(
     revision = subprocess.check_output(
         ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
     ).strip()
-    check_plan(plan, revision, dataset)
+    check_plan(plan, revision, dataset, historical_scoring=False)
     rows = preflight(dataset, expected_cases=plan["expected_cases"])
     if len(rows) != plan["expected_cases"]:
         raise ValueError("final comparison case count mismatch")

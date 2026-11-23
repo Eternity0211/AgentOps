@@ -579,6 +579,11 @@ measurement shows no need; closing it does not mean implementing it.
     separate atomic batch, then require the full Git-object audit to pass.
       All 891 local originals match their manifests; only line endings differ in Git. The staged
       Git tree passes 37 manifests/34,134 files with zero problems. See docs/FC9D_ARCHIVE_REPAIR.md.
+  - [x] FC9e Restore historical result reproducibility after implementation drift. Acceptance:
+    frozen FC4d scoring checks old Git source blobs, new Provider execution checks current source
+    hashes, and the FC4 development v3 test verifies its frozen implementation rather than the
+    later checkout. Keep all old protocols, labels, outcomes and scorer thresholds unchanged.
+    See docs/HISTORICAL_SCORING_BINDING.md.
 
 - [x] FC9 Run paired durability and failure-injection measurements on the complete real workflow.
   - [x] FC9a freeze the eight-pair census, exact interruption points, source bindings, metrics,

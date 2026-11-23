@@ -125,7 +125,7 @@ def test_final_diagnosis_preflight_never_opens_evaluator_labels(
 
     monkeypatch.setattr(Path, "read_bytes", guarded)
 
-    check_plan(plan, revision, DATASET)
+    check_plan(plan, revision, DATASET, historical_scoring=False)
 
 
 def test_final_diagnosis_dataset_preflight_accepts_frozen_case_count() -> None:

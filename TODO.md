@@ -479,6 +479,13 @@ measurement shows no need; closing it does not mean implementing it.
     - [ ] FC4f3 Generate, power and freeze a disjoint label-isolated cohort before candidate calls.
       Bind inputs, evaluator-label hash, scorer, implementation, Provider settings, budgets,
       interleaving, failure policy and all quality/safety/resource thresholds.
+      - [x] Freeze 160 new synthetic cases with 120 faults across six families and 40 controls
+        across four strata. Acceptance: deterministic inputs, separate evaluator labels, 103-pair
+        sizing requirement met by 120 fault pairs, and no ID or input hash overlap with the old
+        holdout or evidence-strategy development set. Verification: focused freeze tests, manifest
+        byte hashes, Ruff and strict mypy. See docs/FC4F3_CONFIRMATION_COHORT.md.
+      - [ ] Freeze the complete comparison protocol in a separate commit before Provider calls;
+        verify bound source/data/label hashes and runtime isolation in preflight tests.
     - [ ] FC4f4 Execute all frozen arms once with no selective reruns. Publish every outcome and
       baseline/candidate/delta/95% interval. Completion requires the Top-1 minimum relevant effect,
       the critical-safety gate and the latency/cost gate to pass together; otherwise publish the

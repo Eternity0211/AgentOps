@@ -684,6 +684,8 @@ measurement shows no need; closing it does not mean implementing it.
 ### Final consolidation and release gate
 
 - [x] FC13 Publish one versioned final report and close the legacy TODO.
+    - [x] Re-run full Python regression with Docker/Testcontainers available after v2 publication:
+      3,268 passed, 2 skipped, zero failures, 100% statement and branch source coverage.
     - [x] Publish v2 from the new frozen 480-outcome lab score while retaining v1 unchanged.
       Acceptance: every FC4-LAB row has baseline, candidate, delta and paired interval; source
       hashes, safety/resource gate and FC4-FC8 external boundaries reproduce in publication tests.

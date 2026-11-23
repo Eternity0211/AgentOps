@@ -40,3 +40,9 @@ this comparison. All raw results, call audits, Evidence/Artifacts and the scorer
 in the [new run archive](../evaluation/results/confirmation-v2/run-001).
 Its 6,035 raw and analysis files are bound by a SHA-256 manifest with digest
 `b2591cd04f8f3ecae3f2d7fdd1e84d4b81db833f156ca776dff97eca9089206c`.
+
+On 2026-11-23, with Docker 29.8.0 running the local service and Testcontainers stack,
+`.venv/Scripts/python -m pytest -q --tb=short` completed: 3,268 passed, 2 skipped,
+zero failures, and 100% statement/branch source coverage across 14,319 statements and
+3,914 branches. This verifies the current code and local integration environment; it does not
+measure human approval, stable recovery time, recurrence or actual billing.

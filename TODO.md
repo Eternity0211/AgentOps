@@ -502,6 +502,22 @@ measurement shows no need; closing it does not mean implementing it.
         zero failures, 239/239 graph citations resolved, and frozen safety/resource ceilings
         passing. Median/P95 latency and rate-card cost regress and remain explicit. See
         docs/FC4F4_CONFIRMATION_RESULT.md and the complete archive manifest.
+      - [x] FC4g Audit the FC4f4 Gate-recall gap without changing its frozen outcomes.
+        Acceptance: reconcile all 120 faults into correct-and-passed,
+        correct-but-rejected, no-candidate and wrong-candidate counts; retain
+        label isolation and identify evidence limitations without relaxing Gate
+        policy. Verification: cross-check the archived outcomes and validated
+        reports, then rerun focused Evidence Gate, adversarial, approval,
+        execution and verifier safety tests. The funnel is 16/31/72/1, with
+        zero wrong-candidate passes; 240 focused safety tests pass. See
+        docs/FC4G_GATE_RECALL_AUDIT.md.
+      - [ ] FC4h Improve Gate recall on a separate development cohort.
+        Acceptance: add decisive evidence collection and complete chronological
+        memory-leak examples with paired negative controls; preserve every
+        Gate refusal rule and zero fabricated references. Freeze a fresh,
+        disjoint confirmation before claiming improvement. Test plan: schema,
+        isolation and adversarial checks; paired Top-1, Gate precision/recall,
+        safe controls, latency and cost with 95% intervals and retained failures.
   - Use parameterized variants of all six fault families plus normal, insufficient-evidence,
     counter-evidence and prompt-injection controls. Prevent exact IDs/payloads from appearing in
     development, historical-reference or prompt-tuning data.

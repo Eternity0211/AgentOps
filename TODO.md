@@ -568,7 +568,7 @@ measurement shows no need; closing it does not mean implementing it.
 
 ### Reliability, capacity, security and architecture decisions
 
-- [ ] FC9d Resolve historical archive Git-byte mismatches without changing scored outcomes.
+- [x] FC9d Resolve historical archive Git-byte mismatches without changing scored outcomes.
   - The extended Git-object auditor now accepts exact flat and versioned manifest schemas and a
     scoped manifest argument. The new FC4f2b archive passes 1,206/1,206 committed-byte checks.
     A full HEAD audit finds 891 mismatches across four older manifests: structured-reliability
@@ -577,6 +577,8 @@ measurement shows no need; closing it does not mean implementing it.
     repair; publish a source/byte classification. Preserve prior measurements and never silently
     normalize or rescore them. Repair only demonstrably recoverable Git storage differences in a
     separate atomic batch, then require the full Git-object audit to pass.
+      All 891 local originals match their manifests; only line endings differ in Git. The staged
+      Git tree passes 37 manifests/34,134 files with zero problems. See docs/FC9D_ARCHIVE_REPAIR.md.
 
 - [x] FC9 Run paired durability and failure-injection measurements on the complete real workflow.
   - [x] FC9a freeze the eight-pair census, exact interruption points, source bindings, metrics,

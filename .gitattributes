@@ -11,3 +11,9 @@ evaluation/results/final-diagnosis-optimization/v2/run-001/** -text -eol
 
 # Preserve the exact bytes of the frozen FC4f4 provider archive.
 evaluation/results/confirmation-v2/run-001/** -text -eol
+
+# Preserve the original bytes of historical evaluation archives during Git repair.
+evaluation/results/structured-reliability/v1/** -text -eol
+evaluation/results/structured-reliability/v3/** -text -eol
+evaluation/results/diagnosis-quality/v1/** -text -eol
+evaluation/results/diagnosis-generalization/v1/** -text -eol

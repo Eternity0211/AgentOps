@@ -44,3 +44,7 @@ and all 1,206 file hashes are retained under
 The manifest SHA-256 is
 `69e80279bd41499d88366aae7bbfa5b719ebb9b91ffaa7eec157bfb157978227`.
 Publication tests recompute the score, decision, quality audit and every archived file hash.
+A direct Git-object audit of this exact manifest also verified 1,206/1,206 files with no mismatch.
+The repository-wide Git-object audit now recognizes both flat and versioned manifest formats, but
+still reports 891 mismatches in four older archives. Those pre-existing records remain visible and
+are not repaired by rescoring or rewriting this run.

@@ -11,13 +11,19 @@ from pathlib import Path
 from typing import Any
 
 
-def audit(repo: Path, revision: str = "HEAD") -> dict[str, Any]:
+def audit(
+    repo: Path, revision: str = "HEAD", *, manifest_path: str | None = None
+) -> dict[str, Any]:
     git = ["git", "-c", f"safe.directory={repo.resolve().as_posix()}", "-C", str(repo)]
     resolved = subprocess.check_output([*git, "rev-parse", "--verify", revision], text=True).strip()
     paths = subprocess.check_output(
         [*git, "ls-tree", "-r", "--name-only", resolved, "--", "evaluation/results"], text=True
     ).splitlines()
     manifests = [p for p in paths if p.endswith("/file-hashes.json")]
+    if manifest_path is not None:
+        if manifest_path not in manifests:
+            raise ValueError("requested archive manifest missing from revision")
+        manifests = [manifest_path]
     checked = 0
     problems = []
     with subprocess.Popen(
@@ -52,6 +58,14 @@ def audit(repo: Path, revision: str = "HEAD") -> dict[str, Any]:
                 hashes = json.loads(payload)
                 if not isinstance(hashes, dict):
                     raise ValueError("archive manifest must be an object")
+                if set(hashes) == {"schema_version", "algorithm", "files"}:
+                    if (
+                        hashes["schema_version"] != "file-hashes/1.0.0"
+                        or hashes["algorithm"] != "sha256"
+                        or not isinstance(hashes["files"], dict)
+                    ):
+                        raise ValueError("unknown archive manifest schema")
+                    hashes = hashes["files"]
                 for name, expected in hashes.items():
                     if (
                         not isinstance(name, str)
@@ -93,8 +107,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=Path("."))
     parser.add_argument("--revision", default="HEAD")
+    parser.add_argument("--manifest", help="Verify only this exact committed archive manifest")
     args = parser.parse_args()
-    result = audit(args.repo, args.revision)
+    result = audit(args.repo, args.revision, manifest_path=args.manifest)
     print(json.dumps(result, indent=2))
     raise SystemExit(0 if result["verified"] else 1)
 

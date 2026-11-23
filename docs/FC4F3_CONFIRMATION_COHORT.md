@@ -17,7 +17,10 @@ The prior v1 generator remains byte-for-byte unchanged so its published freeze m
 resolves. The new generator is versioned independently for the same reason.
 
 This is a synthetic lab confirmation set, not real incident history or measured production
-recovery. The complete rules/single-model/controlled-graph protocol, implementation hashes,
-provider configuration, quality and resource thresholds must be frozen in a separate commit before
-the first Provider call. The 480 older official results remain an immutable reference, not a new
-comparison arm.
+recovery. The versioned [runner](../evaluation/run_confirmation_v2.py) and
+[scorer](../evaluation/score_confirmation_v2.py) implement the new three-arm comparison. Both model
+arms use transport profile 1.12. Runtime preflight checks dataset, plan, freeze, power, source,
+provider and budget bindings without opening evaluator labels; the scorer opens labels only after
+all 480 outcomes and runtime bindings validate. The complete protocol and exact hashes must be
+frozen in a separate commit before the first Provider call. The 480 older official results remain
+an immutable reference, not a new comparison arm.

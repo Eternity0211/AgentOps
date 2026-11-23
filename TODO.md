@@ -486,6 +486,10 @@ measurement shows no need; closing it does not mean implementing it.
         byte hashes, Ruff and strict mypy. See docs/FC4F3_CONFIRMATION_COHORT.md.
       - [ ] Freeze the complete comparison protocol in a separate commit before Provider calls;
         verify bound source/data/label hashes and runtime isolation in preflight tests.
+      - [x] Version the new rules/single/graph runner and scorer independently of the old
+        480-outcome protocol. Acceptance: 1.12 is fixed in both model arms, preflight binds
+        input, plan, freeze and power hashes without opening labels, and the runner retains all
+        outcomes. Verification: focused preflight/profile tests, Ruff and strict mypy.
     - [ ] FC4f4 Execute all frozen arms once with no selective reruns. Publish every outcome and
       baseline/candidate/delta/95% interval. Completion requires the Top-1 minimum relevant effect,
       the critical-safety gate and the latency/cost gate to pass together; otherwise publish the

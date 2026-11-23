@@ -476,7 +476,7 @@ measurement shows no need; closing it does not mean implementing it.
             FC4f2b is a narrow safety/resource pass, not a proven quality or efficiency gain.
             Preserve the full 1,206-file archive and the negative quality finding; FC4f3 uses a
             disjoint cohort. See docs/FC4F2B_DEVELOPMENT_RESULT.md.
-    - [ ] FC4f3 Generate, power and freeze a disjoint label-isolated cohort before candidate calls.
+    - [x] FC4f3 Generate, power and freeze a disjoint label-isolated cohort before candidate calls.
       Bind inputs, evaluator-label hash, scorer, implementation, Provider settings, budgets,
       interleaving, failure policy and all quality/safety/resource thresholds.
       - [x] Freeze 160 new synthetic cases with 120 faults across six families and 40 controls
@@ -484,7 +484,7 @@ measurement shows no need; closing it does not mean implementing it.
         sizing requirement met by 120 fault pairs, and no ID or input hash overlap with the old
         holdout or evidence-strategy development set. Verification: focused freeze tests, manifest
         byte hashes, Ruff and strict mypy. See docs/FC4F3_CONFIRMATION_COHORT.md.
-      - [ ] Freeze the complete comparison protocol in a separate commit before Provider calls;
+      - [x] Freeze the complete comparison protocol in a separate commit before Provider calls;
         verify bound source/data/label hashes and runtime isolation in preflight tests.
       - [x] Version the new rules/single/graph runner and scorer independently of the old
         480-outcome protocol. Acceptance: 1.12 is fixed in both model arms, preflight binds

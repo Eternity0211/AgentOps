@@ -117,3 +117,34 @@ def test_confirmation_refuses_uncommitted_protocol(tmp_path: Path) -> None:
     plan.write_text("{}", encoding="utf-8")
     with pytest.raises(ValueError, match="outside repository"):
         runner.verify_committed_protocol(plan, plan.read_bytes())
+
+
+def test_frozen_confirmation_plan_binds_inputs_labels_and_implementation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = Path("evaluation/confirmation_v2/plan.json")
+    plan = json.loads(path.read_text(encoding="utf-8"))
+    assert plan["status"] == "FROZEN_BEFORE_PROVIDER_CALLS"
+    assert plan["dataset"] == "evaluation/datasets/lab-holdout-v2"
+    assert plan["transport_profile"] == StructuredTransportProfile.CANDIDATE_1_12.value
+    assert plan["expected_cases"] == 160
+    assert plan["expected_outcomes"] == 480
+    assert plan["power_contract"]["required_fault_pairs"] == 103
+    assert plan["power_contract"]["frozen_fault_pairs"] == 120
+    assert plan["paired_scorer"]["binary_metrics"]["top1"]["minimum_relevant_effect"] == 0.15
+    assert _sha256(Path(plan["evaluator_labels"])) == plan["evaluator_labels_sha256"]
+    for name, digest in plan["source_hashes"].items():
+        committed = subprocess.check_output(
+            ["git", "show", f"{plan['implementation_commit']}:{name}"]
+        )
+        assert hashlib.sha256(committed).hexdigest() == digest
+    labels = Path(plan["evaluator_labels"]).resolve()
+    original = Path.read_bytes
+
+    def guard(candidate: Path) -> bytes:
+        if candidate.resolve() == labels:
+            raise AssertionError("preflight opened evaluator labels")
+        return original(candidate)
+
+    monkeypatch.setattr(Path, "read_bytes", guard)
+    runner.check_plan(plan, plan["implementation_commit"], Path(plan["dataset"]))

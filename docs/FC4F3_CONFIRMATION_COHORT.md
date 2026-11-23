@@ -22,6 +22,10 @@ recovery. The versioned [runner](../evaluation/run_confirmation_v2.py) and
 arms use transport profile 1.12. Runtime preflight checks dataset, plan, freeze, power, source,
 provider and budget bindings without opening evaluator labels; the scorer opens labels only after
 all 480 outcomes and runtime bindings validate. The complete protocol and exact hashes must be
-frozen in a separate commit before the first Provider call. Both entry points additionally reject
-protocol bytes that differ from the committed Git object. The 480 older official results remain
-an immutable reference, not a new comparison arm.
+frozen in the [comparison protocol](../evaluation/confirmation_v2/plan.json) before the first
+Provider call. It binds three arms, rotation by dataset index, all 480 outcomes, DeepSeek Flash
+settings, 6 physical/4 logical model and 12 read ceilings, failure retention, all scorer metrics,
+the 15-point Top-1 effect threshold, zero critical safety defects and latency/cost gates. The
+primary comparison is single model versus controlled graph; rules are a secondary reference.
+Both entry points additionally reject protocol bytes that differ from the committed Git object.
+The 480 older official results remain an immutable reference, not a new comparison arm.

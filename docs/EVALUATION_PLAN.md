@@ -346,6 +346,13 @@ thresholds and stopping rule before the first call. The scorer will report paire
 duration, tokens and rate-card estimates; this is development evidence, not the new untouched FC4f4
 confirmation cohort.
 
+The development decision scorer requires all 27 pairs in each profile, retains the common FC1
+paired score, and separately tests zero candidate failures plus median and P95 non-regression for
+workflow duration, input/output tokens, and rate-card cost. It refuses missing measurements and
+publishes every baseline value, candidate value, delta and frozen ceiling. Passing this development
+gate permits a new disjoint confirmation protocol; it does not turn a safe handoff into a correct
+diagnosis or substitute for the untouched FC4f4 result.
+
 ## Implemented foundation
 
 Contract versions: dataset `phase12-eval-v1`, recovery fixtures

@@ -460,6 +460,10 @@ measurement shows no need; closing it does not mean implementing it.
             ceilings; alternating arm order and create-only outcomes retain every failure.
             Preflight refuses source, dataset, profile, budget or isolation drift before Provider
             work. Three focused runner checks, Ruff and strict mypy pass.
+          - [x] Add a predeclared-decision scorer that consumes the complete FC1 paired score,
+            then requires zero candidate failures, full citation integrity, and both median and
+            P95 latency/token/rate-card deltas inside the frozen ceilings. Missing usage fails the
+            resource gate. Five arithmetic/refusal tests and strict mypy pass.
           - [ ] Freeze the pair protocol and source hashes in a separate commit before any real
             Provider call; then run and score the complete 54 outcomes without selective reruns.
     - [ ] FC4f3 Generate, power and freeze a disjoint label-isolated cohort before candidate calls.

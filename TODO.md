@@ -679,6 +679,9 @@ measurement shows no need; closing it does not mean implementing it.
 ### Final consolidation and release gate
 
 - [x] FC13 Publish one versioned final report and close the legacy TODO.
+    - [x] Publish v2 from the new frozen 480-outcome lab score while retaining v1 unchanged.
+      Acceptance: every FC4-LAB row has baseline, candidate, delta and paired interval; source
+      hashes, safety/resource gate and FC4-FC8 external boundaries reproduce in publication tests.
   - [x] The generated v1 report hashes every source, provides baseline/candidate/delta fields,
     assigns every registered metric an explicit disposition, and retains FC4-FC8 as external-data
     blockers rather than substituting simulated history, operators, approvals or billing.

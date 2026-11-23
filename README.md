@@ -2,6 +2,8 @@
 
 The current product-outcome definition, measured deltas, missing measurements, and next executable
 comparison are summarized in the [Project Effect Scorecard](docs/PROJECT_EFFECT_SCORECARD.md).
+The current generated comparison is [Final Evaluation Report v2](docs/REAL_EVALUATION_REPORT_V2.md);
+v1 remains available as the prior frozen report.
 
 AgentOps Incident Commander is an evidence-driven platform for diagnosing microservice incidents and performing controlled recovery. It combines metrics, logs, traces, topology, and deployment history; a constrained Diagnosis Agent builds verifiable root-cause hypotheses; a constrained Remediation Agent proposes recovery only after a deterministic evidence gate passes. Deterministic policy, approval, execution, health verification, and failure routing retain authority over every state change.
 

@@ -586,14 +586,15 @@ def render_markdown(report: Mapping[str, Any]) -> str:
         "",
         "## Outcome",
         "",
-        (
+        report.get(
+            "outcome_summary",
             "Structured-output acceptance, the eight-pair durability safety gate and the "
             "13-case security census passed. "
             "Diagnosis-schema transport compaction reduced median input tokens 9,672→9,426 "
             "without changing validity, safe controls or Evidence integrity. "
             "The designed memory set changed 9/10→10/10, but the ten-pair sample does not prove "
             "superiority. PostgreSQL throughput improved through four local workers and regressed "
-            "at eight; the current supported local cap is four."
+            "at eight; the current supported local cap is four.",
         ),
         "Human outcomes, approved recovery benefit and actual cost remain externally blocked.",
         "",

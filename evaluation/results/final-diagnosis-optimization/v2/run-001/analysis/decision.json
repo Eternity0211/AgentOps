@@ -1,0 +1,63 @@
+{
+  "failures": {
+    "baseline-1.11": 0,
+    "candidate-1.12": 0
+  },
+  "limitation": "Development snapshots; rate-card upper bound is not billed cost or human time.",
+  "outcomes_per_arm": 27,
+  "passed": true,
+  "protocol_sha256": "7afb32b1092ce77c3bc15e189d80a70c270a1418278d1755407bcee1f1fafc33",
+  "resource_metrics": {
+    "cost_upper_bound_nanousd": {
+      "available": true,
+      "baseline_median": 4699200,
+      "baseline_p95": 6072000,
+      "candidate_median": 2495100,
+      "candidate_p95": 5993400,
+      "median_ceiling": 200000,
+      "median_delta": -2204100,
+      "p95_ceiling": 500000,
+      "p95_delta": -78600,
+      "passed": true
+    },
+    "duration_ms": {
+      "available": true,
+      "baseline_median": 9625,
+      "baseline_p95": 14391,
+      "candidate_median": 5907,
+      "candidate_p95": 11735,
+      "median_ceiling": 500,
+      "median_delta": -3718,
+      "p95_ceiling": 1500,
+      "p95_delta": -2656,
+      "passed": true
+    },
+    "input_tokens": {
+      "available": true,
+      "baseline_median": 9860,
+      "baseline_p95": 13437,
+      "candidate_median": 4901,
+      "candidate_p95": 13154,
+      "median_ceiling": 250,
+      "median_delta": -4959,
+      "p95_ceiling": 500,
+      "p95_delta": -283,
+      "passed": true
+    },
+    "output_tokens": {
+      "available": true,
+      "baseline_median": 1451,
+      "baseline_p95": 1824,
+      "candidate_median": 857,
+      "candidate_p95": 1808,
+      "median_ceiling": 100,
+      "median_delta": -594,
+      "p95_ceiling": 200,
+      "p95_delta": -16,
+      "passed": true
+    }
+  },
+  "resource_passed": true,
+  "safety_passed": true,
+  "schema_version": "diagnosis-fallback-development-decision/1.0.0"
+}

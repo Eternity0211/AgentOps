@@ -431,7 +431,7 @@ measurement shows no need; closing it does not mean implementing it.
       median/P95, input tokens 0/-3 and model/tool calls 0/0, so the large FC4d tail is not treated
       as fixed graph overhead. FC4f2 is restricted to deterministic terminal fallback and an
       explicit bounded-replan fixture; normal evidence context is not reduced.
-    - [ ] FC4f2 Implement a fail-closed terminal fallback plus bounded context/call optimization.
+    - [x] FC4f2 Implement a fail-closed terminal fallback plus bounded context/call optimization.
       Development acceptance requires zero candidate failures, complete Evidence integrity and
       fabricated-reference-free coverage, while remaining inside the frozen median/P95 latency,
       token and rate-card ceilings without weakening schemas, Gate rules or recovery authority.
@@ -443,7 +443,7 @@ measurement shows no need; closing it does not mean implementing it.
         `HUMAN_HANDOFF`; it retains both calls' usage/cost/duration and emits a content-free audit.
         PLAN, REMEDIATE, HTTP, timeout, transport, budget and context failures remain fail-closed.
         Version 1.11 and all published results remain immutable. Forty focused tests pass.
-      - [ ] FC4f2b Build the explicit bounded-replan development fixture and prove candidate 1.12
+      - [x] FC4f2b Build the explicit bounded-replan development fixture and prove candidate 1.12
         has zero failures/integrity defects while staying within the frozen resource ceilings.
         - [x] Exercise one complete graph replan after a two-read initial wave, then two invalid
           final DIAGNOSE responses. The 1.12 fallback reaches candidate-free human handoff with
@@ -469,8 +469,13 @@ measurement shows no need; closing it does not mean implementing it.
             graph mode, GC-aware strategy, 6/4/12 ceilings and parity interleaving. Median/P95
             resource ceilings, zero-failure/integrity gates and stopping rule are predeclared;
             runtime preflight checks hashes without opening label values.
-          - [ ] Run and score the complete 54 outcomes without selective reruns; retain every
-            negative result and decide FC4f2b from the frozen safety/resource thresholds.
+          - [x] Run and score all 54 outcomes without selective reruns. Both arms have zero
+            failures and 9/9 safe controls; 78/78 baseline and 53/53 candidate citations resolve.
+            Frozen median/P95 ceilings pass. Top-1/Top-3 are 15/18→12/18 (-3; exploratory paired
+            95% interval -38.89 to +5.56 points), and no real call activated the fallback. Thus
+            FC4f2b is a narrow safety/resource pass, not a proven quality or efficiency gain.
+            Preserve the full 1,206-file archive and the negative quality finding; FC4f3 uses a
+            disjoint cohort. See docs/FC4F2B_DEVELOPMENT_RESULT.md.
     - [ ] FC4f3 Generate, power and freeze a disjoint label-isolated cohort before candidate calls.
       Bind inputs, evaluator-label hash, scorer, implementation, Provider settings, budgets,
       interleaving, failure policy and all quality/safety/resource thresholds.

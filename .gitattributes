@@ -5,3 +5,6 @@
 *.toml text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
+
+# Preserve the exact bytes of the frozen FC4f2b provider archive.
+evaluation/results/final-diagnosis-optimization/v2/run-001/** -text -eol

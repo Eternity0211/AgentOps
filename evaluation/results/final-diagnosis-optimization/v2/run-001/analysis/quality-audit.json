@@ -1,0 +1,103 @@
+{
+  "counts": {
+    "top1": {
+      "baseline": 15,
+      "candidate": 12,
+      "denominator": 18
+    },
+    "top3": {
+      "baseline": 15,
+      "candidate": 12,
+      "denominator": 18
+    }
+  },
+  "fallback_events": {
+    "baseline-1.11": 0,
+    "candidate-1.12": 0
+  },
+  "interpretation": "The two profiles differ only after terminal repairable DIAGNOSE invalidity. Zero observed fallback events prevent attributing the measured quality or resource discordance to that fallback.",
+  "paired_result": {
+    "confidence_level": 0.95,
+    "cost_latency_gate_passed": false,
+    "critical_safety_gate_passed": false,
+    "metrics": [
+      {
+        "claim": "NO_PROVEN_IMPROVEMENT",
+        "direction": "HIGHER",
+        "estimates": [
+          {
+            "absolute_delta": -0.16666666666666674,
+            "absolute_delta_interval": {
+              "lower": -0.3888888888888889,
+              "upper": 0.05555555555555558
+            },
+            "baseline": 0.8333333333333334,
+            "beneficial_delta": -0.16666666666666674,
+            "beneficial_delta_interval": {
+              "lower": -0.3888888888888889,
+              "upper": 0.05555555555555558
+            },
+            "candidate": 0.6666666666666666,
+            "relative_delta": -0.20000000000000007,
+            "statistic": "rate"
+          }
+        ],
+        "failure_policy": "Failed outcomes count as incorrect; no selective reruns.",
+        "kind": "BINARY",
+        "metric_id": "exploratory-top1",
+        "minimum_relevant_effect": 0.15,
+        "pair_count": 18,
+        "paired_test": {
+          "baseline_better": 4,
+          "candidate_better": 1,
+          "holm_adjusted_p_value": 0.75,
+          "method": "exact_mcnemar",
+          "raw_p_value": 0.375,
+          "ties": 13
+        }
+      },
+      {
+        "claim": "NO_PROVEN_IMPROVEMENT",
+        "direction": "HIGHER",
+        "estimates": [
+          {
+            "absolute_delta": -0.16666666666666674,
+            "absolute_delta_interval": {
+              "lower": -0.3888888888888889,
+              "upper": 0.05555555555555558
+            },
+            "baseline": 0.8333333333333334,
+            "beneficial_delta": -0.16666666666666674,
+            "beneficial_delta_interval": {
+              "lower": -0.3888888888888889,
+              "upper": 0.05555555555555558
+            },
+            "candidate": 0.6666666666666666,
+            "relative_delta": -0.20000000000000007,
+            "statistic": "rate"
+          }
+        ],
+        "failure_policy": "Failed outcomes count as incorrect; no selective reruns.",
+        "kind": "BINARY",
+        "metric_id": "exploratory-top3",
+        "minimum_relevant_effect": 0.05,
+        "pair_count": 18,
+        "paired_test": {
+          "baseline_better": 4,
+          "candidate_better": 1,
+          "holm_adjusted_p_value": 0.75,
+          "method": "exact_mcnemar",
+          "raw_p_value": 0.375,
+          "ties": 13
+        }
+      }
+    ],
+    "multiple_comparison_method": "holm",
+    "request_sha256": "3a3ae8b3fd703235e6f20237765182b57c382e28dc2a979ea87abb3cd4ef98cc",
+    "schema_version": "paired-comparison-result/1.0.0",
+    "suite_id": "fc4f2b-postrun-exploratory-quality"
+  },
+  "protocol_sha256": "7afb32b1092ce77c3bc15e189d80a70c270a1418278d1755407bcee1f1fafc33",
+  "schema_version": "fallback-development-quality-audit/1.0.0",
+  "status": "POSTRUN_EXPLORATORY_NOT_CONFIRMATORY"
+}

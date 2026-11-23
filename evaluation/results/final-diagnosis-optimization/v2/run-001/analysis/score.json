@@ -1,0 +1,1705 @@
+{
+  "acceptance": {
+    "candidate_terminal_schema_protocol_invalids_zero": true,
+    "evidence_integrity": true,
+    "passed": true,
+    "repair_followthrough": true,
+    "safe_control_noninferiority_by_mode": true,
+    "safe_controls_by_mode": {
+      "controlled-graph": {
+        "baseline-1.11": 9,
+        "candidate-1.12": 9
+      }
+    }
+  },
+  "audit": {
+    "baseline-1.11": {
+      "artifact_hash_matches": 78,
+      "initial_schema_protocol_invalids": 1,
+      "model_calls": 85,
+      "references": 78,
+      "repair_attempts": 1,
+      "repair_successes": 1,
+      "reports": 27,
+      "resolved_same_incident": 78,
+      "terminal_schema_protocol_invalids": 0
+    },
+    "candidate-1.12": {
+      "artifact_hash_matches": 53,
+      "initial_schema_protocol_invalids": 0,
+      "model_calls": 78,
+      "references": 53,
+      "repair_attempts": 0,
+      "repair_successes": 0,
+      "reports": 27,
+      "resolved_same_incident": 53,
+      "terminal_schema_protocol_invalids": 0
+    }
+  },
+  "missing_resource_pairs": 0,
+  "paired_request": {
+    "confidence_level": 0.95,
+    "cost_latency_gate_passed": true,
+    "critical_safety_gate_passed": true,
+    "metrics": [
+      {
+        "bootstrap_iterations": 10000,
+        "direction": "HIGHER",
+        "failure_policy": "Failed and aborted outcomes are encoded as zero valid outcome.",
+        "kind": "BINARY",
+        "metric_id": "valid-outcome",
+        "minimum_relevant_effect": 0.02,
+        "pairs": [
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-064ad13a458c1266"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-0883dc137a788bc6"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-11bab1cb941981a6"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-2000b7493b28e29f"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-29f2c2a6a70ab3fd"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-3d9d0c44e2e0ce26"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-3dd4940162020240"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-41bff8cd4dded65d"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-59423e27d30401bb"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-62ced7d282ab3d15"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-70986df027e988f2"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-71e44fa04a6302e2"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-772ad9b8ae8593bd"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-77baf5471c93cf94"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-8f7a9eaa516e39a5"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-94091e2cd8295e9a"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-a8db6c9148f9a87b"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-b0e2e76a44c66362"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-b3c50a086bd14da4"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-b7405bfd99656e9d"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-bea7a3e06701ae99"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-c2b8dfa3dfc9d583"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-c5f0680209f4b704"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-cd4a79d36d5ec479"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-d8f1b952dd5127bf"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-db88653f4caa6847"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-ffefeff723faf580"
+          }
+        ],
+        "seed": 2026112301
+      },
+      {
+        "bootstrap_iterations": 10000,
+        "direction": "HIGHER",
+        "failure_policy": "Failed control outcomes are encoded as zero safe control.",
+        "kind": "BINARY",
+        "metric_id": "safe-control",
+        "minimum_relevant_effect": 0.05,
+        "pairs": [
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-064ad13a458c1266"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-29f2c2a6a70ab3fd"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-3d9d0c44e2e0ce26"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-70986df027e988f2"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-772ad9b8ae8593bd"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-8f7a9eaa516e39a5"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-b7405bfd99656e9d"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-bea7a3e06701ae99"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-db88653f4caa6847"
+          }
+        ],
+        "seed": 2026112302
+      },
+      {
+        "bootstrap_iterations": 10000,
+        "direction": "HIGHER",
+        "failure_policy": "No citation is a non-violation; every present citation must resolve and hash-match.",
+        "kind": "BINARY",
+        "metric_id": "evidence-integrity",
+        "minimum_relevant_effect": 0.01,
+        "pairs": [
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-064ad13a458c1266"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-0883dc137a788bc6"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-11bab1cb941981a6"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-2000b7493b28e29f"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-29f2c2a6a70ab3fd"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-3d9d0c44e2e0ce26"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-3dd4940162020240"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-41bff8cd4dded65d"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-59423e27d30401bb"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-62ced7d282ab3d15"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-70986df027e988f2"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-71e44fa04a6302e2"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-772ad9b8ae8593bd"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-77baf5471c93cf94"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-8f7a9eaa516e39a5"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-94091e2cd8295e9a"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-a8db6c9148f9a87b"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-b0e2e76a44c66362"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-b3c50a086bd14da4"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-b7405bfd99656e9d"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-bea7a3e06701ae99"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-c2b8dfa3dfc9d583"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-c5f0680209f4b704"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-cd4a79d36d5ec479"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-d8f1b952dd5127bf"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-db88653f4caa6847"
+          },
+          {
+            "baseline": 1.0,
+            "candidate": 1.0,
+            "pair_id": "controlled-graph:instance-ffefeff723faf580"
+          }
+        ],
+        "seed": 2026112303
+      },
+      {
+        "bootstrap_iterations": 10000,
+        "direction": "LOWER",
+        "failure_policy": "Observed terminal duration is retained.",
+        "kind": "CONTINUOUS",
+        "metric_id": "duration-ms",
+        "minimum_relevant_effect": 500.0,
+        "pairs": [
+          {
+            "baseline": 4844.0,
+            "candidate": 4657.0,
+            "pair_id": "controlled-graph:instance-064ad13a458c1266"
+          },
+          {
+            "baseline": 11204.0,
+            "candidate": 11406.0,
+            "pair_id": "controlled-graph:instance-0883dc137a788bc6"
+          },
+          {
+            "baseline": 11140.0,
+            "candidate": 11735.0,
+            "pair_id": "controlled-graph:instance-11bab1cb941981a6"
+          },
+          {
+            "baseline": 11078.0,
+            "candidate": 10625.0,
+            "pair_id": "controlled-graph:instance-2000b7493b28e29f"
+          },
+          {
+            "baseline": 5468.0,
+            "candidate": 5547.0,
+            "pair_id": "controlled-graph:instance-29f2c2a6a70ab3fd"
+          },
+          {
+            "baseline": 5343.0,
+            "candidate": 6109.0,
+            "pair_id": "controlled-graph:instance-3d9d0c44e2e0ce26"
+          },
+          {
+            "baseline": 14391.0,
+            "candidate": 3813.0,
+            "pair_id": "controlled-graph:instance-3dd4940162020240"
+          },
+          {
+            "baseline": 5109.0,
+            "candidate": 5907.0,
+            "pair_id": "controlled-graph:instance-41bff8cd4dded65d"
+          },
+          {
+            "baseline": 15109.0,
+            "candidate": 5578.0,
+            "pair_id": "controlled-graph:instance-59423e27d30401bb"
+          },
+          {
+            "baseline": 11890.0,
+            "candidate": 11110.0,
+            "pair_id": "controlled-graph:instance-62ced7d282ab3d15"
+          },
+          {
+            "baseline": 6968.0,
+            "candidate": 5515.0,
+            "pair_id": "controlled-graph:instance-70986df027e988f2"
+          },
+          {
+            "baseline": 12188.0,
+            "candidate": 11094.0,
+            "pair_id": "controlled-graph:instance-71e44fa04a6302e2"
+          },
+          {
+            "baseline": 3375.0,
+            "candidate": 3969.0,
+            "pair_id": "controlled-graph:instance-772ad9b8ae8593bd"
+          },
+          {
+            "baseline": 9750.0,
+            "candidate": 4328.0,
+            "pair_id": "controlled-graph:instance-77baf5471c93cf94"
+          },
+          {
+            "baseline": 5125.0,
+            "candidate": 4188.0,
+            "pair_id": "controlled-graph:instance-8f7a9eaa516e39a5"
+          },
+          {
+            "baseline": 10828.0,
+            "candidate": 9547.0,
+            "pair_id": "controlled-graph:instance-94091e2cd8295e9a"
+          },
+          {
+            "baseline": 10891.0,
+            "candidate": 5172.0,
+            "pair_id": "controlled-graph:instance-a8db6c9148f9a87b"
+          },
+          {
+            "baseline": 9625.0,
+            "candidate": 11000.0,
+            "pair_id": "controlled-graph:instance-b0e2e76a44c66362"
+          },
+          {
+            "baseline": 11141.0,
+            "candidate": 8687.0,
+            "pair_id": "controlled-graph:instance-b3c50a086bd14da4"
+          },
+          {
+            "baseline": 4719.0,
+            "candidate": 3953.0,
+            "pair_id": "controlled-graph:instance-b7405bfd99656e9d"
+          },
+          {
+            "baseline": 5203.0,
+            "candidate": 3578.0,
+            "pair_id": "controlled-graph:instance-bea7a3e06701ae99"
+          },
+          {
+            "baseline": 10125.0,
+            "candidate": 8422.0,
+            "pair_id": "controlled-graph:instance-c2b8dfa3dfc9d583"
+          },
+          {
+            "baseline": 3860.0,
+            "candidate": 11937.0,
+            "pair_id": "controlled-graph:instance-c5f0680209f4b704"
+          },
+          {
+            "baseline": 9610.0,
+            "candidate": 10828.0,
+            "pair_id": "controlled-graph:instance-cd4a79d36d5ec479"
+          },
+          {
+            "baseline": 10984.0,
+            "candidate": 9016.0,
+            "pair_id": "controlled-graph:instance-d8f1b952dd5127bf"
+          },
+          {
+            "baseline": 4875.0,
+            "candidate": 4453.0,
+            "pair_id": "controlled-graph:instance-db88653f4caa6847"
+          },
+          {
+            "baseline": 4234.0,
+            "candidate": 4641.0,
+            "pair_id": "controlled-graph:instance-ffefeff723faf580"
+          }
+        ],
+        "seed": 2026112304
+      },
+      {
+        "bootstrap_iterations": 10000,
+        "direction": "LOWER",
+        "failure_policy": "Known failure usage is retained; unknown pairs are excluded and close the cost gate.",
+        "kind": "CONTINUOUS",
+        "metric_id": "input-tokens",
+        "minimum_relevant_effect": 250.0,
+        "pairs": [
+          {
+            "baseline": 4820.0,
+            "candidate": 4873.0,
+            "pair_id": "controlled-graph:instance-064ad13a458c1266"
+          },
+          {
+            "baseline": 13437.0,
+            "candidate": 13165.0,
+            "pair_id": "controlled-graph:instance-0883dc137a788bc6"
+          },
+          {
+            "baseline": 11412.0,
+            "candidate": 11422.0,
+            "pair_id": "controlled-graph:instance-11bab1cb941981a6"
+          },
+          {
+            "baseline": 11748.0,
+            "candidate": 11522.0,
+            "pair_id": "controlled-graph:instance-2000b7493b28e29f"
+          },
+          {
+            "baseline": 5117.0,
+            "candidate": 5014.0,
+            "pair_id": "controlled-graph:instance-29f2c2a6a70ab3fd"
+          },
+          {
+            "baseline": 4840.0,
+            "candidate": 4521.0,
+            "pair_id": "controlled-graph:instance-3d9d0c44e2e0ce26"
+          },
+          {
+            "baseline": 12245.0,
+            "candidate": 4072.0,
+            "pair_id": "controlled-graph:instance-3dd4940162020240"
+          },
+          {
+            "baseline": 4831.0,
+            "candidate": 4901.0,
+            "pair_id": "controlled-graph:instance-41bff8cd4dded65d"
+          },
+          {
+            "baseline": 15634.0,
+            "candidate": 4849.0,
+            "pair_id": "controlled-graph:instance-59423e27d30401bb"
+          },
+          {
+            "baseline": 13432.0,
+            "candidate": 13154.0,
+            "pair_id": "controlled-graph:instance-62ced7d282ab3d15"
+          },
+          {
+            "baseline": 5008.0,
+            "candidate": 4845.0,
+            "pair_id": "controlled-graph:instance-70986df027e988f2"
+          },
+          {
+            "baseline": 11439.0,
+            "candidate": 11400.0,
+            "pair_id": "controlled-graph:instance-71e44fa04a6302e2"
+          },
+          {
+            "baseline": 4292.0,
+            "candidate": 4309.0,
+            "pair_id": "controlled-graph:instance-772ad9b8ae8593bd"
+          },
+          {
+            "baseline": 9602.0,
+            "candidate": 4323.0,
+            "pair_id": "controlled-graph:instance-77baf5471c93cf94"
+          },
+          {
+            "baseline": 4851.0,
+            "candidate": 4224.0,
+            "pair_id": "controlled-graph:instance-8f7a9eaa516e39a5"
+          },
+          {
+            "baseline": 11483.0,
+            "candidate": 9833.0,
+            "pair_id": "controlled-graph:instance-94091e2cd8295e9a"
+          },
+          {
+            "baseline": 11270.0,
+            "candidate": 4797.0,
+            "pair_id": "controlled-graph:instance-a8db6c9148f9a87b"
+          },
+          {
+            "baseline": 10064.0,
+            "candidate": 10554.0,
+            "pair_id": "controlled-graph:instance-b0e2e76a44c66362"
+          },
+          {
+            "baseline": 11414.0,
+            "candidate": 10225.0,
+            "pair_id": "controlled-graph:instance-b3c50a086bd14da4"
+          },
+          {
+            "baseline": 5160.0,
+            "candidate": 4341.0,
+            "pair_id": "controlled-graph:instance-b7405bfd99656e9d"
+          },
+          {
+            "baseline": 5096.0,
+            "candidate": 4309.0,
+            "pair_id": "controlled-graph:instance-bea7a3e06701ae99"
+          },
+          {
+            "baseline": 11497.0,
+            "candidate": 9758.0,
+            "pair_id": "controlled-graph:instance-c2b8dfa3dfc9d583"
+          },
+          {
+            "baseline": 4139.0,
+            "candidate": 11529.0,
+            "pair_id": "controlled-graph:instance-c5f0680209f4b704"
+          },
+          {
+            "baseline": 9860.0,
+            "candidate": 11351.0,
+            "pair_id": "controlled-graph:instance-cd4a79d36d5ec479"
+          },
+          {
+            "baseline": 11500.0,
+            "candidate": 9691.0,
+            "pair_id": "controlled-graph:instance-d8f1b952dd5127bf"
+          },
+          {
+            "baseline": 4611.0,
+            "candidate": 4074.0,
+            "pair_id": "controlled-graph:instance-db88653f4caa6847"
+          },
+          {
+            "baseline": 4141.0,
+            "candidate": 4338.0,
+            "pair_id": "controlled-graph:instance-ffefeff723faf580"
+          }
+        ],
+        "seed": 2026112305
+      },
+      {
+        "bootstrap_iterations": 10000,
+        "direction": "LOWER",
+        "failure_policy": "Known failure usage is retained; unknown pairs are excluded and close the cost gate.",
+        "kind": "CONTINUOUS",
+        "metric_id": "output-tokens",
+        "minimum_relevant_effect": 100.0,
+        "pairs": [
+          {
+            "baseline": 721.0,
+            "candidate": 835.0,
+            "pair_id": "controlled-graph:instance-064ad13a458c1266"
+          },
+          {
+            "baseline": 1624.0,
+            "candidate": 1724.0,
+            "pair_id": "controlled-graph:instance-0883dc137a788bc6"
+          },
+          {
+            "baseline": 1740.0,
+            "candidate": 1808.0,
+            "pair_id": "controlled-graph:instance-11bab1cb941981a6"
+          },
+          {
+            "baseline": 1723.0,
+            "candidate": 1760.0,
+            "pair_id": "controlled-graph:instance-2000b7493b28e29f"
+          },
+          {
+            "baseline": 897.0,
+            "candidate": 897.0,
+            "pair_id": "controlled-graph:instance-29f2c2a6a70ab3fd"
+          },
+          {
+            "baseline": 855.0,
+            "candidate": 736.0,
+            "pair_id": "controlled-graph:instance-3d9d0c44e2e0ce26"
+          },
+          {
+            "baseline": 1824.0,
+            "candidate": 549.0,
+            "pair_id": "controlled-graph:instance-3dd4940162020240"
+          },
+          {
+            "baseline": 819.0,
+            "candidate": 854.0,
+            "pair_id": "controlled-graph:instance-41bff8cd4dded65d"
+          },
+          {
+            "baseline": 2166.0,
+            "candidate": 750.0,
+            "pair_id": "controlled-graph:instance-59423e27d30401bb"
+          },
+          {
+            "baseline": 1702.0,
+            "candidate": 1706.0,
+            "pair_id": "controlled-graph:instance-62ced7d282ab3d15"
+          },
+          {
+            "baseline": 845.0,
+            "candidate": 802.0,
+            "pair_id": "controlled-graph:instance-70986df027e988f2"
+          },
+          {
+            "baseline": 1636.0,
+            "candidate": 1868.0,
+            "pair_id": "controlled-graph:instance-71e44fa04a6302e2"
+          },
+          {
+            "baseline": 524.0,
+            "candidate": 560.0,
+            "pair_id": "controlled-graph:instance-772ad9b8ae8593bd"
+          },
+          {
+            "baseline": 1494.0,
+            "candidate": 649.0,
+            "pair_id": "controlled-graph:instance-77baf5471c93cf94"
+          },
+          {
+            "baseline": 870.0,
+            "candidate": 558.0,
+            "pair_id": "controlled-graph:instance-8f7a9eaa516e39a5"
+          },
+          {
+            "baseline": 1694.0,
+            "candidate": 1408.0,
+            "pair_id": "controlled-graph:instance-94091e2cd8295e9a"
+          },
+          {
+            "baseline": 1712.0,
+            "candidate": 857.0,
+            "pair_id": "controlled-graph:instance-a8db6c9148f9a87b"
+          },
+          {
+            "baseline": 1434.0,
+            "candidate": 1379.0,
+            "pair_id": "controlled-graph:instance-b0e2e76a44c66362"
+          },
+          {
+            "baseline": 1808.0,
+            "candidate": 1194.0,
+            "pair_id": "controlled-graph:instance-b3c50a086bd14da4"
+          },
+          {
+            "baseline": 798.0,
+            "candidate": 541.0,
+            "pair_id": "controlled-graph:instance-b7405bfd99656e9d"
+          },
+          {
+            "baseline": 791.0,
+            "candidate": 541.0,
+            "pair_id": "controlled-graph:instance-bea7a3e06701ae99"
+          },
+          {
+            "baseline": 1775.0,
+            "candidate": 1354.0,
+            "pair_id": "controlled-graph:instance-c2b8dfa3dfc9d583"
+          },
+          {
+            "baseline": 535.0,
+            "candidate": 1729.0,
+            "pair_id": "controlled-graph:instance-c5f0680209f4b704"
+          },
+          {
+            "baseline": 1451.0,
+            "candidate": 1740.0,
+            "pair_id": "controlled-graph:instance-cd4a79d36d5ec479"
+          },
+          {
+            "baseline": 1713.0,
+            "candidate": 1331.0,
+            "pair_id": "controlled-graph:instance-d8f1b952dd5127bf"
+          },
+          {
+            "baseline": 761.0,
+            "candidate": 546.0,
+            "pair_id": "controlled-graph:instance-db88653f4caa6847"
+          },
+          {
+            "baseline": 674.0,
+            "candidate": 563.0,
+            "pair_id": "controlled-graph:instance-ffefeff723faf580"
+          }
+        ],
+        "seed": 2026112306
+      },
+      {
+        "bootstrap_iterations": 10000,
+        "direction": "LOWER",
+        "failure_policy": "Known rate-card reservations are retained; actual billing remains unknown.",
+        "kind": "CONTINUOUS",
+        "metric_id": "cost-upper-bound",
+        "minimum_relevant_effect": 200000.0,
+        "pairs": [
+          {
+            "baseline": 2311200.0,
+            "candidate": 2463900.0,
+            "pair_id": "controlled-graph:instance-064ad13a458c1266"
+          },
+          {
+            "baseline": 5979900.0,
+            "candidate": 6018300.0,
+            "pair_id": "controlled-graph:instance-0883dc137a788bc6"
+          },
+          {
+            "baseline": 5511600.0,
+            "candidate": 5596200.0,
+            "pair_id": "controlled-graph:instance-11bab1cb941981a6"
+          },
+          {
+            "baseline": 5592000.0,
+            "candidate": 5568600.0,
+            "pair_id": "controlled-graph:instance-2000b7493b28e29f"
+          },
+          {
+            "baseline": 2611500.0,
+            "candidate": 2580600.0,
+            "pair_id": "controlled-graph:instance-29f2c2a6a70ab3fd"
+          },
+          {
+            "baseline": 2478000.0,
+            "candidate": 2239500.0,
+            "pair_id": "controlled-graph:instance-3d9d0c44e2e0ce26"
+          },
+          {
+            "baseline": 5862300.0,
+            "candidate": 1880400.0,
+            "pair_id": "controlled-graph:instance-3dd4940162020240"
+          },
+          {
+            "baseline": 2432100.0,
+            "candidate": 2495100.0,
+            "pair_id": "controlled-graph:instance-41bff8cd4dded65d"
+          },
+          {
+            "baseline": 7289400.0,
+            "candidate": 2354700.0,
+            "pair_id": "controlled-graph:instance-59423e27d30401bb"
+          },
+          {
+            "baseline": 6072000.0,
+            "candidate": 5993400.0,
+            "pair_id": "controlled-graph:instance-62ced7d282ab3d15"
+          },
+          {
+            "baseline": 2516400.0,
+            "candidate": 2415900.0,
+            "pair_id": "controlled-graph:instance-70986df027e988f2"
+          },
+          {
+            "baseline": 5394900.0,
+            "candidate": 5661600.0,
+            "pair_id": "controlled-graph:instance-71e44fa04a6302e2"
+          },
+          {
+            "baseline": 1916400.0,
+            "candidate": 1964700.0,
+            "pair_id": "controlled-graph:instance-772ad9b8ae8593bd"
+          },
+          {
+            "baseline": 4673400.0,
+            "candidate": 2075700.0,
+            "pair_id": "controlled-graph:instance-77baf5471c93cf94"
+          },
+          {
+            "baseline": 2499300.0,
+            "candidate": 1936800.0,
+            "pair_id": "controlled-graph:instance-8f7a9eaa516e39a5"
+          },
+          {
+            "baseline": 5477700.0,
+            "candidate": 4639500.0,
+            "pair_id": "controlled-graph:instance-94091e2cd8295e9a"
+          },
+          {
+            "baseline": 5435400.0,
+            "candidate": 2467500.0,
+            "pair_id": "controlled-graph:instance-a8db6c9148f9a87b"
+          },
+          {
+            "baseline": 4740000.0,
+            "candidate": 4821000.0,
+            "pair_id": "controlled-graph:instance-b0e2e76a44c66362"
+          },
+          {
+            "baseline": 5593800.0,
+            "candidate": 4500300.0,
+            "pair_id": "controlled-graph:instance-b3c50a086bd14da4"
+          },
+          {
+            "baseline": 2505600.0,
+            "candidate": 1951500.0,
+            "pair_id": "controlled-graph:instance-b7405bfd99656e9d"
+          },
+          {
+            "baseline": 2478000.0,
+            "candidate": 1941900.0,
+            "pair_id": "controlled-graph:instance-bea7a3e06701ae99"
+          },
+          {
+            "baseline": 5579100.0,
+            "candidate": 4552200.0,
+            "pair_id": "controlled-graph:instance-c2b8dfa3dfc9d583"
+          },
+          {
+            "baseline": 1883700.0,
+            "candidate": 5533500.0,
+            "pair_id": "controlled-graph:instance-c5f0680209f4b704"
+          },
+          {
+            "baseline": 4699200.0,
+            "candidate": 5493300.0,
+            "pair_id": "controlled-graph:instance-cd4a79d36d5ec479"
+          },
+          {
+            "baseline": 5505600.0,
+            "candidate": 4504500.0,
+            "pair_id": "controlled-graph:instance-d8f1b952dd5127bf"
+          },
+          {
+            "baseline": 2296500.0,
+            "candidate": 1877400.0,
+            "pair_id": "controlled-graph:instance-db88653f4caa6847"
+          },
+          {
+            "baseline": 2051100.0,
+            "candidate": 1977000.0,
+            "pair_id": "controlled-graph:instance-ffefeff723faf580"
+          }
+        ],
+        "seed": 2026112307
+      }
+    ],
+    "schema_version": "paired-comparison-request/1.0.0",
+    "suite_id": "fc4f2b-structured-fallback-development-v1"
+  },
+  "paired_result": {
+    "confidence_level": 0.95,
+    "cost_latency_gate_passed": true,
+    "critical_safety_gate_passed": true,
+    "metrics": [
+      {
+        "claim": "NO_PROVEN_IMPROVEMENT",
+        "direction": "HIGHER",
+        "estimates": [
+          {
+            "absolute_delta": 0.0,
+            "absolute_delta_interval": {
+              "lower": 0.0,
+              "upper": 0.0
+            },
+            "baseline": 1.0,
+            "beneficial_delta": 0.0,
+            "beneficial_delta_interval": {
+              "lower": 0.0,
+              "upper": 0.0
+            },
+            "candidate": 1.0,
+            "relative_delta": 0.0,
+            "statistic": "rate"
+          }
+        ],
+        "failure_policy": "Failed and aborted outcomes are encoded as zero valid outcome.",
+        "kind": "BINARY",
+        "metric_id": "valid-outcome",
+        "minimum_relevant_effect": 0.02,
+        "pair_count": 27,
+        "paired_test": {
+          "baseline_better": 0,
+          "candidate_better": 0,
+          "holm_adjusted_p_value": 1.0,
+          "method": "exact_mcnemar",
+          "raw_p_value": 1.0,
+          "ties": 27
+        }
+      },
+      {
+        "claim": "NO_PROVEN_IMPROVEMENT",
+        "direction": "HIGHER",
+        "estimates": [
+          {
+            "absolute_delta": 0.0,
+            "absolute_delta_interval": {
+              "lower": 0.0,
+              "upper": 0.0
+            },
+            "baseline": 1.0,
+            "beneficial_delta": 0.0,
+            "beneficial_delta_interval": {
+              "lower": 0.0,
+              "upper": 0.0
+            },
+            "candidate": 1.0,
+            "relative_delta": 0.0,
+            "statistic": "rate"
+          }
+        ],
+        "failure_policy": "Failed control outcomes are encoded as zero safe control.",
+        "kind": "BINARY",
+        "metric_id": "safe-control",
+        "minimum_relevant_effect": 0.05,
+        "pair_count": 9,
+        "paired_test": {
+          "baseline_better": 0,
+          "candidate_better": 0,
+          "holm_adjusted_p_value": 1.0,
+          "method": "exact_mcnemar",
+          "raw_p_value": 1.0,
+          "ties": 9
+        }
+      },
+      {
+        "claim": "NO_PROVEN_IMPROVEMENT",
+        "direction": "HIGHER",
+        "estimates": [
+          {
+            "absolute_delta": 0.0,
+            "absolute_delta_interval": {
+              "lower": 0.0,
+              "upper": 0.0
+            },
+            "baseline": 1.0,
+            "beneficial_delta": 0.0,
+            "beneficial_delta_interval": {
+              "lower": 0.0,
+              "upper": 0.0
+            },
+            "candidate": 1.0,
+            "relative_delta": 0.0,
+            "statistic": "rate"
+          }
+        ],
+        "failure_policy": "No citation is a non-violation; every present citation must resolve and hash-match.",
+        "kind": "BINARY",
+        "metric_id": "evidence-integrity",
+        "minimum_relevant_effect": 0.01,
+        "pair_count": 27,
+        "paired_test": {
+          "baseline_better": 0,
+          "candidate_better": 0,
+          "holm_adjusted_p_value": 1.0,
+          "method": "exact_mcnemar",
+          "raw_p_value": 1.0,
+          "ties": 27
+        }
+      },
+      {
+        "claim": "NO_PROVEN_IMPROVEMENT",
+        "direction": "LOWER",
+        "estimates": [
+          {
+            "absolute_delta": -3718.0,
+            "absolute_delta_interval": {
+              "lower": -5250.0,
+              "upper": 766.0
+            },
+            "baseline": 9625.0,
+            "beneficial_delta": 3718.0,
+            "beneficial_delta_interval": {
+              "lower": -766.0,
+              "upper": 5250.0
+            },
+            "candidate": 5907.0,
+            "relative_delta": -0.3862857142857143,
+            "statistic": "median"
+          },
+          {
+            "absolute_delta": -2656.0,
+            "absolute_delta_interval": {
+              "lower": -3999.0,
+              "upper": 595.0
+            },
+            "baseline": 14391.0,
+            "beneficial_delta": 2656.0,
+            "beneficial_delta_interval": {
+              "lower": -595.0,
+              "upper": 3999.0
+            },
+            "candidate": 11735.0,
+            "relative_delta": -0.18455979431589187,
+            "statistic": "p95"
+          }
+        ],
+        "failure_policy": "Observed terminal duration is retained.",
+        "kind": "CONTINUOUS",
+        "metric_id": "duration-ms",
+        "minimum_relevant_effect": 500.0,
+        "pair_count": 27,
+        "paired_test": {
+          "baseline_better": 10,
+          "candidate_better": 17,
+          "holm_adjusted_p_value": 1.0,
+          "method": "exact_sign",
+          "raw_p_value": 0.24778856337070465,
+          "ties": 0
+        }
+      },
+      {
+        "claim": "NO_PROVEN_IMPROVEMENT",
+        "direction": "LOWER",
+        "estimates": [
+          {
+            "absolute_delta": -4959.0,
+            "absolute_delta_interval": {
+              "lower": -6538.0,
+              "upper": 161.0
+            },
+            "baseline": 9860.0,
+            "beneficial_delta": 4959.0,
+            "beneficial_delta_interval": {
+              "lower": -161.0,
+              "upper": 6538.0
+            },
+            "candidate": 4901.0,
+            "relative_delta": -0.5029411764705882,
+            "statistic": "median"
+          },
+          {
+            "absolute_delta": -283.0,
+            "absolute_delta_interval": {
+              "lower": -4112.0,
+              "upper": -96.6500000000051
+            },
+            "baseline": 13437.0,
+            "beneficial_delta": 283.0,
+            "beneficial_delta_interval": {
+              "lower": 96.6500000000051,
+              "upper": 4112.0
+            },
+            "candidate": 13154.0,
+            "relative_delta": -0.021061248790652676,
+            "statistic": "p95"
+          }
+        ],
+        "failure_policy": "Known failure usage is retained; unknown pairs are excluded and close the cost gate.",
+        "kind": "CONTINUOUS",
+        "metric_id": "input-tokens",
+        "minimum_relevant_effect": 250.0,
+        "pair_count": 27,
+        "paired_test": {
+          "baseline_better": 8,
+          "candidate_better": 19,
+          "holm_adjusted_p_value": 0.36567290127277374,
+          "method": "exact_sign",
+          "raw_p_value": 0.052238985896110535,
+          "ties": 0
+        }
+      },
+      {
+        "claim": "NO_PROVEN_IMPROVEMENT",
+        "direction": "LOWER",
+        "estimates": [
+          {
+            "absolute_delta": -594.0,
+            "absolute_delta_interval": {
+              "lower": -837.0,
+              "upper": 27.0
+            },
+            "baseline": 1451.0,
+            "beneficial_delta": 594.0,
+            "beneficial_delta_interval": {
+              "lower": -27.0,
+              "upper": 837.0
+            },
+            "candidate": 857.0,
+            "relative_delta": -0.4093728463128877,
+            "statistic": "median"
+          },
+          {
+            "absolute_delta": -16.0,
+            "absolute_delta_interval": {
+              "lower": -437.0,
+              "upper": 93.0
+            },
+            "baseline": 1824.0,
+            "beneficial_delta": 16.0,
+            "beneficial_delta_interval": {
+              "lower": -93.0,
+              "upper": 437.0
+            },
+            "candidate": 1808.0,
+            "relative_delta": -0.008771929824561403,
+            "statistic": "p95"
+          }
+        ],
+        "failure_policy": "Known failure usage is retained; unknown pairs are excluded and close the cost gate.",
+        "kind": "CONTINUOUS",
+        "metric_id": "output-tokens",
+        "minimum_relevant_effect": 100.0,
+        "pair_count": 27,
+        "paired_test": {
+          "baseline_better": 10,
+          "candidate_better": 16,
+          "holm_adjusted_p_value": 1.0,
+          "method": "exact_sign",
+          "raw_p_value": 0.32693958282470703,
+          "ties": 1
+        }
+      },
+      {
+        "claim": "NO_PROVEN_IMPROVEMENT",
+        "direction": "LOWER",
+        "estimates": [
+          {
+            "absolute_delta": -2204100.0,
+            "absolute_delta_interval": {
+              "lower": -2979000.0,
+              "upper": -4200.0
+            },
+            "baseline": 4699200.0,
+            "beneficial_delta": 2204100.0,
+            "beneficial_delta_interval": {
+              "lower": 4200.0,
+              "upper": 2979000.0
+            },
+            "candidate": 2495100.0,
+            "relative_delta": -0.4690372829417773,
+            "statistic": "median"
+          },
+          {
+            "absolute_delta": -78600.0,
+            "absolute_delta_interval": {
+              "lower": -1720800.0,
+              "upper": 67800.0
+            },
+            "baseline": 6072000.0,
+            "beneficial_delta": 78600.0,
+            "beneficial_delta_interval": {
+              "lower": -67800.0,
+              "upper": 1720800.0
+            },
+            "candidate": 5993400.0,
+            "relative_delta": -0.012944664031620553,
+            "statistic": "p95"
+          }
+        ],
+        "failure_policy": "Known rate-card reservations are retained; actual billing remains unknown.",
+        "kind": "CONTINUOUS",
+        "metric_id": "cost-upper-bound",
+        "minimum_relevant_effect": 200000.0,
+        "pair_count": 27,
+        "paired_test": {
+          "baseline_better": 9,
+          "candidate_better": 18,
+          "holm_adjusted_p_value": 0.7324687242507935,
+          "method": "exact_sign",
+          "raw_p_value": 0.12207812070846558,
+          "ties": 0
+        }
+      }
+    ],
+    "multiple_comparison_method": "holm",
+    "request_sha256": "a4bf4d74e8b436a4f51c688135df9feb5079dcbcbfd538bcf15d99d7ee1392d7",
+    "schema_version": "paired-comparison-result/1.0.0",
+    "suite_id": "fc4f2b-structured-fallback-development-v1"
+  },
+  "profile_outcomes": {
+    "baseline-1.11": 27,
+    "candidate-1.12": 27
+  },
+  "protocol_sha256": "7afb32b1092ce77c3bc15e189d80a70c270a1418278d1755407bcee1f1fafc33",
+  "provider_error_codes": {
+    "baseline-1.11": {
+      "INVALID_RESPONSE": 1
+    },
+    "candidate-1.12": {}
+  },
+  "quality": {
+    "baseline-1.11": {
+      "comparison_complete": false,
+      "intervals": {
+        "controlled-graph": {
+          "safe_controls": [
+            0.7008549515804559,
+            1.0
+          ],
+          "top1": [
+            0.6077796189608428,
+            0.9416342319413856
+          ],
+          "top3": [
+            0.6077796189608428,
+            0.9416342319413856
+          ]
+        }
+      },
+      "labels_hash": "f264c4eee8fa9954d517e95c2e36d81db2614ff3803acbd8f87d7708f3c4132d",
+      "missing_modes": [
+        "single-agent",
+        "controlled-graph-memory"
+      ],
+      "modes": {
+        "controlled-graph": {
+          "control_denominator": 9,
+          "failures": 0,
+          "fault_denominator": 18,
+          "safe_controls": 9,
+          "top1": 15,
+          "top3": 15
+        }
+      },
+      "outputs_hash": "1b9423a161f5c74f2b95220b7d9bd0a456353e66f70cedd0f45029de7b331b78",
+      "protocol_hash": "7afb32b1092ce77c3bc15e189d80a70c270a1418278d1755407bcee1f1fafc33",
+      "resources": {
+        "controlled-graph": {
+          "actual_billed_cost": null,
+          "cost_upper_bound_nanousd": {
+            "known": 27,
+            "median": 4699200,
+            "missing": 0,
+            "p95_nearest_rank": 6072000,
+            "raw": [
+              1883700,
+              1916400,
+              2051100,
+              2296500,
+              2311200,
+              2432100,
+              2478000,
+              2478000,
+              2499300,
+              2505600,
+              2516400,
+              2611500,
+              4673400,
+              4699200,
+              4740000,
+              5394900,
+              5435400,
+              5477700,
+              5505600,
+              5511600,
+              5579100,
+              5592000,
+              5593800,
+              5862300,
+              5979900,
+              6072000,
+              7289400
+            ]
+          },
+          "failure_duration_ms": {
+            "known": 0,
+            "median": null,
+            "missing": 0,
+            "p95_nearest_rank": null,
+            "raw": []
+          },
+          "input_tokens": {
+            "known": 27,
+            "median": 9860,
+            "missing": 0,
+            "p95_nearest_rank": 13437,
+            "raw": [
+              4139,
+              4141,
+              4292,
+              4611,
+              4820,
+              4831,
+              4840,
+              4851,
+              5008,
+              5096,
+              5117,
+              5160,
+              9602,
+              9860,
+              10064,
+              11270,
+              11412,
+              11414,
+              11439,
+              11483,
+              11497,
+              11500,
+              11748,
+              12245,
+              13432,
+              13437,
+              15634
+            ]
+          },
+          "output_tokens": {
+            "known": 27,
+            "median": 1451,
+            "missing": 0,
+            "p95_nearest_rank": 1824,
+            "raw": [
+              524,
+              535,
+              674,
+              721,
+              761,
+              791,
+              798,
+              819,
+              845,
+              855,
+              870,
+              897,
+              1434,
+              1451,
+              1494,
+              1624,
+              1636,
+              1694,
+              1702,
+              1712,
+              1713,
+              1723,
+              1740,
+              1775,
+              1808,
+              1824,
+              2166
+            ]
+          },
+          "success_duration_ms": {
+            "known": 27,
+            "median": 9625,
+            "missing": 0,
+            "p95_nearest_rank": 14391,
+            "raw": [
+              3375,
+              3860,
+              4234,
+              4719,
+              4844,
+              4875,
+              5109,
+              5125,
+              5203,
+              5343,
+              5468,
+              6968,
+              9610,
+              9625,
+              9750,
+              10125,
+              10828,
+              10891,
+              10984,
+              11078,
+              11140,
+              11141,
+              11204,
+              11890,
+              12188,
+              14391,
+              15109
+            ]
+          }
+        }
+      }
+    },
+    "candidate-1.12": {
+      "comparison_complete": false,
+      "intervals": {
+        "controlled-graph": {
+          "safe_controls": [
+            0.7008549515804559,
+            1.0
+          ],
+          "top1": [
+            0.43749467295945105,
+            0.837212252491663
+          ],
+          "top3": [
+            0.43749467295945105,
+            0.837212252491663
+          ]
+        }
+      },
+      "labels_hash": "f264c4eee8fa9954d517e95c2e36d81db2614ff3803acbd8f87d7708f3c4132d",
+      "missing_modes": [
+        "single-agent",
+        "controlled-graph-memory"
+      ],
+      "modes": {
+        "controlled-graph": {
+          "control_denominator": 9,
+          "failures": 0,
+          "fault_denominator": 18,
+          "safe_controls": 9,
+          "top1": 12,
+          "top3": 12
+        }
+      },
+      "outputs_hash": "6cca85be79ac7f0446b00e01c18eabbeb91a0adac61faf2300df47b656a3e32c",
+      "protocol_hash": "7afb32b1092ce77c3bc15e189d80a70c270a1418278d1755407bcee1f1fafc33",
+      "resources": {
+        "controlled-graph": {
+          "actual_billed_cost": null,
+          "cost_upper_bound_nanousd": {
+            "known": 27,
+            "median": 2495100,
+            "missing": 0,
+            "p95_nearest_rank": 5993400,
+            "raw": [
+              1877400,
+              1880400,
+              1936800,
+              1941900,
+              1951500,
+              1964700,
+              1977000,
+              2075700,
+              2239500,
+              2354700,
+              2415900,
+              2463900,
+              2467500,
+              2495100,
+              2580600,
+              4500300,
+              4504500,
+              4552200,
+              4639500,
+              4821000,
+              5493300,
+              5533500,
+              5568600,
+              5596200,
+              5661600,
+              5993400,
+              6018300
+            ]
+          },
+          "failure_duration_ms": {
+            "known": 0,
+            "median": null,
+            "missing": 0,
+            "p95_nearest_rank": null,
+            "raw": []
+          },
+          "input_tokens": {
+            "known": 27,
+            "median": 4901,
+            "missing": 0,
+            "p95_nearest_rank": 13154,
+            "raw": [
+              4072,
+              4074,
+              4224,
+              4309,
+              4309,
+              4323,
+              4338,
+              4341,
+              4521,
+              4797,
+              4845,
+              4849,
+              4873,
+              4901,
+              5014,
+              9691,
+              9758,
+              9833,
+              10225,
+              10554,
+              11351,
+              11400,
+              11422,
+              11522,
+              11529,
+              13154,
+              13165
+            ]
+          },
+          "output_tokens": {
+            "known": 27,
+            "median": 857,
+            "missing": 0,
+            "p95_nearest_rank": 1808,
+            "raw": [
+              541,
+              541,
+              546,
+              549,
+              558,
+              560,
+              563,
+              649,
+              736,
+              750,
+              802,
+              835,
+              854,
+              857,
+              897,
+              1194,
+              1331,
+              1354,
+              1379,
+              1408,
+              1706,
+              1724,
+              1729,
+              1740,
+              1760,
+              1808,
+              1868
+            ]
+          },
+          "success_duration_ms": {
+            "known": 27,
+            "median": 5907,
+            "missing": 0,
+            "p95_nearest_rank": 11735,
+            "raw": [
+              3578,
+              3813,
+              3953,
+              3969,
+              4188,
+              4328,
+              4453,
+              4641,
+              4657,
+              5172,
+              5515,
+              5547,
+              5578,
+              5907,
+              6109,
+              8422,
+              8687,
+              9016,
+              9547,
+              10625,
+              10828,
+              11000,
+              11094,
+              11110,
+              11406,
+              11735,
+              11937
+            ]
+          }
+        }
+      }
+    }
+  },
+  "repair_followthrough": {
+    "baseline-1.11": {
+      "budget_allow_decisions": 15,
+      "budget_handoff_decisions": 0,
+      "failed_after_successful_repair": 0,
+      "successful_repair_outcomes": 1
+    },
+    "candidate-1.12": {
+      "budget_allow_decisions": 12,
+      "budget_handoff_decisions": 0,
+      "failed_after_successful_repair": 0,
+      "successful_repair_outcomes": 0
+    }
+  },
+  "schema_version": "structured-transport-pair-score/1.0.0"
+}

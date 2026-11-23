@@ -98,6 +98,12 @@ allowed. The next development cycle must restore zero candidate failures and red
 overhead on separate development data, then use a new untouched confirmation cohort rather than
 tuning on these opened labels.
 
+The separate FC4f2b development pair retained 54 additional actual-provider outcomes. Its
+predeclared safety and resource ceiling gate passed, but post-run exploratory Top-1/Top-3 changed
+from 15/18 to 12/18, and neither arm activated the new terminal fallback. Those resource and
+quality differences cannot be attributed to the fallback; the [full development report](FC4F2B_DEVELOPMENT_RESULT.md)
+keeps the adverse point estimate and uncertainty. The outcome ledger above remains unchanged.
+
 ## External completion boundaries
 
 - Confirmed historical-memory effect requires authorized, redacted, confirmed closed incidents

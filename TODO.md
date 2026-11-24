@@ -574,6 +574,14 @@ FC6 and the human-approved FC7 comparison are deferred by user decision.
   baseline/candidate values, absolute deltas, 95% intervals, all safety gates
   and resource ceilings predeclared; keep every result and the old 480 intact.
   Test plan: source-bound preflight, full scoring/audit, relevant regression.
+  - [x] Add and execute a fail-closed source/task/provider readiness audit.
+    The 2026-11-24 report is `BLOCKED`: the provider credential is present,
+    but the pinned index, telemetry tree and 180-task export are absent after
+    four authoritative-source connection timeouts. The old 480 outcomes were
+    untouched. See docs/NE4_CONFIRMATION_READINESS.md.
+  - [ ] Download the exact pinned bytes, freeze the complete held-out run plan,
+    execute all pairs once and publish the independent score. Do not substitute
+    a mirror, moving revision, synthetic cohort or prior lab outcomes.
 - [ ] NE5 Publish external and lab findings plus FC5/FC8 feasibility. Acceptance:
   no public-data substitution for human labor, actual approval, MTTR or bills;
   explicit null/adverse and missing metrics. Test plan: report/scorecard

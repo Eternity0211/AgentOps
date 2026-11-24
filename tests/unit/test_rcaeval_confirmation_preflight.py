@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 
 import pytest
@@ -56,3 +57,15 @@ def test_protocol_pin_cannot_be_replaced_by_a_same_size_file() -> None:
         index_sha256="ec0008c90d0c97076bc98370ac824c3c5a49be95d00bd6d6044ea8061861d271",
         license="MIT",
     )
+
+
+def test_published_preflight_is_fail_closed_and_does_not_touch_old_outcomes() -> None:
+    report = json.loads(Path("evaluation/results/rcaeval/v1/preflight-001.json").read_text("utf-8"))
+    assert report["status"] == "BLOCKED"
+    assert report["blockers"] == [
+        "SOURCE_INDEX_MISSING",
+        "TELEMETRY_ROOT_MISSING",
+        "TASK_EXPORT_MISSING",
+    ]
+    assert report["provider_credential_present"] is True
+    assert report["old_confirmation_outcomes_touched"] is False

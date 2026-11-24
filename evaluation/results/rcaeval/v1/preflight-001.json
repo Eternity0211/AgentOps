@@ -1,0 +1,18 @@
+{
+  "schema_version": "rcaeval-confirmation-preflight/1.0.0",
+  "status": "BLOCKED",
+  "protocol_sha256": "0c83891b25d81db94c69b679ec0bdbfb49ad35bed0f628b4655c7cd3724ad224",
+  "source_revision": "8b6c06a7a15bcecdbf70b611a13b789c5925dc17",
+  "blockers": [
+    "SOURCE_INDEX_MISSING",
+    "TELEMETRY_ROOT_MISSING",
+    "TASK_EXPORT_MISSING"
+  ],
+  "source_index_present": false,
+  "source_index_hash_matches": null,
+  "telemetry_root_present": false,
+  "task_export_present": false,
+  "task_export_case_count": null,
+  "provider_credential_present": true,
+  "old_confirmation_outcomes_touched": false
+}

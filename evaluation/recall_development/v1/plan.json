@@ -1,0 +1,32 @@
+{
+  "schema_version": "recall-development-plan/1.0.0",
+  "protocol_id": "ne3-recall-development-v1",
+  "status": "FROZEN_BEFORE_SCORING",
+  "implementation_commit": "aaa59099bfb66df8a2186c25781cd9938779cc95",
+  "inputs": "evaluation/recall_development/v1/inputs.json",
+  "inputs_sha256": "81f968e970b2e264646e80ebb78ec6b2d8c99cad666aa954bdc20fb701432b3a",
+  "labels": "evaluation/recall_development/v1/evaluator_only/labels.json",
+  "labels_sha256": "59a6f796c42c850f88dc7ca69c0180b9465933e454d42f387054c5c8e312f398",
+  "source_hashes": {
+    "evaluation/memory_evidence.py": "3d149c8b335ead318f95537d4e7700e5472765375ab557ce5e842769d314d598",
+    "evaluation/paired_comparison.py": "86d790da549f38a019bfce29ec7ed87c6b69f7e6f290baa1da7fc9af4dd9d90e",
+    "evaluation/score_recall_development.py": "37c7186727793280d6222514ec180d8160fff577054511fa32c96a8499e787ec"
+  },
+  "arms": {
+    "baseline": "available but incomplete evidence bundle",
+    "candidate": "decisive acquisition plus chronological post-GC evidence"
+  },
+  "case_count": 8,
+  "positive_count": 4,
+  "negative_control_count": 4,
+  "acceptance": {
+    "candidate_precision_minimum": 1.0,
+    "candidate_recall_minimum": 1.0,
+    "negative_control_safety_minimum": 1.0,
+    "candidate_failures_maximum": 0,
+    "model_calls_maximum": 0,
+    "write_calls_maximum": 0
+  },
+  "failure_policy": "Every missing, invalid, or unscorable case is retained and counted as incorrect.",
+  "claim_boundary": "Deterministic development evidence-readiness only; not model accuracy or independent confirmation."
+}

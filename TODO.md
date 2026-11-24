@@ -582,10 +582,15 @@ FC6 and the human-approved FC7 comparison are deferred by user decision.
   - [ ] Download the exact pinned bytes, freeze the complete held-out run plan,
     execute all pairs once and publish the independent score. Do not substitute
     a mirror, moving revision, synthetic cohort or prior lab outcomes.
-- [ ] NE5 Publish external and lab findings plus FC5/FC8 feasibility. Acceptance:
+- [x] NE5 Publish external and lab findings plus FC5/FC8 feasibility. Acceptance:
   no public-data substitution for human labor, actual approval, MTTR or bills;
   explicit null/adverse and missing metrics. Test plan: report/scorecard
   consistency and archive Git-object audit.
+  The summary preserves the established +27.5-point synthetic lab result and
+  its adverse resource deltas, reports RCAEval as not run, keeps the NE3
+  statistical claim null, and leaves human, approved-recovery, MTTR, FC5 and
+  actual-billing outcomes unmeasured. Git-object audits bind NE1-NE4 artifacts.
+  See docs/NEXT_EVALUATION_SUMMARY.md.
 
 ### Measure the currently missing real-world outcomes with explicit controls
 

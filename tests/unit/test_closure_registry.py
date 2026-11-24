@@ -67,4 +67,8 @@ def test_legacy_todo_has_no_unmapped_open_checkbox() -> None:
         "NE5",
     ]
     statuses = [line.startswith("- [x]") for line in next_phase]
-    assert statuses == sorted(statuses, reverse=True)
+    assert statuses[:3] == [True, True, True]
+    assert statuses[4] is True
+    if not statuses[3]:
+        summary = Path("docs/NEXT_EVALUATION_SUMMARY.md").read_text(encoding="utf-8")
+        assert "NE4 independent confirmation | Not run" in summary

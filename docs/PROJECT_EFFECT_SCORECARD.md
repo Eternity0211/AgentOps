@@ -113,6 +113,24 @@ pass. Median latency and estimated rate-card cost nevertheless worsen, and P95 o
 larger. This proves a bounded synthetic lab diagnosis-quality gain, not reduced human diagnosis
 time, stable recovery time or actual spending. See the [complete report](FC4F4_CONFIRMATION_RESULT.md).
 
+## 2026-11-24 external-evaluation continuation
+
+The RCAEval contract now maps 90 RE2-OB development and 90 RE2-TT holdout cases to typed service
+Top-1/Top-3 output, but the independent comparison was not run. The authoritative pinned index and
+telemetry could not be downloaded, and the fail-closed preflight records the missing source,
+telemetry and task export. External accuracy, provider latency, token use and cost remain
+unmeasured.
+
+The deterministic NE2 matrix verified 13/13 semantic fixtures with zero unapproved execution,
+duplicate execution and false closure in their applicable fixtures. The constructed NE3 readiness
+pair moved recall from 0/4 to 4/4 while retaining 4/4 negative controls, but exact paired p=0.125
+keeps the result `NO_PROVEN_IMPROVEMENT`. Neither result updates the core outcome ledger.
+
+RCAEval has injection/observation times but no confirmed closure, resolution or post-resolution
+outcomes, so it cannot satisfy FC5. FC8 remains unavailable without invoice and allocation data.
+Human efficiency and actually approved recovery remain deferred. See
+[`docs/NEXT_EVALUATION_SUMMARY.md`](NEXT_EVALUATION_SUMMARY.md).
+
 ## External completion boundaries
 
 - Confirmed historical-memory effect requires authorized, redacted, confirmed closed incidents

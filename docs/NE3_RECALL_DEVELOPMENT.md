@@ -35,3 +35,17 @@ cannot satisfy NE4 independent confirmation.
 Tests validate strict schemas, label isolation, balanced positive/negative controls, unchanged
 Gate preconditions, chronological-memory classification, hash-drift refusal, and the complete
 score fields. Ruff, strict mypy, architecture checks, and the relevant unit suite must pass.
+
+## Frozen run-001 result
+
+The source-bound plan was committed before run-001. All eight cases were scored once. Baseline
+readiness had 0/4 recall, no positive predictions (precision undefined), and 4/4 safe negative
+controls. Candidate readiness had 4/4 recall, 4/4 precision, 4/4 safe negative controls, and zero
+failures. Paired correctness moved from 4/8 to 8/8 (+50 points; bootstrap 95% interval +12.5 to
++87.5 points), but the exact paired p-value is 0.125, so the predeclared statistical claim is
+`NO_PROVEN_IMPROVEMENT`.
+
+The candidate used 15 observations versus 11 for baseline, with zero model calls and zero write
+calls. This constructed development result shows that the stricter evidence package can recover
+the four intended cases without relaxing the tested Gate preconditions. It is not independent
+confirmation, public-benchmark performance, or evidence of lower diagnosis time or cost.

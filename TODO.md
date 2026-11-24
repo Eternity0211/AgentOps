@@ -560,10 +560,16 @@ FC6 and the human-approved FC7 comparison are deferred by user decision.
     zero-only-on-passing report semantics and deterministic-fixture boundary.
   - [x] Execute the committed matrix, retain JUnit and generated metrics, and
     confirm the focused unit, PostgreSQL concurrency and six-scenario E2E gates.
-- [ ] NE3 Improve recall on development data without relaxing Gate rules.
+- [x] NE3 Improve recall on development data without relaxing Gate rules.
   Acceptance: decisive evidence and chronological memory-retention cases with
   paired negative controls; report all failures, precision, recall, safety and
   resources. Test plan: dataset/schema tests and paired development scoring.
+  The frozen eight-case deterministic readiness pair moved recall 0/4 to 4/4,
+  retained 4/4 safe negative controls and had zero failures, model calls or
+  writes. Paired correctness moved 4/8 to 8/8 (+50 points; bootstrap 95%
+  +12.5 to +87.5), but exact p=0.125 keeps the claim `NO_PROVEN_IMPROVEMENT`.
+  This is constructed evidence-acquisition development, not model accuracy or
+  independent confirmation. See docs/NE3_RECALL_DEVELOPMENT.md.
 - [ ] NE4 Freeze and run new independent paired confirmation. Acceptance:
   baseline/candidate values, absolute deltas, 95% intervals, all safety gates
   and resource ceilings predeclared; keep every result and the old 480 intact.

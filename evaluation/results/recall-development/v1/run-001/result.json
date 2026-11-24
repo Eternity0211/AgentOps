@@ -1,0 +1,207 @@
+{
+  "baseline": {
+    "false_negative": 4,
+    "false_positive": 0,
+    "negative_control_safety": 1.0,
+    "precision": null,
+    "recall": 0.0,
+    "true_negative": 4,
+    "true_positive": 0
+  },
+  "candidate": {
+    "false_negative": 0,
+    "false_positive": 0,
+    "negative_control_safety": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "true_negative": 4,
+    "true_positive": 4
+  },
+  "cases": [
+    {
+      "baseline": false,
+      "baseline_observations": 1,
+      "baseline_reasons": [
+        "MISSING_EVIDENCE_DECLARED",
+        "INSUFFICIENT_INDEPENDENT_SOURCES"
+      ],
+      "candidate": true,
+      "candidate_observations": 2,
+      "candidate_reasons": [],
+      "case_id": "ne3-http-error-a",
+      "category": "DECISIVE_EVIDENCE",
+      "target_positive": true
+    },
+    {
+      "baseline": false,
+      "baseline_observations": 1,
+      "baseline_reasons": [
+        "MISSING_EVIDENCE_DECLARED",
+        "INSUFFICIENT_INDEPENDENT_SOURCES"
+      ],
+      "candidate": true,
+      "candidate_observations": 2,
+      "candidate_reasons": [],
+      "case_id": "ne3-pool-pressure-a",
+      "category": "DECISIVE_EVIDENCE",
+      "target_positive": true
+    },
+    {
+      "baseline": false,
+      "baseline_observations": 1,
+      "baseline_reasons": [
+        "MISSING_EVIDENCE_DECLARED",
+        "INSUFFICIENT_INDEPENDENT_SOURCES",
+        "MEMORY_INSUFFICIENT"
+      ],
+      "candidate": true,
+      "candidate_observations": 2,
+      "candidate_reasons": [],
+      "case_id": "ne3-memory-retention-a",
+      "category": "CHRONOLOGICAL_MEMORY",
+      "target_positive": true
+    },
+    {
+      "baseline": false,
+      "baseline_observations": 1,
+      "baseline_reasons": [
+        "MISSING_EVIDENCE_DECLARED",
+        "INSUFFICIENT_INDEPENDENT_SOURCES",
+        "MEMORY_INSUFFICIENT"
+      ],
+      "candidate": true,
+      "candidate_observations": 2,
+      "candidate_reasons": [],
+      "case_id": "ne3-memory-retention-b",
+      "category": "CHRONOLOGICAL_MEMORY",
+      "target_positive": true
+    },
+    {
+      "baseline": false,
+      "baseline_observations": 1,
+      "baseline_reasons": [
+        "MISSING_EVIDENCE_DECLARED",
+        "INSUFFICIENT_INDEPENDENT_SOURCES"
+      ],
+      "candidate": false,
+      "candidate_observations": 1,
+      "candidate_reasons": [
+        "MISSING_EVIDENCE_DECLARED",
+        "INSUFFICIENT_INDEPENDENT_SOURCES"
+      ],
+      "case_id": "ne3-single-source-control",
+      "category": "PAIRED_NEGATIVE_CONTROL",
+      "target_positive": false
+    },
+    {
+      "baseline": false,
+      "baseline_observations": 2,
+      "baseline_reasons": [
+        "MISSING_EVIDENCE_DECLARED",
+        "EVIDENCE_STALE",
+        "INSUFFICIENT_INDEPENDENT_SOURCES"
+      ],
+      "candidate": false,
+      "candidate_observations": 2,
+      "candidate_reasons": [
+        "MISSING_EVIDENCE_DECLARED",
+        "EVIDENCE_STALE",
+        "INSUFFICIENT_INDEPENDENT_SOURCES"
+      ],
+      "case_id": "ne3-stale-control",
+      "category": "PAIRED_NEGATIVE_CONTROL",
+      "target_positive": false
+    },
+    {
+      "baseline": false,
+      "baseline_observations": 2,
+      "baseline_reasons": [
+        "UNRESOLVED_COUNTER_EVIDENCE"
+      ],
+      "candidate": false,
+      "candidate_observations": 2,
+      "candidate_reasons": [
+        "UNRESOLVED_COUNTER_EVIDENCE"
+      ],
+      "case_id": "ne3-counter-control",
+      "category": "PAIRED_NEGATIVE_CONTROL",
+      "target_positive": false
+    },
+    {
+      "baseline": false,
+      "baseline_observations": 2,
+      "baseline_reasons": [
+        "MEMORY_NORMAL_WARMUP"
+      ],
+      "candidate": false,
+      "candidate_observations": 2,
+      "candidate_reasons": [
+        "MEMORY_NORMAL_WARMUP"
+      ],
+      "case_id": "ne3-memory-warmup-control",
+      "category": "PAIRED_NEGATIVE_CONTROL",
+      "target_positive": false
+    }
+  ],
+  "failures": [],
+  "gate_rules": {
+    "fail_on_declared_missing_evidence": true,
+    "minimum_independent_sources": 2,
+    "minimum_quality_basis_points": 7000,
+    "require_counter_evidence_resolution": true
+  },
+  "paired": {
+    "confidence_level": 0.95,
+    "cost_latency_gate_passed": true,
+    "critical_safety_gate_passed": true,
+    "metrics": [
+      {
+        "claim": "NO_PROVEN_IMPROVEMENT",
+        "direction": "HIGHER",
+        "estimates": [
+          {
+            "absolute_delta": 0.5,
+            "absolute_delta_interval": {
+              "lower": 0.125,
+              "upper": 0.875
+            },
+            "baseline": 0.5,
+            "beneficial_delta": 0.5,
+            "beneficial_delta_interval": {
+              "lower": 0.125,
+              "upper": 0.875
+            },
+            "candidate": 1.0,
+            "relative_delta": 1.0,
+            "statistic": "rate"
+          }
+        ],
+        "failure_policy": "Every missing or invalid case is incorrect; no selective exclusion.",
+        "kind": "BINARY",
+        "metric_id": "classification_correct",
+        "minimum_relevant_effect": 0.1,
+        "pair_count": 8,
+        "paired_test": {
+          "baseline_better": 0,
+          "candidate_better": 4,
+          "holm_adjusted_p_value": 0.125,
+          "method": "exact_mcnemar",
+          "raw_p_value": 0.125,
+          "ties": 4
+        }
+      }
+    ],
+    "multiple_comparison_method": "holm",
+    "request_sha256": "051d4049a6c28a0f5750529cef4e93a2cd74b6fbe55e005d654b74d4b23bd019",
+    "schema_version": "paired-comparison-result/1.0.0",
+    "suite_id": "ne3-recall-development-v1"
+  },
+  "resources": {
+    "baseline_observations": 11,
+    "candidate_observations": 15,
+    "model_calls": 0,
+    "write_calls": 0
+  },
+  "schema_version": "recall-development-result/1.0.0",
+  "scope": "deterministic evidence-readiness development; not model diagnosis accuracy"
+}

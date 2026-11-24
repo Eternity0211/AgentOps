@@ -544,6 +544,14 @@ FC6 and the human-approved FC7 comparison are deferred by user decision.
   and holdout split, controls, budgets and scorer; refuse incompatible labels.
   Test plan: source/label isolation, schema/mapping, leakage and frozen-protocol
   preflight tests before any held-out model call.
+  - [x] Pin and inspect the public RCAEval case index. The MIT dataset revision,
+    31,157-byte index hash, 735 total cases, RE2-OB/RE2-TT modality coverage and
+    service-label incompatibility with the old six-family scorer are recorded
+    in docs/NE1_RCAEVAL_FEASIBILITY.md. This is a feasibility check, not a
+    completed external comparison.
+  - [ ] Implement and freeze a label-free RE2 task export, read-only telemetry
+    adapter, typed service output and paired service-localization scorer. Test
+    pinned hashes, missing modality, evaluator-label isolation and parity.
 - [ ] NE2 Retain Gate reason-code audits and expand safety fixtures. Acceptance:
   no changed Gate authority and zero unapproved/duplicate execution or false
   closure in tested adversarial, concurrency and failure routes. Test plan:
@@ -1743,3 +1751,5 @@ These are scope constraints, not open checklist work:
 - Do not build general-purpose document Q&A.
 - Do not convert the core control path comprehensively to MCP.
 
+
+\r\n

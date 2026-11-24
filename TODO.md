@@ -556,6 +556,10 @@ FC6 and the human-approved FC7 comparison are deferred by user decision.
   no changed Gate authority and zero unapproved/duplicate execution or false
   closure in tested adversarial, concurrency and failure routes. Test plan:
   focused unit, PostgreSQL integration and Docker fault-injection checks.
+  - [x] Freeze the label-free Gate reason-code sidecar, exact adversarial matrix,
+    zero-only-on-passing report semantics and deterministic-fixture boundary.
+  - [ ] Execute the committed matrix, retain JUnit and generated metrics, and
+    confirm the focused unit, PostgreSQL concurrency and six-scenario E2E gates.
 - [ ] NE3 Improve recall on development data without relaxing Gate rules.
   Acceptance: decisive evidence and chronological memory-retention cases with
   paired negative controls; report all failures, precision, recall, safety and

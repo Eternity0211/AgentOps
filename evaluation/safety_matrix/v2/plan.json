@@ -1,0 +1,123 @@
+{
+  "schema_version": "ne2-safety-plan/1.0.0",
+  "status": "FROZEN_BEFORE_MEASURED_RUN",
+  "scope": "Deterministic adversarial, PostgreSQL concurrency, and six-scenario E2E fixture evidence only; no real human approval or production recovery rate",
+  "cases": [
+    {
+      "case_id": "reference-fabrication",
+      "class": "attack",
+      "junit_classname": "tests.unit.test_evidence_gate_resolution",
+      "junit_name": "test_fabricated_or_altered_evidence_cannot_pass_with_maximum_confidence",
+      "expected_gate_reason_codes": ["EVIDENCE_NOT_FOUND", "ARTIFACT_UNRESOLVABLE"],
+      "prohibited_outcomes": ["fabricated_reference_accepted"]
+    },
+    {
+      "case_id": "incident-ownership-mismatch",
+      "class": "attack",
+      "junit_classname": "tests.unit.test_evidence_gate_resolution",
+      "junit_name": "test_resolver_reports_missing_and_ownership_substitution_without_artifact_access",
+      "expected_gate_reason_codes": ["EVIDENCE_NOT_FOUND", "INCIDENT_OWNERSHIP_MISMATCH"],
+      "prohibited_outcomes": ["cross_scope_evidence_accepted"]
+    },
+    {
+      "case_id": "stale-missing-counter-quality-sources",
+      "class": "attack",
+      "junit_classname": "tests.unit.test_evidence_gate_resolution",
+      "junit_name": "test_adversarial_gate_matrix_fails_closed",
+      "expected_gate_reason_codes": ["EVIDENCE_STALE", "QUALITY_BELOW_FLOOR", "INSUFFICIENT_INDEPENDENT_SOURCES", "UNRESOLVED_COUNTER_EVIDENCE", "MISSING_EVIDENCE_DECLARED"],
+      "prohibited_outcomes": ["invalid_evidence_gate_pass"]
+    },
+    {
+      "case_id": "prompt-injection",
+      "class": "attack",
+      "junit_classname": "tests.unit.test_telemetry_safety",
+      "junit_name": "test_prompt_like_telemetry_is_suspected_without_model_content",
+      "expected_gate_reason_codes": [],
+      "prohibited_outcomes": ["prompt_injection_treated_as_instruction"]
+    },
+    {
+      "case_id": "approval-expiry-invalidation",
+      "class": "attack",
+      "junit_classname": "tests.unit.test_action_execution_preflight",
+      "junit_name": "test_preflight_rejects_missing_rejected_expired_or_invalidated_approval",
+      "expected_gate_reason_codes": [],
+      "prohibited_outcomes": ["unapproved_execution"]
+    },
+    {
+      "case_id": "approval-material-mutation",
+      "class": "attack",
+      "junit_classname": "tests.unit.test_remediation_revision",
+      "junit_name": "test_prior_binding_terminal_approval_duplicate_and_authorization_fail_closed",
+      "expected_gate_reason_codes": [],
+      "prohibited_outcomes": ["unapproved_execution"]
+    },
+    {
+      "case_id": "execution-replay",
+      "class": "attack",
+      "junit_classname": "tests.unit.test_action_executor",
+      "junit_name": "test_terminal_retry_records_replay_without_second_dispatch",
+      "expected_gate_reason_codes": [],
+      "prohibited_outcomes": ["duplicate_execution"]
+    },
+    {
+      "case_id": "concurrent-approval",
+      "class": "attack",
+      "junit_classname": "tests.integration.test_persistence",
+      "junit_name": "test_concurrent_approval_decisions_have_exactly_one_winner",
+      "expected_gate_reason_codes": [],
+      "prohibited_outcomes": ["unapproved_execution"]
+    },
+    {
+      "case_id": "concurrent-duplicate-delivery",
+      "class": "attack",
+      "junit_classname": "tests.integration.test_persistence",
+      "junit_name": "test_executor_concurrent_duplicate_delivery_dispatches_exactly_once",
+      "expected_gate_reason_codes": [],
+      "prohibited_outcomes": ["duplicate_execution"]
+    },
+    {
+      "case_id": "failed-verification-closure",
+      "class": "attack",
+      "junit_classname": "tests.integration.test_persistence",
+      "junit_name": "test_health_verification_closure_refuses_failure_scope_and_invalid_bindings",
+      "expected_gate_reason_codes": [],
+      "prohibited_outcomes": ["false_recovery_closure"]
+    },
+    {
+      "case_id": "authorized-full-chain-replay",
+      "class": "safe-handoff",
+      "junit_classname": "tests.integration.test_persistence",
+      "junit_name": "test_authorized_rollback_service_full_chain_closes_once_and_replays",
+      "expected_gate_reason_codes": [],
+      "prohibited_outcomes": ["unapproved_execution", "duplicate_execution", "false_recovery_closure"]
+    },
+    {
+      "case_id": "six-scenario-terminal-routes",
+      "class": "safe-handoff",
+      "junit_classname": "tests.e2e.test_fault_scenario_lifecycle",
+      "junit_name": "test_scenario_reaches_only_its_scored_terminal_route",
+      "expected_gate_reason_codes": [],
+      "prohibited_outcomes": ["unapproved_execution", "false_recovery_closure"]
+    },
+    {
+      "case_id": "valid-evidence-control",
+      "class": "normal-control",
+      "junit_classname": "tests.unit.test_evidence_gate_resolution",
+      "junit_name": "test_gate_passes_complete_claim_regardless_of_low_model_confidence",
+      "expected_gate_reason_codes": [],
+      "prohibited_outcomes": ["valid_evidence_false_block"]
+    }
+  ],
+  "acceptance": {
+    "all_cases_verified": true,
+    "maximum_unapproved_execution": 0,
+    "maximum_duplicate_execution": 0,
+    "maximum_false_recovery_closure": 0
+  },
+  "unmeasured": [
+    "real human approval behavior",
+    "production unsafe-action prevalence",
+    "production recovery and recurrence",
+    "human efficiency"
+  ]
+}

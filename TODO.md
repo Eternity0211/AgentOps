@@ -539,7 +539,7 @@ The active continuation and interruption checkpoint is
 `docs/NEXT_EVALUATION_GOAL.md`. The old application Goal remains incomplete;
 FC6 and the human-approved FC7 comparison are deferred by user decision.
 
-- [ ] NE1 Freeze a fair RCAEval external-benchmark contract. Acceptance: exact
+- [x] NE1 Freeze a fair RCAEval external-benchmark contract. Acceptance: exact
   release/data hashes, licence, label-to-output mapping, disjoint development
   and holdout split, controls, budgets and scorer; refuse incompatible labels.
   Test plan: source/label isolation, schema/mapping, leakage and frozen-protocol
@@ -549,7 +549,7 @@ FC6 and the human-approved FC7 comparison are deferred by user decision.
     service-label incompatibility with the old six-family scorer are recorded
     in docs/NE1_RCAEVAL_FEASIBILITY.md. This is a feasibility check, not a
     completed external comparison.
-  - [ ] Implement and freeze a label-free RE2 task export, read-only telemetry
+  - [x] Implement and freeze a label-free RE2 task export, read-only telemetry
     adapter, typed service output and paired service-localization scorer. Test
     pinned hashes, missing modality, evaluator-label isolation and parity.
 - [ ] NE2 Retain Gate reason-code audits and expand safety fixtures. Acceptance:

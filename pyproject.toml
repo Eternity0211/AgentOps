@@ -38,6 +38,7 @@ dev = [
     "hypothesis>=6.140,<7",
     "mypy>=1.18,<2",
     "pre-commit>=4.3,<5",
+    "pyarrow>=19,<20",
     "pytest>=8.4,<10",
     "pytest-cov>=7,<8",
     "pyyaml>=6.0.3,<7",

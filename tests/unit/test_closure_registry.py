@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -14,9 +15,7 @@ def test_closure_registry_is_complete_strict_and_ordered() -> None:
     registry = load_closure_registry(REGISTRY)
 
     assert [item.work_id for item in registry.experiments] == [f"FC{i}" for i in range(14)]
-    assert all(
-        item.status is WorkStatus.COMPLETE for item in registry.experiments[:4]
-    )
+    assert all(item.status is WorkStatus.COMPLETE for item in registry.experiments[:4])
     assert len(registry.legacy_mappings) == 16
     assert {item.resolution for item in registry.legacy_mappings} >= {
         "EXISTING_EVIDENCE",
@@ -27,9 +26,7 @@ def test_closure_registry_is_complete_strict_and_ordered() -> None:
 def test_external_blocks_and_sample_size_decisions_are_explicit() -> None:
     registry = load_closure_registry(REGISTRY)
     blocked = [
-        item
-        for item in registry.experiments
-        if item.status is WorkStatus.BLOCKED_EXTERNAL_DATA
+        item for item in registry.experiments if item.status is WorkStatus.BLOCKED_EXTERNAL_DATA
     ]
 
     assert {item.work_id for item in blocked} == {"FC4", "FC5", "FC6", "FC7", "FC8"}
@@ -51,7 +48,8 @@ def test_closure_registry_refuses_unknown_fields_and_forward_dependencies() -> N
 
 def test_legacy_todo_has_no_unmapped_open_checkbox() -> None:
     todo = Path("TODO.md").read_text(encoding="utf-8")
-    open_items = [line for line in todo.splitlines() if line.startswith("- [ ]")]
+    lines = todo.splitlines()
+    open_items = [line for line in lines if re.match(r"^- \[ \] FC\d+ ", line)]
     registry = load_closure_registry(REGISTRY)
     expected = [
         item.work_id for item in registry.experiments if item.status is not WorkStatus.COMPLETE
@@ -59,3 +57,14 @@ def test_legacy_todo_has_no_unmapped_open_checkbox() -> None:
 
     assert len(open_items) == len(expected)
     assert all(f"{work_id} " in line for work_id, line in zip(expected, open_items, strict=True))
+
+    next_phase = [line for line in lines if re.match(r"^- \[[ x]\] NE\d+ ", line)]
+    assert re.findall(r"^- \[[ x]\] (NE\d+) ", todo, flags=re.MULTILINE) == [
+        "NE1",
+        "NE2",
+        "NE3",
+        "NE4",
+        "NE5",
+    ]
+    statuses = [line.startswith("- [x]") for line in next_phase]
+    assert statuses == sorted(statuses, reverse=True)

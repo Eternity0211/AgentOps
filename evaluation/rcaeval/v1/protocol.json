@@ -1,0 +1,66 @@
+{
+  "schema_version": "rcaeval-protocol/1.0.0",
+  "protocol_id": "agentops-rcaeval-re2-service-localization-v1",
+  "source": {
+    "repository": "phamquiluan/RCAEval",
+    "revision": "8b6c06a7a15bcecdbf70b611a13b789c5925dc17",
+    "index_path": "cases.parquet",
+    "index_sha256": "ec0008c90d0c97076bc98370ac824c3c5a49be95d00bd6d6044ea8061861d271",
+    "license": "MIT"
+  },
+  "splits": [
+    {
+      "role": "DEVELOPMENT",
+      "dataset": "RE2-OB",
+      "expected_cases": 90,
+      "candidate_services": [
+        "checkoutservice",
+        "currencyservice",
+        "emailservice",
+        "productcatalogservice",
+        "recommendationservice"
+      ]
+    },
+    {
+      "role": "HOLDOUT",
+      "dataset": "RE2-TT",
+      "expected_cases": 90,
+      "candidate_services": [
+        "ts-auth-service",
+        "ts-order-service",
+        "ts-route-service",
+        "ts-train-service",
+        "ts-travel-service"
+      ]
+    }
+  ],
+  "budget": {
+    "max_model_calls_per_case": 2,
+    "max_tool_calls_per_case": 24,
+    "max_input_tokens_per_case": 30000,
+    "max_output_tokens_per_case": 4000,
+    "timeout_ms_per_case": 180000
+  },
+  "scoring": {
+    "primary_metrics": [
+      "service_top_1",
+      "service_top_3"
+    ],
+    "missing_prediction_policy": "MISS",
+    "invalid_prediction_policy": "MISS",
+    "unknown_case_policy": "REJECT_RUN",
+    "duplicate_case_policy": "REJECT_RUN",
+    "incompatible_label_policy": "REFUSE_EQUIVALENCE",
+    "confidence_level": 0.95,
+    "bootstrap_iterations": 10000,
+    "bootstrap_seed": 271828,
+    "minimum_relevant_effect": 0.05
+  },
+  "controls": [
+    "source_hash_preflight",
+    "label_free_runtime",
+    "read_only_telemetry",
+    "paired_case_parity",
+    "interleaved_arm_order"
+  ]
+}

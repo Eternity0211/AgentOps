@@ -39,10 +39,79 @@ confirmed incident closure, repair outcome or approval record. It cannot by
 itself complete FC5 historical-memory, FC6 human-labor or FC7 approved
 recovery measurements.
 
-## Next executable step
+## Frozen external-benchmark contract
 
-Build a label-free task export and bounded read-only metrics/logs/traces
-adapter for the pinned RE2 cases. Keep the public index in evaluator-only
-storage, bind each downloaded telemetry file by hash and retain missing
-modalities. Reject case or source drift before a model call. Freeze the
-service-localization schema and paired scorer before external confirmation.
+NE1 is implemented by `evaluation/rcaeval/v1/protocol.json`. The protocol
+binds the exact dataset revision and index hash above, MIT licence,
+development/holdout split, candidate-service vocabularies, per-case budgets,
+failure policy, paired scorer and pre-run controls. Its public task is service
+localization. It explicitly refuses to reinterpret the benchmark's service
+or fault labels as the six AgentOps lab fault-family candidate IDs.
+
+The split is frozen before any held-out provider call:
+
+| Role | Dataset | Cases | Candidate services |
+| --- | --- | ---: | --- |
+| Development | RE2-OB | 90 | checkout, currency, email, product-catalog and recommendation services |
+| Holdout | RE2-TT | 90 | auth, order, route, train and travel services |
+
+The per-case ceiling is two model calls, 24 read-tool calls, 30,000 input
+tokens, 4,000 output tokens and 180 seconds. Baseline and candidate must bind
+the same protocol, task-index hash and budget. Arm order is interleaved. A
+future run may use less budget but must not silently raise any ceiling; a
+protocol change requires a new version and cannot rescore an opened holdout.
+
+## Label-free export and telemetry boundary
+
+`evaluation.rcaeval_contract` verifies `cases.parquet` before reading it and
+rejects a source hash or case-count mismatch. It exports opaque case IDs and
+hard-linked telemetry under `tasks/`; the original case directory, root-cause
+service and fault remain only in `evaluator_only/answers.json`. Each task
+contains the observation/injection window, the complete system-level
+candidate set, explicit modality availability and SHA-256/size bindings for
+every available metrics, logs and traces file. The one absent RE2-TT log is
+retained as an unavailable zero binding and is never synthesized. The export
+is create-once and rejects symlinked or missing source telemetry.
+
+The export command is:
+
+```text
+python -m evaluation.rcaeval_contract \
+  --protocol evaluation/rcaeval/v1/protocol.json \
+  --index <evaluator-only>/cases.parquet \
+  --telemetry-root <downloaded-pinned-revision> \
+  --output-root <new-export-directory>
+```
+
+`ReadOnlyTelemetryAdapter` accepts only a typed modality, one to eight named
+columns, a task-bounded time range and at most 200 rows. It chooses the bound
+file itself, rechecks size and SHA-256 for every query, rejects unavailable
+modalities and unknown columns, and exposes no caller-selected path, URL,
+command or mutation. Logs and traces remain untrusted data; this adapter does
+not promote their contents to instructions or Evidence.
+
+## Typed output and paired scoring
+
+`evaluation.score_rcaeval_pair` accepts versioned outputs containing one
+opaque case ID and one to three unique ranked services from that task's fixed
+candidate set. It rejects unknown/duplicate cases, services outside the
+candidate set, protocol/task-index drift, arm substitution and budget drift.
+Missing, timed-out, refused, dependency-failed and invalid cases score as
+misses. Primary outcomes are service Top-1 and Top-3 over the full split.
+Paired differences, bootstrap 95% intervals and exact McNemar tests use the
+existing versioned paired-comparison engine. Fault-type accuracy and Evidence
+Gate recall remain separate secondary outcomes and cannot earn service credit.
+
+Safety and latency/cost gates are explicit inputs from both arm artifacts;
+the scorer never assumes they passed. A beneficial point estimate alone
+cannot become an improvement claim when either gate is false. No provider
+call or accuracy result is part of NE1.
+
+## Verification
+
+Unit coverage checks the frozen revision/hash/split/budget, source drift,
+case-count drift, missing-log preservation, absence of raw case/fault fields
+from task manifests, create-once export, bounded reads, telemetry tampering,
+typed rankings, missing/failure scoring, candidate-set enforcement and paired
+budget/task parity. The committed protocol must pass formatting, lint, mypy,
+architecture checks and the repository regression suite before NE1 is closed.

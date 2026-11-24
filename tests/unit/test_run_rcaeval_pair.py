@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from evaluation.rcaeval_contract import (
+    Answer,
+    AnswerSet,
     FileBinding,
     Modality,
     TaskIndex,
@@ -18,6 +20,7 @@ from evaluation.rcaeval_contract import (
 from evaluation.rcaeval_features import FeatureArm, LocalizationContext, ServiceFeature
 from evaluation.rcaeval_provider import LocalizationInvocation
 from evaluation.run_rcaeval_pair import run_pair
+from evaluation.score_rcaeval_confirmation import score_confirmation
 from evaluation.score_rcaeval_pair import ServiceLocalizationOutput
 
 SOURCES = (
@@ -25,6 +28,7 @@ SOURCES = (
     "evaluation/rcaeval_features.py",
     "evaluation/rcaeval_provider.py",
     "evaluation/run_rcaeval_pair.py",
+    "evaluation/score_rcaeval_confirmation.py",
     "evaluation/score_rcaeval_pair.py",
 )
 
@@ -121,6 +125,17 @@ def _files(tmp_path: Path) -> tuple[Path, Path, Path, tuple[TaskManifest, ...]]:
             "temperature": 0,
             "max_tokens": 512,
             "max_repair_attempts": 1,
+        },
+        "resource_ceilings": {
+            "maximum_candidate_failures": 0,
+            "duration_median_increase_ms": 1000.0,
+            "duration_p95_increase_ms": 3000.0,
+            "input_tokens_median_increase": 1000.0,
+            "input_tokens_p95_increase": 2000.0,
+            "output_tokens_median_increase": 500.0,
+            "output_tokens_p95_increase": 1000.0,
+            "cost_median_increase_nanousd": 1000000.0,
+            "cost_p95_increase_nanousd": 2000000.0,
         },
         "failure_policy": (
             "Retain every terminal outcome; interrupted or invalid cases are misses and are "
@@ -300,3 +315,69 @@ def test_runner_rejects_task_index_hash_drift_before_any_call(tmp_path: Path) ->
     else:  # pragma: no cover
         raise AssertionError("task-index drift was accepted")
     assert order == []
+
+
+def test_final_scorer_reports_quality_resources_and_fail_closed_missing_values(
+    tmp_path: Path,
+) -> None:
+    protocol, task_index, plan, tasks = _files(tmp_path)
+    run_root = tmp_path / "run"
+    order: list[tuple[str, str]] = []
+    run_pair(
+        protocol_path=protocol,
+        task_index_path=task_index,
+        task_root=tmp_path,
+        plan_path=plan,
+        output_root=run_root,
+        api_key="test-key",
+        provider_factory=lambda _: FakeProvider(order),
+        feature_builder=lambda path, arm: _context(path, arm, path.name),
+    )
+    protocol_model = load_protocol(protocol)
+    answers = AnswerSet(
+        schema_version="rcaeval-answers/1.0.0",
+        protocol_sha256=protocol_sha256(protocol_model),
+        answers=tuple(
+            Answer(
+                case_id=task.case_id,
+                source_case=f"source-{task.case_id}",
+                root_cause_service=task.candidate_services[0],
+                fault="fixture",
+            )
+            for task in tasks
+            if task.split_role == "HOLDOUT"
+        ),
+    )
+    answers_path = tmp_path / "answers.json"
+    answers_path.write_text(answers.model_dump_json(indent=2), "utf-8")
+
+    result = score_confirmation(
+        protocol_path=protocol,
+        task_index_path=task_index,
+        answers_path=answers_path,
+        plan_path=plan,
+        run_root=run_root,
+    )
+
+    assert result.complete_case_pairs == 90
+    assert result.critical_safety_gate_passed
+    assert result.resource_gate_passed
+    assert result.quality.baseline.top_1_correct == result.quality.candidate.top_1_correct == 90
+    assert not any(result.resource_missing_pairs.values())
+    assert result.resource_comparison is not None
+    assert len(result.resource_comparison.metrics) == 4
+
+    candidate_result = next((run_root / "arms/candidate").glob("*/result.json"))
+    payload = json.loads(candidate_result.read_text("utf-8"))
+    payload["input_tokens"] = None
+    candidate_result.write_text(json.dumps(payload, indent=2) + "\n", "utf-8")
+    missing = score_confirmation(
+        protocol_path=protocol,
+        task_index_path=task_index,
+        answers_path=answers_path,
+        plan_path=plan,
+        run_root=run_root,
+    )
+    assert not missing.resource_gate_passed
+    assert missing.resource_missing_pairs["input_tokens"] == 1
+    assert not missing.quality.comparison.cost_latency_gate_passed

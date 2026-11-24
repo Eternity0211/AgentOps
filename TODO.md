@@ -589,6 +589,10 @@ FC6 and the human-approved FC7 comparison are deferred by user decision.
     artifact binding; interrupted arms become retained misses without rerun.
     Resource totals stay explicit and the cost/latency gate fails closed until
     the frozen post-run scorer evaluates it.
+  - [x] Implement the final quality/safety/resource scorer. It pairs Top-1,
+    Top-3, duration, input/output tokens and rate-card cost with 95% intervals;
+    missing resource values fail closed, and all median/P95 ceilings plus zero
+    candidate failures must be frozen before calls.
   - [ ] Download the exact pinned bytes, freeze the complete held-out run plan,
     execute all pairs once and publish the independent score. Do not substitute
     a mirror, moving revision, synthetic cohort or prior lab outcomes.

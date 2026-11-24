@@ -49,6 +49,18 @@ class ProviderSettings(StrictRunModel):
     max_repair_attempts: Literal[1]
 
 
+class ResourceCeilings(StrictRunModel):
+    maximum_candidate_failures: int = Field(ge=0, le=90)
+    duration_median_increase_ms: float = Field(ge=0)
+    duration_p95_increase_ms: float = Field(ge=0)
+    input_tokens_median_increase: float = Field(ge=0)
+    input_tokens_p95_increase: float = Field(ge=0)
+    output_tokens_median_increase: float = Field(ge=0)
+    output_tokens_p95_increase: float = Field(ge=0)
+    cost_median_increase_nanousd: float = Field(ge=0)
+    cost_p95_increase_nanousd: float = Field(ge=0)
+
+
 class RcaEvalRunPlan(StrictRunModel):
     schema_version: Literal["rcaeval-run-plan/1.0.0"]
     status: Literal["FROZEN_BEFORE_PROVIDER_CALLS"]
@@ -63,6 +75,7 @@ class RcaEvalRunPlan(StrictRunModel):
     interleaving: Literal["ALTERNATE_BY_SORTED_CASE_INDEX"]
     budget: EvaluationBudget
     provider: ProviderSettings
+    resource_ceilings: ResourceCeilings
     failure_policy: Literal[
         "Retain every terminal outcome; interrupted or invalid cases are misses and are never "
         "rerun."
@@ -77,6 +90,7 @@ class RcaEvalRunPlan(StrictRunModel):
             "evaluation/rcaeval_features.py",
             "evaluation/rcaeval_provider.py",
             "evaluation/run_rcaeval_pair.py",
+            "evaluation/score_rcaeval_confirmation.py",
             "evaluation/score_rcaeval_pair.py",
         }
         if set(self.source_hashes) != required or any(

@@ -37,6 +37,15 @@ bounds and tool/model-call totals are retained. Existing artifacts must match ev
 plan, task-index, case and arm binding. The read-only path can record its critical-safety
 condition, but the resource gate remains false until the post-run scorer evaluates frozen limits.
 
+`score_rcaeval_confirmation.py` performs that final fail-closed evaluation. It opens evaluator
+answers only after both complete run ledgers exist, scores failures and missing predictions as
+misses, and reports service Top-1/Top-3 paired differences and 95% intervals. Duration, input
+tokens, output tokens and rate-card cost are paired per case with median and P95 intervals;
+unknown values remain counted as missing and fail the resource gate rather than being imputed.
+The plan must predeclare all eight median/P95 increase ceilings and a zero candidate-failure
+limit. The quality comparison is recomputed with the resulting resource gate, so a quality
+`IMPROVED` claim cannot appear when safety or resources fail.
+
 NE4 therefore remains open. When authoritative bytes become reachable, the next batch must:
 
 1. verify the index hash and export all 180 label-free tasks;

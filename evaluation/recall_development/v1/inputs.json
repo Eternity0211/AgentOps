@@ -1,0 +1,54 @@
+{
+  "schema_version": "recall-development-inputs/1.0.0",
+  "retention_limit_bytes": 1000,
+  "cases": [
+    {
+      "case_id": "ne3-http-error-a",
+      "candidate_id": "http-500",
+      "baseline": {"observations": [{"evidence_id": "ev-http-a-log", "source": "logs", "current": true, "quality_basis_points": 9000, "supports_candidate": true}], "material_missing": ["aligned failing trace"], "optional_unknowns": ["application stack frame"]},
+      "candidate": {"observations": [{"evidence_id": "ev-http-a-log", "source": "logs", "current": true, "quality_basis_points": 9000, "supports_candidate": true}, {"evidence_id": "ev-http-a-trace", "source": "traces", "current": true, "quality_basis_points": 9200, "supports_candidate": true}], "material_missing": [], "optional_unknowns": ["application stack frame"]}
+    },
+    {
+      "case_id": "ne3-pool-pressure-a",
+      "candidate_id": "db-pool-exhaustion",
+      "baseline": {"observations": [{"evidence_id": "ev-pool-a-metric", "source": "metrics", "current": true, "quality_basis_points": 9100, "supports_candidate": true}], "material_missing": ["database-side corroboration"], "optional_unknowns": ["individual query plan"]},
+      "candidate": {"observations": [{"evidence_id": "ev-pool-a-metric", "source": "metrics", "current": true, "quality_basis_points": 9100, "supports_candidate": true}, {"evidence_id": "ev-pool-a-log", "source": "logs", "current": true, "quality_basis_points": 8800, "supports_candidate": true}], "material_missing": [], "optional_unknowns": ["individual query plan"]}
+    },
+    {
+      "case_id": "ne3-memory-retention-a",
+      "candidate_id": "memory-leak",
+      "baseline": {"observations": [{"evidence_id": "ev-memory-a-trace", "source": "traces", "current": true, "quality_basis_points": 9000, "supports_candidate": true}], "material_missing": ["chronological post-GC series", "aligned impact metric"], "optional_unknowns": ["retained object type"], "memory_samples": [[1,100,1,0,null,null],[2,200,2,0,null,null]]},
+      "candidate": {"observations": [{"evidence_id": "ev-memory-a-trace", "source": "traces", "current": true, "quality_basis_points": 9000, "supports_candidate": true}, {"evidence_id": "ev-memory-a-metric", "source": "metrics", "current": true, "quality_basis_points": 9000, "supports_candidate": true}], "material_missing": [], "optional_unknowns": ["retained object type"], "memory_samples": [[1,100,1,0,null,null],[2,200,2,0,null,null],[3,300,3,0,1,"BEFORE"],[4,300,3,0,1,"AFTER"],[5,400,4,0,null,null]]}
+    },
+    {
+      "case_id": "ne3-memory-retention-b",
+      "candidate_id": "memory-leak",
+      "baseline": {"observations": [{"evidence_id": "ev-memory-b-trace", "source": "traces", "current": true, "quality_basis_points": 9000, "supports_candidate": true}], "material_missing": ["post-GC persistence", "aligned error metric"], "optional_unknowns": ["allocation site"], "memory_samples": [[1,120,1,0,null,null],[2,240,2,0,null,null],[3,360,3,0,null,null],[4,480,4,0,null,null],[5,600,5,0,null,null]]},
+      "candidate": {"observations": [{"evidence_id": "ev-memory-b-trace", "source": "traces", "current": true, "quality_basis_points": 9000, "supports_candidate": true}, {"evidence_id": "ev-memory-b-log", "source": "logs", "current": true, "quality_basis_points": 8500, "supports_candidate": true}], "material_missing": [], "optional_unknowns": ["allocation site"], "memory_samples": [[1,120,1,0,null,null],[2,240,2,0,null,null],[3,360,3,0,2,"BEFORE"],[4,360,3,0,2,"AFTER"],[5,480,4,0,null,null],[6,600,5,0,null,null]]}
+    },
+    {
+      "case_id": "ne3-single-source-control",
+      "candidate_id": "http-500",
+      "baseline": {"observations": [{"evidence_id": "ev-single-log", "source": "logs", "current": true, "quality_basis_points": 9000, "supports_candidate": true}], "material_missing": ["independent source"], "optional_unknowns": []},
+      "candidate": {"observations": [{"evidence_id": "ev-single-log", "source": "logs", "current": true, "quality_basis_points": 9000, "supports_candidate": true}], "material_missing": ["independent source"], "optional_unknowns": []}
+    },
+    {
+      "case_id": "ne3-stale-control",
+      "candidate_id": "downstream-latency",
+      "baseline": {"observations": [{"evidence_id": "ev-stale-trace", "source": "traces", "current": false, "quality_basis_points": 9000, "supports_candidate": true}, {"evidence_id": "ev-stale-metric", "source": "metrics", "current": false, "quality_basis_points": 9000, "supports_candidate": true}], "material_missing": ["current evidence"], "optional_unknowns": []},
+      "candidate": {"observations": [{"evidence_id": "ev-stale-trace", "source": "traces", "current": false, "quality_basis_points": 9000, "supports_candidate": true}, {"evidence_id": "ev-stale-metric", "source": "metrics", "current": false, "quality_basis_points": 9000, "supports_candidate": true}], "material_missing": ["current evidence"], "optional_unknowns": []}
+    },
+    {
+      "case_id": "ne3-counter-control",
+      "candidate_id": "redis-timeout",
+      "baseline": {"observations": [{"evidence_id": "ev-counter-log", "source": "logs", "current": true, "quality_basis_points": 9000, "supports_candidate": true, "unresolved_counter": true}, {"evidence_id": "ev-counter-metric", "source": "metrics", "current": true, "quality_basis_points": 9000, "supports_candidate": true}], "material_missing": [], "optional_unknowns": []},
+      "candidate": {"observations": [{"evidence_id": "ev-counter-log", "source": "logs", "current": true, "quality_basis_points": 9000, "supports_candidate": true, "unresolved_counter": true}, {"evidence_id": "ev-counter-metric", "source": "metrics", "current": true, "quality_basis_points": 9000, "supports_candidate": true}], "material_missing": [], "optional_unknowns": []}
+    },
+    {
+      "case_id": "ne3-memory-warmup-control",
+      "candidate_id": "memory-leak",
+      "baseline": {"observations": [{"evidence_id": "ev-warmup-trace", "source": "traces", "current": true, "quality_basis_points": 9000, "supports_candidate": true}, {"evidence_id": "ev-warmup-metric", "source": "metrics", "current": true, "quality_basis_points": 9000, "supports_candidate": true}], "material_missing": [], "optional_unknowns": [], "memory_samples": [[1,100,1,0,null,null],[2,300,3,0,null,null],[3,400,4,0,1,"BEFORE"],[4,200,4,2,1,"AFTER"],[5,200,4,2,null,null]]},
+      "candidate": {"observations": [{"evidence_id": "ev-warmup-trace", "source": "traces", "current": true, "quality_basis_points": 9000, "supports_candidate": true}, {"evidence_id": "ev-warmup-metric", "source": "metrics", "current": true, "quality_basis_points": 9000, "supports_candidate": true}], "material_missing": [], "optional_unknowns": [], "memory_samples": [[1,100,1,0,null,null],[2,300,3,0,null,null],[3,400,4,0,1,"BEFORE"],[4,200,4,2,1,"AFTER"],[5,200,4,2,null,null]]}
+    }
+  ]
+}

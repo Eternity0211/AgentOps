@@ -1,0 +1,13 @@
+{
+  "schema_version": "recall-development-labels/1.0.0",
+  "labels": {
+    "ne3-http-error-a": {"target_positive": true, "category": "DECISIVE_EVIDENCE"},
+    "ne3-pool-pressure-a": {"target_positive": true, "category": "DECISIVE_EVIDENCE"},
+    "ne3-memory-retention-a": {"target_positive": true, "category": "CHRONOLOGICAL_MEMORY"},
+    "ne3-memory-retention-b": {"target_positive": true, "category": "CHRONOLOGICAL_MEMORY"},
+    "ne3-single-source-control": {"target_positive": false, "category": "PAIRED_NEGATIVE_CONTROL"},
+    "ne3-stale-control": {"target_positive": false, "category": "PAIRED_NEGATIVE_CONTROL"},
+    "ne3-counter-control": {"target_positive": false, "category": "PAIRED_NEGATIVE_CONTROL"},
+    "ne3-memory-warmup-control": {"target_positive": false, "category": "PAIRED_NEGATIVE_CONTROL"}
+  }
+}

@@ -355,6 +355,18 @@ class ReadOnlyTelemetryAdapter:
         self._task_dir = task_dir
         self.task = TaskManifest.model_validate_json((task_dir / "task.json").read_bytes())
 
+    def columns(self, modality: Modality) -> tuple[str, ...]:
+        """Return only the bound Parquet schema; never accept a caller-selected path."""
+        binding = next(item for item in self.task.files if item.modality is modality)
+        if not binding.available:
+            return ()
+        source = self._task_dir / binding.file_name
+        if source.is_symlink() or source.stat().st_size != binding.size_bytes:
+            raise ValueError("telemetry file binding is invalid")
+        if _sha256(source) != binding.sha256:
+            raise ValueError("telemetry file hash does not match the task binding")
+        return tuple(pq.read_schema(source).names)
+
     def query(self, request: TelemetryQuery) -> TelemetryResult:
         if not (
             self.task.observation_start_unix_s

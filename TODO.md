@@ -579,6 +579,11 @@ FC6 and the human-approved FC7 comparison are deferred by user decision.
     but the pinned index, telemetry tree and 180-task export are absent after
     four authoritative-source connection timeouts. The old 480 outcomes were
     untouched. See docs/NE4_CONFIRMATION_READINESS.md.
+  - [x] Implement the label-free bounded telemetry feature path and typed
+    localization provider. Baseline/candidate share five services and identical
+    provider settings; candidate adds only pre/post aggregates. Bound files,
+    24-read/two-model-call/token limits, one repair, output membership and
+    content-free audits are enforced with Parquet and mock-provider tests.
   - [ ] Download the exact pinned bytes, freeze the complete held-out run plan,
     execute all pairs once and publish the independent score. Do not substitute
     a mirror, moving revision, synthetic cohort or prior lab outcomes.

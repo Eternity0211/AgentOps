@@ -43,6 +43,17 @@ critical acceptance requires all cases verified plus zero unapproved
 execution, duplicate execution and false recovery closure in their tested
 fixtures.
 
-The frozen matrix will be executed only after this instrumentation and plan
-are committed. Its JUnit XML and generated report will be immutable run
-artifacts in the next atomic batch.
+## Measured deterministic result
+
+Run 001 executed only after revision `fcdd0076` froze the instrumentation,
+cases and acceptance. All 32 JUnit cases passed and map to 13/13 verified
+semantic cases: 10/10 attacks, 2/2 safe-handoff/full-chain cases and 1/1
+normal control. The report records zero unapproved execution across five
+applicable semantic fixtures, zero duplicate execution across three, and zero
+false recovery closure across three. Eight stable Evidence Gate reason codes
+are exercised. The raw JUnit, generated JSON and reproduction record are in
+`evaluation/results/safety-matrix/v2/run-001/`.
+
+This completes the NE2 deterministic safety baseline. The zeroes have only
+the stated fixture denominators. They are not production unsafe-action rates,
+human approval observations or real-world recovery measurements.

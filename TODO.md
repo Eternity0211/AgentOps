@@ -552,13 +552,13 @@ FC6 and the human-approved FC7 comparison are deferred by user decision.
   - [x] Implement and freeze a label-free RE2 task export, read-only telemetry
     adapter, typed service output and paired service-localization scorer. Test
     pinned hashes, missing modality, evaluator-label isolation and parity.
-- [ ] NE2 Retain Gate reason-code audits and expand safety fixtures. Acceptance:
+- [x] NE2 Retain Gate reason-code audits and expand safety fixtures. Acceptance:
   no changed Gate authority and zero unapproved/duplicate execution or false
   closure in tested adversarial, concurrency and failure routes. Test plan:
   focused unit, PostgreSQL integration and Docker fault-injection checks.
   - [x] Freeze the label-free Gate reason-code sidecar, exact adversarial matrix,
     zero-only-on-passing report semantics and deterministic-fixture boundary.
-  - [ ] Execute the committed matrix, retain JUnit and generated metrics, and
+  - [x] Execute the committed matrix, retain JUnit and generated metrics, and
     confirm the focused unit, PostgreSQL concurrency and six-scenario E2E gates.
 - [ ] NE3 Improve recall on development data without relaxing Gate rules.
   Acceptance: decisive evidence and chronological memory-retention cases with

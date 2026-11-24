@@ -533,6 +533,34 @@ measurement shows no need; closing it does not mean implementing it.
   - Acceptance: FC1 determines whether any quality improvement is proven. No fixed positive claim
     is assumed in advance; a null or negative result is a valid completed measurement.
 
+### Next evaluation phase
+
+The active continuation and interruption checkpoint is
+`docs/NEXT_EVALUATION_GOAL.md`. The old application Goal remains incomplete;
+FC6 and the human-approved FC7 comparison are deferred by user decision.
+
+- [ ] NE1 Freeze a fair RCAEval external-benchmark contract. Acceptance: exact
+  release/data hashes, licence, label-to-output mapping, disjoint development
+  and holdout split, controls, budgets and scorer; refuse incompatible labels.
+  Test plan: source/label isolation, schema/mapping, leakage and frozen-protocol
+  preflight tests before any held-out model call.
+- [ ] NE2 Retain Gate reason-code audits and expand safety fixtures. Acceptance:
+  no changed Gate authority and zero unapproved/duplicate execution or false
+  closure in tested adversarial, concurrency and failure routes. Test plan:
+  focused unit, PostgreSQL integration and Docker fault-injection checks.
+- [ ] NE3 Improve recall on development data without relaxing Gate rules.
+  Acceptance: decisive evidence and chronological memory-retention cases with
+  paired negative controls; report all failures, precision, recall, safety and
+  resources. Test plan: dataset/schema tests and paired development scoring.
+- [ ] NE4 Freeze and run new independent paired confirmation. Acceptance:
+  baseline/candidate values, absolute deltas, 95% intervals, all safety gates
+  and resource ceilings predeclared; keep every result and the old 480 intact.
+  Test plan: source-bound preflight, full scoring/audit, relevant regression.
+- [ ] NE5 Publish external and lab findings plus FC5/FC8 feasibility. Acceptance:
+  no public-data substitution for human labor, actual approval, MTTR or bills;
+  explicit null/adverse and missing metrics. Test plan: report/scorecard
+  consistency and archive Git-object audit.
+
 ### Measure the currently missing real-world outcomes with explicit controls
 
 - [ ] FC5 Build a valid confirmed-history cohort and measure real incident-memory effect.

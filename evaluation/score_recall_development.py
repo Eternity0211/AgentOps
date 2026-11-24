@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 from typing import Any, Literal
 
@@ -134,6 +135,34 @@ def _rates(rows: list[dict[str, Any]], arm: str) -> dict[str, Any]:
 
 def score(inputs_path: Path, labels_path: Path, plan_path: Path) -> dict[str, Any]:
     plan = json.loads(plan_path.read_text("utf-8"))
+    root = Path(__file__).resolve().parents[1]
+    expected_sources = {
+        "evaluation/memory_evidence.py",
+        "evaluation/paired_comparison.py",
+        "evaluation/score_recall_development.py",
+    }
+    if set(plan.get("source_hashes", {})) != expected_sources or any(
+        hashlib.sha256((root / name).read_bytes()).hexdigest() != digest
+        for name, digest in plan["source_hashes"].items()
+    ):
+        raise ValueError("recall development source hash mismatch")
+    revision = subprocess.check_output(
+        ["git", "-c", "safe.directory=D:/AgentOps", "rev-parse", "HEAD"], text=True
+    ).strip()
+    ancestry = subprocess.run(
+        [
+            "git",
+            "-c",
+            "safe.directory=D:/AgentOps",
+            "merge-base",
+            "--is-ancestor",
+            plan["implementation_commit"],
+            revision,
+        ],
+        check=False,
+    )
+    if ancestry.returncode != 0:
+        raise ValueError("frozen implementation commit is not an ancestor")
     for path, key in ((inputs_path, "inputs_sha256"), (labels_path, "labels_sha256")):
         if hashlib.sha256(path.read_bytes()).hexdigest() != plan[key]:
             raise ValueError(f"{path.name} hash mismatch")

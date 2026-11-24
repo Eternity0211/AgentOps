@@ -13,6 +13,22 @@ from evaluation.score_recall_development import (
 )
 
 ROOT = Path("evaluation/recall_development/v1")
+SOURCES = (
+    Path("evaluation/memory_evidence.py"),
+    Path("evaluation/paired_comparison.py"),
+    Path("evaluation/score_recall_development.py"),
+)
+
+
+def plan_payload(inputs: Path, labels: Path) -> dict[str, object]:
+    return {
+        "implementation_commit": "39fd851c6c881acef973746a51af9b520c945df4",
+        "inputs_sha256": hashlib.sha256(inputs.read_bytes()).hexdigest(),
+        "labels_sha256": hashlib.sha256(labels.read_bytes()).hexdigest(),
+        "source_hashes": {
+            path.as_posix(): hashlib.sha256(path.read_bytes()).hexdigest() for path in SOURCES
+        },
+    }
 
 
 def test_inputs_are_label_isolated_and_have_paired_controls() -> None:
@@ -43,15 +59,7 @@ def test_scorer_reports_precision_recall_safety_resources_and_all_failures(tmp_p
     inputs = ROOT / "inputs.json"
     labels = ROOT / "evaluator_only/labels.json"
     plan = tmp_path / "plan.json"
-    plan.write_text(
-        json.dumps(
-            {
-                "inputs_sha256": hashlib.sha256(inputs.read_bytes()).hexdigest(),
-                "labels_sha256": hashlib.sha256(labels.read_bytes()).hexdigest(),
-            }
-        ),
-        "utf-8",
-    )
+    plan.write_text(json.dumps(plan_payload(inputs, labels)), "utf-8")
     result = score(inputs, labels, plan)
     assert result["baseline"]["recall"] == 0
     assert result["candidate"] == {
@@ -70,6 +78,8 @@ def test_scorer_reports_precision_recall_safety_resources_and_all_failures(tmp_p
 
 def test_scorer_refuses_hash_drift(tmp_path: Path) -> None:
     plan = tmp_path / "plan.json"
-    plan.write_text(json.dumps({"inputs_sha256": "0" * 64, "labels_sha256": "0" * 64}), "utf-8")
+    payload = plan_payload(ROOT / "inputs.json", ROOT / "evaluator_only/labels.json")
+    payload["inputs_sha256"] = "0" * 64
+    plan.write_text(json.dumps(payload), "utf-8")
     with pytest.raises(ValueError, match="hash mismatch"):
         score(ROOT / "inputs.json", ROOT / "evaluator_only/labels.json", plan)

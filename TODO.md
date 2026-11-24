@@ -584,6 +584,11 @@ FC6 and the human-approved FC7 comparison are deferred by user decision.
     provider settings; candidate adds only pre/post aggregates. Bound files,
     24-read/two-model-call/token limits, one repair, output membership and
     content-free audits are enforced with Parquet and mock-provider tests.
+  - [x] Implement the source-bound create-once interleaved pair runner. It
+    validates the committed implementation, exact 180/90 task split and every
+    artifact binding; interrupted arms become retained misses without rerun.
+    Resource totals stay explicit and the cost/latency gate fails closed until
+    the frozen post-run scorer evaluates it.
   - [ ] Download the exact pinned bytes, freeze the complete held-out run plan,
     execute all pairs once and publish the independent score. Do not substitute
     a mirror, moving revision, synthetic cohort or prior lab outcomes.

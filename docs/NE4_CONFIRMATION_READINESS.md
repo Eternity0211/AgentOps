@@ -28,11 +28,19 @@ budgets, and journals hashes and resource totals without provider bodies or cred
 components are tested with bound Parquet fixtures and a mock transport; they are not a measured
 external result.
 
+`run_rcaeval_pair.py` now supplies the create-once execution layer. It requires a committed
+source/task-index-bound plan, exactly 180 exported tasks with 90 holdout cases, identical budgets,
+and alternating arm order. A per-case `STARTED` marker is written before feature or provider work;
+if execution is interrupted, resume records that arm as a dependency-failure miss without another
+provider call. Complete results, content-free events, context hashes, tokens, duration, rate-card
+bounds and tool/model-call totals are retained. Existing artifacts must match every protocol,
+plan, task-index, case and arm binding. The read-only path can record its critical-safety
+condition, but the resource gate remains false until the post-run scorer evaluates frozen limits.
+
 NE4 therefore remains open. When authoritative bytes become reachable, the next batch must:
 
 1. verify the index hash and export all 180 label-free tasks;
-2. finish the create-once interleaved runner, then freeze task-index, runner/scorer sources, arms,
-   budgets, interleaving, safety/resource ceilings,
-   failure policy, and 95% intervals in a committed plan before calls;
+2. freeze task-index, runner/scorer sources, arms, budgets, interleaving,
+   safety/resource ceilings, failure policy, and 95% intervals in a committed plan before calls;
 3. run every holdout pair once, preserve all outcomes, then open evaluator-only answers; and
 4. publish null or adverse results exactly as observed.

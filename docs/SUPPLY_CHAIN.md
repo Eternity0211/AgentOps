@@ -52,6 +52,13 @@ upstream v6.2.0 commit `6044e13b5dc448c55e2357c09f80417699197238`, and the conso
 updated to Next.js 16.4.1. These are remediations to be reverified by clean CI, not waived findings
 or a general vulnerability-free claim.
 
+On 2026-11-27, the Next.js production-build guard reported a later published advisory affecting
+the pinned 16.4.1 release. The console therefore pins the same-major security release 16.4.6 and
+records `experimental.agentUpgrade: "security"`; acceptance still requires the locked install,
+format, lint, strict type check, 100% unit coverage, production build, Chromium/WCAG browser suite,
+repository supply-chain checks, and clean remote CI. This maintenance does not establish a general
+vulnerability-free claim.
+
 The first rerun then passed every Linux test but correctly failed the 100% coverage gate because
 the Windows lock path was host-skipped. Its platform-neutral module-double test now exercises
 Windows acquire, release, and contention semantics on Linux as well as the mirrored POSIX branch

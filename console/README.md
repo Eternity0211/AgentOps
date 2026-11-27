@@ -7,6 +7,7 @@ verification remain authoritative.
 ## Toolchain
 
 - Node.js `22.17.0` and npm `10.9.2` (also recorded in `.nvmrc` and `package.json`);
+- security-patched Next.js `16.4.6`, pinned exactly with the rest of the console dependency graph;
 - exact dependency versions plus committed `package-lock.json`;
 - ESLint, strict TypeScript, Vitest with 100% thresholds, Playwright Chromium checks, and the
   pinned `@axe-core/playwright` WCAG scanner.

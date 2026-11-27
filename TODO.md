@@ -4,6 +4,14 @@ Checkboxes are completion claims. Check an item only when its acceptance criteri
 
 > Implementation status: **core complete**. Phase 0 through Phase 13 exit checks pass; optional post-core enhancements remain open below.
 
+## Security maintenance (2026-11-27)
+
+- [x] Upgrade the administration console from advisory-affected Next.js 16.4.1 to the same-major
+  security release 16.4.6 in an isolated worktree. Preserve exact dependency locking and existing
+  behavior; pass formatting, lint, strict type checks, 100% unit coverage, production build,
+  desktop/mobile Chromium plus WCAG checks, supply-chain validation, staged-content review, atomic
+  commit, and immediate push; monitor remote CI as the final handoff gate.
+
 ## Final closure and comparative validation plan (authoritative, 2026-11-12)
 
 This section is the single authoritative remaining-work list. Older unchecked R/C summary items

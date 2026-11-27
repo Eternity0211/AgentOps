@@ -6,6 +6,7 @@ import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import httpx
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -13,6 +14,8 @@ from jwt.algorithms import RSAAlgorithm
 
 from agentops_incident_commander.domain import AuthenticationError
 from agentops_incident_commander.infrastructure import (
+    HttpJwksProvider,
+    HttpOidcCodeClient,
     OidcTokenVerifier,
     OidcVerifierSettings,
 )
@@ -67,6 +70,22 @@ async def test_verified_token_yields_identity_only_and_ignores_authority_claims(
     assert identity.subject == "external-user-1"
     assert not hasattr(identity, "roles")
     assert not hasattr(identity, "tenant_id")
+
+
+@pytest.mark.anyio
+async def test_nonce_is_verified_when_browser_flow_requires_it(
+    key_pair: tuple[Any, dict[str, object]],
+) -> None:
+    private_key, public_jwk = key_pair
+    value = token(private_key, nonce="expected-nonce")
+    identity = await verifier({"keys": [public_jwk]}).verify(value, expected_nonce="expected-nonce")
+    assert identity.subject == "external-user-1"
+    with pytest.raises(AuthenticationError, match="nonce"):
+        await verifier({"keys": [public_jwk]}).verify(value, expected_nonce="different-nonce")
+    with pytest.raises(AuthenticationError, match="nonce"):
+        await verifier({"keys": [public_jwk]}).verify(
+            token(private_key), expected_nonce="expected-nonce"
+        )
 
 
 @pytest.mark.parametrize(
@@ -172,3 +191,113 @@ async def test_invalid_claims_are_rejected(
     private_key, public_jwk = key_pair
     with pytest.raises(AuthenticationError, match="validation failed"):
         await verifier({"keys": [public_jwk]}).verify(token(private_key, **overrides))
+
+
+@pytest.mark.anyio
+async def test_http_jwks_provider_accepts_only_bounded_json_documents() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["accept"] == "application/json"
+        return httpx.Response(200, json={"keys": []})
+
+    provider = HttpJwksProvider(
+        "https://identity.example.test/jwks", transport=httpx.MockTransport(handler)
+    )
+    assert await provider.load() == {"keys": []}
+
+    for response in (
+        httpx.Response(302, headers={"Location": "https://evil.example.test"}),
+        httpx.Response(200, content=b"x" * 1025),
+        httpx.Response(200, json=[]),
+        httpx.Response(200, content=b"not-json"),
+    ):
+        bounded = HttpJwksProvider(
+            "https://identity.example.test/jwks",
+            max_response_bytes=1024,
+            transport=httpx.MockTransport(lambda _, value=response: value),
+        )
+        with pytest.raises(AuthenticationError):
+            await bounded.load()
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"url": "http://identity.example.test/jwks"},
+        {"url": "https://user:pass@identity.example.test/jwks"},
+        {"timeout_seconds": 0},
+        {"timeout_seconds": 31},
+        {"max_response_bytes": 100},
+        {"max_response_bytes": 1_048_577},
+    ],
+)
+def test_http_jwks_settings_are_bounded(kwargs: dict[str, object]) -> None:
+    url = str(kwargs.pop("url", "https://identity.example.test/jwks"))
+    with pytest.raises(ValueError):
+        HttpJwksProvider(url, **kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.anyio
+async def test_http_code_client_sends_pkce_and_returns_only_bounded_id_token() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        body = request.content.decode()
+        assert "grant_type=authorization_code" in body
+        assert "code_verifier=" + "v" * 43 in body
+        assert "client_secret=" + "s" * 32 in body
+        return httpx.Response(200, json={"id_token": "signed-id-token"})
+
+    client = HttpOidcCodeClient(
+        "https://identity.example.test/token",
+        client_id="agentops",
+        client_secret="s" * 32,
+        redirect_uri="https://console.example.test/auth/callback",
+        transport=httpx.MockTransport(handler),
+    )
+    assert await client.exchange(code="c" * 32, code_verifier="v" * 43) == "signed-id-token"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "response",
+    [
+        httpx.Response(400, json={"error": "invalid_grant"}),
+        httpx.Response(200, json={}),
+        httpx.Response(200, json={"id_token": ""}),
+        httpx.Response(200, json=[]),
+        httpx.Response(200, content=b"not-json"),
+        httpx.Response(200, content=b"x" * 1025),
+    ],
+)
+async def test_http_code_client_rejects_invalid_responses(response: httpx.Response) -> None:
+    client = HttpOidcCodeClient(
+        "https://identity.example.test/token",
+        client_id="agentops",
+        redirect_uri="https://console.example.test/auth/callback",
+        max_response_bytes=1024,
+        transport=httpx.MockTransport(lambda _: response),
+    )
+    with pytest.raises(AuthenticationError):
+        await client.exchange(code="c" * 32, code_verifier="v" * 43)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"token_endpoint": "http://identity.example.test/token"},
+        {"redirect_uri": "http://console.example.test/callback"},
+        {"client_id": ""},
+        {"client_secret": "short"},
+        {"timeout_seconds": 0},
+        {"timeout_seconds": 31},
+        {"max_response_bytes": 100},
+        {"max_response_bytes": 1_048_577},
+    ],
+)
+def test_http_code_client_settings_are_bounded(kwargs: dict[str, object]) -> None:
+    values: dict[str, object] = {
+        "token_endpoint": "https://identity.example.test/token",
+        "client_id": "agentops",
+        "redirect_uri": "https://console.example.test/auth/callback",
+    }
+    values.update(kwargs)
+    with pytest.raises(ValueError):
+        HttpOidcCodeClient(**values)  # type: ignore[arg-type]

@@ -342,6 +342,9 @@ The production identity boundary follows [ADR 0011](ADR/0011-production-identity
 OIDC verifies only the external issuer/subject while active Tenant membership and Roles come from
 the control-plane database. Browser credentials remain in a same-origin HttpOnly session; the API
 constructs the Principal and the worker has no interactive authentication surface.
+One-time OIDC login transactions and revocable browser sessions are PostgreSQL-backed. Raw session
+and CSRF bearer values are never persisted; unsafe HTTP methods require the database-bound
+double-submit CSRF check before the existing API permission dependency runs.
 The simulator includes its own PostgreSQL and Redis as diagnosed dependencies. Redis is not a
 control-plane queue or cache in the MVP. Runtime and Ground Truth use different Compose files,
 profiles, networks, mounts, and credentials so runtime containers cannot read evaluation labels.

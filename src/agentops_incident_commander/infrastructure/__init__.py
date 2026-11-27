@@ -57,7 +57,13 @@ from .mock_model import (
     MockModelScenario,
     MockModelTimeout,
 )
-from .oidc import JwksProvider, OidcTokenVerifier, OidcVerifierSettings
+from .oidc import (
+    HttpJwksProvider,
+    HttpOidcCodeClient,
+    JwksProvider,
+    OidcTokenVerifier,
+    OidcVerifierSettings,
+)
 from .persisted_health_verification import (
     HEALTH_VERIFICATION_DECISION_AUDIT_SCHEMA_VERSION,
     PostgresPersistedHealthVerifier,
@@ -101,6 +107,8 @@ __all__ = [
     "HealthProbeSample",
     "HealthVerificationCollectionIds",
     "HealthVerificationCollectionRequest",
+    "HttpJwksProvider",
+    "HttpOidcCodeClient",
     "ImmutableActionSnapshotWriter",
     "JwksProvider",
     "LiveHealthVerificationCollector",

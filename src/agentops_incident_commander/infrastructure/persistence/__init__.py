@@ -5,6 +5,7 @@ from .action_execution_store import (
     PostgresActionExecutionStore,
     PostgresLifecycleActionExecutionStore,
 )
+from .browser_auth import PostgresBrowserAuthStore
 from .correlation_repository import (
     CorrelationLinkRepository,
     PostgresCorrelationLinkStore,
@@ -32,6 +33,7 @@ from .models import (
     AuditEventRow,
     AuditTenantSequenceRow,
     Base,
+    BrowserSessionRow,
     CorrelationLinkRow,
     CorrelationStreamRow,
     DiagnosisProgressRow,
@@ -49,6 +51,7 @@ from .models import (
     IncidentTransitionRow,
     JobRow,
     ModelCallTraceRow,
+    OidcLoginAttemptRow,
     OutboxEventRow,
     PostmortemRevisionRow,
     PostmortemRow,
@@ -95,6 +98,7 @@ __all__ = [
     "AuditRepository",
     "AuditTenantSequenceRow",
     "Base",
+    "BrowserSessionRow",
     "CorrelationLinkRepository",
     "CorrelationLinkRow",
     "CorrelationStreamRow",
@@ -121,9 +125,11 @@ __all__ = [
     "JobRow",
     "ModelCallTraceRepository",
     "ModelCallTraceRow",
+    "OidcLoginAttemptRow",
     "OutboxEventRow",
     "OutboxRepository",
     "PostgresActionExecutionStore",
+    "PostgresBrowserAuthStore",
     "PostgresCorrelationLinkStore",
     "PostgresDiagnosisProgressRecorder",
     "PostgresFailedHealthVerificationRouter",

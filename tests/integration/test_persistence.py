@@ -38,6 +38,7 @@ from agentops_incident_commander.application import (
     ApprovalLifecycleChange,
     ApprovalLifecycleManager,
     AuthorizedRollbackExecution,
+    BrowserSession,
     ControlPlaneObservation,
     ControlPlaneObserver,
     ControlPlaneOperation,
@@ -46,6 +47,7 @@ from agentops_incident_commander.application import (
     EvidenceReferenceResolution,
     FailedHealthVerificationRouter,
     FederatedPrincipalResolver,
+    LoginAttempt,
     ModelCallTraceManager,
     PromptLifecycleChange,
     PromptLifecycleManager,
@@ -240,6 +242,7 @@ from agentops_incident_commander.infrastructure.persistence import (
     AuditEventRow,
     AuditRepository,
     AuditTenantSequenceRow,
+    BrowserSessionRow,
     CorrelationLinkRepository,
     CorrelationLinkRow,
     CorrelationStreamRow,
@@ -266,9 +269,11 @@ from agentops_incident_commander.infrastructure.persistence import (
     JobRow,
     ModelCallTraceRepository,
     ModelCallTraceRow,
+    OidcLoginAttemptRow,
     OutboxEventRow,
     OutboxRepository,
     PostgresActionExecutionStore,
+    PostgresBrowserAuthStore,
     PostgresCorrelationLinkStore,
     PostgresDiagnosisProgressRecorder,
     PostgresFailedHealthVerificationRouter,
@@ -372,7 +377,8 @@ async def engine(migrated_url: str) -> AsyncIterator[AsyncEngine]:
     async with value.begin() as connection:
         await connection.execute(
             text(
-                "TRUNCATE tenant_memberships, federated_identities, identity_users, tenants, "
+                "TRUNCATE browser_sessions, oidc_login_attempts, tenant_memberships, "
+                "federated_identities, identity_users, tenants, "
                 "postmortem_revisions, postmortems, alerts, alert_groups, "
                 "diagnosis_reports, diagnosis_progress, "
                 "incident_cancellation_requests, "
@@ -656,6 +662,7 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "action_executions",
         "audit_events",
         "audit_tenant_sequences",
+        "browser_sessions",
         "correlation_links",
         "correlation_streams",
         "evidence",
@@ -671,6 +678,7 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "idempotency_records",
         "jobs",
         "model_call_traces",
+        "oidc_login_attempts",
         "outbox_events",
         "prompt_lifecycle_events",
         "prompt_versions",
@@ -866,6 +874,86 @@ async def test_membership_roles_are_constrained_and_fail_closed_when_corrupted(
                 FederatedIdentity("https://identity.example.test", "duplicate-user"),
                 tenant_id=TenantId("tenant-duplicate"),
             )
+
+
+@pytest.mark.anyio
+async def test_browser_login_attempt_is_one_time_and_session_is_revocable(
+    engine: AsyncEngine,
+) -> None:
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with sessions.begin() as session:
+        session.add_all(
+            [
+                TenantRow(id="tenant-web", display_name="Web", active=True, created_at=NOW),
+                IdentityUserRow(id="actor-web", active=True, created_at=NOW),
+            ]
+        )
+        await session.flush()
+        session.add(
+            TenantMembershipRow(
+                actor_id="actor-web",
+                tenant_id="tenant-web",
+                roles=["VIEWER"],
+                active=True,
+                version=1,
+                created_at=NOW,
+                updated_at=NOW,
+            )
+        )
+
+    attempt = LoginAttempt(
+        state_hash="a" * 64,
+        transaction_hash="b" * 64,
+        tenant_id=TenantId("tenant-web"),
+        nonce="n" * 43,
+        code_verifier="v" * 86,
+        expires_at=NOW + timedelta(minutes=5),
+    )
+    async with sessions.begin() as session:
+        store = PostgresBrowserAuthStore(session)
+        await store.save_login_attempt(attempt, now=NOW)
+    async with sessions.begin() as session:
+        store = PostgresBrowserAuthStore(session)
+        assert (
+            await store.consume_login_attempt(
+                state_hash="a" * 64, transaction_hash="b" * 64, now=NOW
+            )
+            == attempt
+        )
+    async with sessions.begin() as session:
+        assert (
+            await PostgresBrowserAuthStore(session).consume_login_attempt(
+                state_hash="a" * 64, transaction_hash="b" * 64, now=NOW
+            )
+            is None
+        )
+
+    browser_session = BrowserSession(
+        session_hash="c" * 64,
+        csrf_hash="d" * 64,
+        principal=Principal(ActorId("actor-web"), TenantId("tenant-web"), frozenset({Role.VIEWER})),
+        expires_at=NOW + timedelta(hours=8),
+    )
+    async with sessions.begin() as session:
+        await PostgresBrowserAuthStore(session).create_session(browser_session, now=NOW)
+    async with sessions() as session:
+        assert (
+            await PostgresBrowserAuthStore(session).resolve_session(session_hash="c" * 64, now=NOW)
+            == browser_session
+        )
+    async with sessions.begin() as session:
+        await PostgresBrowserAuthStore(session).revoke_session(
+            session_hash="c" * 64, now=NOW + timedelta(minutes=1)
+        )
+    async with sessions() as session:
+        assert (
+            await PostgresBrowserAuthStore(session).resolve_session(
+                session_hash="c" * 64, now=NOW + timedelta(minutes=1)
+            )
+            is None
+        )
+        assert await session.scalar(select(func.count()).select_from(BrowserSessionRow)) == 1
+        assert await session.scalar(select(func.count()).select_from(OidcLoginAttemptRow)) == 1
 
 
 def correlation_link(

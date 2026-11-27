@@ -35,6 +35,13 @@ Checkboxes are completion claims. Check an item only when its acceptance criteri
     server-derived Tenant selection/session projection, logout, and no browser token storage.
   - Cover login success/refusal/expiry/logout, unauthorized and cross-Tenant routing, CSRF denial,
     and Next.js loading/error/accessibility states against the FastAPI contract.
+  - [x] P14B1: FastAPI OIDC login transaction, persistent browser session, CSRF, and logout.
+    - Delivered one-time state/transaction/nonce/PKCE binding, bounded HTTPS JWKS/token clients,
+      hashed revocable sessions, current-membership resolution, mutation CSRF, logout, migration,
+      and endpoint documentation. The 145-test focused unit matrix passes with 100% statement and
+      branch coverage across the five new/changed auth runtime modules; four PostgreSQL migration,
+      membership, one-time consumption, and revocation tests pass.
+  - [ ] P14B2: Next.js sign-in/tenant UI, same-origin forwarding, logout, and browser verification.
 - [ ] P14C: compose production API, worker, console, PostgreSQL, and observability services.
   - Separate entry points, health/readiness, migrations, bounded shutdown, exact networks and
     secrets, non-root/read-only runtime, durable worker leasing, and no production auth bypass.

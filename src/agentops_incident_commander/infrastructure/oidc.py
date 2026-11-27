@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import hmac
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol, cast
 from urllib.parse import urlsplit
 
+import httpx
 import jwt
 from jwt import InvalidTokenError, PyJWK, PyJWTError
 
@@ -61,7 +63,7 @@ class OidcTokenVerifier:
         self._settings = settings
         self._jwks = jwks
 
-    async def verify(self, token: str) -> FederatedIdentity:
+    async def verify(self, token: str, *, expected_nonce: str | None = None) -> FederatedIdentity:
         if not token or len(token.encode("utf-8")) > self._settings.max_token_bytes:
             raise AuthenticationError("OIDC token is absent or exceeds the size limit")
         try:
@@ -98,6 +100,119 @@ class OidcTokenVerifier:
                 leeway=self._settings.leeway_seconds,
                 options={"require": ["iss", "sub", "aud", "exp", "iat"]},
             )
+            if expected_nonce is not None:
+                nonce = claims.get("nonce")
+                if not isinstance(nonce, str) or not hmac.compare_digest(nonce, expected_nonce):
+                    raise AuthenticationError("OIDC token nonce validation failed")
             return FederatedIdentity(issuer=claims["iss"], subject=claims["sub"])
+        except AuthenticationError:
+            raise
         except (PyJWTError, KeyError, TypeError, ValueError) as exc:
             raise AuthenticationError("OIDC token validation failed") from exc
+
+
+class HttpJwksProvider:
+    """Fetch one bounded JWKS document over HTTPS with no redirect following."""
+
+    def __init__(
+        self,
+        url: str,
+        *,
+        timeout_seconds: float = 5.0,
+        max_response_bytes: int = 65_536,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
+        parsed = urlsplit(url)
+        if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
+            raise ValueError("JWKS URL must be HTTPS without user information")
+        if not 0.1 <= timeout_seconds <= 30:
+            raise ValueError("JWKS timeout must be between 0.1 and 30 seconds")
+        if not 1024 <= max_response_bytes <= 1_048_576:
+            raise ValueError("JWKS response bound must be between 1024 and 1048576 bytes")
+        self._url = url
+        self._timeout = timeout_seconds
+        self._max_response_bytes = max_response_bytes
+        self._transport = transport
+
+    async def load(self) -> Mapping[str, object]:
+        try:
+            async with httpx.AsyncClient(
+                timeout=self._timeout, follow_redirects=False, transport=self._transport
+            ) as client:
+                response = await client.get(self._url, headers={"Accept": "application/json"})
+            if response.status_code != 200 or len(response.content) > self._max_response_bytes:
+                raise AuthenticationError("OIDC JWKS endpoint returned an invalid response")
+            value = response.json()
+            if not isinstance(value, Mapping):
+                raise AuthenticationError("OIDC JWKS endpoint returned an invalid document")
+            return cast(Mapping[str, object], value)
+        except AuthenticationError:
+            raise
+        except (httpx.HTTPError, ValueError) as exc:
+            raise AuthenticationError("OIDC JWKS endpoint is unavailable") from exc
+
+
+class HttpOidcCodeClient:
+    """Exchange one PKCE authorization code for a bounded ID token response."""
+
+    def __init__(
+        self,
+        token_endpoint: str,
+        *,
+        client_id: str,
+        redirect_uri: str,
+        client_secret: str | None = None,
+        timeout_seconds: float = 5.0,
+        max_response_bytes: int = 65_536,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
+        for value in (token_endpoint, redirect_uri):
+            parsed = urlsplit(value)
+            if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
+                raise ValueError("OIDC token endpoint and redirect URI must be HTTPS")
+        if not client_id or len(client_id) > 255:
+            raise ValueError("OIDC client ID is invalid")
+        if client_secret is not None and not 16 <= len(client_secret) <= 4096:
+            raise ValueError("OIDC client secret is invalid")
+        if not 0.1 <= timeout_seconds <= 30:
+            raise ValueError("OIDC token timeout must be between 0.1 and 30 seconds")
+        if not 1024 <= max_response_bytes <= 1_048_576:
+            raise ValueError("OIDC token response bound must be between 1024 and 1048576 bytes")
+        self._token_endpoint = token_endpoint
+        self._client_id = client_id
+        self._client_secret = client_secret
+        self._redirect_uri = redirect_uri
+        self._timeout = timeout_seconds
+        self._max_response_bytes = max_response_bytes
+        self._transport = transport
+
+    async def exchange(self, *, code: str, code_verifier: str) -> str:
+        data = {
+            "grant_type": "authorization_code",
+            "client_id": self._client_id,
+            "redirect_uri": self._redirect_uri,
+            "code": code,
+            "code_verifier": code_verifier,
+        }
+        if self._client_secret is not None:
+            data["client_secret"] = self._client_secret
+        try:
+            async with httpx.AsyncClient(
+                timeout=self._timeout, follow_redirects=False, transport=self._transport
+            ) as client:
+                response = await client.post(
+                    self._token_endpoint,
+                    data=data,
+                    headers={"Accept": "application/json"},
+                )
+            if response.status_code != 200 or len(response.content) > self._max_response_bytes:
+                raise AuthenticationError("OIDC token exchange was rejected")
+            value = response.json()
+            token = value.get("id_token") if isinstance(value, Mapping) else None
+            if not isinstance(token, str) or not token or len(token) > 65_536:
+                raise AuthenticationError("OIDC token exchange omitted a bounded ID token")
+            return token
+        except AuthenticationError:
+            raise
+        except (httpx.HTTPError, ValueError) as exc:
+            raise AuthenticationError("OIDC token endpoint is unavailable") from exc

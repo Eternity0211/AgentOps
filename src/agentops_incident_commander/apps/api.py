@@ -12,8 +12,15 @@ from fastapi import FastAPI, Request, Response
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from starlette.middleware.base import RequestResponseEndpoint
 
+from agentops_incident_commander.application.browser_auth import BrowserAuthSettings
 from agentops_incident_commander.domain import ArtifactStorage, OpaqueIdentifier, utc_now
-from agentops_incident_commander.infrastructure import create_control_plane_observer
+from agentops_incident_commander.infrastructure import (
+    HttpJwksProvider,
+    HttpOidcCodeClient,
+    OidcTokenVerifier,
+    OidcVerifierSettings,
+    create_control_plane_observer,
+)
 
 from .api_contracts import install_openapi_contract
 from .api_errors import REQUEST_ID_HEADER, install_error_handlers
@@ -26,6 +33,7 @@ from .api_v1 import (
     deny_unconfigured_authentication,
     new_identifier,
 )
+from .browser_auth import BrowserAuthRuntime, build_browser_auth_router
 from .config import ApiSettings
 from .observability import ProcessControlPlaneObserver, shutdown_process_observer
 
@@ -41,6 +49,7 @@ def create_app(
     artifact_storage: ArtifactStorage | None = None,
     control_plane_observer: ProcessControlPlaneObserver | None = None,
     telemetry_environment: Mapping[str, str] | None = None,
+    browser_auth_runtime: BrowserAuthRuntime | None = None,
 ) -> FastAPI:
     """Create the HTTP process without starting worker tasks in its lifespan."""
     engine = None
@@ -55,6 +64,28 @@ def create_app(
             environment=telemetry_environment,
         )
     )
+    if browser_auth_runtime is None and settings.oidc is not None:
+        oidc = settings.oidc
+        browser_auth_runtime = BrowserAuthRuntime(
+            BrowserAuthSettings(
+                oidc.authorization_endpoint,
+                oidc.client_id,
+                oidc.redirect_uri,
+                oidc.login_ttl_seconds,
+                oidc.session_ttl_seconds,
+            ),
+            session_factory,
+            HttpOidcCodeClient(
+                oidc.token_endpoint,
+                client_id=oidc.client_id,
+                redirect_uri=oidc.redirect_uri,
+                client_secret=oidc.client_secret,
+            ),
+            OidcTokenVerifier(
+                OidcVerifierSettings(oidc.issuer, oidc.audience),
+                HttpJwksProvider(oidc.jwks_url),
+            ),
+        )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> Any:
@@ -85,10 +116,20 @@ def create_app(
     async def health() -> dict[str, str]:
         return {"status": "healthy", "role": "api"}
 
+    if browser_auth_runtime is not None:
+        app.include_router(build_browser_auth_router(browser_auth_runtime))
+
     app.include_router(
         build_api_v1_router(
             session_factory,
-            principal_resolver=principal_resolver or deny_unconfigured_authentication,
+            principal_resolver=(
+                principal_resolver
+                or (
+                    browser_auth_runtime.principal
+                    if browser_auth_runtime is not None
+                    else deny_unconfigured_authentication
+                )
+            ),
             clock=clock or utc_now,
             id_factory=id_factory or new_identifier,
             artifact_storage=artifact_storage,

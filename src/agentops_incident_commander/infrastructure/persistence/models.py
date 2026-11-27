@@ -163,6 +163,57 @@ class TenantMembershipRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class OidcLoginAttemptRow(Base):
+    """Short-lived one-time browser/authorization-server transaction binding."""
+
+    __tablename__ = "oidc_login_attempts"
+    __table_args__ = (
+        CheckConstraint("expires_at > created_at", name="ck_oidc_login_attempt_expiry"),
+        CheckConstraint(
+            "consumed_at IS NULL OR consumed_at >= created_at",
+            name="ck_oidc_login_attempt_consumed_time",
+        ),
+        Index("ix_oidc_login_attempts_expiry", "expires_at"),
+    )
+
+    state_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    transaction_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    tenant_id: Mapped[str] = mapped_column(
+        String(128), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    nonce: Mapped[str] = mapped_column(String(512), nullable=False)
+    code_verifier: Mapped[str] = mapped_column(String(512), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class BrowserSessionRow(Base):
+    """Revocable opaque browser session; raw bearer and CSRF values are never persisted."""
+
+    __tablename__ = "browser_sessions"
+    __table_args__ = (
+        CheckConstraint("expires_at > created_at", name="ck_browser_session_expiry"),
+        CheckConstraint(
+            "revoked_at IS NULL OR revoked_at >= created_at", name="ck_browser_session_revoked_time"
+        ),
+        Index("ix_browser_sessions_expiry", "expires_at"),
+        Index("ix_browser_sessions_actor_tenant", "actor_id", "tenant_id"),
+    )
+
+    id_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    csrf_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    actor_id: Mapped[str] = mapped_column(
+        String(128), ForeignKey("identity_users.id", ondelete="CASCADE"), nullable=False
+    )
+    tenant_id: Mapped[str] = mapped_column(
+        String(128), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class AuditTenantSequenceRow(Base):
     """Database-owned head for one tenant's contiguous audit sequence."""
 

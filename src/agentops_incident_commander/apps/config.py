@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 
 class ConfigurationError(ValueError):
@@ -66,6 +67,72 @@ def _boolean(environment: Mapping[str, str], name: str, default: bool) -> bool:
     raise ConfigurationError(f"{name} must be true or false")
 
 
+def _https_url(environment: Mapping[str, str], name: str) -> str:
+    value = _required(environment, name)
+    parsed = urlsplit(value)
+    if (
+        len(value) > 2048
+        or parsed.scheme != "https"
+        or not parsed.netloc
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.fragment
+    ):
+        raise ConfigurationError(f"{name} must be a bounded HTTPS URL")
+    return value
+
+
+@dataclass(frozen=True, slots=True)
+class OidcApiSettings:
+    issuer: str
+    audience: str
+    authorization_endpoint: str
+    token_endpoint: str
+    jwks_url: str
+    client_id: str
+    redirect_uri: str
+    client_secret: str | None
+    login_ttl_seconds: int
+    session_ttl_seconds: int
+
+    @classmethod
+    def load_optional(cls, environment: Mapping[str, str]) -> OidcApiSettings | None:
+        names = (
+            "AGENTOPS_OIDC_ISSUER",
+            "AGENTOPS_OIDC_AUDIENCE",
+            "AGENTOPS_OIDC_AUTHORIZATION_ENDPOINT",
+            "AGENTOPS_OIDC_TOKEN_ENDPOINT",
+            "AGENTOPS_OIDC_JWKS_URL",
+            "AGENTOPS_OIDC_CLIENT_ID",
+            "AGENTOPS_OIDC_REDIRECT_URI",
+        )
+        if not any(environment.get(name, "").strip() for name in names):
+            return None
+        secret = environment.get("AGENTOPS_OIDC_CLIENT_SECRET")
+        if secret is not None:
+            secret = secret.strip()
+            if not 16 <= len(secret) <= 4096:
+                raise ConfigurationError(
+                    "AGENTOPS_OIDC_CLIENT_SECRET must be between 16 and 4096 characters"
+                )
+        return cls(
+            issuer=_https_url(environment, "AGENTOPS_OIDC_ISSUER"),
+            audience=_required(environment, "AGENTOPS_OIDC_AUDIENCE"),
+            authorization_endpoint=_https_url(environment, "AGENTOPS_OIDC_AUTHORIZATION_ENDPOINT"),
+            token_endpoint=_https_url(environment, "AGENTOPS_OIDC_TOKEN_ENDPOINT"),
+            jwks_url=_https_url(environment, "AGENTOPS_OIDC_JWKS_URL"),
+            client_id=_required(environment, "AGENTOPS_OIDC_CLIENT_ID"),
+            redirect_uri=_https_url(environment, "AGENTOPS_OIDC_REDIRECT_URI"),
+            client_secret=secret,
+            login_ttl_seconds=_integer(
+                environment, "AGENTOPS_OIDC_LOGIN_TTL_SECONDS", 300, 60, 900
+            ),
+            session_ttl_seconds=_integer(
+                environment, "AGENTOPS_SESSION_TTL_SECONDS", 28_800, 300, 86_400
+            ),
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class ApiSettings:
     """Configuration owned only by the HTTP API process."""
@@ -73,6 +140,7 @@ class ApiSettings:
     database_url: str
     host: str
     port: int
+    oidc: OidcApiSettings | None = None
 
     @classmethod
     def load(cls, environment: Mapping[str, str]) -> ApiSettings:
@@ -80,6 +148,7 @@ class ApiSettings:
             database_url=_database_url(environment),
             host=environment.get("AGENTOPS_API_HOST", "0.0.0.0").strip() or "0.0.0.0",
             port=_integer(environment, "AGENTOPS_API_PORT", 8000),
+            oidc=OidcApiSettings.load_optional(environment),
         )
 
 

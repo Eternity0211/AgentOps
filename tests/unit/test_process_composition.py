@@ -61,7 +61,31 @@ def test_api_settings_load_defaults_and_overrides() -> None:
     )
 
     assert (defaults.host, defaults.port) == ("0.0.0.0", 8000)
+    assert defaults.oidc is None
     assert (overridden.host, overridden.port) == ("127.0.0.1", 8081)
+
+
+def test_api_settings_load_complete_oidc_boundary() -> None:
+    settings = config.ApiSettings.load(
+        {
+            "AGENTOPS_DATABASE_URL": DATABASE_URL,
+            "AGENTOPS_OIDC_ISSUER": "https://identity.example.test/realm",
+            "AGENTOPS_OIDC_AUDIENCE": "agentops",
+            "AGENTOPS_OIDC_AUTHORIZATION_ENDPOINT": "https://identity.example.test/authorize",
+            "AGENTOPS_OIDC_TOKEN_ENDPOINT": "https://identity.example.test/token",
+            "AGENTOPS_OIDC_JWKS_URL": "https://identity.example.test/jwks",
+            "AGENTOPS_OIDC_CLIENT_ID": "agentops",
+            "AGENTOPS_OIDC_CLIENT_SECRET": "s" * 32,
+            "AGENTOPS_OIDC_REDIRECT_URI": "https://console.example.test/auth/callback",
+            "AGENTOPS_OIDC_LOGIN_TTL_SECONDS": "120",
+            "AGENTOPS_SESSION_TTL_SECONDS": "3600",
+        }
+    )
+    assert settings.oidc is not None
+    assert settings.oidc.client_id == "agentops"
+    assert settings.oidc.client_secret == "s" * 32
+    assert settings.oidc.login_ttl_seconds == 120
+    assert settings.oidc.session_ttl_seconds == 3600
 
 
 def test_worker_settings_load_typed_values() -> None:
@@ -118,6 +142,23 @@ def test_worker_recovery_mutation_defaults_disabled() -> None:
             config.ApiSettings.load,
             {"AGENTOPS_DATABASE_URL": DATABASE_URL, "AGENTOPS_API_PORT": "0"},
             "between 1 and 65535",
+        ),
+        (
+            config.ApiSettings.load,
+            {
+                "AGENTOPS_DATABASE_URL": DATABASE_URL,
+                "AGENTOPS_OIDC_ISSUER": "http://identity.example.test",
+            },
+            "AGENTOPS_OIDC_ISSUER must be a bounded HTTPS URL",
+        ),
+        (
+            config.ApiSettings.load,
+            {
+                "AGENTOPS_DATABASE_URL": DATABASE_URL,
+                "AGENTOPS_OIDC_ISSUER": "https://identity.example.test",
+                "AGENTOPS_OIDC_CLIENT_SECRET": "short",
+            },
+            "CLIENT_SECRET must be between",
         ),
         (
             config.WorkerSettings.load,
@@ -198,6 +239,31 @@ def test_api_exposes_health_without_worker_routes_or_tasks() -> None:
     assert app.state.process_role == "api"
     assert app.state.settings is settings
     assert all("worker" not in getattr(route, "path", "") for route in app.routes)
+
+
+def test_api_composes_production_oidc_routes_when_fully_configured() -> None:
+    oidc = config.OidcApiSettings(
+        issuer="https://identity.example.test/realm",
+        audience="agentops",
+        authorization_endpoint="https://identity.example.test/authorize",
+        token_endpoint="https://identity.example.test/token",
+        jwks_url="https://identity.example.test/jwks",
+        client_id="agentops",
+        redirect_uri="https://console.example.test/auth/callback",
+        client_secret=None,
+        login_ttl_seconds=300,
+        session_ttl_seconds=3600,
+    )
+    app = api.create_app(
+        config.ApiSettings(DATABASE_URL, "127.0.0.1", 8000, oidc),
+        session_factory=cast(Any, lambda: None),
+    )
+    paths = {
+        getattr(child, "path", "")
+        for route in app.routes
+        for child in getattr(getattr(route, "original_router", None), "routes", [route])
+    }
+    assert {"/auth/login", "/auth/callback", "/auth/logout", "/api/v1/session"} <= paths
 
 
 def test_api_owns_one_observer_for_its_lifespan() -> None:

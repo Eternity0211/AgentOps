@@ -45,4 +45,6 @@ tests use non-secret placeholders. JWKS retrieval must be bounded by timeout, re
 TTL, and known-host TLS validation. A refresh failure never falls back to unverified claims.
 
 See [ADR 0011](ADR/0011-production-identity-and-web-deployment.md) for the decision and
-[AUTHORIZATION.md](AUTHORIZATION.md) for the permission model.
+[AUTHORIZATION.md](AUTHORIZATION.md) for the permission model. The implemented endpoint, cookie,
+PKCE, replay, CSRF, and logout contract is documented in
+[BROWSER_AUTH.md](BROWSER_AUTH.md).

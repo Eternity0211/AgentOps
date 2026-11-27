@@ -18,6 +18,7 @@ from .health_verification_routing import (
     PostgresFailedHealthVerificationRouter,
     PostgresSuccessfulHealthVerificationRouter,
 )
+from .identity import PostgresTenantMembershipStore
 from .models import (
     ActionExecutionEventRow,
     ActionExecutionLockRow,
@@ -37,8 +38,10 @@ from .models import (
     DiagnosisReportRow,
     EvidenceGateDecisionRow,
     EvidenceRow,
+    FederatedIdentityRow,
     HealthVerificationRunRow,
     IdempotencyRecordRow,
+    IdentityUserRow,
     IncidentCancellationRequestRow,
     IncidentMemoryEmbeddingRow,
     IncidentMemoryProjectionRow,
@@ -51,6 +54,8 @@ from .models import (
     PostmortemRow,
     PromptLifecycleEventRow,
     PromptVersionRow,
+    TenantMembershipRow,
+    TenantRow,
 )
 from .postmortem_repository import PostmortemRevisionRepository
 from .repositories import (
@@ -100,9 +105,11 @@ __all__ = [
     "EvidenceGateRepository",
     "EvidenceRepository",
     "EvidenceRow",
+    "FederatedIdentityRow",
     "HealthVerificationRepository",
     "HealthVerificationRunRow",
     "IdempotencyRecordRow",
+    "IdentityUserRow",
     "IncidentCancellationRequestRow",
     "IncidentMemoryEmbeddingRow",
     "IncidentMemoryProjectionRow",
@@ -122,12 +129,15 @@ __all__ = [
     "PostgresFailedHealthVerificationRouter",
     "PostgresLifecycleActionExecutionStore",
     "PostgresSuccessfulHealthVerificationRouter",
+    "PostgresTenantMembershipStore",
     "PostmortemRevisionRepository",
     "PostmortemRevisionRow",
     "PostmortemRow",
     "PromptLifecycleEventRow",
     "PromptLifecycleRepository",
     "PromptVersionRow",
+    "TenantMembershipRow",
+    "TenantRow",
     "correlation_link_from_row",
     "diagnosis_progress_from_row",
 ]

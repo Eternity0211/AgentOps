@@ -82,6 +82,11 @@ from .health_verification_routing import (
     SuccessfulHealthVerificationRouter,
     health_verification_closure_fingerprint,
 )
+from .identity import (
+    FederatedPrincipalResolver,
+    TenantMembership,
+    TenantMembershipStore,
+)
 from .memory_indexing import (
     IncidentMemoryEmbedder,
     IncidentMemoryIndexer,
@@ -205,6 +210,7 @@ __all__ = [
     "ExecutionIncidentStore",
     "FailedHealthVerificationRouter",
     "FailingVerificationRouter",
+    "FederatedPrincipalResolver",
     "HealthVerificationClosureStore",
     "HealthVerificationEvidenceReason",
     "HealthVerificationEvidenceReasonCode",
@@ -260,6 +266,8 @@ __all__ = [
     "RollbackWriteAdapter",
     "SimilarIncidentRetriever",
     "SuccessfulHealthVerificationRouter",
+    "TenantMembership",
+    "TenantMembershipStore",
     "ToolAdapter",
     "ToolAdapterContext",
     "ToolAdapterFailure",

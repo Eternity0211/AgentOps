@@ -12,6 +12,37 @@ Checkboxes are completion claims. Check an item only when its acceptance criteri
   desktop/mobile Chromium plus WCAG checks, supply-chain validation, staged-content review, atomic
   commit, and immediate push; monitor remote CI as the final handoff gate.
 
+## Phase 14: Production identity, web integration, and deployment
+
+- [x] P14A: implement the production identity authority boundary.
+  - Standard asymmetric OIDC verification binds exact issuer, audience, signature key, expiry,
+    issued-at time, token size, and required claims; unknown or ambiguous keys fail closed.
+  - Verified tokens yield only issuer/subject. Active AgentOps User, Tenant, membership, and Roles
+    are versioned PostgreSQL state; token Role/Tenant claims never grant authority.
+  - Migrate identity tables and cover anonymous, malformed, forged, expired, wrong issuer/audience,
+    cross-Tenant, inactive membership, corrupt Role, and constraint paths.
+  - Verification: Ruff, strict mypy, 100% unit coverage, migration upgrade/downgrade/upgrade and
+    PostgreSQL integration tests, architecture/planning validation, staged secret review, atomic
+    commit, and push.
+  - Delivered OIDC identity-only verification, four identity/membership tables, a fail-closed
+    PostgreSQL resolver, ADR 0011, and operator documentation. Fifty-four focused auth tests and
+    three PostgreSQL migration/membership tests pass; the new identity modules have 100% statement
+    and branch coverage. The broad Windows unit run passed 3,176 tests and exposed 12 pre-existing
+    path/newline/frozen-hash assumptions plus the expected unit-only persistence coverage gap;
+    frozen evaluation artifacts were not rewritten to conceal those unrelated failures.
+- [ ] P14B: implement OIDC Authorization Code with PKCE and same-origin console/API integration.
+  - Secure HttpOnly/SameSite session, callback/state/nonce/PKCE validation, CSRF protection,
+    server-derived Tenant selection/session projection, logout, and no browser token storage.
+  - Cover login success/refusal/expiry/logout, unauthorized and cross-Tenant routing, CSRF denial,
+    and Next.js loading/error/accessibility states against the FastAPI contract.
+- [ ] P14C: compose production API, worker, console, PostgreSQL, and observability services.
+  - Separate entry points, health/readiness, migrations, bounded shutdown, exact networks and
+    secrets, non-root/read-only runtime, durable worker leasing, and no production auth bypass.
+  - Verify clean build/start, migration, login, API query, worker job, restart/resume, and shutdown.
+- [ ] P14D: publish reproducible production-control-plane acceptance evidence.
+  - Run unit/integration/browser/security/Compose suites, record exact versions and limitations,
+    and provide one-command operator setup and visual acceptance instructions.
+
 ## Final closure and comparative validation plan (authoritative, 2026-11-12)
 
 This section is the single authoritative remaining-work list. Older unchecked R/C summary items

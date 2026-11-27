@@ -57,6 +57,7 @@ from .audit_completeness import (
 )
 from .auth import (
     ROLE_PERMISSIONS,
+    FederatedIdentity,
     Permission,
     Principal,
     Role,
@@ -560,6 +561,7 @@ __all__ = [
     "EvidenceSourceType",
     "EvidenceValidation",
     "EvidenceValidationStatus",
+    "FederatedIdentity",
     "HealthVerificationCriteria",
     "HealthVerificationDecision",
     "HealthVerificationObservation",

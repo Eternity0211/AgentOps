@@ -1,8 +1,10 @@
 # Authentication principal and RBAC
 
 Phase 2 defines a framework-free `Principal` containing a validated Actor ID, Tenant ID, and one or
-more explicit roles. Authentication adapters may be added later, but anonymous input never becomes
-a principal: authorization entry points reject `None` before evaluating permissions.
+more explicit roles. The production identity boundary verifies an OIDC issuer, subject, audience,
+signature, expiry, and issued-at time, then resolves the identity through active server-owned User,
+Tenant, and membership records. Anonymous input never becomes a principal: authorization entry
+points reject `None` before evaluating permissions.
 
 The deterministic permission matrix is least-privilege and additive:
 
@@ -31,8 +33,9 @@ from the authenticated Principal and rejects anonymous, cross-tenant, or caller-
 
 Tests exhaust the role map and prove rejection of anonymous, roleless, underprivileged, cross-tenant,
 self-approval, wrong-role approval, and cross-tenant approval requests. The `/api/v1` endpoint
-dependencies now enforce these contracts; the deployment-owned authentication adapter remains
-future work, and its absence fails closed rather than trusting caller-supplied identity headers.
+dependencies enforce these contracts. The production adapter never trusts caller-supplied Actor,
+Tenant, Role, or permission headers. Token Tenant/Role claims are ignored; only PostgreSQL
+membership constructs the Principal. See [PRODUCTION_IDENTITY.md](PRODUCTION_IDENTITY.md).
 
 The Phase 8 Approval lifecycle rechecks these permissions in the application service rather than
 trusting a UI or transport. Requester identity and complete role assignment must exactly match the

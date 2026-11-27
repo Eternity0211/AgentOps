@@ -57,6 +57,7 @@ from .mock_model import (
     MockModelScenario,
     MockModelTimeout,
 )
+from .oidc import JwksProvider, OidcTokenVerifier, OidcVerifierSettings
 from .persisted_health_verification import (
     HEALTH_VERIFICATION_DECISION_AUDIT_SCHEMA_VERSION,
     PostgresPersistedHealthVerifier,
@@ -101,6 +102,7 @@ __all__ = [
     "HealthVerificationCollectionIds",
     "HealthVerificationCollectionRequest",
     "ImmutableActionSnapshotWriter",
+    "JwksProvider",
     "LiveHealthVerificationCollector",
     "LocalSimulatorRollbackBackend",
     "MockDiagnosisRequest",
@@ -113,6 +115,8 @@ __all__ = [
     "NewAlertCountResult",
     "NewAlertCountSample",
     "ObservedCheckpointSaver",
+    "OidcTokenVerifier",
+    "OidcVerifierSettings",
     "OpenTelemetryControlPlaneObserver",
     "PostgresPersistedHealthVerifier",
     "PostmortemMockScenario",

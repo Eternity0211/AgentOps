@@ -8,6 +8,7 @@ from datetime import datetime
 from pgvector.sqlalchemy import VECTOR
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     DateTime,
     FetchedValue,
@@ -90,6 +91,76 @@ _CORRELATION_COMPONENTS = ", ".join(f"'{value.value}'" for value in CorrelationC
 
 class Base(DeclarativeBase):
     """Metadata root for control-plane migrations."""
+
+
+class TenantRow(Base):
+    """Server-owned tenant boundary used by authentication and every business aggregate."""
+
+    __tablename__ = "tenants"
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class IdentityUserRow(Base):
+    """Minimal application user; credentials remain owned by the external IdP."""
+
+    __tablename__ = "identity_users"
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class FederatedIdentityRow(Base):
+    """Exact OIDC issuer/subject binding to one immutable application actor."""
+
+    __tablename__ = "federated_identities"
+    __table_args__ = (
+        UniqueConstraint("actor_id", "issuer", name="uq_federated_identity_actor_issuer"),
+    )
+
+    issuer: Mapped[str] = mapped_column(String(2048), primary_key=True)
+    subject: Mapped[str] = mapped_column(String(255), primary_key=True)
+    actor_id: Mapped[str] = mapped_column(
+        String(128), ForeignKey("identity_users.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class TenantMembershipRow(Base):
+    """Versioned least-privilege roles assigned by AgentOps, never by token claims."""
+
+    __tablename__ = "tenant_memberships"
+    __table_args__ = (
+        CheckConstraint(
+            "jsonb_typeof(roles) = 'array' AND jsonb_array_length(roles) BETWEEN 1 AND 4",
+            name="ck_tenant_membership_role_count",
+        ),
+        CheckConstraint(
+            'roles <@ \'["VIEWER","OPERATOR","APPROVER","ADMIN"]\'::jsonb',
+            name="ck_tenant_membership_roles_allowed",
+        ),
+        CheckConstraint("version >= 1", name="ck_tenant_membership_version"),
+        CheckConstraint("updated_at >= created_at", name="ck_tenant_membership_time_order"),
+        Index("ix_tenant_memberships_tenant_active", "tenant_id", "active"),
+    )
+
+    actor_id: Mapped[str] = mapped_column(
+        String(128),
+        ForeignKey("identity_users.id", ondelete="RESTRICT"),
+        primary_key=True,
+    )
+    tenant_id: Mapped[str] = mapped_column(
+        String(128), ForeignKey("tenants.id", ondelete="RESTRICT"), primary_key=True
+    )
+    roles: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class AuditTenantSequenceRow(Base):

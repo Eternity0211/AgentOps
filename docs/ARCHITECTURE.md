@@ -338,6 +338,10 @@ Prometheus/Loki/Tempo/Grafana, OTel Collector, and simulator services. The check
 stack currently runs control-plane PostgreSQL, the simulator, and observability; API and worker are
 installed process entry points, and the console remains a separately verified workspace. This
 repository does not claim those three surfaces are already composed as one production deployment.
+The production identity boundary follows [ADR 0011](ADR/0011-production-identity-and-web-deployment.md):
+OIDC verifies only the external issuer/subject while active Tenant membership and Roles come from
+the control-plane database. Browser credentials remain in a same-origin HttpOnly session; the API
+constructs the Principal and the worker has no interactive authentication surface.
 The simulator includes its own PostgreSQL and Redis as diagnosed dependencies. Redis is not a
 control-plane queue or cache in the MVP. Runtime and Ground Truth use different Compose files,
 profiles, networks, mounts, and credentials so runtime containers cannot read evaluation labels.

@@ -14,5 +14,6 @@ ADRs capture decisions that constrain implementation. Accepted ADRs are immutabl
 | [0008](0008-evaluation-effect-replay.md) | Commit and verify evaluation effects independently of graph checkpoints | Accepted |
 | [0009](0009-bounded-tool-progress-retries.md) | Preserve bounded prior tool attempts when resuming read progress | Accepted |
 | [0010](0010-post-core-options-and-queue-cap.md) | Resolve post-core options and cap the current PostgreSQL worker configuration | Accepted |
+| [0011](0011-production-identity-and-web-deployment.md) | Production OIDC identity, server-owned tenant roles, and separated web deployment | Accepted |
 
 New ADRs use `NNNN-short-title.md` and contain context, decision, consequences, alternatives, and verification.

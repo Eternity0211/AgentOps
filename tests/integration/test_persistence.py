@@ -45,6 +45,7 @@ from agentops_incident_commander.application import (
     EvidenceBoundRemediationProposal,
     EvidenceReferenceResolution,
     FailedHealthVerificationRouter,
+    FederatedPrincipalResolver,
     ModelCallTraceManager,
     PromptLifecycleChange,
     PromptLifecycleManager,
@@ -90,6 +91,7 @@ from agentops_incident_commander.domain import (
     AuditEventId,
     AuditSubjectBinding,
     AuditTarget,
+    AuthenticationError,
     AuthorizationError,
     CausationId,
     CorrelationComponent,
@@ -108,6 +110,7 @@ from agentops_incident_commander.domain import (
     EvidenceLineage,
     EvidenceQuality,
     EvidenceSourceType,
+    FederatedIdentity,
     HealthVerificationCriteria,
     HealthVerificationDecision,
     HealthVerificationObservation,
@@ -247,9 +250,11 @@ from agentops_incident_commander.infrastructure.persistence import (
     EvidenceGateRepository,
     EvidenceRepository,
     EvidenceRow,
+    FederatedIdentityRow,
     HealthVerificationRepository,
     HealthVerificationRunRow,
     IdempotencyRecordRow,
+    IdentityUserRow,
     IncidentCancellationRequestRow,
     IncidentMemoryEmbeddingRow,
     IncidentMemoryProjectionRow,
@@ -269,12 +274,15 @@ from agentops_incident_commander.infrastructure.persistence import (
     PostgresFailedHealthVerificationRouter,
     PostgresLifecycleActionExecutionStore,
     PostgresSuccessfulHealthVerificationRouter,
+    PostgresTenantMembershipStore,
     PostmortemRevisionRepository,
     PostmortemRevisionRow,
     PostmortemRow,
     PromptLifecycleEventRow,
     PromptLifecycleRepository,
     PromptVersionRow,
+    TenantMembershipRow,
+    TenantRow,
     diagnosis_progress_from_row,
 )
 from agentops_incident_commander.infrastructure.tool_adapters import (
@@ -364,7 +372,8 @@ async def engine(migrated_url: str) -> AsyncIterator[AsyncEngine]:
     async with value.begin() as connection:
         await connection.execute(
             text(
-                "TRUNCATE postmortem_revisions, postmortems, alerts, alert_groups, "
+                "TRUNCATE tenant_memberships, federated_identities, identity_users, tenants, "
+                "postmortem_revisions, postmortems, alerts, alert_groups, "
                 "diagnosis_reports, diagnosis_progress, "
                 "incident_cancellation_requests, "
                 "incident_transitions, health_verification_runs, evidence, "
@@ -654,6 +663,7 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "diagnosis_progress",
         "diagnosis_reports",
         "incidents",
+        "identity_users",
         "incident_transitions",
         "incident_cancellation_requests",
         "incident_memory_embeddings",
@@ -666,6 +676,9 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
         "prompt_versions",
         "postmortem_revisions",
         "postmortems",
+        "federated_identities",
+        "tenant_memberships",
+        "tenants",
     } <= names
     async with engine.connect() as connection:
         assert await connection.scalar(
@@ -709,6 +722,150 @@ async def test_migration_created_expected_tables_and_constraints(engine: AsyncEn
                 "WHERE conname='fk_jobs_incident_tenant')"
             )
         )
+
+
+@pytest.mark.anyio
+async def test_verified_identity_resolves_only_active_server_owned_membership(
+    engine: AsyncEngine,
+) -> None:
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with session_factory() as session:
+        session.add_all(
+            [
+                TenantRow(
+                    id="tenant-identity",
+                    display_name="Identity tenant",
+                    active=True,
+                    created_at=NOW,
+                ),
+                TenantRow(
+                    id="tenant-other",
+                    display_name="Other tenant",
+                    active=True,
+                    created_at=NOW,
+                ),
+                IdentityUserRow(id="actor-identity", active=True, created_at=NOW),
+            ]
+        )
+        await session.flush()
+        session.add(
+            FederatedIdentityRow(
+                issuer="https://identity.example.test/realms/agentops",
+                subject="external-user",
+                actor_id="actor-identity",
+                created_at=NOW,
+            )
+        )
+        session.add(
+            TenantMembershipRow(
+                actor_id="actor-identity",
+                tenant_id="tenant-identity",
+                roles=["OPERATOR", "APPROVER"],
+                active=True,
+                version=1,
+                created_at=NOW,
+                updated_at=NOW,
+            )
+        )
+        await session.commit()
+
+        identity = FederatedIdentity(
+            "https://identity.example.test/realms/agentops", "external-user"
+        )
+        resolver = FederatedPrincipalResolver(PostgresTenantMembershipStore(session))
+        principal = await resolver.resolve(identity, tenant_id=TenantId("tenant-identity"))
+        assert principal.actor_id == ActorId("actor-identity")
+        assert principal.roles == {Role.OPERATOR, Role.APPROVER}
+
+        with pytest.raises(AuthenticationError, match="no active tenant"):
+            await resolver.resolve(identity, tenant_id=TenantId("tenant-other"))
+
+        membership = await session.get(
+            TenantMembershipRow,
+            {"actor_id": "actor-identity", "tenant_id": "tenant-identity"},
+        )
+        assert membership is not None
+        membership.active = False
+        await session.commit()
+        with pytest.raises(AuthenticationError, match="no active tenant"):
+            await resolver.resolve(identity, tenant_id=TenantId("tenant-identity"))
+
+
+@pytest.mark.anyio
+async def test_membership_roles_are_constrained_and_fail_closed_when_corrupted(
+    engine: AsyncEngine,
+) -> None:
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with session_factory() as session:
+        session.add_all(
+            [
+                TenantRow(id="tenant-roles", display_name="Roles", active=True, created_at=NOW),
+                IdentityUserRow(id="actor-roles", active=True, created_at=NOW),
+            ]
+        )
+        await session.flush()
+        session.add_all(
+            [
+                FederatedIdentityRow(
+                    issuer="https://identity.example.test",
+                    subject="role-user",
+                    actor_id="actor-roles",
+                    created_at=NOW,
+                ),
+                TenantMembershipRow(
+                    actor_id="actor-roles",
+                    tenant_id="tenant-roles",
+                    roles=["ROOT"],
+                    active=True,
+                    version=1,
+                    created_at=NOW,
+                    updated_at=NOW,
+                ),
+            ]
+        )
+        with pytest.raises(IntegrityError):
+            await session.commit()
+        await session.rollback()
+
+    async with engine.begin() as connection:
+        await connection.execute(
+            text(
+                "INSERT INTO tenants(id, display_name, active, created_at) "
+                "VALUES ('tenant-duplicate', 'Duplicate', true, :now)"
+            ),
+            {"now": NOW},
+        )
+        await connection.execute(
+            text(
+                "INSERT INTO identity_users(id, active, created_at) "
+                "VALUES ('actor-duplicate', true, :now)"
+            ),
+            {"now": NOW},
+        )
+        await connection.execute(
+            text(
+                "INSERT INTO federated_identities(issuer, subject, actor_id, created_at) "
+                "VALUES ('https://identity.example.test', 'duplicate-user', "
+                "'actor-duplicate', :now)"
+            ),
+            {"now": NOW},
+        )
+        await connection.execute(
+            text(
+                "INSERT INTO tenant_memberships"
+                "(actor_id, tenant_id, roles, active, version, created_at, updated_at) "
+                "VALUES ('actor-duplicate', 'tenant-duplicate', "
+                '\'["VIEWER","VIEWER"]\'::jsonb, true, 1, :now, :now)'
+            ),
+            {"now": NOW},
+        )
+    async with session_factory() as session:
+        store = PostgresTenantMembershipStore(session)
+        with pytest.raises(AuthenticationError, match="roles are invalid"):
+            await store.get_active_membership(
+                FederatedIdentity("https://identity.example.test", "duplicate-user"),
+                tenant_id=TenantId("tenant-duplicate"),
+            )
 
 
 def correlation_link(

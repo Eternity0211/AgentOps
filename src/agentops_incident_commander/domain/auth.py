@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from urllib.parse import urlsplit
 
 from .errors import AuthenticationError, AuthorizationError, InvalidDomainValueError
 from .values import ActorId, TenantId
@@ -43,6 +44,39 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
     Role.APPROVER: _READ | {Permission.APPROVAL_DECIDE},
     Role.ADMIN: _READ | {Permission.ADMIN_MANAGE},
 }
+
+
+@dataclass(frozen=True, slots=True)
+class FederatedIdentity:
+    """One externally authenticated subject, without application authority."""
+
+    issuer: str
+    subject: str
+
+    def __post_init__(self) -> None:
+        try:
+            issuer = self.issuer.strip()
+            subject = self.subject.strip()
+            parsed = urlsplit(issuer)
+        except (AttributeError, ValueError) as exc:
+            raise InvalidDomainValueError(
+                "identity issuer and subject must be valid strings"
+            ) from exc
+        if (
+            issuer != self.issuer
+            or len(issuer) > 2048
+            or parsed.scheme != "https"
+            or not parsed.netloc
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise InvalidDomainValueError("identity issuer must be a bounded HTTPS issuer URL")
+        if subject != self.subject or not subject or len(subject) > 255:
+            raise InvalidDomainValueError("identity subject must be between 1 and 255 characters")
+        if any(ord(character) < 32 or ord(character) == 127 for character in subject):
+            raise InvalidDomainValueError("identity subject cannot contain control characters")
 
 
 @dataclass(frozen=True, slots=True)
